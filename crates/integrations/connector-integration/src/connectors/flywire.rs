@@ -6,8 +6,9 @@ use domain_types::{
     connector_types::{
         ConnectorWebhookSecrets, EventContext, EventType, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RequestDetails, WebhookDetailsResponse,
+        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RequestDetails,
+        WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -132,16 +133,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        // Spec: https://developers.flywire.com/education/Content/notifications-from-flywire.htm
+        // Header is `X-Flywire-Digest`, value is Base64(HMAC-SHA256(raw_body, shared_secret)).
         let signature_header = request
             .headers
-            .get("x-flywire-signature")
-            .or_else(|| request.headers.get("X-Flywire-Signature"))
+            .get("x-flywire-digest")
+            .or_else(|| request.headers.get("X-Flywire-Digest"))
             .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))
-            .attach_printable("Missing incoming webhook signature for Flywire")?;
+            .attach_printable("Missing X-Flywire-Digest header on incoming Flywire webhook")?;
 
-        // Flywire HMAC SHA-256 signature is hex-encoded.
-        hex::decode(signature_header.trim())
-            .attach_printable("Failed to decode hex signature")
+        use base64::Engine;
+        base64::engine::general_purpose::STANDARD
+            .decode(signature_header.trim())
+            .attach_printable("Failed to base64-decode X-Flywire-Digest header")
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
@@ -193,7 +197,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
-        br#"{"event":"payment.guaranteed","payment_id":"sample","status":"guaranteed"}"#
+        br#"{"event_type":"guaranteed","event_date":"2026-01-01T00:00:00Z","event_resource":"payments","data":{"payment_id":"PTU000000000","status":"guaranteed","external_reference":"sample"}}"#
     }
 
     fn get_event_type(
@@ -219,7 +223,28 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("FlywireWebhookBody")
             .attach_printable("Failed to parse Flywire webhook body")
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
-        let response = WebhookDetailsResponse::try_from(notif)
+        let response = WebhookDetailsResponse::try_from(&notif)
+            .change_context(WebhookError::WebhookResponseEncodingFailed);
+
+        response.map(|mut response| {
+            response.raw_connector_response =
+                Some(String::from_utf8_lossy(&request.body).to_string());
+            response
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let notif: flywire::FlywireWebhookBody = request
+            .body
+            .parse_struct("FlywireWebhookBody")
+            .attach_printable("Failed to parse Flywire webhook body")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        let response = RefundWebhookDetailsResponse::try_from(&notif)
             .change_context(WebhookError::WebhookResponseEncodingFailed);
 
         response.map(|mut response| {

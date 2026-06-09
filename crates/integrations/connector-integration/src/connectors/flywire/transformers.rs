@@ -7,7 +7,8 @@ use domain_types::{
     connector_types::{
         EventType, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
         PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId, WebhookDetailsResponse,
+        RefundSyncData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, ResponseId,
+        WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -363,10 +364,13 @@ pub struct FlywirePayment {
 #[serde(rename_all = "lowercase")]
 pub enum FlywirePaymentStatus {
     Initiated,
+    Authorized,
+    Adjusted,
     Processed,
     Guaranteed,
     Delivered,
     Cancelled,
+    Reversed,
     Failed,
     Expired,
     Pending,
@@ -378,7 +382,9 @@ impl FlywirePaymentStatus {
     pub fn to_attempt_status(&self) -> AttemptStatus {
         match self {
             Self::Guaranteed | Self::Delivered => AttemptStatus::Charged,
+            Self::Authorized | Self::Adjusted => AttemptStatus::Authorized,
             Self::Cancelled | Self::Failed | Self::Expired => AttemptStatus::Failure,
+            Self::Reversed => AttemptStatus::AutoRefunded,
             Self::Initiated | Self::Processed | Self::Pending | Self::Unknown => {
                 AttemptStatus::Pending
             }
@@ -387,7 +393,7 @@ impl FlywirePaymentStatus {
 
     pub fn to_refund_status(&self) -> RefundStatus {
         match self {
-            Self::Guaranteed | Self::Delivered => RefundStatus::Pending,
+            Self::Guaranteed | Self::Delivered | Self::Reversed => RefundStatus::Pending,
             Self::Cancelled => RefundStatus::Success,
             Self::Failed | Self::Expired => RefundStatus::Failure,
             _ => RefundStatus::Pending,
@@ -716,37 +722,134 @@ pub struct FlywireErrorDetail {
 
 // =============================================================================
 // Webhook
+//
+// Spec: https://developers.flywire.com/education/Content/notifications-from-flywire.htm
+//
+// Top-level shape (both payments and refunds):
+//   {
+//     "event_type":     "<status name>",
+//     "event_date":     "<RFC3339 timestamp>",
+//     "event_resource": "payments" | "charges" | "refunds",
+//     "data": { ... resource-specific fields ... }
+//   }
 // =============================================================================
+
+/// Tag used by Flywire to route a webhook between payment-status and refund-status
+/// payloads. `charges` is the legacy partial-capture variant of `payments` and
+/// uses the same body schema; we treat them identically.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum FlywireWebhookResource {
+    Payments,
+    Charges,
+    Refunds,
+    #[serde(other)]
+    Unknown,
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FlywireWebhookBody {
-    #[serde(rename = "event")]
-    pub event_type: Option<String>,
-    pub payment_id: Option<String>,
+    pub event_type: String,
+    #[serde(default)]
+    pub event_date: Option<String>,
+    pub event_resource: FlywireWebhookResource,
+    pub data: serde_json::Value,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct FlywirePaymentWebhookData {
+    pub payment_id: String,
+    pub status: FlywirePaymentStatus,
     #[serde(default)]
     pub external_reference: Option<String>,
     #[serde(default)]
-    pub status: Option<FlywirePaymentStatus>,
+    pub amount_from: Option<String>,
+    #[serde(default)]
+    pub currency_from: Option<String>,
+    #[serde(default)]
+    pub amount_to: Option<String>,
+    #[serde(default)]
+    pub currency_to: Option<String>,
 }
 
-impl TryFrom<FlywireWebhookBody> for WebhookDetailsResponse {
+/// Refund-resource webhook payload. Flywire uses a separate set of statuses
+/// for refund events (the documented values are `initiated`, `received`,
+/// `finished`, `cancelled`, `returned`, `failed`). We model just success vs.
+/// failure here; everything else maps to Pending.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum FlywireRefundWebhookStatus {
+    Initiated,
+    Received,
+    Finished,
+    Cancelled,
+    Returned,
+    Failed,
+    #[serde(other)]
+    Unknown,
+}
+
+impl FlywireRefundWebhookStatus {
+    pub fn to_refund_status(&self) -> RefundStatus {
+        match self {
+            Self::Finished => RefundStatus::Success,
+            Self::Cancelled | Self::Returned | Self::Failed => RefundStatus::Failure,
+            Self::Initiated | Self::Received | Self::Unknown => RefundStatus::Pending,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct FlywireRefundWebhookData {
+    pub refund_id: String,
+    #[serde(default)]
+    pub payment_id: Option<String>,
+    pub status: FlywireRefundWebhookStatus,
+    #[serde(default)]
+    pub external_reference: Option<String>,
+    #[serde(default)]
+    pub amount: Option<String>,
+    #[serde(default)]
+    pub currency: Option<String>,
+}
+
+impl FlywireWebhookBody {
+    pub fn parse_payment_data(
+        &self,
+    ) -> Result<FlywirePaymentWebhookData, error_stack::Report<IntegrationError>> {
+        serde_json::from_value(self.data.clone())
+            .map_err(|_| IntegrationError::InvalidDataFormat {
+                field_name: "flywire webhook data",
+                context: Default::default(),
+            })
+            .map_err(error_stack::Report::from)
+    }
+
+    pub fn parse_refund_data(
+        &self,
+    ) -> Result<FlywireRefundWebhookData, error_stack::Report<IntegrationError>> {
+        serde_json::from_value(self.data.clone())
+            .map_err(|_| IntegrationError::InvalidDataFormat {
+                field_name: "flywire webhook data",
+                context: Default::default(),
+            })
+            .map_err(error_stack::Report::from)
+    }
+}
+
+impl TryFrom<&FlywireWebhookBody> for WebhookDetailsResponse {
     type Error = error_stack::Report<IntegrationError>;
 
-    fn try_from(body: FlywireWebhookBody) -> Result<Self, Self::Error> {
-        let status = body
-            .status
-            .as_ref()
-            .map(|s| s.to_attempt_status())
-            .unwrap_or(AttemptStatus::Pending);
-
+    fn try_from(body: &FlywireWebhookBody) -> Result<Self, Self::Error> {
+        let data = body.parse_payment_data()?;
         Ok(Self {
-            resource_id: body.payment_id.map(ResponseId::ConnectorTransactionId),
-            status,
+            resource_id: Some(ResponseId::ConnectorTransactionId(data.payment_id)),
+            status: data.status.to_attempt_status(),
             error_code: None,
             error_message: None,
             error_reason: None,
             status_code: 200,
-            connector_response_reference_id: body.external_reference,
+            connector_response_reference_id: data.external_reference,
             mandate_reference: None,
             raw_connector_response: None,
             response_headers: None,
@@ -759,16 +862,65 @@ impl TryFrom<FlywireWebhookBody> for WebhookDetailsResponse {
     }
 }
 
+impl TryFrom<&FlywireWebhookBody> for RefundWebhookDetailsResponse {
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(body: &FlywireWebhookBody) -> Result<Self, Self::Error> {
+        let data = body.parse_refund_data()?;
+        Ok(Self {
+            connector_refund_id: Some(data.refund_id),
+            status: data.status.to_refund_status(),
+            connector_response_reference_id: data.external_reference,
+            error_code: None,
+            error_message: None,
+            raw_connector_response: None,
+            status_code: 200,
+            response_headers: None,
+        })
+    }
+}
+
 pub fn webhook_event_type(body: &FlywireWebhookBody) -> EventType {
-    match body.status.as_ref() {
-        Some(FlywirePaymentStatus::Guaranteed | FlywirePaymentStatus::Delivered) => {
-            EventType::PaymentIntentSuccess
+    match body.event_resource {
+        FlywireWebhookResource::Refunds => {
+            let status = body
+                .parse_refund_data()
+                .ok()
+                .map(|d| d.status)
+                .unwrap_or(FlywireRefundWebhookStatus::Unknown);
+            match status {
+                FlywireRefundWebhookStatus::Finished => EventType::RefundSuccess,
+                FlywireRefundWebhookStatus::Cancelled
+                | FlywireRefundWebhookStatus::Returned
+                | FlywireRefundWebhookStatus::Failed => EventType::RefundFailure,
+                FlywireRefundWebhookStatus::Initiated
+                | FlywireRefundWebhookStatus::Received
+                | FlywireRefundWebhookStatus::Unknown => EventType::PaymentIntentProcessing,
+            }
         }
-        Some(
-            FlywirePaymentStatus::Cancelled
-            | FlywirePaymentStatus::Failed
-            | FlywirePaymentStatus::Expired,
-        ) => EventType::PaymentIntentFailure,
-        _ => EventType::PaymentIntentSuccess,
+        FlywireWebhookResource::Payments
+        | FlywireWebhookResource::Charges
+        | FlywireWebhookResource::Unknown => {
+            let status = body
+                .parse_payment_data()
+                .ok()
+                .map(|d| d.status)
+                .unwrap_or(FlywirePaymentStatus::Unknown);
+            match status {
+                FlywirePaymentStatus::Guaranteed | FlywirePaymentStatus::Delivered => {
+                    EventType::PaymentIntentSuccess
+                }
+                FlywirePaymentStatus::Cancelled
+                | FlywirePaymentStatus::Failed
+                | FlywirePaymentStatus::Expired => EventType::PaymentIntentFailure,
+                FlywirePaymentStatus::Authorized => EventType::PaymentIntentAuthorizationSuccess,
+                FlywirePaymentStatus::Reversed => EventType::RefundSuccess,
+                FlywirePaymentStatus::Initiated
+                | FlywirePaymentStatus::Adjusted
+                | FlywirePaymentStatus::Processed
+                | FlywirePaymentStatus::Pending
+                | FlywirePaymentStatus::Unknown => EventType::PaymentIntentProcessing,
+            }
+        }
     }
 }
