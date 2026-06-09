@@ -226,6 +226,15 @@ macro_rules! expand_fn_get_request_body {
                 let request = bridge.request_body(input_data)?;
                 let soap_xml = <$curl_req as GetSoapXml>::to_soap_xml(&request);
 
+                if stringify!($connector) == "TsysTransit" {
+                    tracing::info!(
+                        connector = "tsysTransit",
+                        flow = stringify!($flow),
+                        raw_request_xml = %soap_xml,
+                        "tsysTransit raw connector request"
+                    );
+                }
+
                 // Validate XML structure before sending
                 crate::connectors::macros::validate_xml_structure(&soap_xml)
                     .map_err(|e| {
