@@ -138,6 +138,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
         enrolled_for_3ds: Some(true),
         request_incremental_authorization: Some(false),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: Some(CONNECTOR_CUSTOMER_ID.to_string()),

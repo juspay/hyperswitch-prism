@@ -140,6 +140,23 @@ message Customer {
   optional string first_name = 7;       // Customer's first name
   optional string last_name = 8;        // Customer's last name
   optional string salutation = 9;       // Customer's salutation (Mr., Ms., etc.)
+  optional CustomerDocumentDetails customer_document_details =
+      10; // Customer identification document
+}
+
+// Type of customer identification document.
+enum DocumentKind {
+  DOCUMENT_KIND_UNSPECIFIED = 0; // Default, unspecified document type.
+  CPF = 1; // Cadastro de Pessoas Físicas - Brazilian individual taxpayer ID.
+  CNPJ = 2; // Cadastro Nacional da Pessoa Jurídica - Brazilian business ID.
+  PSN = 3; // Philippine PhilSys Number (12-digit national ID), required by dLocal for GCash.
+  OTHER = 4; // Generic / other non-Brazilian national document; the connector validates it per country. Kept last as the catch-all.
+}
+
+// Customer's country-specific identification document.
+message CustomerDocumentDetails {
+  DocumentKind document_type = 1;   // The customer's document type
+  SecretString document_number = 2; // The customer's document number
 }
 
 // ============================================================================
@@ -2954,8 +2971,11 @@ message RecurringPaymentServiceChargeRequest {
   // Level 2 / Level 3 data for enhanced payment processing
   optional L2L3Data l2_l3_data = 31;
 
+  optional CustomerDocumentDetails customer_document_details =
+      32; // Customer identification document
+
   // Additional payment data for various payment methods
-  optional AdditionalPaymentData additional_payment_data = 32;
+  optional AdditionalPaymentData additional_payment_data = 33;
 
 }
 
