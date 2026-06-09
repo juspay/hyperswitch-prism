@@ -2108,7 +2108,6 @@ impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
         Ok(Self {
             response: Ok(ServerSessionAuthenticationTokenResponseData {
                 session_token: session_token.clone(),
-                status: None,
             }),
             ..item.router_data
         })

@@ -664,7 +664,6 @@ impl TryFrom<ResponseRouterData<NuveiSessionTokenResponse, Self>>
         let session_response_data =
             domain_types::connector_types::ServerSessionAuthenticationTokenResponseData {
                 session_token: session_token.clone(),
-                status: Some(common_enums::AttemptStatus::Pending),
             };
 
         Ok(Self {

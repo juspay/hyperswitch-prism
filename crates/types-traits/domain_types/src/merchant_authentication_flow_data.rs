@@ -39,11 +39,6 @@ pub struct MerchantAuthenticationFlowData {
     /// field when present).
     pub connector_feature_data: Option<SecretSerdeValue>,
 
-    /// Pre-fetched OAuth access token. Required by connectors where the
-    /// flow itself depends on a previously obtained token
-    /// (e.g. PayPal `ClientAuthenticationToken` reads this field).
-    pub access_token: Option<crate::connector_types::ServerAuthenticationTokenResponseData>,
-
     /// Order details (if available from upstream — optional for all auth flows).
     pub order_details: Option<Vec<crate::payment_address::OrderDetailsWithAmount>>,
 

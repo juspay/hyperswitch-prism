@@ -1288,7 +1288,6 @@ impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16)>
         Ok(Self {
             response: Ok(ServerSessionAuthenticationTokenResponseData {
                 session_token: session_token.clone(),
-                status: None,
             }),
             ..data
         })

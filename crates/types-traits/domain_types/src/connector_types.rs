@@ -2144,7 +2144,6 @@ impl ServerSessionAuthenticationTokenRequestData {
 #[derive(Debug, Clone)]
 pub struct ServerSessionAuthenticationTokenResponseData {
     pub session_token: String,
-    pub status: Option<common_enums::AttemptStatus>,
 }
 
 #[derive(Debug, Clone)]

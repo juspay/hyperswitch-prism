@@ -3690,10 +3690,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
         // This flow only issues a session token; no payment has been authorized yet, so the
         // attempt status is left unchanged (it is not Pending).
         Ok(Self {
-            response: Ok(ServerSessionAuthenticationTokenResponseData {
-                session_token,
-                status: None,
-            }),
+            response: Ok(ServerSessionAuthenticationTokenResponseData { session_token }),
             ..router_data.clone()
         })
     }

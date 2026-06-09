@@ -342,7 +342,6 @@ impl TryFrom<ResponseRouterData<PaytmInitiateTxnResponse, Self>>
                 } else {
                     Ok(ServerSessionAuthenticationTokenResponseData {
                         session_token: success_body.txn_token.clone().expose(),
-                        status: None,
                     })
                 }
             }
