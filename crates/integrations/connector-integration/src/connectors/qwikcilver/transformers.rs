@@ -11,11 +11,11 @@ use domain_types::{
         ServerAuthenticationToken,
     },
     connector_types::{
-        CreatePaymentMethodData, CreatePaymentMethodResponseData, GetPaymentMethodData,
-        CustomerInfo, GetPaymentMethodResponseData, PaymentFlowData,
-        PaymentsAuthorizeData, PaymentsResponseData, RechargeRequestData, RechargeResponseData,
-        RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        CreatePaymentMethodData, CreatePaymentMethodResponseData, CustomerInfo,
+        GetPaymentMethodData, GetPaymentMethodResponseData, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, RechargeRequestData, RechargeResponseData, RefundFlowData,
+        RefundsData, RefundsResponseData, ResponseId, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{self, PaymentMethodDataTypes, PaymentMethodDetails, WalletDetails},
@@ -180,18 +180,7 @@ pub struct QwikcilverLocaleInfo {
 /// Pine Labs JWTs are valid 7 days; refresh sooner to dodge ops-side revocation.
 const SESSION_EXPIRY_SECONDS: i64 = 60 * 20;
 
-impl<F>
-    TryFrom<
-        ResponseRouterData<
-            QwikcilverAuthorizeResponse,
-            RouterDataV2<
-                F,
-                PaymentFlowData,
-                ServerAuthenticationTokenRequestData,
-                ServerAuthenticationTokenResponseData,
-            >,
-        >,
-    >
+impl<F> TryFrom<ResponseRouterData<QwikcilverAuthorizeResponse, Self>>
     for RouterDataV2<
         F,
         PaymentFlowData,
@@ -202,15 +191,7 @@ impl<F>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            QwikcilverAuthorizeResponse,
-            RouterDataV2<
-                F,
-                PaymentFlowData,
-                ServerAuthenticationTokenRequestData,
-                ServerAuthenticationTokenResponseData,
-            >,
-        >,
+        item: ResponseRouterData<QwikcilverAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         let body = item.response;
@@ -223,7 +204,12 @@ impl<F>
                 expires_in: Some(SESSION_EXPIRY_SECONDS),
             }),
             // Bootstrap errors aren't payment attempts → no AttemptStatus.
-            _ => Err(error_response_from_qc((&body).into(), None, item.http_code, None)),
+            _ => Err(error_response_from_qc(
+                (&body).into(),
+                None,
+                item.http_code,
+                None,
+            )),
         };
         Ok(data)
     }
@@ -254,7 +240,10 @@ pub struct QwikcilverWallet {
 pub struct QwikcilverCustomer {
     pub customer_type: Option<String>,
     pub salutation: Option<String>,
-    pub firstname: Option<Secret<String>>,
+    // Pine Labs wire field is `Firstname` (one word); keep the wire spelling
+    // via rename and expose an idiomatic `first_name` in Rust.
+    #[serde(rename = "Firstname")]
+    pub first_name: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
     pub phone_number: Option<Secret<String>>,
     pub email: Option<common_utils::pii::Email>,
@@ -346,20 +335,25 @@ where
                     item.router_data.request.currency
                 )
             })?;
-        // Prefer alphanumeric `merchant_order_id`; `connector_request_reference_id`
-        // is the numeric `merchant_transaction_id` fallback and Pine Labs's
-        // ASP.NET app 500s on purely-numeric `InvoiceNumber` / `IdempotencyKey`.
         let invoice_number = item
             .router_data
             .request
             .merchant_order_id
             .clone()
-            .unwrap_or_else(|| {
-                item.router_data
-                    .resource_common_data
-                    .connector_request_reference_id
-                    .clone()
-            });
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "merchant_order_id",
+                    context: qc_err_ctx(
+                        "Pine Labs Redeem needs an alphanumeric `InvoiceNumber` (also reused as \
+                     `IdempotencyKey`); a purely-numeric value triggers their ASP.NET Runtime \
+                     Error 500. The caller must supply this — Prism won't substitute a numeric \
+                     reference that is guaranteed to fail on the wire.",
+                        "Send `merchant_order_id` on the Authorize/Redeem request, e.g. \
+                     `\"qc-redeem-<merchant>-<order>\"`. Composite callers already do this; \
+                     non-composite callers must follow suit.",
+                    ),
+                })
+            })?;
         let idempotency_key = invoice_number.clone();
         Ok(Self {
             idempotency_key,
@@ -397,33 +391,15 @@ pub struct QwikcilverRedeemResponse {
     pub error_description: Option<String>,
 }
 
-impl<T>
-    TryFrom<
-        ResponseRouterData<
-            QwikcilverRedeemResponse,
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-        >,
-    > for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
+impl<T> TryFrom<ResponseRouterData<QwikcilverRedeemResponse, Self>>
+    for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 where
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            QwikcilverRedeemResponse,
-            RouterDataV2<
-                Authorize,
-                PaymentFlowData,
-                PaymentsAuthorizeData<T>,
-                PaymentsResponseData,
-            >,
-        >,
+        item: ResponseRouterData<QwikcilverRedeemResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         let body = item.response;
@@ -477,9 +453,10 @@ impl QwikcilverRefundMetadata {
                      Redeem is being reversed. `RefundsData` carries no typed wallet identifier, \
                      so callers must supply it via `refund_metadata`.",
                     "Send `refund_metadata` as a JSON-string on the gRPC request: \
-                     `{\"wallet_number\":\"<wn>\"}`. The original Redeem's batch + transaction \
-                     id are recovered from `connector_transaction_id` (composite `\"<batch>:<txn>\"` \
-                     written by the Redeem response handler) — do NOT include them here.",
+                     `{\"wallet_number\":\"<wn>\",\"date_at_client\":\"<iso8601>\"}`. The \
+                     original Redeem's transaction id is read directly from \
+                     `connector_transaction_id` (bare numeric), and its batch number is read \
+                     from `connector_feature_data.batch_number` — not from `refund_metadata`.",
                 ),
             })
         })?;
@@ -617,34 +594,24 @@ pub struct QwikcilverCancelRedeemResponse {
     pub error_description: Option<String>,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            QwikcilverCancelRedeemResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        >,
-    > for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
+impl TryFrom<ResponseRouterData<QwikcilverCancelRedeemResponse, Self>>
+    for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            QwikcilverCancelRedeemResponse,
-            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        >,
+        item: ResponseRouterData<QwikcilverCancelRedeemResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         let body = item.response;
         data.resource_common_data.raw_connector_response =
             serde_json::to_string(&body).ok().map(Secret::new);
         data.response = match body.response_code {
-            QWIKCILVER_SUCCESS_CODE => {
-                Ok(RefundsResponseData {
-                    connector_refund_id: body.transaction_id.to_string(),
-                    refund_status: CANCEL_REDEEM_SUCCESS_STATUS,
-                    status_code: item.http_code,
-                })
-            }
+            QWIKCILVER_SUCCESS_CODE => Ok(RefundsResponseData {
+                connector_refund_id: body.transaction_id.to_string(),
+                refund_status: CANCEL_REDEEM_SUCCESS_STATUS,
+                status_code: item.http_code,
+            }),
             // Refund failures don't tag AttemptStatus — they roll into RefundStatus.
             _ => Err(error_response_from_qc(
                 (&body).into(),
@@ -752,21 +719,13 @@ pub struct QwikcilverRechargeResponse {
     pub error_description: Option<String>,
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            QwikcilverRechargeResponse,
-            RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
-        >,
-    > for RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>
+impl TryFrom<ResponseRouterData<QwikcilverRechargeResponse, Self>>
+    for RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            QwikcilverRechargeResponse,
-            RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
-        >,
+        item: ResponseRouterData<QwikcilverRechargeResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         let body = item.response;
@@ -849,14 +808,15 @@ pub struct QwikcilverCreateCustomer {
     pub customer_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub salutation: Option<String>,
-    pub firstname: Secret<String>,
+    #[serde(rename = "Firstname")]
+    pub first_name: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_name: Option<Secret<String>>,
     pub phone_number: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<common_utils::pii::Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub prefered_notification_language: Option<String>,
+    pub preferred_notification_language: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -973,11 +933,11 @@ where
                 // Sourced from connector_feature_data — proto strips these fields.
                 customer_type: feature.customer_type,
                 salutation: feature.salutation,
-                firstname: first,
+                first_name: first,
                 last_name: customer.last_name.clone(),
                 phone_number: phone,
                 email: customer.customer_email.clone(),
-                prefered_notification_language: None,
+                preferred_notification_language: None,
             },
             notes: req.description.clone(),
         })
@@ -1062,7 +1022,6 @@ pub struct QwikcilverWalletDetails {
     pub customer: Option<QwikcilverCustomer>,
 }
 
-
 // Pine Labs is synchronous-binary: terminal success/failure only, no Pending.
 const REDEEM_SUCCESS_STATUS: AttemptStatus = AttemptStatus::Charged;
 const CANCEL_REDEEM_SUCCESS_STATUS: RefundStatus = RefundStatus::Success;
@@ -1096,10 +1055,15 @@ fn card_to_wallet_item(
     currency: Option<common_enums::Currency>,
 ) -> Option<payment_method_data::WalletItem> {
     let pan = card.card_number.peek();
-    if pan.len() < LAST_FOUR_DIGITS_LEN {
+    // char-safe last-4 — byte-slicing would panic on a non-ASCII byte at the
+    // boundary. PANs are realistically ASCII but defending against the edge
+    // case costs nothing.
+    let mut last_four: Vec<char> = pan.chars().rev().take(LAST_FOUR_DIGITS_LEN).collect();
+    if last_four.len() < LAST_FOUR_DIGITS_LEN {
         return None;
     }
-    let wallet_item_id = pan[pan.len() - LAST_FOUR_DIGITS_LEN..].to_string();
+    last_four.reverse();
+    let wallet_item_id: String = last_four.into_iter().collect();
     let available_balance = currency.and_then(|c| {
         crate::connectors::qwikcilver::QwikcilverAmountConvertor::convert_back(card.amount, c)
             .ok()
@@ -1122,12 +1086,9 @@ fn wallet_details_to_payment_method_details(
     currency: Option<common_enums::Currency>,
 ) -> PaymentMethodDetails {
     // Major-unit → MinorUnit conversion needs the currency exponent.
-    let balance = wallet
-        .balance
-        .zip(currency)
-        .and_then(|(b, c)| {
-            crate::connectors::qwikcilver::QwikcilverAmountConvertor::convert_back(b, c).ok()
-        });
+    let balance = wallet.balance.zip(currency).and_then(|(b, c)| {
+        crate::connectors::qwikcilver::QwikcilverAmountConvertor::convert_back(b, c).ok()
+    });
     let items = wallet
         .card
         .as_ref()
@@ -1167,36 +1128,23 @@ fn customer_details_to_customer_info(
         .phone_number
         .clone()
         .or_else(|| wallet_external_id.cloned());
-    let customer_id = customer
-        .external_customer_id
-        .as_ref()
-        .and_then(|id| {
-            common_utils::id_type::CustomerId::try_from(std::borrow::Cow::from(id.clone().expose()))
-                .ok()
-        });
+    let customer_id = customer.external_customer_id.as_ref().and_then(|id| {
+        common_utils::id_type::CustomerId::try_from(std::borrow::Cow::from(id.clone().expose()))
+            .ok()
+    });
     CustomerInfo {
         customer_id,
         customer_email: customer.email.clone(),
         customer_name: None,
-        first_name: customer.firstname.clone(),
+        first_name: customer.first_name.clone(),
         last_name: customer.last_name.clone(),
         customer_phone_number,
         customer_phone_country_code: None,
+        salutation: customer.salutation.clone(),
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            QwikcilverWalletEnvelope,
-            RouterDataV2<
-                CreatePaymentMethod,
-                PaymentFlowData,
-                CreatePaymentMethodData,
-                CreatePaymentMethodResponseData,
-            >,
-        >,
-    >
+impl TryFrom<ResponseRouterData<QwikcilverWalletEnvelope, Self>>
     for RouterDataV2<
         CreatePaymentMethod,
         PaymentFlowData,
@@ -1207,15 +1155,7 @@ impl
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            QwikcilverWalletEnvelope,
-            RouterDataV2<
-                CreatePaymentMethod,
-                PaymentFlowData,
-                CreatePaymentMethodData,
-                CreatePaymentMethodResponseData,
-            >,
-        >,
+        item: ResponseRouterData<QwikcilverWalletEnvelope, Self>,
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         let body = item.response;
@@ -1233,10 +1173,7 @@ impl
                         wallet, currency,
                     )),
                     customer: wallet.customer.as_ref().map(|c| {
-                        customer_details_to_customer_info(
-                            c,
-                            wallet.external_wallet_id.as_ref(),
-                        )
+                        customer_details_to_customer_info(c, wallet.external_wallet_id.as_ref())
                     }),
                     status_code: item.http_code,
                 })
@@ -1261,25 +1198,19 @@ impl
             )),
             _ => {
                 let txn_id = body.transaction_id.map(|t| t.to_string());
-                Err(error_response_from_qc((&body).into(), txn_id, item.http_code, None))
+                Err(error_response_from_qc(
+                    (&body).into(),
+                    txn_id,
+                    item.http_code,
+                    None,
+                ))
             }
         };
         Ok(data)
     }
 }
 
-impl
-    TryFrom<
-        ResponseRouterData<
-            QwikcilverGetWalletResponse,
-            RouterDataV2<
-                GetPaymentMethod,
-                PaymentFlowData,
-                GetPaymentMethodData,
-                GetPaymentMethodResponseData,
-            >,
-        >,
-    >
+impl TryFrom<ResponseRouterData<QwikcilverGetWalletResponse, Self>>
     for RouterDataV2<
         GetPaymentMethod,
         PaymentFlowData,
@@ -1290,15 +1221,7 @@ impl
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<
-            QwikcilverGetWalletResponse,
-            RouterDataV2<
-                GetPaymentMethod,
-                PaymentFlowData,
-                GetPaymentMethodData,
-                GetPaymentMethodResponseData,
-            >,
-        >,
+        item: ResponseRouterData<QwikcilverGetWalletResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let mut data = item.router_data;
         let body = item.response.0;
@@ -1309,21 +1232,19 @@ impl
                 let merchant_pm_id = data.request.merchant_payment_method_id.clone();
                 let currency =
                     currency_from_feature_data(data.request.connector_feature_data.as_ref());
-                let (connector_pm_id, payment_method_details, customer) =
-                    if let Some(wallet) = body.wallet.as_ref() {
-                        (
-                            Some(wallet.wallet_number.clone().expose()),
-                            Some(wallet_details_to_payment_method_details(wallet, currency)),
-                            wallet.customer.as_ref().map(|c| {
-                                customer_details_to_customer_info(
-                                    c,
-                                    wallet.external_wallet_id.as_ref(),
-                                )
-                            }),
-                        )
-                    } else {
-                        (data.request.connector_payment_method_id.clone(), None, None)
-                    };
+                let (connector_pm_id, payment_method_details, customer) = if let Some(wallet) =
+                    body.wallet.as_ref()
+                {
+                    (
+                        Some(wallet.wallet_number.clone().expose()),
+                        Some(wallet_details_to_payment_method_details(wallet, currency)),
+                        wallet.customer.as_ref().map(|c| {
+                            customer_details_to_customer_info(c, wallet.external_wallet_id.as_ref())
+                        }),
+                    )
+                } else {
+                    (data.request.connector_payment_method_id.clone(), None, None)
+                };
                 Ok(GetPaymentMethodResponseData {
                     merchant_payment_method_id: merchant_pm_id,
                     connector_payment_method_id: connector_pm_id,
@@ -1334,7 +1255,12 @@ impl
             }
             _ => {
                 let txn_id = body.transaction_id.map(|t| t.to_string());
-                Err(error_response_from_qc((&body).into(), txn_id, item.http_code, None))
+                Err(error_response_from_qc(
+                    (&body).into(),
+                    txn_id,
+                    item.http_code,
+                    None,
+                ))
             }
         };
         Ok(data)
@@ -1431,21 +1357,26 @@ pub(crate) fn error_response_from_qc(
 
 pub(crate) fn derive_transaction_id_from_reference(reference_id: &str) -> u64 {
     if let Ok(n) = reference_id.parse::<i64>() {
-        if n > 0 {
-            return n as u64;
+        if let Ok(positive) = u64::try_from(n) {
+            if positive > 0 {
+                return positive;
+            }
         }
     }
     if reference_id.is_empty() {
         use std::time::{SystemTime, UNIX_EPOCH};
         return SystemTime::now()
             .duration_since(UNIX_EPOCH)
-            .map(|d| (d.as_nanos() as u64) & 0x7FFF_FFFF_FFFF_FFFF)
+            .ok()
+            .and_then(|d| u64::try_from(d.as_nanos()).ok())
+            .map(|nanos| nanos & 0x7FFF_FFFF_FFFF_FFFF)
             .unwrap_or(1);
     }
     use sha2::{Digest, Sha256};
     let digest = Sha256::digest(reference_id.as_bytes());
     let mut buf = [0u8; 8];
-    buf.copy_from_slice(&digest[..8]);
+    let (head, _) = digest.split_at(buf.len());
+    buf.copy_from_slice(head);
     u64::from_be_bytes(buf) & 0x3FFF_FFFF_FFFF_FFFF
 }
 
@@ -1498,4 +1429,3 @@ fn make_error_response(
         network_error_message: None,
     }
 }
-

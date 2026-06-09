@@ -2422,7 +2422,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::EaseBuzz)
             }
             grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => {
-                Ok(Some(PaymentMethodType::QwikcilverWallet))
+                Ok(PaymentMethodType::QwikcilverWallet)
             }
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)

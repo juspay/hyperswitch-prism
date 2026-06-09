@@ -30,19 +30,19 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
 };
 use serde::Serialize;
 use transformers::{
-    self as qwikcilver, QwikcilverAuthType,
-    QwikcilverAuthorizeRequest, QwikcilverAuthorizeResponse, QwikcilverCancelRedeemBody,
-    QwikcilverCancelRedeemResponse, QwikcilverCreateWalletRequest, QwikcilverEmptyBody,
-    QwikcilverErrorResponse, QwikcilverGetWalletResponse, QwikcilverRechargeRequest,
-    QwikcilverRechargeResponse, QwikcilverRedeemRequest, QwikcilverRedeemResponse,
-    QwikcilverRefundMetadata, QwikcilverWalletEnvelope,
+    self as qwikcilver, QwikcilverAuthType, QwikcilverAuthorizeRequest,
+    QwikcilverAuthorizeResponse, QwikcilverCancelRedeemBody, QwikcilverCancelRedeemResponse,
+    QwikcilverCreateWalletRequest, QwikcilverEmptyBody, QwikcilverErrorResponse,
+    QwikcilverGetWalletResponse, QwikcilverRechargeRequest, QwikcilverRechargeResponse,
+    QwikcilverRedeemRequest, QwikcilverRedeemResponse, QwikcilverRefundMetadata,
+    QwikcilverWalletEnvelope,
 };
 
 use super::macros;
@@ -164,8 +164,10 @@ macros::create_all_prerequisites!(
         amount_converter: FloatMajorUnit
     ],
     member_functions: {
-        /// `TransactionId` must be numeric — non-numeric values produce HTTP 500
-        /// ("Input string was not in a correct format") from the API.
+        /// `TransactionId` must be a positive `i64` numeric string. Prism derives
+        /// one via `derive_transaction_id_from_reference` (numeric verbatim,
+        /// SHA-256 hash of non-numeric input, or unix nanos when absent); the
+        /// raw caller string never reaches the wire.
         pub fn build_authenticated_headers<F, FCD, Req, Res>(
             &self,
             _req: &RouterDataV2<F, FCD, Req, Res>,
@@ -325,7 +327,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             message,
             reason: response.error_description.or(response.response_message),
             attempt_status: None,
-            connector_transaction_id: response.wallet_number.map(|v| v.expose()),
+            connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
