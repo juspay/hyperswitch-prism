@@ -223,6 +223,9 @@ fn create_payment_authorize_request(
             connector_customer_id: None,
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
         }),
         address: Some(grpc_api_types::payments::PaymentAddress {
             billing_address: Some(grpc_api_types::payments::Address {
@@ -395,8 +398,7 @@ async fn test_payment_authorization_auto_capture() {
             "Failed to add credentials"
         );
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 
@@ -429,8 +431,7 @@ async fn test_payment_authorization_manual_capture() {
             "Failed to add credentials"
         );
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 
@@ -495,8 +496,7 @@ async fn test_payment_sync() {
             "Failed to add credentials"
         );
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 
@@ -538,8 +538,7 @@ async fn test_refund() {
         let mut grpc_request = Request::new(request);
         add_paysafe_metadata(&mut grpc_request);
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 
@@ -582,8 +581,7 @@ async fn test_refund_sync() {
             let mut grpc_request = Request::new(request);
             add_paysafe_metadata(&mut grpc_request);
 
-            let response = payment_client
-                .authorize(grpc_request)
+            let response = Box::pin(payment_client.authorize(grpc_request))
                 .await
                 .expect("Payment authorization failed");
 
@@ -645,8 +643,7 @@ async fn test_payment_void() {
             "Failed to add credentials"
         );
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 

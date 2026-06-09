@@ -137,6 +137,9 @@ message Customer {
       4;                                  // Customer ID in the connector system
   optional string phone_number = 5;       // Customer's phone number
   optional string phone_country_code = 6; // Customer's phone country code
+  optional string first_name = 7;       // Customer's first name
+  optional string last_name = 8;        // Customer's last name
+  optional string salutation = 9;       // Customer's salutation (Mr., Ms., etc.)
 }
 
 // ============================================================================
@@ -3582,32 +3585,161 @@ message PaymentMethodServiceTokenizeResponse {
   optional ConnectorState state = 6;
 }
 
-// Request message for getting a payment method
-message PaymentMethodServiceGetRequest {
-  // Identification
-  optional string merchant_payment_method_id = 1;
-  // Payment Method Information
-  string payment_method_token = 2;
+message PaymentMethodServiceCreateRequest {
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional Customer customer = 2; // Customer information
+  optional string description = 3; // Human-readable description of the payment method
+  PaymentMethodType payment_method_type = 4; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
+  optional ConnectorState state = 5;   // State Information (for access token)
+  string product_id = 6; // Product or program under which the payment method exists
 
-  // State Information
-  optional ConnectorState state = 3;
+  optional SecretString metadata = 7; // Additional metadata for the connector
+  optional SecretString connector_feature_data = 8; // Connector-specific metadata for the transaction
+  optional bool test_mode = 9;
 }
 
-// Response message for getting a payment method
-message PaymentMethodServiceGetResponse {
-  // Payment Method Information
-  PaymentMethod payment_method = 1;
+message PaymentMethodServiceCreateResponse {
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
+  
+  PaymentMethodDetails payment_method_details = 3; // details of the Payment method created
 
   // Customer Information
-  optional Customer customer = 2;
+  optional Customer customer = 4;
+  optional Address address = 5;
 
   // Error Information
-  optional ErrorInfo error = 3;
-  uint32 status_code = 4;
-  map<string, string> response_headers = 5;
+  optional ErrorInfo error = 6;
+  uint32 status_code = 7;
+  map<string, string> response_headers = 8;
 
-  // Reference
-  optional string merchant_payment_method_id = 6;
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 9;
+  optional SecretString raw_connector_request = 10;
+}
+
+message PaymentMethodServiceGetRequest {
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
+  
+  // Customer Information
+  optional Customer customer = 3;
+  optional ConnectorState state = 4;   // State Information (for access token)
+  optional SecretString connector_feature_data = 5; // Connector-specific metadata for the transaction
+  optional SecretString metadata = 6; // Additional metadata for the connector
+  optional bool test_mode = 7;
+  PaymentMethodType payment_method_type = 8; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
+}
+
+message PaymentMethodServiceGetResponse {
+  optional string merchant_payment_method_id = 1; // Merchant's reference ID for the payment method
+  optional string connector_payment_method_id = 2; // Connector-issued payment method ID (incase of wallet_detail it is connector_wallet_id)
+  
+  PaymentMethodDetails payment_method_details = 3; // details of the Payment method
+
+  // Customer Information
+  optional Customer customer = 4;
+  optional Address address = 5;
+
+  // Error Information
+  optional ErrorInfo error = 6;
+  uint32 status_code = 7;
+  map<string, string> response_headers = 8;
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 9;
+  optional SecretString raw_connector_request = 10;
+}
+
+// Status of a recharge operation
+enum RechargeStatus {
+  RECHARGE_STATUS_UNSPECIFIED = 0; // Default unspecified status
+  RECHARGE_SUCCESS = 1;             // Recharge completed successfully
+  RECHARGE_FAILURE = 2;             // Recharge failed
+  RECHARGE_PENDING = 3;             // Recharge is being processed
+}
+
+enum WalletStatus {
+  WALLET_STATUS_UNSPECIFIED = 0;
+  ACTIVE_WALLET = 1; // Wallet is operational and can process transactions
+  INACTIVE_WALLET = 2; // Wallet is suspended or closed
+}
+
+message PaymentMethodDetails {
+  oneof details {
+    WalletDetails wallet = 1; // Wallet-specific details (stored value, container, or hybrid)
+  }
+}
+
+message WalletDetails {
+  string wallet_account_id = 1; // Unique wallet identifier from connector (e.g., QwikWallet number)
+  optional SecretString wallet_pin = 2; // wallet PIN for authentication
+  optional WalletStatus wallet_status = 3; // Current operational status (ACTIVE/INACTIVE)
+  optional string wallet_holder_name = 4; // Name registered on the wallet account
+  optional int64 balance = 5; // Current wallet balance in minor currency units (for stored value wallets)
+  string product_id = 6; // Product or program identifier under which the wallet exists
+  repeated WalletItem items = 7; // Payment method items stored in this wallet (for container/hybrid wallets)
+}
+
+// Status of a wallet item (payment method within a container/hybrid wallet)
+enum WalletItemStatus {
+  WALLET_ITEM_STATUS_UNSPECIFIED = 0; // Default unspecified status
+  WALLET_ITEM_ACTIVE = 1;              // Item is active and can be used
+  WALLET_ITEM_INACTIVE = 2;            // Item is inactive or suspended
+  WALLET_ITEM_DEPLETED = 3;            // Item balance is fully used (for balance-bearing items)
+  WALLET_ITEM_EXPIRED = 4;             // Item has expired
+}
+
+// Represents a payment method item within a container or hybrid wallet
+// Examples: gift card in Amazon Pay, prepaid card in Apple Wallet, loyalty card, etc.
+message WalletItem {
+  // Instance-specific metadata for this item within the wallet
+  string wallet_item_id = 1;                      // Unique identifier for this item within the wallet
+  string product_id = 2;                   // Product or program identifier under which this item exists
+  WalletItemStatus status = 3;             // Current status of this item (ACTIVE, INACTIVE, DEPLETED, EXPIRED)
+  optional Money available_balance = 4;    // Remaining balance if this item is balance-bearing
+  optional string expiry_date = 5;         // Expiry date in ISO 8601 format (e.g., "2026-12-31")
+}
+
+// Request message for recharging a payment method
+message PaymentMethodServiceRechargeRequest {
+  // Identifiers
+  optional string merchant_payment_method_id = 1;  // Merchant's payment method ID (e.g., wallet number)
+  optional string connector_payment_method_id = 2; // Connector's payment method ID (wallet number at connector's end)
+  optional string merchant_request_id = 3;         // Request ID generated by the caller system
+  optional string merchant_recharge_id = 4;        // Merchant's recharge tracking ID (invoice number or reference)
+  
+  // Recharge Details
+  string product_id = 5;                           // Product or program under which the payment method exists
+  Money amount = 6;                                // Recharge amount in minor currency units
+  optional string description = 7;                 // Human-readable description or notes about the recharge
+  PaymentMethodType payment_method_type = 8;       // Type of payment method (WALLET, GIFT_CARD, PREPAID_CARD, etc.)
+  
+  // Configuration
+  optional ConnectorState state = 9;               // State information for multi-step flows (access token, session data)
+  optional SecretString metadata = 10; // Additional metadata for the connector
+  optional SecretString connector_feature_data = 11; // Connector-specific metadata for the transaction
+  optional bool test_mode = 12;                    // Sandbox/test mode flag (true for test environment)
+}
+
+// Response message for recharging a payment method
+message PaymentMethodServiceRechargeResponse {
+  // Identifiers
+  optional string merchant_payment_method_id = 1;  // Merchant's payment method ID
+  optional string connector_payment_method_id = 2; // Connector's payment method ID
+  optional string merchant_recharge_id = 3;        // Merchant's recharge tracking ID
+  optional string connector_recharge_id = 4;       // Connector's recharge tracking ID (invoice number or reference)
+  
+  // Recharge Result
+  RechargeStatus status = 5;                       // Status of the recharge operation (SUCCESS, FAILURE, PENDING)
+  PaymentMethodDetails payment_method_details = 6; // Updated payment method details after recharge
+  
+  // Error and Debugging Information
+  optional ErrorInfo error = 7;                    // Error details if the recharge failed
+  uint32 status_code = 8;                          // HTTP status code from the connector
+  map<string, string> response_headers = 9;        // Response headers from the connector
+  optional SecretString raw_connector_response = 10; // Raw response from the connector for debugging
+  optional SecretString raw_connector_request = 11;  // Raw request sent to the connector for debugging
 }
 
 // ============================================================================

@@ -64,7 +64,10 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateRequest,
+    PaymentMethodServiceCreateResponse, PaymentMethodServiceGetRequest,
+    PaymentMethodServiceGetResponse, PaymentMethodServiceRechargeRequest,
+    PaymentMethodServiceRechargeResponse, PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
@@ -2023,7 +2026,7 @@ impl PaymentMethodService for PaymentMethod {
                             tonic::Status::invalid_argument("Invalid payment method data")
                         })?);
 
-                    self.handle_tokenize_internal::<VaultTokenHolder>(
+                    Box::pin(self.handle_tokenize_internal::<VaultTokenHolder>(
                         &config,
                         payload,
                         metadata_payload.connector.clone(),
@@ -2034,7 +2037,7 @@ impl PaymentMethodService for PaymentMethod {
                         request_id,
                         Some(token_data),
                         payment_method_data,
-                        )
+                        ))
                         .await?
 
                     },
@@ -2044,7 +2047,7 @@ impl PaymentMethodService for PaymentMethod {
                             tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
                             tonic::Status::invalid_argument("Invalid payment method data")
                         })?);
-                        self.handle_tokenize_internal::<DefaultPCIHolder>(
+                        Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
                         &config,
                         payload,
                         metadata_payload.connector.clone(),
@@ -2055,7 +2058,7 @@ impl PaymentMethodService for PaymentMethod {
                         request_id,
                         None,
                         payment_method_data,
-                        ).await?
+                        )).await?
                     },
                     PaymentMethodDataAction::Default => {
                         let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(payload.payment_method.clone().ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?)
@@ -2063,7 +2066,7 @@ impl PaymentMethodService for PaymentMethod {
                                 tracing::error!("Failed to convert payment method data: {:?}", err);
                                 tonic::Status::invalid_argument("Invalid payment method data")
                             })?;
-                        self.handle_tokenize_internal::<DefaultPCIHolder>(
+                        Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
                         &config,
                         payload,
                         metadata_payload.connector.clone(),
@@ -2074,7 +2077,7 @@ impl PaymentMethodService for PaymentMethod {
                         request_id,
                         None,
                         payment_method_data,
-                        ).await?
+                        )).await?
                     }
                 };
                 Ok(tonic::Response::new(payment_method_tokenize_response))
@@ -2090,6 +2093,31 @@ impl PaymentMethodService for PaymentMethod {
         Err(tonic::Status::unimplemented(
             "Eligibility check not implemented yet",
         ))
+    }
+
+    async fn create(
+        &self,
+        _request: tonic::Request<PaymentMethodServiceCreateRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceCreateResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented(
+            "Create payment method not implemented yet",
+        ))
+    }
+
+    async fn get(
+        &self,
+        _request: tonic::Request<PaymentMethodServiceGetRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceGetResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented(
+            "Get payment method not implemented yet",
+        ))
+    }
+
+    async fn recharge(
+        &self,
+        _request: tonic::Request<PaymentMethodServiceRechargeRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceRechargeResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented("Recharge not implemented yet"))
     }
 }
 

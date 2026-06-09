@@ -180,6 +180,13 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   DisputeServiceDefendResponse: ["rawConnectorRequest"],
   DisputeServiceAcceptResponse: ["rawConnectorRequest"],
   PaymentMethodServiceTokenizeRequest: ["metadata", "connectorFeatureData"],
+  PaymentMethodServiceCreateRequest: ["metadata", "connectorFeatureData"],
+  PaymentMethodServiceCreateResponse: ["rawConnectorResponse", "rawConnectorRequest"],
+  PaymentMethodServiceGetRequest: ["connectorFeatureData", "metadata"],
+  PaymentMethodServiceGetResponse: ["rawConnectorResponse", "rawConnectorRequest"],
+  WalletDetails: ["walletPin"],
+  PaymentMethodServiceRechargeRequest: ["metadata", "connectorFeatureData"],
+  PaymentMethodServiceRechargeResponse: ["rawConnectorResponse", "rawConnectorRequest"],
   CustomerServiceCreateRequest: ["email", "metadata", "connectorFeatureData"],
   CustomerServiceUpdateRequest: ["email", "metadata", "connectorFeatureData"],
   StripeConfig: ["apiKey"],
@@ -411,8 +418,15 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   DisputeServiceAcceptResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   PaymentMethodServiceTokenizeRequest: { "amount": "Money", "paymentMethod": "PaymentMethod", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState" },
   PaymentMethodServiceTokenizeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState" },
-  PaymentMethodServiceGetRequest: { "state": "ConnectorState" },
-  PaymentMethodServiceGetResponse: { "paymentMethod": "PaymentMethod", "customer": "Customer", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  PaymentMethodServiceCreateRequest: { "customer": "Customer", "state": "ConnectorState" },
+  PaymentMethodServiceCreateResponse: { "paymentMethodDetails": "PaymentMethodDetails", "customer": "Customer", "address": "Address", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  PaymentMethodServiceGetRequest: { "customer": "Customer", "state": "ConnectorState" },
+  PaymentMethodServiceGetResponse: { "paymentMethodDetails": "PaymentMethodDetails", "customer": "Customer", "address": "Address", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  PaymentMethodDetails: { "wallet": "WalletDetails" },
+  WalletDetails: { "items": "WalletItem" },
+  WalletItem: { "availableBalance": "Money" },
+  PaymentMethodServiceRechargeRequest: { "amount": "Money", "state": "ConnectorState" },
+  PaymentMethodServiceRechargeResponse: { "paymentMethodDetails": "PaymentMethodDetails", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   CustomerServiceCreateRequest: { "address": "PaymentAddress" },
   CustomerServiceCreateResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   CustomerServiceGetResponse: { "customer": "Customer", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
@@ -523,8 +537,8 @@ export class GrpcCustomerClient {
   constructor(private ffi: GrpcFfi, private config: GrpcConfig) {}
 
   /** CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information. */
-  async create(req: unknown): Promise<unknown> {
-    return callGrpc(this.ffi, this.config, "customer/create",
+  async customerCreate(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "customer/customer_create",
       req, types.CustomerServiceCreateRequest, types.CustomerServiceCreateResponse);
   }
 }
@@ -627,10 +641,25 @@ export class GrpcPaymentMethodClient {
     return callGrpc(this.ffi, this.config, "payment_method/tokenize",
       req, types.PaymentMethodServiceTokenizeRequest, types.PaymentMethodServiceTokenizeResponse);
   }
+  /** PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details. */
+  async create(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payment_method/create",
+      req, types.PaymentMethodServiceCreateRequest, types.PaymentMethodServiceCreateResponse);
+  }
+  /** PaymentMethodService.Get — Retrieve payment method details from the payment processor. */
+  async paymentMethodGet(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payment_method/payment_method_get",
+      req, types.PaymentMethodServiceGetRequest, types.PaymentMethodServiceGetResponse);
+  }
   /** PaymentMethodService.Eligibility — Check if the payout method is eligible for the transaction */
   async eligibility(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "payment_method/eligibility",
       req, types.PayoutMethodEligibilityRequest, types.PayoutMethodEligibilityResponse);
+  }
+  /** PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds. */
+  async recharge(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payment_method/recharge",
+      req, types.PaymentMethodServiceRechargeRequest, types.PaymentMethodServiceRechargeResponse);
   }
 }
 

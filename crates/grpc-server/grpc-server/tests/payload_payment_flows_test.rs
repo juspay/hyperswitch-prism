@@ -151,6 +151,9 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             connector_customer_id: None,
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
         }),
         address: Some(address),
         auth_type: i32::from(AuthenticationType::NoThreeDs),
@@ -325,6 +328,9 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
             connector_customer_id: None,
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
         }),
         customer_acceptance: Some(CustomerAcceptance {
             acceptance_type: i32::from(AcceptanceType::Offline),
@@ -401,8 +407,7 @@ async fn test_authorize_psync_void() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let auth_response = client
-            .authorize(grpc_request)
+        let auth_response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -464,8 +469,7 @@ async fn test_authorize_capture_refund_rsync() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let auth_response = client
-            .authorize(grpc_request)
+        let auth_response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();

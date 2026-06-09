@@ -39,6 +39,9 @@ async fn test_config_override() -> Result<(), Box<dyn std::error::Error>> {
                 connector_customer_id: None,
                 phone_number: None,
                 phone_country_code: None,
+                first_name: None,
+                last_name: None,
+                salutation: None,
             }),
             payment_method: Some(PaymentMethod {
                 payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
@@ -115,7 +118,7 @@ async fn test_config_override() -> Result<(), Box<dyn std::error::Error>> {
             .insert("x-key1", "".parse().expect("valid header value"));
 
         // Make the request
-        let response = client.authorize(request).await;
+        let response = Box::pin(client.authorize(request)).await;
 
         // The config override was processed if the request reached the connector layer.
         // Integration errors (missing required fields) now correctly return tonic::Status
