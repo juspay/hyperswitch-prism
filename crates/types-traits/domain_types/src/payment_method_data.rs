@@ -1744,6 +1744,56 @@ pub enum DocumentKind {
     Psn,
 }
 
+impl DocumentKind {
+    /// Validate a document number against its kind. CPF/CNPJ use the Brazilian
+    /// checksum; PSN must be exactly 12 numeric digits; `Other` is passed through.
+    pub fn validate(&self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
+        match self {
+            Self::Cpf => self.validate_cpf(doc_number),
+            Self::Cnpj => self.validate_cnpj(doc_number),
+            Self::Psn => self.validate_psn(doc_number),
+            // Other non-Brazilian documents are passed through; the connector validates
+            // them per country.
+            Self::Other => Ok(()),
+        }
+    }
+
+    /// The Philippine PhilSys Number (PSN) is a randomly-generated 12-digit national ID
+    /// with no checksum; validate that it is exactly 12 numeric digits.
+    fn validate_psn(self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
+        if doc_number.len() == 12 && doc_number.bytes().all(|b| b.is_ascii_digit()) {
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidValue {
+                message: "Invalid PSN: expected exactly 12 digits".to_string(),
+            }
+            .into())
+        }
+    }
+
+    fn validate_cpf(self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
+        if cpf_cnpj::cpf::validate(doc_number) {
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidValue {
+                message: "Invalid CPF".to_string(),
+            }
+            .into())
+        }
+    }
+
+    fn validate_cnpj(self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
+        if cpf_cnpj::cnpj::validate(doc_number) {
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidValue {
+                message: "Invalid CNPJ".to_string(),
+            }
+            .into())
+        }
+    }
+}
+
 /// Customer's country-specific identification document
 /// (mirrors hyperswitch api_models::customers::CustomerDocumentDetails).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
