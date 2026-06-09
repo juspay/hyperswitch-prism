@@ -903,7 +903,7 @@ enum PaymentMethodType {
   PAY_U = 110;
   EASE_BUZZ = 111;
   OPEN_BANKING = 112;
-  QWIKCILVER_DIRECT = 113;
+  QWIKCILVER_WALLET = 113;
 }
 
 // Product type enumeration

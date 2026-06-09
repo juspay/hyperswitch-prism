@@ -502,17 +502,17 @@ where
 {
     use domain_types::payment_method_data::{PaymentMethodData, WalletData};
     match &req.payment_method_data {
-        PaymentMethodData::Wallet(WalletData::QwikcilverDirect(d)) => {
+        PaymentMethodData::Wallet(WalletData::QwikcilverWalletDirect(d)) => {
             Ok(d.wallet_number.clone())
         }
         _ => Err(error_stack::report!(IntegrationError::MissingRequiredField {
-            field_name: "payment_method.qwikcilver_direct.wallet_number",
+            field_name: "payment_method.qwikcilver_wallet_direct.wallet_number",
             context: qc_err_ctx(
                 "Qwikcilver Redeem requires the destination wallet number via the typed \
-                 `qwikcilver_direct` payment_method variant — no other PaymentMethod variant \
+                 `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant \
                  is supported on this connector.",
                 "Send the body with \
-                 `payment_method.payment_method.qwikcilver_direct.wallet_number: \"<wallet-number>\"`. \
+                 `payment_method.payment_method.qwikcilver_wallet_direct.wallet_number: \"<wallet-number>\"`. \
                  Verify with the curl recipe at docs/qwikcilver-grpcurl-recipes.md.",
             ),
         })),

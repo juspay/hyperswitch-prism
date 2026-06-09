@@ -892,7 +892,7 @@ fn get_wallet_details<
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
-        | WalletData::QwikcilverDirect(_) => Err(IntegrationError::NotImplemented(
+        | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
             Default::default(),
         ))?,

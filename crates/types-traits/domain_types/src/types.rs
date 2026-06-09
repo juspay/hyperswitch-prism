@@ -1255,16 +1255,16 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::BluecodeRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::BluecodeRedirect {}),
                 ),
-                grpc_api_types::payments::payment_method::PaymentMethod::QwikcilverDirect(qd) => {
+                grpc_api_types::payments::payment_method::PaymentMethod::QwikcilverWalletDirect(qd) => {
                     let wallet_number = qd.wallet_number.ok_or_else(|| {
                         report!(IntegrationError::MissingRequiredField {
-                            field_name: "payment_method.qwikcilver_direct.wallet_number",
+                            field_name: "payment_method.qwikcilver_wallet_direct.wallet_number",
                             context: IntegrationErrorContext::default(),
                         })
                     })?;
                     Ok(Self::Wallet(
-                        payment_method_data::WalletData::QwikcilverDirect(Box::new(
-                            payment_method_data::QwikcilverDirectWalletData { wallet_number },
+                        payment_method_data::WalletData::QwikcilverWalletDirect(Box::new(
+                            payment_method_data::QwikcilverWalletDirectData { wallet_number },
                         )),
                     ))
                 }
@@ -2425,8 +2425,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for Option<Paym
             grpc_api_types::payments::PaymentMethodType::EaseBuzz => {
                 Ok(Some(PaymentMethodType::EaseBuzz))
             }
-            grpc_api_types::payments::PaymentMethodType::QwikcilverDirect => {
-                Ok(Some(PaymentMethodType::QwikcilverDirect))
+            grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => {
+                Ok(Some(PaymentMethodType::QwikcilverWallet))
             }
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(Some(PaymentMethodType::Netbanking))
@@ -2696,7 +2696,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::DanamonVaBankTransfer(_) => Ok(Some(PaymentMethodType::DanamonVa)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MandiriVaBankTransfer(_) => Ok(Some(PaymentMethodType::MandiriVa)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Netbanking(_) => Ok(Some(PaymentMethodType::Netbanking)),
-                grpc_api_types::payments::payment_method::PaymentMethod::QwikcilverDirect(_) => Ok(Some(PaymentMethodType::QwikcilverDirect)),
+                grpc_api_types::payments::payment_method::PaymentMethod::QwikcilverWalletDirect(_) => Ok(Some(PaymentMethodType::QwikcilverWallet)),
             },
             None => Err(IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Payment method data is required".to_string()), ..Default::default() } }
             .into()),
@@ -5511,7 +5511,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
-                    Some(grpc_api_types::payments::payment_method::PaymentMethod::QwikcilverDirect(_)),
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::QwikcilverWalletDirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -7071,7 +7071,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::CashFree => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::PayU => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::EaseBuzz => Ok(Self::Wallet),
-            grpc_api_types::payments::PaymentMethodType::QwikcilverDirect => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
             grpc_api_types::payments::PaymentMethodType::UpiIntent => Ok(Self::Upi),
@@ -10521,7 +10521,7 @@ pub enum PaymentMethodDataType {
     SepaGuaranteedBankDebit,
     IndonesianBankTransfer,
     Netbanking,
-    QwikcilverDirect,
+    QwikcilverWalletDirect,
 }
 
 impl ForeignTryFrom<String> for Secret<time::Date> {

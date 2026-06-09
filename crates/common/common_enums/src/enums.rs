@@ -1084,7 +1084,7 @@ pub enum PaymentMethodType {
     IndonesianBankTransfer,
     Skrill,
     Paysera,
-    QwikcilverDirect,
+    QwikcilverWallet,
 }
 
 impl PaymentMethodType {
