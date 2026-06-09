@@ -32,6 +32,7 @@ use serde::{Deserialize, Serialize};
 // Constants for encryption and token formatting
 pub(crate) const ENCRYPTION_TYPE_RSA: &str = "RSA";
 pub(crate) const ACCESS_TOKEN_SEPARATOR: &str = "|||";
+pub(crate) const TOKEN_SOURCE_TRANSARMOR: &str = "TRANSARMOR";
 
 /// Helper struct holding encrypted card data for Fiserv Commerce Hub
 #[derive(Debug)]
@@ -63,7 +64,12 @@ fn encrypt_card_data<T: PaymentMethodDataTypes>(
         .map(|n| n.peek().clone())
         .ok_or(errors::IntegrationError::MissingRequiredField {
             field_name: "card_holder_name",
-            context: Default::default(),
+            context: errors::IntegrationErrorContext {
+                additional_context: Some(
+                    "card_holder_name is required for card encryption".to_string(),
+                ),
+                ..Default::default()
+            },
         })?;
     let expiration_month = card.card_exp_month.peek().to_string();
     let expiration_year = card.get_expiry_year_4_digit().peek().to_string();
@@ -80,7 +86,10 @@ fn encrypt_card_data<T: PaymentMethodDataTypes>(
 
     let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
         .change_context(errors::IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
+            context: errors::IntegrationErrorContext {
+                additional_context: Some("RSA OAEP-SHA256 encryption failed".to_string()),
+                ..Default::default()
+            },
         })
         .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
 
@@ -113,7 +122,10 @@ impl FiservcommercehubAuthType {
         let signature = crypto::HmacSha256
             .sign_message(self.api_secret.peek().as_bytes(), raw_signature.as_bytes())
             .change_context(errors::IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some("HMAC-SHA256 signature generation failed".to_string()),
+                    ..Default::default()
+                },
             })?;
         Ok(general_purpose::STANDARD.encode(signature))
     }
@@ -476,7 +488,7 @@ impl FiservcommercehubPaymentTokens {
                     .as_ref()
                     .map(|code| {
                         (code == "000" || code.eq_ignore_ascii_case("SUCCESS"))
-                            && token.token_source == Some("TRANSARMOR".to_string())
+                            && token.token_source == Some(TOKEN_SOURCE_TRANSARMOR.to_string())
                     })
                     .unwrap_or(false)
             })
@@ -859,7 +871,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "connector_transaction_id is required for PSync".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
         Ok(Self {
             merchant_details: FiservcommercehubPSyncMerchantDetails {
@@ -1383,7 +1400,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::IntegrationError::MissingConnectorTransactionID {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "connector_transaction_id is required for Capture".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
         Ok(Self {
             amount: FiservcommercehubAuthorizeAmount {
@@ -1528,10 +1550,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let connector_mandate_id = id.get_connector_mandate_id().ok_or(
                         errors::IntegrationError::MissingRequiredField {
                             field_name: "connector_mandate_id",
-                            context: Default::default(),
+                            context: errors::IntegrationErrorContext {
+                                additional_context: Some(
+                                    "connector_mandate_id is required for repeat payments"
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         },
                     )?;
-                    let token_source = "TRANSARMOR".to_string(); // Assuming TRANSARMOR as token source for repeat payments;
+                    let token_source = TOKEN_SOURCE_TRANSARMOR.to_string();
                     let scheme_ref_id = id.get_connector_mandate_request_reference_id();
                     (connector_mandate_id, token_source, scheme_ref_id)
                 }
@@ -1539,7 +1567,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     return Err(error_stack::report!(
                         errors::IntegrationError::MissingRequiredField {
                             field_name: "mandate_reference_id.connector_mandate_id",
-                            context: Default::default(),
+                            context: errors::IntegrationErrorContext {
+                                additional_context: Some(
+                                    "expected MandateReferenceId::ConnectorMandateId for repeat payments"
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         }
                     ))
                 }
@@ -1708,7 +1742,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: "SetupMandate flow does not support amounts greater than 0"
                         .to_string(),
                     connector: "fiservcommercehub",
-                    context: Default::default(),
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "SetupMandate is for tokenization only; amount must be 0".to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 }
             ));
         }
