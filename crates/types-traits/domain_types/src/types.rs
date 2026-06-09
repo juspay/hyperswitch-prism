@@ -755,13 +755,17 @@ pub struct ProxyConfig {
 #[derive(Deserialize)]
 struct ProxyConfigLegacy {
     idle_pool_connection_timeout: Option<u64>,
-    #[serde(default)]
+    // `bypass_proxy_urls` is the pre-named-proxy-map field name; accepted as an alias so old configs keep working.
+    #[serde(default, alias = "bypass_proxy_urls")]
     bypass_urls: Vec<String>,
     #[serde(default)]
     proxies: HashMap<String, Proxy>,
-    // Legacy flat keys — promoted to proxies["primary"] and proxies["shadow"] if proxies is empty
+    // Legacy flat keys — promoted to proxies["primary"] and proxies["shadow"] if proxies is empty.
+    // `mitm_ca_cert` is the pre-named-proxy-map field name; accepted as an alias so the CA cert
+    // is not silently dropped when an old config runs on a new binary.
     https_url: Option<String>,
     http_url: Option<String>,
+    #[serde(alias = "mitm_ca_cert")]
     ca_cert: Option<String>,
 }
 
