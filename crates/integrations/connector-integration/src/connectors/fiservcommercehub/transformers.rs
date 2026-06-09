@@ -1475,6 +1475,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
                 connector_response_reference_id: txn.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                network_txn_link_id: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1670,6 +1671,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservcommercehubRepe
                 connector_response_reference_id: txn.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                network_txn_link_id: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1889,6 +1891,7 @@ where
                 connector_response_reference_id: txn.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                network_txn_link_id: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
