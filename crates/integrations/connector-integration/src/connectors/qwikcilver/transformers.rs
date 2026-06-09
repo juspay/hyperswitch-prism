@@ -1,8 +1,3 @@
-//! Qwikcilver / QwikWallet — Pine Labs stored-value wallet connector.
-//! `/authorize` uses camelCase; every other endpoint uses PascalCase.
-//! Money is decimal major units. Every authenticated call requires numeric
-//! `TransactionId` + `DateAtClient` headers in addition to the session JWT.
-
 use common_enums::{AttemptStatus, RechargeStatus, RefundStatus};
 use common_utils::types::FloatMajorUnit;
 use domain_types::{
@@ -177,7 +172,6 @@ pub struct QwikcilverLocaleInfo {
     pub display_unit_for_points: Option<String>,
 }
 
-/// Pine Labs JWTs are valid 7 days; refresh sooner to dodge ops-side revocation.
 const SESSION_EXPIRY_SECONDS: i64 = 60 * 20;
 
 impl<F> TryFrom<ResponseRouterData<QwikcilverAuthorizeResponse, Self>>
@@ -215,13 +209,11 @@ impl<F> TryFrom<ResponseRouterData<QwikcilverAuthorizeResponse, Self>>
     }
 }
 
-// `ResponseCode == 0` = success, non-zero = error (HTTP 200 either way).
 pub(crate) const QWIKCILVER_SUCCESS_CODE: i64 = 0;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct QwikcilverWallet {
-    /// PII.
     pub wallet_number: Secret<String>,
     pub external_wallet_id: Option<Secret<String>>,
     pub wallet_pin: Option<Secret<String>>,
@@ -240,8 +232,7 @@ pub struct QwikcilverWallet {
 pub struct QwikcilverCustomer {
     pub customer_type: Option<String>,
     pub salutation: Option<String>,
-    // Pine Labs wire field is `Firstname` (one word); keep the wire spelling
-    // via rename and expose an idiomatic `first_name` in Rust.
+    // Pine Labs is inconsistent on its own wire: `Firstname` is one word,`LastName` is two.
     #[serde(rename = "Firstname")]
     pub first_name: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
@@ -257,13 +248,11 @@ pub struct QwikcilverCustomer {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct QwikcilverCard {
-    /// PII.
     pub card_number: Secret<String>,
     pub amount: FloatMajorUnit,
     pub card_program_name: Option<String>,
     pub card_status: Option<String>,
     pub card_type: Option<String>,
-    /// PII — surfacing alongside the card number would enable cloning.
     pub expiry: Option<Secret<String>>,
     pub bucket_type: Option<String>,
     pub notes: Option<String>,
@@ -359,8 +348,6 @@ where
             idempotency_key,
             invoice_number,
             amount,
-            // Pine Labs computes its own when omitted; explicitly setting it
-            // (even to equal `Amount`) triggers their Runtime Error.
             notes: None,
             bill_amount: None,
         })
@@ -371,7 +358,6 @@ where
 #[serde(rename_all = "PascalCase")]
 pub struct QwikcilverRedeemResponse {
     pub current_batch_number: i64,
-    /// PII.
     pub wallet_number: Secret<String>,
     pub invoice_number: Option<String>,
     pub date_at_server: Option<String>,
@@ -435,7 +421,6 @@ where
     }
 }
 
-/// `RefundsData` has no typed wallet identifier, so callers pass it via metadata.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct QwikcilverRefundMetadata {
     pub wallet_number: Secret<String>,
@@ -576,10 +561,7 @@ pub struct QwikcilverCancelRedeemResponse {
     pub current_batch_number: i64,
     pub invoice_number: Option<String>,
     pub bill_amount: Option<FloatMajorUnit>,
-    /// PII.
     pub wallet_number: Option<Secret<String>>,
-    /// Batch under which the reversal posted; distinct from `current_batch_number`
-    /// (the merchant's running batch).
     pub batch_number: Option<i64>,
     pub amount: Option<FloatMajorUnit>,
     pub balance: Option<FloatMajorUnit>,
@@ -612,7 +594,6 @@ impl TryFrom<ResponseRouterData<QwikcilverCancelRedeemResponse, Self>>
                 refund_status: CANCEL_REDEEM_SUCCESS_STATUS,
                 status_code: item.http_code,
             }),
-            // Refund failures don't tag AttemptStatus — they roll into RefundStatus.
             _ => Err(error_response_from_qc(
                 (&body).into(),
                 Some(body.transaction_id.to_string()),
@@ -777,7 +758,6 @@ impl TryFrom<ResponseRouterData<QwikcilverRechargeResponse, Self>>
                     status_code: item.http_code,
                 })
             }
-            // Recharge isn't an AttemptStatus flow, so leave it unset.
             _ => Err(error_response_from_qc(
                 (&body).into(),
                 Some(body.transaction_id.to_string()),
@@ -792,7 +772,7 @@ impl TryFrom<ResponseRouterData<QwikcilverRechargeResponse, Self>>
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct QwikcilverCreateWalletRequest {
-    /// PII. Wire key is `Externalwalletid` (lowercase `w`), not PascalCase.
+    // Wire key is `Externalwalletid` (lowercase `w`), not PascalCase.
     #[serde(rename = "Externalwalletid")]
     pub external_wallet_id: Secret<String>,
     pub wallet_program_group_name: String,
@@ -808,6 +788,8 @@ pub struct QwikcilverCreateCustomer {
     pub customer_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub salutation: Option<String>,
+    // See QwikcilverCustomer above — Pine Labs uses `Firstname` (one word)
+    // but `LastName` (two words). Only `first_name` needs an explicit rename.
     #[serde(rename = "Firstname")]
     pub first_name: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -830,7 +812,6 @@ pub struct QwikcilverCreateFeatureData {
 }
 
 impl QwikcilverCreateFeatureData {
-    /// Absent → default; malformed → `InvalidDataFormat` (don't mask as missing-field).
     pub(crate) fn from_request(
         req: &CreatePaymentMethodData,
     ) -> Result<Self, error_stack::Report<IntegrationError>> {
@@ -930,7 +911,6 @@ where
             external_wallet_id: phone.clone(),
             wallet_program_group_name: program,
             customer: QwikcilverCreateCustomer {
-                // Sourced from connector_feature_data — proto strips these fields.
                 customer_type: feature.customer_type,
                 salutation: feature.salutation,
                 first_name: first,
@@ -944,7 +924,6 @@ where
     }
 }
 
-/// Placeholder; framework macro requires a typed `request_body`.
 #[derive(Debug, Serialize)]
 pub struct QwikcilverEmptyBody {}
 
@@ -980,7 +959,6 @@ where
     }
 }
 
-/// Shared by Create + Get (PDF §10.2.2 and §10.3.2).
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct QwikcilverWalletEnvelope {
@@ -996,7 +974,6 @@ pub struct QwikcilverWalletEnvelope {
     pub error_description: Option<String>,
 }
 
-/// Newtype: Create + Get share the envelope but the framework macro needs distinct types.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct QwikcilverGetWalletResponse(pub QwikcilverWalletEnvelope);
@@ -1004,30 +981,24 @@ pub struct QwikcilverGetWalletResponse(pub QwikcilverWalletEnvelope);
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct QwikcilverWalletDetails {
-    /// PII.
     pub wallet_number: Secret<String>,
     pub external_wallet_id: Option<Secret<String>>,
     pub wallet_pin: Option<Secret<String>>,
     pub status: Option<String>,
-    /// PII.
     pub track_data: Option<Secret<String>>,
-    /// PII.
     pub bar_code: Option<Secret<String>>,
     pub wallet_program_group_name: Option<String>,
     pub wallet_holder_name: Option<Secret<String>>,
     pub balance: Option<FloatMajorUnit>,
     pub notes: Option<String>,
-    /// Most-recently-added card, not full inventory.
     pub card: Option<QwikcilverCard>,
     pub customer: Option<QwikcilverCustomer>,
 }
 
-// Pine Labs is synchronous-binary: terminal success/failure only, no Pending.
 const REDEEM_SUCCESS_STATUS: AttemptStatus = AttemptStatus::Charged;
 const CANCEL_REDEEM_SUCCESS_STATUS: RefundStatus = RefundStatus::Success;
 const RECHARGE_SUCCESS_STATUS: RechargeStatus = RechargeStatus::Success;
 
-/// Unknown / blank → `None` (don't lie via `Unspecified`).
 fn map_wallet_status(s: Option<&String>) -> Option<common_enums::WalletStatus> {
     s.and_then(|raw| match raw.to_ascii_uppercase().as_str() {
         qwikcilver_status::ACTIVE => Some(common_enums::WalletStatus::Active),
@@ -1036,7 +1007,6 @@ fn map_wallet_status(s: Option<&String>) -> Option<common_enums::WalletStatus> {
     })
 }
 
-/// Unknown / blank → `Unspecified` (`Default`).
 fn map_wallet_item_status(s: Option<&String>) -> common_enums::WalletItemStatus {
     s.map(|raw| match raw.to_ascii_uppercase().as_str() {
         qwikcilver_status::ACTIVE => common_enums::WalletItemStatus::Active,
@@ -1274,7 +1244,7 @@ pub struct QwikcilverErrorResponse {
     pub response_message: Option<String>,
     pub error_code: Option<String>,
     pub error_description: Option<String>,
-    /// PII.
+
     pub wallet_number: Option<Secret<String>>,
 }
 
