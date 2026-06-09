@@ -1846,19 +1846,10 @@ pub struct RechargeResponseData {
 /// (Create / Get). Fields are picked from the proto `Customer` message — only
 /// the ones a connector actually needs to provision or look up a payment
 /// method.
-#[derive(Debug, Clone, Default)]
-pub struct PaymentMethodCustomerInfo {
-    pub merchant_customer_id: Option<String>,
-    pub first_name: Option<Secret<String>>,
-    pub last_name: Option<Secret<String>>,
-    pub email: Option<Email>,
-    pub phone_number: Option<Secret<String>>,
-}
-
 #[derive(Debug, Clone)]
 pub struct CreatePaymentMethodData {
     pub merchant_payment_method_id: Option<String>,
-    pub customer: Option<PaymentMethodCustomerInfo>,
+    pub customer: Option<CustomerInfo>,
     pub description: Option<String>,
     pub payment_method_type: PaymentMethodType,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
@@ -1869,7 +1860,7 @@ pub struct CreatePaymentMethodResponseData {
     pub merchant_payment_method_id: Option<String>,
     pub connector_payment_method_id: Option<String>,
     pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
-    pub customer: Option<PaymentMethodCustomerInfo>,
+    pub customer: Option<CustomerInfo>,
     pub status_code: u16,
 }
 
@@ -1877,7 +1868,7 @@ pub struct CreatePaymentMethodResponseData {
 pub struct GetPaymentMethodData {
     pub merchant_payment_method_id: Option<String>,
     pub connector_payment_method_id: Option<String>,
-    pub customer: Option<PaymentMethodCustomerInfo>,
+    pub customer: Option<CustomerInfo>,
     pub payment_method_type: PaymentMethodType,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
 }
@@ -1886,8 +1877,8 @@ pub struct GetPaymentMethodData {
 pub struct GetPaymentMethodResponseData {
     pub merchant_payment_method_id: Option<String>,
     pub connector_payment_method_id: Option<String>,
+    pub customer: Option<CustomerInfo>,
     pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
-    pub customer: Option<PaymentMethodCustomerInfo>,
     pub status_code: u16,
 }
 
@@ -3761,6 +3752,8 @@ pub struct CustomerInfo {
     pub customer_id: Option<CustomerId>,
     pub customer_email: Option<common_utils::pii::Email>,
     pub customer_name: Option<Secret<String>>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
     pub customer_phone_number: Option<Secret<String>>,
     pub customer_phone_country_code: Option<String>,
 }

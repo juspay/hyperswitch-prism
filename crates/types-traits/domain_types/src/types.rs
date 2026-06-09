@@ -9493,6 +9493,8 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
             customer_id,
             customer_email,
             customer_name: value.name.clone().map(Into::into),
+            first_name: value.first_name.clone().map(Into::into),
+            last_name: value.last_name.clone().map(Into::into),
             customer_phone_number: value.phone_number.clone().map(Into::into),
             customer_phone_country_code: value.phone_country_code.clone(),
         })
@@ -9540,9 +9542,30 @@ impl ForeignTryFrom<&grpc_api_types::payouts::Customer> for CustomerInfo {
             customer_id,
             customer_email,
             customer_name: value.name.clone().map(Into::into),
+            first_name: value.first_name.clone().map(Into::into),
+            last_name: value.last_name.clone().map(Into::into),
             customer_phone_number: value.phone_number.clone().map(Into::into),
             customer_phone_country_code: value.phone_country_code.clone(),
         })
+    }
+}
+
+impl ForeignFrom<connector_types::CustomerInfo> for grpc_api_types::payments::Customer {
+    fn foreign_from(info: connector_types::CustomerInfo) -> Self {
+        Self {
+            id: info
+                .customer_id
+                .map(|id| id.get_string_repr().to_string()),
+            name: info.customer_name.map(|n| n.expose()),
+            first_name: info.first_name.map(|f| f.expose()),
+            last_name: info.last_name.map(|l| l.expose()),
+            email: info
+                .customer_email
+                .map(|e| Secret::new(e.expose().expose().to_string())),
+            phone_number: info.customer_phone_number.map(|p| p.expose()),
+            phone_country_code: info.customer_phone_country_code,
+            ..Default::default()
+        }
     }
 }
 
@@ -11138,21 +11161,6 @@ impl
 // CreatePaymentMethod / GetPaymentMethod conversions
 // ============================================================================
 
-fn payment_method_customer_info_from_proto(
-    customer: grpc_api_types::payments::Customer,
-) -> connector_types::PaymentMethodCustomerInfo {
-    let email = customer
-        .email
-        .and_then(|e| Email::try_from(e.expose()).ok());
-    connector_types::PaymentMethodCustomerInfo {
-        merchant_customer_id: customer.id,
-        first_name: customer.name.map(Secret::new),
-        last_name: None,
-        email,
-        phone_number: customer.phone_number.map(Secret::new),
-    }
-}
-
 fn resolve_payment_method_type(
     proto_type: i32,
     context: &'static str,
@@ -11185,7 +11193,11 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceCreateRequest>
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let payment_method_type =
             resolve_payment_method_type(value.payment_method_type, "create_payment_method")?;
-        let customer = value.customer.map(payment_method_customer_info_from_proto);
+        let customer = value
+            .customer
+            .as_ref()
+            .map(CustomerInfo::foreign_try_from)
+            .transpose()?;
         Ok(Self {
             merchant_payment_method_id: value.merchant_payment_method_id,
             customer,
@@ -11280,7 +11292,11 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceGetRequest>
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let payment_method_type =
             resolve_payment_method_type(value.payment_method_type, "get_payment_method")?;
-        let customer = value.customer.map(payment_method_customer_info_from_proto);
+        let customer = value
+            .customer
+            .as_ref()
+            .map(CustomerInfo::foreign_try_from)
+            .transpose()?;
         Ok(Self {
             merchant_payment_method_id: value.merchant_payment_method_id,
             connector_payment_method_id: value.connector_payment_method_id,
@@ -14681,26 +14697,6 @@ pub fn generate_recharge_response(
     }
 }
 
-fn proto_customer_from_payment_method_customer_info(
-    info: connector_types::PaymentMethodCustomerInfo,
-) -> grpc_api_types::payments::Customer {
-    grpc_api_types::payments::Customer {
-        id: info.merchant_customer_id,
-        name: info
-            .first_name
-            .as_ref()
-            .map(|f| f.peek().clone())
-            .zip(info.last_name.as_ref().map(|l| l.peek().clone()))
-            .map(|(f, l)| format!("{f} {l}"))
-            .or_else(|| info.first_name.as_ref().map(|f| f.peek().clone())),
-        first_name: info.first_name.as_ref().map(|f| f.peek().clone()),
-        last_name: info.last_name.as_ref().map(|l| l.peek().clone()),
-        email: info.email.map(|e| Secret::new(e.expose().expose().to_string())),
-        phone_number: info.phone_number.map(|p| p.expose()),
-        ..Default::default()
-    }
-}
-
 pub fn generate_create_payment_method_response(
     router_data_v2: RouterDataV2<
         CreatePaymentMethod,
@@ -14724,7 +14720,9 @@ pub fn generate_create_payment_method_response(
             payment_method_details: r
                 .payment_method_details
                 .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
-            customer: r.customer.map(proto_customer_from_payment_method_customer_info),
+            customer: r
+                .customer
+                .map(grpc_api_types::payments::Customer::foreign_from),
             address: None,
             error: None,
             status_code: r.status_code as u32,
@@ -14784,7 +14782,9 @@ pub fn generate_get_payment_method_response(
             payment_method_details: r
                 .payment_method_details
                 .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
-            customer: r.customer.map(proto_customer_from_payment_method_customer_info),
+            customer: r
+                .customer
+                .map(grpc_api_types::payments::Customer::foreign_from),
             address: None,
             error: None,
             status_code: r.status_code as u32,
