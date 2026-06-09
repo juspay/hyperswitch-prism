@@ -275,8 +275,8 @@ impl ConnectorClient {
         create_customer,
         CustomerServiceCreateRequest,
         CustomerServiceCreateResponse,
-        create_req_handler,
-        create_res_handler
+        customer_create_req_handler,
+        customer_create_res_handler
     );
     // ── DisputeService flows ───────────────────────────────────────────────────
     impl_flow_method!(

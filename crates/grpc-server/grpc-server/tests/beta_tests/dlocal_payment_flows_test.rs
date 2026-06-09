@@ -229,6 +229,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         amount: TEST_AMOUNT,
         currency: i32::from(Currency::Myr),
         state: None,
+        payment_method_type: None,
     }
 }
 

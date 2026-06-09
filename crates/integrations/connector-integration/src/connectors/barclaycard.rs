@@ -15,7 +15,7 @@ use domain_types::{
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{Connectors, HasConnectors},
@@ -693,7 +693,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                         .clone()
                         .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
                     reason: server_error.status.clone(),
-                    attempt_status,
+                    attempt_status: attempt_status.map(FlowStatus::Payment),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,

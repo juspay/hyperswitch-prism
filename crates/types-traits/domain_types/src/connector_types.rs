@@ -147,6 +147,8 @@ pub enum ConnectorEnum {
     Axisbank,
     TwocTwopPaco,
     Juspay,
+    Payconex,
+    Tamara,
 }
 
 // snake case for enum variants
@@ -382,6 +384,8 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
+            grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
+            grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -1076,6 +1080,93 @@ impl PaymentFlowData {
             .get_payment_method_billing()
             .and_then(|billing_address| billing_address.clone().email)
     }
+
+    // ── Shipping-with-billing-fallback helpers ──────────────────────────────
+    // `get_optional_shipping_or_billing_*` → Option  (chain further fallbacks as needed)
+    // `get_shipping_or_billing_*`          → Result  (error is owned here; callers just use `?`)
+
+    pub fn get_optional_shipping_or_billing_country(&self) -> Option<common_enums::CountryAlpha2> {
+        self.get_optional_shipping_country()
+            .or_else(|| self.get_optional_billing_country())
+    }
+
+    pub fn get_shipping_or_billing_country(&self) -> Result<common_enums::CountryAlpha2, Error> {
+        self.get_optional_shipping_or_billing_country()
+            .ok_or_else(missing_field_err("shipping_or_billing.address.country"))
+    }
+
+    pub fn get_optional_shipping_or_billing_first_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_first_name()
+            .or_else(|| self.get_optional_billing_first_name())
+    }
+
+    pub fn get_shipping_or_billing_first_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_or_billing_first_name()
+            .ok_or_else(missing_field_err("shipping_or_billing.address.first_name"))
+    }
+
+    pub fn get_optional_shipping_or_billing_last_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_last_name()
+            .or_else(|| self.get_optional_billing_last_name())
+    }
+
+    pub fn get_shipping_or_billing_last_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_or_billing_last_name()
+            .ok_or_else(missing_field_err("shipping_or_billing.address.last_name"))
+    }
+
+    // Same as `get_shipping_or_billing_phone_number` but doesn't require country code.
+    // Uses `phone.number` directly instead of `get_number_with_country_code()`.
+    pub fn get_optional_shipping_phone_number_plain(&self) -> Option<Secret<String>> {
+        self.address
+            .get_shipping()
+            .and_then(|shipping_address| shipping_address.clone().phone)
+            .and_then(|phone_details| phone_details.number)
+    }
+
+    pub fn get_optional_shipping_or_billing_phone_number_plain(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_phone_number_plain()
+            .or_else(|| self.get_optional_billing_phone_number())
+    }
+
+    pub fn get_shipping_or_billing_phone_number_plain(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_or_billing_phone_number_plain()
+            .ok_or_else(missing_field_err("shipping_or_billing.phone"))
+    }
+
+    pub fn get_optional_shipping_or_billing_line1(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_line1()
+            .or_else(|| self.get_optional_billing_line1())
+    }
+
+    pub fn get_optional_shipping_or_billing_city(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_city()
+            .or_else(|| self.get_optional_billing_city())
+    }
+
+    // ── String-converting helpers ───────────────────────────────────────────
+    // For connector structs that store address fields as plain `String`
+    // (not `Secret<String>`), these hide the `.peek().to_string()` /
+    // `.to_string()` + `.unwrap_or_default()` at every call site.
+
+    pub fn get_optional_shipping_or_billing_line1_string(&self) -> String {
+        self.get_optional_shipping_or_billing_line1()
+            .map(|l| l.expose())
+            .unwrap_or_default()
+    }
+
+    pub fn get_optional_shipping_or_billing_city_string(&self) -> String {
+        self.get_optional_shipping_or_billing_city()
+            .map(|c| c.expose())
+            .unwrap_or_default()
+    }
+
+    pub fn get_optional_shipping_or_billing_country_string(&self) -> String {
+        self.get_optional_shipping_or_billing_country()
+            .map(|c| c.to_string())
+            .unwrap_or_default()
+    }
+
     pub fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
@@ -1614,6 +1705,9 @@ pub enum PaymentsResponseData {
         connector_metadata: Option<serde_json::Value>,
         mandate_reference: Option<Box<MandateReference>>,
         network_txn_id: Option<String>,
+        /// Network-issued link/reference id (Adyen `transactionLinkId`, etc.) that
+        /// chains related network transactions. Distinct from `network_txn_id`.
+        network_txn_link_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
         status_code: u16,
@@ -1970,6 +2064,7 @@ impl ConnectorCustomerData {
 #[derive(Debug, Clone)]
 pub struct ConnectorCustomerResponse {
     pub connector_customer_id: String,
+    pub status_code: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -4532,6 +4627,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
+            AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {
@@ -4540,6 +4636,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Bamboraapac(_) => Ok(Self::Payment(ConnectorEnum::Bamboraapac)),
             AuthType::Placetopay(_) => Ok(Self::Payment(ConnectorEnum::Placetopay)),
             AuthType::Finix(_) => Ok(Self::Payment(ConnectorEnum::Finix)),
+            AuthType::Tamara(_) => Ok(Self::Payment(ConnectorEnum::Tamara)),
         }
     }
 }

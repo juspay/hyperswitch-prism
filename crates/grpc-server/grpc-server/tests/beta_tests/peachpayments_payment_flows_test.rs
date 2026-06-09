@@ -135,6 +135,9 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             connector_customer_id: None,
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
         }),
         address: Some(grpc_api_types::payments::PaymentAddress::default()),
         auth_type: i32::from(AuthenticationType::NoThreeDs),
@@ -205,6 +208,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
             currency: i32::from(Currency::Zar),
         }),
         ..Default::default()
+        payment_method_type: None,
     }
 }
 

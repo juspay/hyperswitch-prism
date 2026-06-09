@@ -8,15 +8,19 @@ use common_utils::{
     errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, PSync, RSync, Refund, ServerSessionAuthenticationToken, Void,
+    },
     connector_types::{
         ConnectorSpecifications, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, SupportedPaymentMethodsExt,
+        RefundSyncData, RefundsData, RefundsResponseData,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        SupportedPaymentMethodsExt,
     },
     errors::IntegrationError,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
@@ -38,7 +42,8 @@ use transformers::{
     is_netbanking_redirect_flow, is_upi_collect_flow, is_wallet_redirect_flow, PayuAuthType,
     PayuCaptureRequest, PayuCaptureResponse, PayuPaymentRequest, PayuPaymentResponse,
     PayuRefundRequest, PayuRefundResponse, PayuRefundSyncRequest, PayuRefundSyncResponse,
-    PayuSyncRequest, PayuSyncResponse, PayuVoidRequest, PayuVoidResponse,
+    PayuSessionTokenRequest, PayuSessionTokenResponse, PayuSyncRequest, PayuSyncResponse,
+    PayuVoidRequest, PayuVoidResponse,
 };
 
 use super::macros;
@@ -90,8 +95,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ServerSessionAuthentication for Payu<T>
+{
+    // Trait requirements satisfied by the macro-generated impl;
+    // no custom logic needed for the SDKSessionToken (ServerSessionAuthenticationToken) flow.
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Payu<T>
 {
+    fn should_do_session_token(&self) -> bool {
+        true // Enable SDKSessionToken (ServerSessionAuthenticationToken) flow
+    }
 } // Authentication trait implementations
 macros::macro_connector_payout_implementation!(
     connector: Payu,
@@ -104,6 +118,12 @@ macros::create_all_prerequisites!(
     connector_name: Payu,
     generic_type: T,
     api: [
+        (
+            flow: ServerSessionAuthenticationToken,
+            request_body: PayuSessionTokenRequest,
+            response_body: PayuSessionTokenResponse,
+            router_data: RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+        ),
         (
             flow: Authorize,
             request_body: PayuPaymentRequest,
@@ -299,7 +319,7 @@ macros::macro_connector_implementation!(
                     code: "PAYU_SYNC_ERROR".to_string(),
                     message: response.msg.unwrap_or_default(),
                     reason: None,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
@@ -312,7 +332,7 @@ macros::macro_connector_implementation!(
                     code: "SYNC_UNKNOWN_ERROR".to_string(),
                     message: "Unknown PayU sync error".to_string(),
                     reason: None,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
@@ -379,7 +399,7 @@ macros::macro_connector_implementation!(
                     .or(response.message)
                     .unwrap_or_else(|| "PayU capture error".to_string()),
                 reason: None,
-                attempt_status: Some(enums::AttemptStatus::CaptureFailed),
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::CaptureFailed)),
                 connector_transaction_id: response.mihpayid,
                 network_error_message: None,
                 network_advice_code: None,
@@ -445,7 +465,7 @@ macros::macro_connector_implementation!(
                     .or(response.message)
                     .unwrap_or_else(|| "PayU void error".to_string()),
                 reason: None,
-                attempt_status: Some(enums::AttemptStatus::VoidFailed),
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::VoidFailed)),
                 connector_transaction_id: response.mihpayid,
                 network_error_message: None,
                 network_advice_code: None,
@@ -585,6 +605,72 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Implement SDKSessionToken (ServerSessionAuthenticationToken) flow using macro framework
+macros::macro_connector_implementation!(
+    connector_default_implementations: [],
+    connector: Payu,
+    curl_request: FormUrlEncoded(PayuSessionTokenRequest),
+    curl_response: PayuSessionTokenResponse,
+    flow_name: ServerSessionAuthenticationToken,
+    resource_common_data: PaymentFlowData,
+    flow_request: ServerSessionAuthenticationTokenRequestData,
+    flow_response: ServerSessionAuthenticationTokenResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
+                ("Accept".to_string(), "application/json".into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // PayU OAuth2 client_credentials token endpoint (SDKSessionToken).
+            let base_url = self.base_url(&req.resource_common_data.connectors);
+            let base_url = base_url.trim_end_matches('/');
+            Ok(format!("{base_url}/pl/standard/user/oauth/authorize"))
+        }
+
+        fn get_content_type(&self) -> &'static str {
+            "application/x-www-form-urlencoded"
+        }
+
+        fn get_error_response_v2(
+            &self,
+            res: Response,
+            _event_builder: Option<&mut events::Event>,
+            _connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            let response: PayuSessionTokenResponse = res
+                .response
+                .parse_struct("PayU SessionToken ErrorResponse")
+                .change_context(crate::utils::response_handling_fail_for_connector(res.status_code, "payu"))?;
+
+            Ok(ErrorResponse {
+                status_code: res.status_code,
+                code: response.error.unwrap_or_else(|| "SESSION_TOKEN_ERROR".to_string()),
+                message: response
+                    .error_description
+                    .unwrap_or_else(|| "PayU session token error".to_string()),
+                reason: None,
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
+                connector_transaction_id: None,
+                network_error_message: None,
+                network_advice_code: None,
+                network_decline_code: None,
+            })
+        }
+    }
+);
+
 // Implement authorize flow using macro framework
 macros::macro_connector_implementation!(
     connector_default_implementations: [],
@@ -640,7 +726,7 @@ macros::macro_connector_implementation!(
                     code: response.error.unwrap_or_default(),
                     message: response.message.unwrap_or_default(),
                     reason: None,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                     connector_transaction_id: response.reference_id,
                     network_error_message: None,
                     network_advice_code: None,
@@ -654,7 +740,7 @@ macros::macro_connector_implementation!(
                     code: "UNKNOWN_ERROR".to_string(),
                     message: "Unknown PayU error".to_string(),
                     reason: None,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
@@ -792,7 +878,6 @@ macros::macro_connector_flow_status_impls!(
         SetupMandate,
         RepeatPayment,
         CreateOrder,
-        ServerSessionAuthenticationToken,
         ServerAuthenticationToken,
     ],
     not_supported: [

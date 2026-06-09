@@ -27,8 +27,7 @@ port = 8080
 
 [proxy]
 idle_pool_connection_timeout = 90
-bypass_proxy_urls = []
-mitm_proxy_enabled = false
+bypass_urls = []
 
 [test]
 enabled = false
@@ -46,9 +45,11 @@ psync = "GW_TXN_SYNC"
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
-connectors_with_webhook_source_verification_call = "paypal, truelayer "
+connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
+payconex.base_url = "https://cert.payconex.net"
+tamara.base_url = "https://api-sandbox.tamara.co"
 juspay.base_url = "https://sandbox.juspay.in/"
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
@@ -107,7 +108,7 @@ fiuu.base_url = "https://sandbox.merchant.razer.com/"
 fiuu.secondary_base_url = "https://sandbox.merchant.razer.com/"
 fiuu.third_base_url = "https://api.merchant.razer.com/"
 payload.base_url = "https://api.payload.com"
-payu.base_url = "https://test.payu.in/"
+payu.base_url = "https://secure.snd.payu.com/"
 paytm.base_url = "https://securestage.paytmpayments.com/"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 calida.base_url = "https://dev.eorder.reloadhero.com/"
@@ -200,4 +201,4 @@ enqueue_timeout_ms = 5000
 # sasl_password = ""
 
 [unmasked_headers]
-keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode"]
+keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name"]

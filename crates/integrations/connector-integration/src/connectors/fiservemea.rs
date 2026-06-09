@@ -15,7 +15,7 @@ use domain_types::{
         RefundSyncData, RefundsData, RefundsResponseData,
     },
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -566,7 +566,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 .details
                 .as_ref()
                 .and_then(|details| details.first().and_then(|detail| detail.message.clone())),
-            attempt_status,
+            attempt_status: attempt_status.map(FlowStatus::Payment),
             connector_transaction_id: response.api_trace_id,
             network_decline_code: None,
             network_advice_code: None,
