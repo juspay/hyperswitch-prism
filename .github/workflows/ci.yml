@@ -117,7 +117,7 @@ jobs:
         run: |
           names=$(echo '${{ steps.filter.outputs.connector_files }}' | \
             jq -r '.[]' | \
-            grep -oE '(connectors|connector_specs)/[^/]+' | \
+            grep -oE '(connectors|connector_specs)/[^/]+' || true | \
             sed 's|^connectors/||;s|^connector_specs/||;s|\.rs$||' | \
             sort -u | paste -sd ',' -)
           echo "list=$names" >> $GITHUB_OUTPUT

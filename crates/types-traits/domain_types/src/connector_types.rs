@@ -1833,6 +1833,70 @@ pub struct PaymentMethodTokenResponse {
 }
 
 #[derive(Debug, Clone)]
+pub struct RechargeRequestData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub merchant_request_id: Option<String>,
+    pub merchant_recharge_id: Option<String>,
+    pub product_id: String,
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    pub description: Option<String>,
+    pub payment_method_type: PaymentMethodType,
+}
+
+#[derive(Debug, Clone)]
+pub struct RechargeResponseData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub merchant_recharge_id: Option<String>,
+    pub connector_recharge_id: Option<String>,
+    pub status: common_enums::RechargeStatus,
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
+    pub status_code: u16,
+}
+
+/// Slimmed-down customer info used by the payment-method-management flows
+/// (Create / Get). Fields are picked from the proto `Customer` message — only
+/// the ones a connector actually needs to provision or look up a payment
+/// method.
+#[derive(Debug, Clone)]
+pub struct CreatePaymentMethodData {
+    pub merchant_payment_method_id: Option<String>,
+    pub customer: Option<CustomerInfo>,
+    pub description: Option<String>,
+    pub payment_method_type: PaymentMethodType,
+    pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CreatePaymentMethodResponseData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
+    pub customer: Option<CustomerInfo>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetPaymentMethodData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub customer: Option<CustomerInfo>,
+    pub payment_method_type: PaymentMethodType,
+    pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetPaymentMethodResponseData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub customer: Option<CustomerInfo>,
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
 pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     pub payment_method_data: Option<PaymentMethodData<T>>,
     pub amount: MinorUnit,
@@ -3720,8 +3784,11 @@ pub struct CustomerInfo {
     pub customer_id: Option<CustomerId>,
     pub customer_email: Option<common_utils::pii::Email>,
     pub customer_name: Option<Secret<String>>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
     pub customer_phone_number: Option<Secret<String>>,
     pub customer_phone_country_code: Option<String>,
+    pub salutation: Option<String>,
 }
 
 impl L2L3Data {

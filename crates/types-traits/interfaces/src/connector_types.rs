@@ -9,15 +9,17 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorEnum, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse,
-        EventType, MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
-        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
+        CreatePaymentMethodData, CreatePaymentMethodResponseData, DisputeDefendData,
+        DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse, EventType,
+        GetPaymentMethodData, GetPaymentMethodResponseData, MandateRevokeRequestData,
+        MandateRevokeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RechargeRequestData, RechargeResponseData, RedirectDetailsResponse,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData, VerifyWebhookSourceFlowData,
@@ -90,6 +92,9 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + ServerAuthentication
     + CreateConnectorCustomer
     + PaymentTokenV2<T>
+    + RechargeV2
+    + CreatePaymentMethodV2
+    + GetPaymentMethodV2
     + PaymentVoidV2
     + PaymentVoidPostCaptureV2
     + IncomingWebhook
@@ -261,6 +266,36 @@ pub trait PaymentTokenV2<T: PaymentMethodDataTypes>:
     PaymentFlowData,
     PaymentMethodTokenizationData<T>,
     PaymentMethodTokenResponse,
+>
+{
+}
+
+pub trait RechargeV2:
+    ConnectorIntegrationV2<
+    connector_flow::Recharge,
+    PaymentFlowData,
+    RechargeRequestData,
+    RechargeResponseData,
+>
+{
+}
+
+pub trait CreatePaymentMethodV2:
+    ConnectorIntegrationV2<
+    connector_flow::CreatePaymentMethod,
+    PaymentFlowData,
+    CreatePaymentMethodData,
+    CreatePaymentMethodResponseData,
+>
+{
+}
+
+pub trait GetPaymentMethodV2:
+    ConnectorIntegrationV2<
+    connector_flow::GetPaymentMethod,
+    PaymentFlowData,
+    GetPaymentMethodData,
+    GetPaymentMethodResponseData,
 >
 {
 }
