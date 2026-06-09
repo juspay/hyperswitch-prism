@@ -11273,8 +11273,10 @@ impl<
         // Extract the customer identification document (mirrors the EMAIL field above).
         // Proto DocumentKind -> domain DocumentKind; UNSPECIFIED document_type means
         // no usable document, so the whole detail is treated as None.
-        let customer_document_details: Option<CustomerDocumentDetails> =
-            value.customer_document_details.as_ref().and_then(map_customer_document_details);
+        let customer_document_details: Option<CustomerDocumentDetails> = value
+            .customer_document_details
+            .as_ref()
+            .and_then(map_customer_document_details);
 
         // Extract mandate reference_id
         let mandate_ref = match value.connector_recurring_payment_id {
