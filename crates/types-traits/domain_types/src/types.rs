@@ -9517,6 +9517,7 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
             last_name: value.last_name.clone().map(Into::into),
             customer_phone_number: value.phone_number.clone().map(Into::into),
             customer_phone_country_code: value.phone_country_code.clone(),
+            salutation: value.salutation.clone(),
         })
     }
 }
@@ -9566,6 +9567,7 @@ impl ForeignTryFrom<&grpc_api_types::payouts::Customer> for CustomerInfo {
             last_name: value.last_name.clone().map(Into::into),
             customer_phone_number: value.phone_number.clone().map(Into::into),
             customer_phone_country_code: value.phone_country_code.clone(),
+            salutation: value.salutation.clone(),
         })
     }
 }
@@ -9582,6 +9584,7 @@ impl ForeignFrom<connector_types::CustomerInfo> for grpc_api_types::payments::Cu
                 .map(|e| Secret::new(e.expose().expose().to_string())),
             phone_number: info.customer_phone_number.map(|p| p.expose()),
             phone_country_code: info.customer_phone_country_code,
+            salutation: info.salutation,
             ..Default::default()
         }
     }

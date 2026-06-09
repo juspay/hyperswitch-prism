@@ -3759,6 +3759,7 @@ pub struct CustomerInfo {
     pub last_name: Option<Secret<String>>,
     pub customer_phone_number: Option<Secret<String>>,
     pub customer_phone_country_code: Option<String>,
+    pub salutation: Option<String>,
 }
 
 impl L2L3Data {
