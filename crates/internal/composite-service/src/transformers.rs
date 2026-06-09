@@ -4,7 +4,8 @@ use grpc_api_types::payments::{
     CompositePaymentMethodCreateRequest, CompositePaymentMethodGetRequest,
     CompositePaymentMethodRechargeRequest, CompositeRefundGetRequest, CompositeRefundRequest,
     CompositeVoidRequest, ConnectorState, CustomerServiceCreateRequest,
-    CustomerServiceCreateResponse, MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    CustomerServiceCreateResponse,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
@@ -655,7 +656,9 @@ impl ForeignFrom<(&CompositePaymentMethodCreateRequest, &ConnectorEnum)>
 impl ForeignFrom<(&CompositePaymentMethodGetRequest, &ConnectorEnum)>
     for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
 {
-    fn foreign_from((item, connector): (&CompositePaymentMethodGetRequest, &ConnectorEnum)) -> Self {
+    fn foreign_from(
+        (item, connector): (&CompositePaymentMethodGetRequest, &ConnectorEnum),
+    ) -> Self {
         Self {
             merchant_access_token_id: item.merchant_access_token_id.clone(),
             connector: grpc_connector_from_connector_enum(connector),
@@ -704,6 +707,7 @@ impl
             description: item.description.clone(),
             payment_method_type: item.payment_method_type,
             state: resolved_state,
+            metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
         }
@@ -742,6 +746,8 @@ impl
             description: item.description.clone(),
             payment_method_type: item.payment_method_type,
             state: resolved_state,
+            product_id: item.product_id.clone(),
+            metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
         }
@@ -781,6 +787,7 @@ impl
             payment_method_type: item.payment_method_type,
             state: resolved_state,
             connector_feature_data: item.connector_feature_data.clone(),
+            metadata: item.metadata.clone(),
             test_mode: item.test_mode,
         }
     }

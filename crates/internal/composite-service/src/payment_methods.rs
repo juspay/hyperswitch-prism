@@ -3,10 +3,10 @@ use domain_types::utils::ForeignTryFrom as _;
 use grpc_api_types::payments::{
     composite_payment_method_service_server::CompositePaymentMethodService,
     merchant_authentication_service_server::MerchantAuthenticationService,
-    payment_method_service_server::PaymentMethodService,
-    CompositePaymentMethodCreateRequest, CompositePaymentMethodCreateResponse,
-    CompositePaymentMethodGetRequest, CompositePaymentMethodGetResponse,
-    CompositePaymentMethodRechargeRequest, CompositePaymentMethodRechargeResponse,
+    payment_method_service_server::PaymentMethodService, CompositePaymentMethodCreateRequest,
+    CompositePaymentMethodCreateResponse, CompositePaymentMethodGetRequest,
+    CompositePaymentMethodGetResponse, CompositePaymentMethodRechargeRequest,
+    CompositePaymentMethodRechargeResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     PaymentMethodServiceCreateRequest, PaymentMethodServiceGetRequest,
     PaymentMethodServiceRechargeRequest,
@@ -19,7 +19,6 @@ use crate::utils::connector_from_composite_authorize_metadata;
 /// Implementation of CompositeAccessTokenRequest for payment method requests.
 /// These requests don't have a specific payment_method field since payment-method-management
 /// flows aren't gated on a specific payment method.
-
 impl CompositeAccessTokenRequest for CompositePaymentMethodRechargeRequest {
     fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
         None
@@ -32,7 +31,8 @@ impl CompositeAccessTokenRequest for CompositePaymentMethodRechargeRequest {
     fn build_access_token_request(
         &self,
         connector: &domain_types::connector_types::ConnectorEnum,
-    ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+    ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+    {
         grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
         ))
@@ -51,7 +51,8 @@ impl CompositeAccessTokenRequest for CompositePaymentMethodCreateRequest {
     fn build_access_token_request(
         &self,
         connector: &domain_types::connector_types::ConnectorEnum,
-    ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+    ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+    {
         grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
         ))
@@ -70,7 +71,8 @@ impl CompositeAccessTokenRequest for CompositePaymentMethodGetRequest {
     fn build_access_token_request(
         &self,
         connector: &domain_types::connector_types::ConnectorEnum,
-    ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+    ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+    {
         grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
         ))

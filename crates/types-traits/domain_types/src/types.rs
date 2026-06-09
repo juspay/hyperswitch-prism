@@ -34,10 +34,9 @@ use grpc_api_types::payments::{
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse,
-    PaymentMethodServiceCreateResponse, PaymentMethodServiceGetResponse,
-    PaymentMethodServiceRechargeResponse, PaymentServiceAuthorizeRequest,
-    PaymentServiceAuthorizeResponse, PaymentServiceCaptureResponse,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateResponse,
+    PaymentMethodServiceGetResponse, PaymentMethodServiceRechargeResponse,
+    PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderResponse, PaymentServiceGetResponse,
     PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
     PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
@@ -9553,9 +9552,7 @@ impl ForeignTryFrom<&grpc_api_types::payouts::Customer> for CustomerInfo {
 impl ForeignFrom<connector_types::CustomerInfo> for grpc_api_types::payments::Customer {
     fn foreign_from(info: connector_types::CustomerInfo) -> Self {
         Self {
-            id: info
-                .customer_id
-                .map(|id| id.get_string_repr().to_string()),
+            id: info.customer_id.map(|id| id.get_string_repr().to_string()),
             name: info.customer_name.map(|n| n.expose()),
             first_name: info.first_name.map(|f| f.expose()),
             last_name: info.last_name.map(|l| l.expose()),
@@ -14677,13 +14674,13 @@ pub fn generate_recharge_response(
                 payment_method_details: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
-                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                    code: Some(e.code.clone()),
-                    message: Some(e.message.clone()),
-                    reason: e.reason.clone(),
-                    connector_transaction_id: e.connector_transaction_id.clone(),
-                    status: None,
-                }),
+                    connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                        code: Some(e.code.clone()),
+                        message: Some(e.message.clone()),
+                        reason: e.reason.clone(),
+                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
+                    }),
                     issuer_details: None,
                 }),
                 status_code: e.status_code as u32,

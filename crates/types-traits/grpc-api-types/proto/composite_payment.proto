@@ -423,6 +423,8 @@ message CompositePaymentMethodCreateRequest {
   // Access Token Request field
   optional SecretString metadata = 8;
   optional string merchant_access_token_id = 9;
+  
+  string product_id = 10; // Product or program under which the payment method exists
 }
 
 // Response message for composite payment method create flow.

@@ -37,18 +37,18 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     types::{
-        generate_create_order_response, generate_payment_authenticate_response,
+        generate_create_order_response, generate_create_payment_method_response,
+        generate_get_payment_method_response, generate_payment_authenticate_response,
         generate_payment_capture_response, generate_payment_incremental_authorization_response,
         generate_payment_post_authenticate_response, generate_payment_pre_authenticate_response,
         generate_payment_sdk_session_token_response, generate_payment_sync_response,
         generate_payment_void_post_capture_response, generate_payment_void_response,
-        generate_create_payment_method_response, generate_get_payment_method_response,
         generate_recharge_response, generate_refund_response, generate_repeat_payment_response,
         generate_setup_mandate_response, tokenized_authorize_to_base,
         tokenized_setup_recurring_to_base, AuthorizationRequest, PaymentMethodDataAction,
         SetupRecurringRequest,
     },
-    utils::{ForeignFrom, ForeignTryFrom},
+    utils::ForeignTryFrom,
 };
 use external_services::service::EventProcessingParams;
 use grpc_api_types::payments::{
@@ -2227,7 +2227,6 @@ impl PaymentMethodService for PaymentMethod {
         )
         .await
     }
-
 }
 
 impl PaymentMethod {
