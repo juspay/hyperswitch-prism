@@ -18,11 +18,11 @@ host = "0.0.0.0"
 port = 8080
 
 [proxy]
-idle_pool_connection_timeout = 90               # Timeout for idle pool connections (defaults to 90s)
-bypass_proxy_urls = ["localhost", "local"]
-mitm_proxy_enabled = false
+idle_pool_connection_timeout = 90
+bypass_urls = ["localhost", "local"]
 
 [connectors]
+payconex.base_url = "https://secure.payconex.net"
 tamara.base_url = "https://api.tamara.co"
 juspay.base_url = "https://api.juspay.in/"
 qwikcilver.base_url = "https://api.qwikcilver.com/"
@@ -150,7 +150,7 @@ enqueue_timeout_ms = 5000
 # sasl_password = ""
 
 [unmasked_headers]
-keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode"]
+keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name"]
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)

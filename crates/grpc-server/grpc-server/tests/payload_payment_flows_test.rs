@@ -185,6 +185,7 @@ fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServ
         payment_experience: None,
 
         merchant_request_id: None,
+        payment_method_type: None,
     }
 }
 
@@ -406,8 +407,7 @@ async fn test_authorize_psync_void() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let auth_response = client
-            .authorize(grpc_request)
+        let auth_response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -469,8 +469,7 @@ async fn test_authorize_capture_refund_rsync() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let auth_response = client
-            .authorize(grpc_request)
+        let auth_response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -537,6 +536,7 @@ async fn test_authorize_capture_refund_rsync() {
             payment_experience: None,
 
             merchant_request_id: None,
+            payment_method_type: None,
         };
         let mut rsync_grpc_request = Request::new(rsync_request);
         add_payload_metadata(&mut rsync_grpc_request);

@@ -530,12 +530,6 @@
         "error": "This feature is not implemented: client_authentication_token flow for barclaycard"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for barclaycard"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_supported",
@@ -552,6 +546,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for barclaycard"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for barclaycard"
       }
     },
     "dispute_accept": {

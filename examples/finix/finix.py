@@ -11,10 +11,9 @@ from payments import PaymentClient
 from payments import CustomerClient
 from payments import RecurringPaymentClient
 from payments import RefundClient
-from payments import PaymentMethodClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["capture", "create_customer", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "tokenize", "void"]
+SUPPORTED_FLOWS = ["capture", "customer_create", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -42,7 +41,7 @@ def _build_capture_request(connector_transaction_id: str):
         ),
     )
 
-def _build_create_customer_request():
+def _build_customer_create_request():
     return payment_pb2.CustomerServiceCreateRequest(
         merchant_customer_id="cust_probe_123",  # Identification.
         customer_name="John Doe",  # Name of the customer.
@@ -116,29 +115,6 @@ def _build_token_authorize_request():
         return_url="https://example.com/return",
     )
 
-def _build_tokenize_request():
-    return payment_pb2.PaymentMethodServiceTokenizeRequest(
-        amount=payment_pb2.Money(  # Payment Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
-        ),
-        payment_method=payment_methods_pb2.PaymentMethod(
-            card=payment_methods_pb2.CardDetails(
-                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
-                card_exp_month=payment_methods_pb2.SecretString(value="03"),
-                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
-                card_cvc=payment_methods_pb2.SecretString(value="737"),
-                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
-            ),
-        ),
-        customer=payment_pb2.Customer(  # Customer Information.
-            id="cust_probe_123",  # Internal customer ID.
-        ),
-        address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(),
-        ),
-    )
-
 def _build_void_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceVoidRequest(
         merchant_void_id="probe_void_001",  # Identification.
@@ -153,13 +129,13 @@ async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.C
     return {"status": capture_response.status}
 
 
-async def process_create_customer(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_customer_create(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: CustomerService.Create"""
     customer_client = CustomerClient(config)
 
-    create_response = await customer_client.create(_build_create_customer_request())
+    customer_response = await customer_client.customer_create(_build_customer_create_request())
 
-    return {"customer_id": create_response.connector_customer_id}
+    return {"customer_id": customer_response.connector_customer_id}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
@@ -205,15 +181,6 @@ async def process_token_authorize(merchant_transaction_id: str, config: sdk_conf
     token_response = await payment_client.token_authorize(_build_token_authorize_request())
 
     return {"status": token_response.status}
-
-
-async def process_tokenize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentMethodService.Tokenize"""
-    paymentmethod_client = PaymentMethodClient(config)
-
-    tokenize_response = await paymentmethod_client.tokenize(_build_tokenize_request())
-
-    return {"token": tokenize_response.payment_method_token}
 
 
 async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

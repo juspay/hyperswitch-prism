@@ -281,6 +281,7 @@ fn create_payment_sync_request(
         payment_experience: None,
 
         merchant_request_id: None,
+        payment_method_type: None,
     }
 }
 
@@ -343,8 +344,7 @@ async fn test_payment_authorization_auto_capture() {
         let mut grpc_request = Request::new(request);
         add_helcim_metadata(&mut grpc_request);
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
@@ -378,8 +378,7 @@ async fn test_payment_authorization_manual_capture() {
         add_helcim_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
@@ -429,8 +428,7 @@ async fn test_payment_void() {
         add_helcim_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
@@ -513,8 +511,7 @@ async fn test_payment_sync() {
         add_helcim_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();

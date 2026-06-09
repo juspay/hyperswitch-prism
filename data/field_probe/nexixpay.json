@@ -480,12 +480,6 @@
         "error": "Field 'payment_id' is too long for connector 'Nexixpay'"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by nexixpay connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -502,6 +496,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for nexixpay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by nexixpay connector"
       }
     },
     "dispute_accept": {

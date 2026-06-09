@@ -145,6 +145,7 @@ pub enum ConnectorEnum {
     Axisbank,
     TwocTwopPaco,
     Juspay,
+    Payconex,
     Tamara,
     Qwikcilver,
 }
@@ -382,6 +383,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
+            grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
             grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
             grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
             grpc_api_types::payments::Connector::Unspecified => {
@@ -1694,6 +1696,9 @@ pub enum PaymentsResponseData {
         connector_metadata: Option<serde_json::Value>,
         mandate_reference: Option<Box<MandateReference>>,
         network_txn_id: Option<String>,
+        /// Network-issued link/reference id (Adyen `transactionLinkId`, etc.) that
+        /// chains related network transactions. Distinct from `network_txn_id`.
+        network_txn_link_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
         status_code: u16,
@@ -1846,19 +1851,10 @@ pub struct RechargeResponseData {
 /// (Create / Get). Fields are picked from the proto `Customer` message — only
 /// the ones a connector actually needs to provision or look up a payment
 /// method.
-#[derive(Debug, Clone, Default)]
-pub struct PaymentMethodCustomerInfo {
-    pub merchant_customer_id: Option<String>,
-    pub first_name: Option<Secret<String>>,
-    pub last_name: Option<Secret<String>>,
-    pub email: Option<Email>,
-    pub phone_number: Option<Secret<String>>,
-}
-
 #[derive(Debug, Clone)]
 pub struct CreatePaymentMethodData {
     pub merchant_payment_method_id: Option<String>,
-    pub customer: Option<PaymentMethodCustomerInfo>,
+    pub customer: Option<CustomerInfo>,
     pub description: Option<String>,
     pub payment_method_type: PaymentMethodType,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
@@ -1869,7 +1865,7 @@ pub struct CreatePaymentMethodResponseData {
     pub merchant_payment_method_id: Option<String>,
     pub connector_payment_method_id: Option<String>,
     pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
-    pub customer: Option<PaymentMethodCustomerInfo>,
+    pub customer: Option<CustomerInfo>,
     pub status_code: u16,
 }
 
@@ -1877,7 +1873,7 @@ pub struct CreatePaymentMethodResponseData {
 pub struct GetPaymentMethodData {
     pub merchant_payment_method_id: Option<String>,
     pub connector_payment_method_id: Option<String>,
-    pub customer: Option<PaymentMethodCustomerInfo>,
+    pub customer: Option<CustomerInfo>,
     pub payment_method_type: PaymentMethodType,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
 }
@@ -1886,8 +1882,8 @@ pub struct GetPaymentMethodData {
 pub struct GetPaymentMethodResponseData {
     pub merchant_payment_method_id: Option<String>,
     pub connector_payment_method_id: Option<String>,
+    pub customer: Option<CustomerInfo>,
     pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
-    pub customer: Option<PaymentMethodCustomerInfo>,
     pub status_code: u16,
 }
 
@@ -2123,6 +2119,7 @@ impl ConnectorCustomerData {
 #[derive(Debug, Clone)]
 pub struct ConnectorCustomerResponse {
     pub connector_customer_id: String,
+    pub status_code: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -3761,6 +3758,8 @@ pub struct CustomerInfo {
     pub customer_id: Option<CustomerId>,
     pub customer_email: Option<common_utils::pii::Email>,
     pub customer_name: Option<Secret<String>>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
     pub customer_phone_number: Option<Secret<String>>,
     pub customer_phone_country_code: Option<String>,
 }
@@ -4669,6 +4668,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
             AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
+            AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {

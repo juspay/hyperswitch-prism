@@ -8,8 +8,7 @@ use crate::connectors::payload::responses;
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(untagged)]
 pub enum PayloadPaymentsRequest<T: PaymentMethodDataTypes> {
-    PayloadCardsRequest(Box<PayloadCardsRequestData<T>>),
-    PayloadBankAccountRequest(Box<PayloadBankAccountRequestData>),
+    PayloadPaymentRequest(Box<PayloadCardsRequestData<T>>),
     PayloadMandateRequest(Box<PayloadMandateRequestData>),
     PayloadCardTokenRequest(Box<PayloadCardTokenRequestData>),
 }
@@ -28,112 +27,65 @@ pub enum TransactionTypes {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BillingAddress {
-    #[serde(rename = "payment_method[billing_address][city]")]
     pub city: Secret<String>,
-    #[serde(rename = "payment_method[billing_address][country_code]")]
-    pub country: common_enums::CountryAlpha2,
-    #[serde(rename = "payment_method[billing_address][postal_code]")]
+    pub country_code: common_enums::CountryAlpha2,
     pub postal_code: Secret<String>,
-    #[serde(rename = "payment_method[billing_address][state_province]")]
     pub state_province: Secret<String>,
-    #[serde(rename = "payment_method[billing_address][street_address]")]
     pub street_address: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PayloadCardsRequestData<T: PaymentMethodDataTypes> {
     pub amount: FloatMajorUnit,
-    #[serde(flatten)]
-    pub card: PayloadCard<T>,
+    pub payment_method: PayloadPaymentMethod<T>,
     #[serde(rename = "type")]
     pub transaction_types: TransactionTypes,
-    // For manual capture, set status to "authorized", otherwise omit
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<responses::PayloadPaymentStatus>,
-    #[serde(rename = "payment_method[type]")]
-    pub payment_method_type: String,
-    // Billing address fields are for AVS validation
-    #[serde(flatten)]
-    pub billing_address: BillingAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_id: Option<Secret<String>>,
-    /// Allows one-time payment by customer without saving their payment method
-    /// This is true by default
-    #[serde(rename = "payment_method[keep_active]")]
-    pub keep_active: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
-pub struct PayloadMandateRequestData {
-    pub amount: FloatMajorUnit,
-    #[serde(rename = "type")]
-    pub transaction_types: TransactionTypes,
-    // Based on the connectors' response, we can do recurring payment either based on a default payment method id saved in the customer profile or a specific payment method id
-    // Connector by default, saves every payment method
-    pub payment_method_id: Secret<String>,
-    // For manual capture, set status to "authorized", otherwise omit
+pub struct PayloadPaymentMethod<T: PaymentMethodDataTypes> {
+    #[serde(flatten)]
+    pub method: PayloadPaymentMethods<T>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub status: Option<responses::PayloadPaymentStatus>,
+    pub billing_address: Option<BillingAddress>,
+    pub keep_active: bool,
 }
 
-// Charge a previously-tokenized payment method obtained from Payload.js
-// Secure Inputs. Wire shape is identical to PayloadMandateRequestData — both
-// send `payment_method_id=pm_xxx` as a top-level form field — but kept as a
-// separate type so the two flows can diverge if Payload adds fields specific
-// to Secure-Input tokens.
 #[derive(Debug, Clone, Serialize, PartialEq)]
-pub struct PayloadCardTokenRequestData {
-    pub amount: FloatMajorUnit,
-    #[serde(rename = "type")]
-    pub transaction_types: TransactionTypes,
-    pub payment_method_id: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub status: Option<responses::PayloadPaymentStatus>,
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum PayloadPaymentMethods<T: PaymentMethodDataTypes> {
+    Card(PayloadCard<T>),
+    BankAccount(PayloadBank),
 }
 
 #[derive(Default, Clone, Debug, Serialize, Eq, PartialEq)]
 pub struct PayloadCard<T: PaymentMethodDataTypes> {
-    #[serde(rename = "payment_method[card][card_number]")]
-    pub number: RawCardNumber<T>,
-    #[serde(rename = "payment_method[card][expiry]")]
+    pub card: PayloadCardData<T>,
+}
+
+#[derive(Default, Clone, Debug, Serialize, Eq, PartialEq)]
+pub struct PayloadCardData<T: PaymentMethodDataTypes> {
+    pub card_number: RawCardNumber<T>,
     pub expiry: Secret<String>,
-    #[serde(rename = "payment_method[card][card_code]")]
-    pub cvc: Secret<String>,
+    pub card_code: Secret<String>,
 }
 
-/// Bank account payment method type for ACH bank debit payments
-pub const PAYMENT_METHOD_TYPE_BANK_ACCOUNT: &str = "bank_account";
-
-#[derive(Debug, Clone, Serialize, PartialEq)]
-pub struct PayloadBankAccountRequestData {
-    pub amount: FloatMajorUnit,
-    #[serde(flatten)]
-    pub bank_account: PayloadBankAccount,
-    #[serde(rename = "type")]
-    pub transaction_types: TransactionTypes,
-    #[serde(rename = "payment_method[type]")]
-    pub payment_method_type: String,
-    /// Account holder name is required by Payload for bank account payments
-    #[serde(rename = "payment_method[account_holder]")]
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct PayloadBank {
+    pub bank_account: PayloadBankAccountInner,
     pub account_holder: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub status: Option<responses::PayloadPaymentStatus>,
-    pub processing_id: Option<Secret<String>>,
-    /// For one-time payments, set to false
-    #[serde(rename = "payment_method[keep_active]")]
-    pub keep_active: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub customer_id: Option<String>,
 }
 
-#[derive(Default, Clone, Debug, Serialize, PartialEq)]
-pub struct PayloadBankAccount {
-    #[serde(rename = "payment_method[bank_account][account_number]")]
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct PayloadBankAccountInner {
     pub account_number: Secret<String>,
-    #[serde(rename = "payment_method[bank_account][routing_number]")]
     pub routing_number: Secret<String>,
-    #[serde(rename = "payment_method[bank_account][account_type]")]
     pub account_type: PayloadBankAccountType,
 }
 
@@ -145,34 +97,51 @@ pub enum PayloadBankAccountType {
     Savings,
 }
 
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct PayloadMandateRequestData {
+    pub amount: FloatMajorUnit,
+    #[serde(rename = "type")]
+    pub transaction_types: TransactionTypes,
+    pub payment_method_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<responses::PayloadPaymentStatus>,
+}
+
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct PayloadCardTokenRequestData {
+    pub amount: FloatMajorUnit,
+    #[serde(rename = "type")]
+    pub transaction_types: TransactionTypes,
+    pub payment_method_id: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<responses::PayloadPaymentStatus>,
+}
+
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct PayloadVoidRequest {
     pub status: responses::PayloadPaymentStatus,
 }
 
-// Type definition for CaptureRequest
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct PayloadCaptureRequest {
     pub status: responses::PayloadPaymentStatus,
 }
 
-// Type definition for RefundRequest
 #[derive(Debug, Serialize)]
 pub struct PayloadRefundRequest {
     #[serde(rename = "type")]
     pub transaction_type: TransactionTypes,
     pub amount: FloatMajorUnit,
-    #[serde(rename = "ledger[0][assoc_transaction_id]")]
-    pub ledger_assoc_transaction_id: String,
+    pub ledger: Vec<PayloadRefundLedgerEntry>,
 }
 
-// Type alias for RepeatPayment request (same structure as PayloadPaymentsRequest)
+#[derive(Debug, Serialize)]
+pub struct PayloadRefundLedgerEntry {
+    pub assoc_transaction_id: String,
+}
+
 pub type PayloadRepeatPaymentRequest<T> = PayloadPaymentsRequest<T>;
 
-// CreateConnectorCustomer request — POST /customers
-// Mirrors the hyperswitch reference at
-// hyperswitch/crates/hyperswitch_connectors/src/connectors/payload/requests.rs
-// (struct CustomerRequest).
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PayloadCustomerRequest {
     pub keep_active: bool,

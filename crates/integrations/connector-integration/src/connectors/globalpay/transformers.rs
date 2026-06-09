@@ -22,7 +22,7 @@ use domain_types::{
     payment_method_data::{
         BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -709,7 +709,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayPaymentsResp
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone()),
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: item
                     .response
@@ -729,6 +729,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayPaymentsResp
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -787,7 +788,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone()),
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: item
                     .response
@@ -807,6 +808,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -865,7 +867,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone()),
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: item
                     .response
@@ -885,6 +887,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -1083,6 +1086,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -1385,6 +1389,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpaySetupMandate
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -1571,7 +1576,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayRepeatPaymen
                     .payment_method
                     .as_ref()
                     .and_then(|pm| pm.message.clone()),
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: item
                     .response
@@ -1591,6 +1596,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayRepeatPaymen
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,

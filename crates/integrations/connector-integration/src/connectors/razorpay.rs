@@ -30,7 +30,7 @@ use domain_types::{
         WebhookDetailsResponse,
     },
     payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
@@ -209,7 +209,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             code,
             message: message.clone(),
             reason,
-            attempt_status: Some(attempt_status),
+            attempt_status: Some(FlowStatus::Payment(attempt_status)),
             connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,

@@ -12,7 +12,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -320,6 +320,7 @@ where
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(item.response.payment_request_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -352,7 +353,7 @@ impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
                 code: NO_ERROR_CODE.to_string(),
                 message: NO_ERROR_MESSAGE.to_string(),
                 reason: Some(NO_ERROR_MESSAGE.to_string()),
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(response.order_id.clone()),
                 status_code: http_code,
                 network_advice_code: None,
@@ -366,6 +367,7 @@ impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,

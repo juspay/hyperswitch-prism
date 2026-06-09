@@ -208,6 +208,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
             currency: i32::from(Currency::Zar),
         }),
         ..Default::default()
+        payment_method_type: None,
     }
 }
 

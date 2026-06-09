@@ -28,7 +28,7 @@ use domain_types::{
         self, ApplePayDecryptedData, ApplePayWalletData, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     utils::{is_payment_failure, CardIssuer},
 };
@@ -472,6 +472,7 @@ fn get_error_response(
         detailed_error_info,
         avs_message.flatten(),
     );
+
     let error_message = error_data
         .clone()
         .and_then(|error_details| error_details.reason);
@@ -483,7 +484,7 @@ fn get_error_response(
             .unwrap_or(NO_ERROR_MESSAGE.to_string()),
         reason,
         status_code,
-        attempt_status,
+        attempt_status: attempt_status.map(FlowStatus::Payment),
         connector_transaction_id: Some(transaction_id.clone()),
         network_advice_code,
         network_decline_code,
@@ -550,6 +551,7 @@ fn get_payment_response(
                             .map(|s| s.expose())
                     },
                 ),
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     info_response
                         .client_reference_information
@@ -2304,6 +2306,7 @@ impl<F> TryFrom<ResponseRouterData<BankOfAmericaSetupMandatesResponse, Self>>
                             mandate_reference: mandate_reference.map(Box::new),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 info_response
                                     .client_reference_information
@@ -2505,6 +2508,7 @@ impl<F> TryFrom<ResponseRouterData<BankOfAmericaTransactionResponse, Self>>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: item
                                 .response
                                 .client_reference_information
@@ -2524,6 +2528,7 @@ impl<F> TryFrom<ResponseRouterData<BankOfAmericaTransactionResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,

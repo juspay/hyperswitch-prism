@@ -185,6 +185,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         payment_experience: None,
 
         merchant_request_id: None,
+        payment_method_type: None,
     }
 }
 
@@ -278,8 +279,7 @@ async fn test_payment_authorization_auto_capture() {
         add_stripe_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -303,8 +303,7 @@ async fn test_payment_authorization_manual_capture() {
         add_stripe_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -352,8 +351,7 @@ async fn test_payment_sync_auto_capture() {
         add_stripe_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -395,8 +393,7 @@ async fn test_payment_void() {
         add_stripe_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
@@ -466,8 +463,7 @@ async fn test_refund() {
         add_stripe_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -514,8 +510,7 @@ async fn test_refund_sync() {
             add_stripe_metadata(&mut grpc_request);
 
             // Send the request
-            let response = client
-                .authorize(grpc_request)
+            let response = Box::pin(client.authorize(grpc_request))
                 .await
                 .expect("gRPC authorize call failed")
                 .into_inner();

@@ -182,8 +182,7 @@ async fn test_payment_authorization_auto_capture() {
         add_novalnet_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
