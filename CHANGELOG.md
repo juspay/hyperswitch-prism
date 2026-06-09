@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.09.0
+
+### Bug Fixes
+
+- **payload:** Switch from form-urlencoded to JSON serialization for all flows ([#1434](https://github.com/juspay/connector-service/pull/1434)) ([`a4b99e1`](https://github.com/juspay/connector-service/commit/a4b99e167bb248c97c47501455f7a2ca77717844))
+
+**Full Changelog:** [`2026.06.08.1...2026.06.09.0`](https://github.com/juspay/connector-service/compare/2026.06.08.1...2026.06.09.0)
+
+- - -
+
 ## 2026.06.08.1
 
 ### Features
