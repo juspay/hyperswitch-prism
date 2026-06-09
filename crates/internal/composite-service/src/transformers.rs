@@ -640,6 +640,7 @@ impl ForeignFrom<(&CompositePaymentMethodRechargeRequest, &ConnectorEnum)>
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            merchant_request_id: item.merchant_request_id.clone(),
         }
     }
 }
@@ -656,6 +657,11 @@ impl ForeignFrom<(&CompositePaymentMethodCreateRequest, &ConnectorEnum)>
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            // Create proto has no `merchant_request_id`; surface the caller's
+            // `merchant_payment_method_id` (the natural per-create identifier)
+            // so connectors that need a numeric correlation id (e.g. Qwikcilver
+            // `TransactionId`) can derive one from the caller's input.
+            merchant_request_id: item.merchant_payment_method_id.clone(),
         }
     }
 }
@@ -672,6 +678,9 @@ impl ForeignFrom<(&CompositePaymentMethodGetRequest, &ConnectorEnum)>
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            // Get proto has no `merchant_request_id`; surface the caller's
+            // `merchant_payment_method_id` for the same reason as Create.
+            merchant_request_id: item.merchant_payment_method_id.clone(),
         }
     }
 }

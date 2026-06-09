@@ -12,7 +12,7 @@ use domain_types::{
     },
     connector_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, GetPaymentMethodData,
-        GetPaymentMethodResponseData, PaymentFlowData, PaymentMethodCustomerInfo,
+        CustomerInfo, GetPaymentMethodResponseData, PaymentFlowData,
         PaymentsAuthorizeData, PaymentsResponseData, RechargeRequestData, RechargeResponseData,
         RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
@@ -439,6 +439,7 @@ where
                     redirection_data: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: body.invoice_number,
                     incremental_authorization_allowed: None,
                     mandate_reference: None,
@@ -923,7 +924,7 @@ where
                 ),
             })
         })?;
-        let phone = customer.phone_number.clone().ok_or_else(|| {
+        let phone = customer.customer_phone_number.clone().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "customer.phone_number",
                 context: qc_err_ctx(
@@ -967,7 +968,7 @@ where
                 firstname: first,
                 last_name: customer.last_name.clone(),
                 phone_number: phone,
-                email: customer.email.clone(),
+                email: customer.customer_email.clone(),
                 prefered_notification_language: None,
             },
             notes: req.description.clone(),
@@ -1149,24 +1150,30 @@ fn currency_from_feature_data(
         .and_then(|s| s.parse().ok())
 }
 
-fn customer_details_to_payment_method_customer_info(
+fn customer_details_to_customer_info(
     customer: &QwikcilverCustomer,
     wallet_external_id: Option<&Secret<String>>,
-) -> PaymentMethodCustomerInfo {
+) -> CustomerInfo {
     // Pine Labs convention: ExternalWalletId IS the customer's mobile.
-    let phone_number = customer
+    let customer_phone_number = customer
         .phone_number
         .clone()
         .or_else(|| wallet_external_id.cloned());
-    PaymentMethodCustomerInfo {
-        merchant_customer_id: customer
-            .external_customer_id
-            .as_ref()
-            .map(|id| id.clone().expose()),
+    let customer_id = customer
+        .external_customer_id
+        .as_ref()
+        .and_then(|id| {
+            common_utils::id_type::CustomerId::try_from(std::borrow::Cow::from(id.clone().expose()))
+                .ok()
+        });
+    CustomerInfo {
+        customer_id,
+        customer_email: customer.email.clone(),
+        customer_name: None,
         first_name: customer.firstname.clone(),
         last_name: customer.last_name.clone(),
-        email: customer.email.clone(),
-        phone_number,
+        customer_phone_number,
+        customer_phone_country_code: None,
     }
 }
 
@@ -1218,7 +1225,7 @@ impl
                         wallet, currency,
                     )),
                     customer: wallet.customer.as_ref().map(|c| {
-                        customer_details_to_payment_method_customer_info(
+                        customer_details_to_customer_info(
                             c,
                             wallet.external_wallet_id.as_ref(),
                         )
@@ -1300,7 +1307,7 @@ impl
                             Some(wallet.wallet_number.clone().expose()),
                             Some(wallet_details_to_payment_method_details(wallet, currency)),
                             wallet.customer.as_ref().map(|c| {
-                                customer_details_to_payment_method_customer_info(
+                                customer_details_to_customer_info(
                                     c,
                                     wallet.external_wallet_id.as_ref(),
                                 )
@@ -1483,7 +1490,7 @@ fn make_error_response(
             .or_else(|| error_description.clone())
             .unwrap_or_else(|| "Qwikcilver returned a non-zero response code".to_string()),
         reason: error_description.or(response_message),
-        attempt_status,
+        attempt_status: attempt_status.map(domain_types::router_data::FlowStatus::Payment),
         connector_transaction_id: connector_txn_id,
         network_advice_code: None,
         network_decline_code: None,

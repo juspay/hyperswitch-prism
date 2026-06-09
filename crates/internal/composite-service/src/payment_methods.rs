@@ -37,9 +37,6 @@ impl CompositeAccessTokenRequest for CompositePaymentMethodRechargeRequest {
             self, connector,
         ))
     }
-    fn merchant_request_id(&self) -> Option<String> {
-        self.merchant_request_id.clone()
-    }
 }
 
 impl CompositeAccessTokenRequest for CompositePaymentMethodCreateRequest {
@@ -60,9 +57,6 @@ impl CompositeAccessTokenRequest for CompositePaymentMethodCreateRequest {
             self, connector,
         ))
     }
-    fn merchant_request_id(&self) -> Option<String> {
-        self.merchant_payment_method_id.clone()
-    }
 }
 
 impl CompositeAccessTokenRequest for CompositePaymentMethodGetRequest {
@@ -82,9 +76,6 @@ impl CompositeAccessTokenRequest for CompositePaymentMethodGetRequest {
         grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
         ))
-    }
-    fn merchant_request_id(&self) -> Option<String> {
-        self.merchant_payment_method_id.clone()
     }
 }
 
