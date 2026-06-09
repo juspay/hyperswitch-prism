@@ -1737,11 +1737,11 @@ pub enum DocumentKind {
     Cpf,
     /// Cadastro Nacional da Pessoa Jurídica - the Brazilian business identifier.
     Cnpj,
-    /// Generic / other non-Brazilian national document. Carried through as-is; the
-    /// connector validates it per country.
-    Other,
     /// Philippine PhilSys Number (PSN) — a 12-digit national ID required by dLocal for GCash.
     Psn,
+    /// Generic / other non-Brazilian national document. Carried through as-is; the
+    /// connector validates it per country. Kept last as the catch-all.
+    Other,
 }
 
 impl DocumentKind {
