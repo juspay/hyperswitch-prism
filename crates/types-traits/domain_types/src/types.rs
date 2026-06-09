@@ -3412,23 +3412,33 @@ impl ForeignTryFrom<grpc_api_types::payments::Money> for common_utils::types::Mo
     }
 }
 
-/// Maps the gRPC `CustomerDocumentDetails` to the domain type.
-///
-/// Returns `None` when the document type is `UNSPECIFIED` or the document number
-/// is missing — i.e. there is no usable customer document. Shared by the Authorize,
+/// Core proto -> domain mapping for the document kind. `UNSPECIFIED` (the proto
+/// default, set when the field is absent) has no domain equivalent, so it is the
+/// only failing case; callers map that `Err` to "no document" via `.ok()`.
+impl TryFrom<grpc_payment_types::DocumentKind> for crate::payment_method_data::DocumentKind {
+    type Error = ();
+    fn try_from(value: grpc_payment_types::DocumentKind) -> Result<Self, Self::Error> {
+        match value {
+            grpc_payment_types::DocumentKind::Cpf => Ok(Self::Cpf),
+            grpc_payment_types::DocumentKind::Cnpj => Ok(Self::Cnpj),
+            grpc_payment_types::DocumentKind::Other => Ok(Self::Other),
+            grpc_payment_types::DocumentKind::Unspecified => Err(()),
+        }
+    }
+}
+
+/// Builds the optional domain `CustomerDocumentDetails` from the gRPC message:
+/// convert the document kind first, then make the whole thing optional. Returns
+/// `None` when the document type is `UNSPECIFIED` or the document number is missing
+/// — i.e. there is no usable customer document. Shared by the Authorize,
 /// SetupMandate (CIT) and RepeatPayment (MIT) request conversions.
 fn map_customer_document_details(
     doc: &grpc_payment_types::CustomerDocumentDetails,
 ) -> Option<CustomerDocumentDetails> {
-    let document_type = match doc.document_type() {
-        grpc_payment_types::DocumentKind::Cpf => crate::payment_method_data::DocumentKind::Cpf,
-        grpc_payment_types::DocumentKind::Cnpj => crate::payment_method_data::DocumentKind::Cnpj,
-        grpc_payment_types::DocumentKind::Other => crate::payment_method_data::DocumentKind::Other,
-        grpc_payment_types::DocumentKind::Unspecified => return None,
-    };
-    doc.document_number
-        .clone()
-        .map(|document_number| CustomerDocumentDetails {
+    crate::payment_method_data::DocumentKind::try_from(doc.document_type())
+        .ok()
+        .zip(doc.document_number.clone())
+        .map(|(document_type, document_number)| CustomerDocumentDetails {
             document_type,
             document_number,
         })
