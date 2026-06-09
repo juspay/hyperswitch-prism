@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 91
+# Connectors: 92
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 91
+  total_connectors: 92
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -613,6 +613,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_paymen
 payment_methods: Card
 flows: authorize, capture, get, refund, refund_get, void
 examples_python: examples/silverflow/silverflow.py
+
+## Square
+connector_id: square
+doc: docs/connectors/square.md
+scenarios: checkout_autocapture
+payment_methods: Card
+flows: authorize, proxy_authorize
+examples_python: examples/square/square.py
 
 ## Stax
 connector_id: stax
