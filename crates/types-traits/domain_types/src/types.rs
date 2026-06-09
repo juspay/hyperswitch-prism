@@ -11292,6 +11292,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceCreateRequest>
             customer,
             description: value.description,
             payment_method_type,
+            product_id: value.product_id,
             connector_feature_data: value
                 .connector_feature_data
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))

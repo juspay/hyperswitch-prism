@@ -895,18 +895,9 @@ where
             })
         })?;
         let feature = QwikcilverCreateFeatureData::from_request(req)?;
-        let program = feature.wallet_program_group_name.ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "connector_feature_data.wallet_program_group_name",
-                context: qc_err_ctx(
-                    "Pine Labs requires a region-specific program identifier to know which \
-                     `WalletProgramGroup` the new wallet belongs to.",
-                    "Set `connector_feature_data` as a JSON-string containing \
-                     `wallet_program_group_name` (e.g. `\"PAWC-AFG Payblue Wallet UAE\"`). \
-                     Ask Pine Labs ops for the exact program name configured against your terminal.",
-                ),
-            })
-        })?;
+        // `product_id` is the proto's required top-level field; it carries
+        // Pine Labs's `WalletProgramGroupName` for the Create flow.
+        let program = req.product_id.clone();
         Ok(Self {
             external_wallet_id: phone.clone(),
             wallet_program_group_name: program,
