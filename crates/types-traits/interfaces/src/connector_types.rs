@@ -537,8 +537,12 @@ pub trait IncomingWebhook {
         _request: RequestDetails,
         _error_kind: Option<IncomingWebhookFlowError>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<Option<crate::api::EventAckResponse>, error_stack::Report<WebhookError>> {
-        Ok(None)
+    ) -> Result<crate::api::EventAckResponse, error_stack::Report<WebhookError>> {
+        Ok(crate::api::EventAckResponse {
+            status_code: 200,
+            headers: vec![],
+            body: None,
+        })
     }
 }
 

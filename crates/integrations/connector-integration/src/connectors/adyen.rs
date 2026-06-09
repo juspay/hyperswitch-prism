@@ -1028,12 +1028,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _request: RequestDetails,
         _error_kind: Option<connector_types::IncomingWebhookFlowError>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<Option<interfaces::api::EventAckResponse>, error_stack::Report<WebhookError>> {
-        Ok(Some(interfaces::api::EventAckResponse {
+    ) -> Result<interfaces::api::EventAckResponse, error_stack::Report<WebhookError>> {
+        Ok(interfaces::api::EventAckResponse {
             status_code: 200,
             headers: vec![],
             body: Some(b"[accepted]".to_vec()),
-        }))
+        })
     }
 }
 

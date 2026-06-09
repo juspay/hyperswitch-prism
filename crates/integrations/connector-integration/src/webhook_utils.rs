@@ -80,17 +80,16 @@ pub fn process_webhook_event<
         )?
     };
 
-    let event_ack_response = connector_data
-        .connector
-        .get_webhook_api_response(request_details.clone(), None, connector_config)?
-        .map(|ack| grpc_api_types::payments::EventAckResponse {
-            status_code: ack.status_code,
-            headers: ack
-                .headers
-                .into_iter()
-                .collect::<std::collections::HashMap<_, _>>(),
-            body: ack.body.unwrap_or_default(),
-        });
+    let ack = connector_data.connector.get_webhook_api_response(
+        request_details.clone(),
+        None,
+        connector_config,
+    )?;
+    let event_ack_response = Some(grpc_api_types::payments::EventAckResponse {
+        status_code: ack.status_code,
+        headers: ack.headers.into_iter().collect(),
+        body: ack.body.unwrap_or_default(),
+    });
 
     Ok(EventServiceHandleResponse {
         event_type: api_event_type.into(),

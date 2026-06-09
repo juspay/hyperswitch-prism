@@ -417,8 +417,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _error_kind: Option<connector_types::IncomingWebhookFlowError>,
         connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<Option<interfaces::api::EventAckResponse>, error_stack::Report<errors::WebhookError>>
-    {
+    ) -> Result<interfaces::api::EventAckResponse, error_stack::Report<errors::WebhookError>> {
         let details: TrustlyWebhookBody = request
             .body
             .parse_struct("TrustlyWebhookBody")
@@ -455,11 +454,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let response_body = serde_json::to_vec(&response)
             .change_context(errors::WebhookError::WebhookResponseEncodingFailed)?;
 
-        Ok(Some(interfaces::api::EventAckResponse {
+        Ok(interfaces::api::EventAckResponse {
             status_code: 200,
             headers: vec![],
             body: Some(response_body),
-        }))
+        })
     }
 }
 
