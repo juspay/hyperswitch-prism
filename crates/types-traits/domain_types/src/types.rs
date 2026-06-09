@@ -9910,7 +9910,6 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
-                    captured_amount: None,
                 }
             }
             _ => {
@@ -9963,7 +9962,6 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 raw_connector_request,
                 connector_response,
                 connector_feature_data: None,
-                captured_amount: None,
             }
         }
     };
