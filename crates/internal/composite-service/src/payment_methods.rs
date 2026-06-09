@@ -11,6 +11,7 @@ use grpc_api_types::payments::{
     PaymentMethodServiceCreateRequest, PaymentMethodServiceGetRequest,
     PaymentMethodServiceRechargeRequest,
 };
+use ucs_env::error::ResultExtGrpc;
 
 use crate::payments::CompositeAccessTokenRequest;
 use crate::transformers::ForeignFrom;
@@ -127,11 +128,7 @@ where
                 .payment_method()
                 .map(common_enums::PaymentMethod::foreign_try_from)
                 .transpose()
-                .map_err(|err| {
-                    tonic::Status::invalid_argument(format!(
-                        "invalid payment_method in request payload: {err}"
-                    ))
-                })?;
+                .into_grpc_status()?;
             let connector_data = ConnectorData::<
                 domain_types::payment_method_data::DefaultPCIHolder,
             >::get_connector_by_name(connector);

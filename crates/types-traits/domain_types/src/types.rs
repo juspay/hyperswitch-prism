@@ -2315,107 +2315,102 @@ impl ForeignTryFrom<grpc_api_types::payments::BankHolderType> for common_enums::
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for Option<PaymentMethodType> {
+impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMethodType {
     type Error = IntegrationError;
 
     fn foreign_try_from(
         value: grpc_api_types::payments::PaymentMethodType,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         match value {
-            grpc_api_types::payments::PaymentMethodType::Unspecified => Ok(None),
-            grpc_api_types::payments::PaymentMethodType::Credit => {
-                Ok(Some(PaymentMethodType::Card))
+            grpc_api_types::payments::PaymentMethodType::Unspecified => {
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name: "payment_method_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "PaymentMethodType cannot be Unspecified".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into())
             }
-            grpc_api_types::payments::PaymentMethodType::Debit => Ok(Some(PaymentMethodType::Card)),
+            grpc_api_types::payments::PaymentMethodType::Credit => Ok(PaymentMethodType::Card),
+            grpc_api_types::payments::PaymentMethodType::Debit => Ok(PaymentMethodType::Card),
             grpc_api_types::payments::PaymentMethodType::UpiCollect => {
-                Ok(Some(PaymentMethodType::UpiCollect))
+                Ok(PaymentMethodType::UpiCollect)
             }
             grpc_api_types::payments::PaymentMethodType::UpiIntent => {
-                Ok(Some(PaymentMethodType::UpiIntent))
+                Ok(PaymentMethodType::UpiIntent)
             }
-            grpc_api_types::payments::PaymentMethodType::UpiQr => {
-                Ok(Some(PaymentMethodType::UpiIntent))
-            } // UpiQr not yet implemented, fallback to UpiIntent
+            grpc_api_types::payments::PaymentMethodType::UpiQr => Ok(PaymentMethodType::UpiIntent), // UpiQr not yet implemented, fallback to UpiIntent
             grpc_api_types::payments::PaymentMethodType::ClassicReward => {
-                Ok(Some(PaymentMethodType::ClassicReward))
+                Ok(PaymentMethodType::ClassicReward)
             }
             grpc_api_types::payments::PaymentMethodType::Evoucher => {
-                Ok(Some(PaymentMethodType::Evoucher))
+                Ok(PaymentMethodType::Evoucher)
             }
             grpc_api_types::payments::PaymentMethodType::ApplePay => {
-                Ok(Some(PaymentMethodType::ApplePay))
+                Ok(PaymentMethodType::ApplePay)
             }
             grpc_api_types::payments::PaymentMethodType::GooglePay => {
-                Ok(Some(PaymentMethodType::GooglePay))
+                Ok(PaymentMethodType::GooglePay)
             }
             grpc_api_types::payments::PaymentMethodType::AmazonPay => {
-                Ok(Some(PaymentMethodType::AmazonPay))
+                Ok(PaymentMethodType::AmazonPay)
             }
             grpc_api_types::payments::PaymentMethodType::RevolutPay => {
-                Ok(Some(PaymentMethodType::RevolutPay))
+                Ok(PaymentMethodType::RevolutPay)
             }
-            grpc_api_types::payments::PaymentMethodType::Paze => Ok(Some(PaymentMethodType::Paze)),
-            grpc_api_types::payments::PaymentMethodType::PayPal => {
-                Ok(Some(PaymentMethodType::Paypal))
-            }
+            grpc_api_types::payments::PaymentMethodType::Paze => Ok(PaymentMethodType::Paze),
+            grpc_api_types::payments::PaymentMethodType::PayPal => Ok(PaymentMethodType::Paypal),
             grpc_api_types::payments::PaymentMethodType::WeChatPay => {
-                Ok(Some(PaymentMethodType::WeChatPay))
+                Ok(PaymentMethodType::WeChatPay)
             }
-            grpc_api_types::payments::PaymentMethodType::AliPay => {
-                Ok(Some(PaymentMethodType::AliPay))
-            }
-            grpc_api_types::payments::PaymentMethodType::Cashapp => {
-                Ok(Some(PaymentMethodType::Cashapp))
-            }
+            grpc_api_types::payments::PaymentMethodType::AliPay => Ok(PaymentMethodType::AliPay),
+            grpc_api_types::payments::PaymentMethodType::Cashapp => Ok(PaymentMethodType::Cashapp),
             grpc_api_types::payments::PaymentMethodType::SepaBankTransfer => {
-                Ok(Some(PaymentMethodType::SepaBankTransfer))
+                Ok(PaymentMethodType::SepaBankTransfer)
             }
             grpc_api_types::payments::PaymentMethodType::InstantBankTransfer => {
-                Ok(Some(PaymentMethodType::InstantBankTransfer))
+                Ok(PaymentMethodType::InstantBankTransfer)
             }
             grpc_api_types::payments::PaymentMethodType::InstantBankTransferFinland => {
-                Ok(Some(PaymentMethodType::InstantBankTransferFinland))
+                Ok(PaymentMethodType::InstantBankTransferFinland)
             }
             grpc_api_types::payments::PaymentMethodType::InstantBankTransferPoland => {
-                Ok(Some(PaymentMethodType::InstantBankTransferPoland))
+                Ok(PaymentMethodType::InstantBankTransferPoland)
             }
             grpc_api_types::payments::PaymentMethodType::NetworkToken => {
-                Ok(Some(PaymentMethodType::NetworkToken))
+                Ok(PaymentMethodType::NetworkToken)
             }
-            grpc_api_types::payments::PaymentMethodType::MbWay => {
-                Ok(Some(PaymentMethodType::MbWay))
-            }
+            grpc_api_types::payments::PaymentMethodType::MbWay => Ok(PaymentMethodType::MbWay),
             grpc_api_types::payments::PaymentMethodType::Satispay => {
-                Ok(Some(PaymentMethodType::Satispay))
+                Ok(PaymentMethodType::Satispay)
             }
-            grpc_api_types::payments::PaymentMethodType::Wero => Ok(Some(PaymentMethodType::Wero)),
+            grpc_api_types::payments::PaymentMethodType::Wero => Ok(PaymentMethodType::Wero),
             grpc_api_types::payments::PaymentMethodType::OpenBanking => {
-                Ok(Some(PaymentMethodType::OpenBanking))
+                Ok(PaymentMethodType::OpenBanking)
             }
             grpc_api_types::payments::PaymentMethodType::TrustlyBankRedirect => {
-                Ok(Some(PaymentMethodType::Trustly))
+                Ok(PaymentMethodType::Trustly)
             }
-            grpc_api_types::payments::PaymentMethodType::LazyPay => {
-                Ok(Some(PaymentMethodType::LazyPay))
-            }
-            grpc_api_types::payments::PaymentMethodType::PhonePe => {
-                Ok(Some(PaymentMethodType::PhonePe))
-            }
+            grpc_api_types::payments::PaymentMethodType::LazyPay => Ok(PaymentMethodType::LazyPay),
+            grpc_api_types::payments::PaymentMethodType::PhonePe => Ok(PaymentMethodType::PhonePe),
             grpc_api_types::payments::PaymentMethodType::BillDesk => {
-                Ok(Some(PaymentMethodType::BillDesk))
+                Ok(PaymentMethodType::BillDesk)
             }
             grpc_api_types::payments::PaymentMethodType::CashFree => {
-                Ok(Some(PaymentMethodType::Cashfree))
+                Ok(PaymentMethodType::Cashfree)
             }
-            grpc_api_types::payments::PaymentMethodType::PayU => Ok(Some(PaymentMethodType::PayU)),
+            grpc_api_types::payments::PaymentMethodType::PayU => Ok(PaymentMethodType::PayU),
             grpc_api_types::payments::PaymentMethodType::EaseBuzz => {
-                Ok(Some(PaymentMethodType::EaseBuzz))
+                Ok(PaymentMethodType::EaseBuzz)
             }
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
-                Ok(Some(PaymentMethodType::Netbanking))
+                Ok(PaymentMethodType::Netbanking)
             }
             _ => Err(IntegrationError::InvalidDataFormat {
-                field_name: "unknown",
+                field_name: "payment_method_type",
                 context: IntegrationErrorContext {
                     additional_context: Some(
                         "This payment method type is not yet supported".to_string(),
@@ -2424,6 +2419,20 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for Option<Paym
                 },
             }
             .into()),
+        }
+    }
+}
+
+// Optional conversion: Unspecified → Ok(None), others delegate to non-optional impl
+impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for Option<PaymentMethodType> {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::PaymentMethodType,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_api_types::payments::PaymentMethodType::Unspecified => Ok(None),
+            other => PaymentMethodType::foreign_try_from(other).map(Some),
         }
     }
 }
@@ -11053,27 +11062,13 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceRechargeReques
         }?;
 
         // Convert proto PaymentMethodType (i32) to common_enums::PaymentMethodType
-        let pm_type_proto =
+        let payment_method_type =
             grpc_api_types::payments::PaymentMethodType::try_from(value.payment_method_type)
                 .change_context(IntegrationError::MissingRequiredField {
                     field_name: "payment_method_type",
                     context: IntegrationErrorContext::default(),
-                })?;
-
-        // Use existing ForeignTryFrom implementation for type conversion
-        let payment_method_type =
-            Option::<common_enums::PaymentMethodType>::foreign_try_from(pm_type_proto)?
-                .ok_or_else(|| {
-                    report!(IntegrationError::InvalidDataFormat {
-                        field_name: "payment_method_type",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "Unsupported payment method type for recharge flow".to_string()
-                            ),
-                            ..Default::default()
-                        },
-                    })
-                })?;
+                })
+                .and_then(common_enums::PaymentMethodType::foreign_try_from)?;
 
         Ok(Self {
             merchant_payment_method_id: value.merchant_payment_method_id,
@@ -11171,28 +11166,6 @@ impl
 // CreatePaymentMethod / GetPaymentMethod conversions
 // ============================================================================
 
-fn resolve_payment_method_type(
-    proto_type: i32,
-    context: &'static str,
-) -> Result<common_enums::PaymentMethodType, error_stack::Report<IntegrationError>> {
-    let pm_type_proto = grpc_api_types::payments::PaymentMethodType::try_from(proto_type)
-        .change_context(IntegrationError::MissingRequiredField {
-            field_name: "payment_method_type",
-            context: IntegrationErrorContext::default(),
-        })?;
-    Option::<common_enums::PaymentMethodType>::foreign_try_from(pm_type_proto)?.ok_or_else(|| {
-        report!(IntegrationError::InvalidDataFormat {
-            field_name: "payment_method_type",
-            context: IntegrationErrorContext {
-                additional_context: Some(format!(
-                    "Unsupported payment method type for {context} flow"
-                )),
-                ..Default::default()
-            },
-        })
-    })
-}
-
 impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceCreateRequest>
     for connector_types::CreatePaymentMethodData
 {
@@ -11202,7 +11175,13 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceCreateRequest>
         value: grpc_api_types::payments::PaymentMethodServiceCreateRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let payment_method_type =
-            resolve_payment_method_type(value.payment_method_type, "create_payment_method")?;
+            grpc_api_types::payments::PaymentMethodType::try_from(value.payment_method_type)
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_type",
+                    context: IntegrationErrorContext::default(),
+                })
+                .and_then(common_enums::PaymentMethodType::foreign_try_from)?;
+
         let customer = value
             .customer
             .as_ref()
@@ -11301,7 +11280,13 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceGetRequest>
         value: grpc_api_types::payments::PaymentMethodServiceGetRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let payment_method_type =
-            resolve_payment_method_type(value.payment_method_type, "get_payment_method")?;
+            grpc_api_types::payments::PaymentMethodType::try_from(value.payment_method_type)
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_type",
+                    context: IntegrationErrorContext::default(),
+                })
+                .and_then(common_enums::PaymentMethodType::foreign_try_from)?;
+
         let customer = value
             .customer
             .as_ref()
@@ -14676,28 +14661,28 @@ pub fn generate_recharge_response(
                 raw_connector_request,
             })
         }
-        Err(e) => {
+        Err(error) => {
             let grpc_status = grpc_api_types::payments::RechargeStatus::RechargeFailure;
 
             Ok(PaymentMethodServiceRechargeResponse {
                 merchant_payment_method_id: None,
                 connector_payment_method_id: None,
                 merchant_recharge_id: None,
-                connector_recharge_id: e.connector_transaction_id.clone(),
+                connector_recharge_id: error.connector_transaction_id.clone(),
                 status: grpc_status.into(),
                 payment_method_details: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        code: Some(e.code.clone()),
-                        message: Some(e.message.clone()),
-                        reason: e.reason.clone(),
-                        connector_transaction_id: e.connector_transaction_id.clone(),
+                        code: Some(error.code.clone()),
+                        message: Some(error.message.clone()),
+                        reason: error.reason.clone(),
+                        connector_transaction_id: error.connector_transaction_id.clone(),
                         status: None,
                     }),
                     issuer_details: None,
                 }),
-                status_code: e.status_code as u32,
+                status_code: error.status_code as u32,
                 response_headers: router_data_v2
                     .resource_common_data
                     .get_connector_response_headers_as_map(),
@@ -14725,42 +14710,42 @@ pub fn generate_create_payment_method_response(
         .get_raw_connector_request();
 
     match response {
-        Ok(r) => Ok(PaymentMethodServiceCreateResponse {
-            merchant_payment_method_id: r.merchant_payment_method_id,
-            connector_payment_method_id: r.connector_payment_method_id,
-            payment_method_details: r
+        Ok(response) => Ok(PaymentMethodServiceCreateResponse {
+            merchant_payment_method_id: response.merchant_payment_method_id,
+            connector_payment_method_id: response.connector_payment_method_id,
+            payment_method_details: response
                 .payment_method_details
                 .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
-            customer: r
+            customer: response
                 .customer
                 .map(grpc_api_types::payments::Customer::foreign_from),
             address: None,
             error: None,
-            status_code: r.status_code as u32,
+            status_code: response.status_code as u32,
             response_headers: router_data_v2
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
             raw_connector_response,
             raw_connector_request,
         }),
-        Err(e) => Ok(PaymentMethodServiceCreateResponse {
+        Err(error) => Ok(PaymentMethodServiceCreateResponse {
             merchant_payment_method_id: None,
-            connector_payment_method_id: e.connector_transaction_id.clone(),
+            connector_payment_method_id: error.connector_transaction_id.clone(),
             payment_method_details: None,
             customer: None,
             address: None,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                    code: Some(e.code.clone()),
-                    message: Some(e.message.clone()),
-                    reason: e.reason.clone(),
-                    connector_transaction_id: e.connector_transaction_id.clone(),
+                    code: Some(error.code.clone()),
+                    message: Some(error.message.clone()),
+                    reason: error.reason.clone(),
+                    connector_transaction_id: error.connector_transaction_id.clone(),
                     status: None,
                 }),
                 issuer_details: None,
             }),
-            status_code: e.status_code as u32,
+            status_code: error.status_code as u32,
             response_headers: router_data_v2
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
@@ -14787,42 +14772,42 @@ pub fn generate_get_payment_method_response(
         .get_raw_connector_request();
 
     match response {
-        Ok(r) => Ok(PaymentMethodServiceGetResponse {
-            merchant_payment_method_id: r.merchant_payment_method_id,
-            connector_payment_method_id: r.connector_payment_method_id,
-            payment_method_details: r
+        Ok(response) => Ok(PaymentMethodServiceGetResponse {
+            merchant_payment_method_id: response.merchant_payment_method_id,
+            connector_payment_method_id: response.connector_payment_method_id,
+            payment_method_details: response
                 .payment_method_details
                 .map(grpc_api_types::payments::PaymentMethodDetails::foreign_from),
-            customer: r
+            customer: response
                 .customer
                 .map(grpc_api_types::payments::Customer::foreign_from),
             address: None,
             error: None,
-            status_code: r.status_code as u32,
+            status_code: response.status_code as u32,
             response_headers: router_data_v2
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
             raw_connector_response,
             raw_connector_request,
         }),
-        Err(e) => Ok(PaymentMethodServiceGetResponse {
+        Err(error) => Ok(PaymentMethodServiceGetResponse {
             merchant_payment_method_id: None,
-            connector_payment_method_id: e.connector_transaction_id.clone(),
+            connector_payment_method_id: error.connector_transaction_id.clone(),
             payment_method_details: None,
             customer: None,
             address: None,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                    code: Some(e.code.clone()),
-                    message: Some(e.message.clone()),
-                    reason: e.reason.clone(),
-                    connector_transaction_id: e.connector_transaction_id.clone(),
+                    code: Some(error.code.clone()),
+                    message: Some(error.message.clone()),
+                    reason: error.reason.clone(),
+                    connector_transaction_id: error.connector_transaction_id.clone(),
                     status: None,
                 }),
                 issuer_details: None,
             }),
-            status_code: e.status_code as u32,
+            status_code: error.status_code as u32,
             response_headers: router_data_v2
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
