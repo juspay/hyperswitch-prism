@@ -1145,18 +1145,17 @@ pub struct DlocalWebhookBody {
 /// webhook event the EventService expects.
 impl From<&DlocalWebhookBody> for domain_types::connector_types::EventType {
     fn from(body: &DlocalWebhookBody) -> Self {
-        use domain_types::connector_types::EventType;
         match body.status {
             // PAID(200) -> charged
-            DlocalPaymentStatus::Paid => EventType::PaymentIntentSuccess,
+            DlocalPaymentStatus::Paid => Self::PaymentIntentSuccess,
             // AUTHORIZED -> funds held, capture pending
-            DlocalPaymentStatus::Authorized => EventType::PaymentIntentAuthorizationSuccess,
+            DlocalPaymentStatus::Authorized => Self::PaymentIntentAuthorizationSuccess,
             // PENDING(100) -> still processing
-            DlocalPaymentStatus::Pending => EventType::PaymentIntentProcessing,
+            DlocalPaymentStatus::Pending => Self::PaymentIntentProcessing,
             // CANCELLED -> voided
-            DlocalPaymentStatus::Cancelled => EventType::PaymentIntentCancelled,
+            DlocalPaymentStatus::Cancelled => Self::PaymentIntentCancelled,
             // REJECTED(300) -> failure
-            DlocalPaymentStatus::Rejected => EventType::PaymentIntentFailure,
+            DlocalPaymentStatus::Rejected => Self::PaymentIntentFailure,
         }
     }
 }
