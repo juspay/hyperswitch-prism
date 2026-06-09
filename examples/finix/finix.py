@@ -13,7 +13,7 @@ from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["capture", "create_customer", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "void"]
+SUPPORTED_FLOWS = ["capture", "customer_create", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -41,7 +41,7 @@ def _build_capture_request(connector_transaction_id: str):
         ),
     )
 
-def _build_create_customer_request():
+def _build_customer_create_request():
     return payment_pb2.CustomerServiceCreateRequest(
         merchant_customer_id="cust_probe_123",  # Identification.
         customer_name="John Doe",  # Name of the customer.
@@ -129,13 +129,13 @@ async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.C
     return {"status": capture_response.status}
 
 
-async def process_create_customer(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+async def process_customer_create(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: CustomerService.Create"""
     customer_client = CustomerClient(config)
 
-    create_response = await customer_client.create(_build_create_customer_request())
+    customer_response = await customer_client.customer_create(_build_customer_create_request())
 
-    return {"customer_id": create_response.connector_customer_id}
+    return {"customer_id": customer_response.connector_customer_id}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

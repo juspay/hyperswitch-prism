@@ -223,8 +223,8 @@ for _category, pms in _PROBE_PM_BY_CATEGORY:
 # 
 # EXCEPTIONS: Only add entries here when the auto-derived key doesn't match probe data
 _FLOW_KEY_OVERRIDES: dict[tuple[str, str], str] = {
-    # CustomerService.Create breaks the pattern (would be "customer_create")
-    ("CustomerService", "Create"): "create_customer",
+    # CustomerService.Create now uses prefixed pattern to match probe data
+    ("CustomerService", "Create"): "customer_create",
     # Eligibility is a short name that doesn't need prefix
     ("PaymentMethodService", "Eligibility"): "eligibility",
     # Tokenize is a short name that doesn't need prefix  
@@ -275,7 +275,7 @@ _SERVICE_PREFIXES: dict[str, str] = {
 }
 
 
-def _derive_flow_key(service_name: str, rpc_name: str) -> str | None:
+def _derive_flow_key(service_name: str, rpc_name: str) -> Optional[str]:
     """
     Derive probe flow_key from gRPC service and RPC name.
     

@@ -523,12 +523,6 @@
         "error": "This feature is not implemented: client_authentication_token flow for dlocal"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by dlocal connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_supported",
@@ -545,6 +539,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by dlocal connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by dlocal connector"
       }
     },
     "dispute_accept": {

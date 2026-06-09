@@ -535,26 +535,6 @@
         "error": "This feature is not implemented: client_authentication_token flow for authorizedotnet"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_customer_id": "cust_probe_123",
-          "customer_name": "John Doe",
-          "email": "test@example.com",
-          "phone_number": "4155552671"
-        },
-        "sample": {
-          "url": "https://apitest.authorize.net/xml/v1/request.api",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"createCustomerProfileRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"profile\":{\"merchantCustomerId\":\"cust_probe_123\",\"email\":\"test@example.com\"}}}"
-        }
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -588,6 +568,26 @@
             "via": "HyperSwitch"
           },
           "body": "{\"getMerchantDetailsRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"}}}"
+        }
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_customer_id": "cust_probe_123",
+          "customer_name": "John Doe",
+          "email": "test@example.com",
+          "phone_number": "4155552671"
+        },
+        "sample": {
+          "url": "https://apitest.authorize.net/xml/v1/request.api",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"createCustomerProfileRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"profile\":{\"merchantCustomerId\":\"cust_probe_123\",\"email\":\"test@example.com\"}}}"
         }
       }
     },

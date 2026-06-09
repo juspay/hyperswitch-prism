@@ -529,12 +529,6 @@
         }
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for datatrans"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -551,6 +545,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for datatrans"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for datatrans"
       }
     },
     "dispute_accept": {

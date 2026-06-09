@@ -492,6 +492,7 @@ impl<F, T> TryFrom<ResponseRouterData<TrustlyPaymentsResponse, Self>>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(response.result.uuid),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,

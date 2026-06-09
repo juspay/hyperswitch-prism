@@ -271,7 +271,7 @@ fn main() {
         (
             "create_customer",
             "customer",
-            "create",
+            "customer_create",
             "build_create_customer_request",
             false,
             false,
