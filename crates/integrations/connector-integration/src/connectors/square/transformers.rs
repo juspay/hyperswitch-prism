@@ -1,4 +1,5 @@
 use common_enums::AttemptStatus;
+use common_utils::types::MinorUnit;
 use domain_types::{
     connector_flow::Authorize,
     connector_types::{PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, ResponseId},
@@ -126,10 +127,11 @@ impl SquareEnvironment {
 // =============================================================================
 #[derive(Debug, Serialize)]
 pub struct SquareMoney {
-    /// Amount in the smallest denomination of the currency (e.g. cents).
-    pub amount: i64,
-    /// ISO 4217 currency code.
-    pub currency: String,
+    /// Amount in the smallest denomination of the currency (e.g. cents);
+    /// serializes to a JSON integer.
+    pub amount: MinorUnit,
+    /// ISO 4217 currency code; serializes to the uppercase 3-letter string.
+    pub currency: common_enums::Currency,
 }
 
 #[derive(Debug, Serialize)]
@@ -211,8 +213,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )
             .change_context(errors::IntegrationError::AmountConversionFailed {
                 context: Default::default(),
-            })?
-            .get_amount_as_i64();
+            })?;
 
         let reference_id = Some(
             router_data
@@ -229,7 +230,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             source_id,
             amount_money: SquareMoney {
                 amount,
-                currency: router_data.request.currency.to_string(),
+                currency: router_data.request.currency,
             },
             autocomplete,
             reference_id,

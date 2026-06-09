@@ -211,11 +211,16 @@ macros::macro_connector_implementation!(
 // =============================================================================
 // DYNAMICALLY GENERATED IMPLEMENTATIONS
 // =============================================================================
-// All flows below Authorize remain stubbed. The ClientSDKSessionToken /
-// ServerSessionAuthenticationToken flow is intentionally NOT implemented as a
-// backend call: Square has no server-side session-creation endpoint. The SDK
-// session config (application_id, location_id, environment) is modeled in
-// transformers::SquareSdkSessionConfig and surfaced to the client SDK directly.
+// Authorize is the ONLY implemented flow for Square. Every other flow — including
+// all session/authentication-token flows (ClientAuthenticationToken,
+// ServerAuthenticationToken, ServerSessionAuthenticationToken) — is NOT
+// implemented and is listed in the `not_implemented:` array of
+// `macro_connector_flow_status_impls!` below.
+//
+// Square has no server-side session-creation endpoint: the Web Payments SDK is
+// initialized client-side with `application_id`/`location_id`. The
+// `SquareSdkSessionConfig` / `SquareEnvironment` structs in `transformers.rs`
+// only model that client-side config; they are not returned by any backend flow.
 
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATION =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
