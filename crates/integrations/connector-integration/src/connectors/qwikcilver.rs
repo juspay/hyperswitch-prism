@@ -405,9 +405,9 @@ macros::macro_connector_implementation!(
             let date = qwikcilver::resolve_date_at_client(
                 req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
             )?;
-            let txn_id = qwikcilver::parse_transaction_id_from_reference(
+            let txn_id = qwikcilver::derive_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
-            )?;
+            );
             self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
@@ -446,9 +446,9 @@ macros::macro_connector_implementation!(
             let date = qwikcilver::resolve_date_at_client(
                 req.request.refund_connector_metadata.as_ref().map(|s| s.peek()),
             )?;
-            let txn_id = qwikcilver::parse_transaction_id_from_reference(
+            let txn_id = qwikcilver::derive_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
-            )?;
+            );
             self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
@@ -504,9 +504,9 @@ macros::macro_connector_implementation!(
             let date = qwikcilver::resolve_date_at_client(
                 req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
             )?;
-            let txn_id = qwikcilver::parse_transaction_id_from_reference(
+            let txn_id = qwikcilver::derive_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
-            )?;
+            );
             self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
@@ -543,9 +543,9 @@ macros::macro_connector_implementation!(
             let date = qwikcilver::resolve_date_at_client(
                 req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
             )?;
-            let txn_id = qwikcilver::parse_transaction_id_from_reference(
+            let txn_id = qwikcilver::derive_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
-            )?;
+            );
             self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }
@@ -600,9 +600,9 @@ macros::macro_connector_implementation!(
             let date = qwikcilver::resolve_date_at_client(
                 req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
             )?;
-            let txn_id = qwikcilver::parse_transaction_id_from_reference(
+            let txn_id = qwikcilver::derive_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
-            )?;
+            );
             self.build_authenticated_headers(req, &token, &date, txn_id)
         }
     }

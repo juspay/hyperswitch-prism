@@ -131,7 +131,7 @@ where
         let auth = QwikcilverAuthType::try_from(&item.router_data.connector_config)?;
         let common = &item.router_data.resource_common_data;
         let transaction_id =
-            parse_transaction_id_from_reference(&common.connector_request_reference_id)?;
+            derive_transaction_id_from_reference(&common.connector_request_reference_id);
         let date_at_client =
             resolve_date_at_client(common.connector_feature_data.as_ref().map(|s| s.peek()))?;
         Ok(Self {
@@ -431,13 +431,15 @@ where
             serde_json::to_string(&body).ok().map(Secret::new);
         data.response = match body.response_code {
             QWIKCILVER_SUCCESS_CODE => {
-                // batch+txn round-trip via the composite `connector_transaction_id`.
-                let resource_id = format_composite_txn_id(body.batch_number, body.transaction_id);
                 data.resource_common_data.status = REDEEM_SUCCESS_STATUS;
                 Ok(PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(resource_id),
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        body.transaction_id.to_string(),
+                    ),
                     redirection_data: None,
-                    connector_metadata: None,
+                    connector_metadata: Some(serde_json::json!({
+                        "batch_number": body.batch_number,
+                    })),
                     network_txn_id: None,
                     network_txn_link_id: None,
                     connector_response_reference_id: body.invoice_number,
@@ -547,22 +549,42 @@ where
         >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
-        let (batch, txn) = parse_composite_txn_id(&req.connector_transaction_id).ok_or_else(
-            || {
+        let txn = req.connector_transaction_id.parse::<i64>().map_err(|_| {
+            error_stack::report!(IntegrationError::InvalidDataFormat {
+                field_name: "connector_transaction_id",
+                context: qc_err_ctx(
+                    format!(
+                        "Cancel Redeem reads the original Redeem's `TransactionId` from \
+                         `connector_transaction_id`; expected a numeric `i64`, got \
+                         `{}`.",
+                        &req.connector_transaction_id
+                    ),
+                    "Pass the `connector_transaction_id` from the original Redeem response \
+                     verbatim (it's just the Pine Labs txn id as a numeric string).",
+                ),
+            })
+        })?;
+        let batch = item
+            .router_data
+            .resource_common_data
+            .connector_feature_data
+            .as_ref()
+            .map(|s| s.peek())
+            .and_then(|v| v.get("batch_number"))
+            .and_then(|v| v.as_i64())
+            .ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
-                    field_name: "connector_transaction_id",
+                    field_name: "connector_feature_data.batch_number",
                     context: qc_err_ctx(
-                        "Cancel Redeem needs the original Redeem's batch + transaction id, \
-                         which Prism encodes into `connector_transaction_id` as the composite \
-                         `\"{batch}:{txn}\"` (see `format_composite_txn_id`). The value we \
-                         received didn't match that shape, so we couldn't recover the pair.",
-                        "Pass the `connector_transaction_id` from the original Redeem response \
-                         verbatim — it already round-trips into Cancel Redeem unmodified. \
-                         Don't normalize, trim, or re-encode it.",
+                        "Cancel Redeem also needs the original Redeem's batch number; supply \
+                         it on `connector_feature_data.batch_number`. Capture it from the \
+                         Authorize response's `connector_metadata.batch_number`.",
+                        "Send `connector_feature_data` as a JSON-string containing \
+                         `batch_number` (i64) and `date_at_client` (ISO-8601), e.g. \
+                         `{\"batch_number\":17322479,\"date_at_client\":\"2026-06-09T…Z\"}`.",
                     ),
                 })
-            },
-        )?;
+            })?;
         Ok(Self {
             original_batch_number: batch,
             original_transaction_id: txn,
@@ -617,10 +639,8 @@ impl
             serde_json::to_string(&body).ok().map(Secret::new);
         data.response = match body.response_code {
             QWIKCILVER_SUCCESS_CODE => {
-                let batch = body.batch_number.unwrap_or(body.current_batch_number);
-                let resource_id = format_composite_txn_id(batch, body.transaction_id);
                 Ok(RefundsResponseData {
-                    connector_refund_id: resource_id,
+                    connector_refund_id: body.transaction_id.to_string(),
                     refund_status: CANCEL_REDEEM_SUCCESS_STATUS,
                     status_code: item.http_code,
                 })
@@ -754,8 +774,7 @@ impl
             serde_json::to_string(&body).ok().map(Secret::new);
         data.response = match body.response_code {
             QWIKCILVER_SUCCESS_CODE => {
-                let connector_recharge_id =
-                    format_composite_txn_id(body.current_batch_number, body.transaction_id);
+                let connector_recharge_id = body.transaction_id.to_string();
                 let merchant_recharge_id = data.request.merchant_recharge_id.clone();
                 let connector_payment_method_id = body
                     .wallet
@@ -809,17 +828,6 @@ impl
         };
         Ok(data)
     }
-}
-
-pub(crate) fn format_composite_txn_id(batch: i64, txn: i64) -> String {
-    format!("{batch}:{txn}")
-}
-
-pub(crate) fn parse_composite_txn_id(id: &str) -> Option<(i64, i64)> {
-    let mut parts = id.splitn(2, ':');
-    let batch = parts.next()?.parse().ok()?;
-    let txn = parts.next()?.parse().ok()?;
-    Some((batch, txn))
 }
 
 #[derive(Debug, Serialize)]
@@ -1421,33 +1429,26 @@ pub(crate) fn error_response_from_qc(
     )
 }
 
-pub(crate) fn parse_transaction_id_from_reference(
-    reference_id: &str,
-) -> Result<u64, error_stack::Report<IntegrationError>> {
-    reference_id
-        .parse::<i64>()
-        .ok()
-        .filter(|n| *n > 0)
-        .map(|n| n as u64)
-        .ok_or_else(|| {
-            error_stack::report!(IntegrationError::InvalidDataFormat {
-                field_name: "merchant_transaction_id (or merchant_refund_id for refunds)",
-                context: qc_err_ctx(
-                    format!(
-                        "Qwikcilver's `TransactionId` header is a positive `i64`, but the \
-                         caller's identifier `{reference_id}` is not a positive numeric string. \
-                         No server-side fallback is applied (no hash, no random) — every header \
-                         value Pine Labs sees must be reconcilable from the caller's request."
-                    ),
-                    "Send the request body's `merchant_transaction_id` (Authorize) or \
-                     `merchant_refund_id` (Refund) as a numeric string in the range \
-                     `1..=i64::MAX`, e.g. an epoch second like `\"1780911250\"`.",
-                ),
-            })
-        })
+pub(crate) fn derive_transaction_id_from_reference(reference_id: &str) -> u64 {
+    if let Ok(n) = reference_id.parse::<i64>() {
+        if n > 0 {
+            return n as u64;
+        }
+    }
+    if reference_id.is_empty() {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        return SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| (d.as_nanos() as u64) & 0x7FFF_FFFF_FFFF_FFFF)
+            .unwrap_or(1);
+    }
+    use sha2::{Digest, Sha256};
+    let digest = Sha256::digest(reference_id.as_bytes());
+    let mut buf = [0u8; 8];
+    buf.copy_from_slice(&digest[..8]);
+    u64::from_be_bytes(buf) & 0x3FFF_FFFF_FFFF_FFFF
 }
 
-/// No server-side `now()` fallback; caller MUST supply `date_at_client`.
 pub(crate) fn resolve_date_at_client(
     feature: Option<&serde_json::Value>,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
