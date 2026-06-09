@@ -260,6 +260,7 @@ impl
             test_mode: item.test_mode,
             payment_experience: item.payment_experience,
             merchant_request_id: item.merchant_request_id.clone(),
+            payment_method_type: item.payment_method_type,
         }
     }
 }

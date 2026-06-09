@@ -2186,6 +2186,7 @@ impl<
                             .network_trans_id
                             .as_ref()
                             .map(|s| s.peek().clone()),
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(
                             transaction_response.transaction_id.clone(),
                         ),
@@ -2315,6 +2316,7 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(transaction.transaction_id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: http_code,
@@ -2705,6 +2707,7 @@ pub fn convert_to_payments_response_data_or_error(
                         .network_trans_id
                         .as_ref()
                         .map(|s| s.peek().clone()),
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(trans_res.transaction_id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: http_status_code,
@@ -2741,6 +2744,7 @@ pub fn convert_to_payments_response_data_or_error(
                 connector_metadata: None,
                 mandate_reference: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_status_code,
@@ -3133,6 +3137,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_request_reference_id: None,
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
@@ -3516,6 +3521,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
             // Success - return the connector customer ID
             new_router_data.response = Ok(ConnectorCustomerResponse {
                 connector_customer_id: profile_id,
+                status_code: http_code,
             });
         } else {
             // Check if this is a "duplicate customer" error (E00039)
@@ -3533,6 +3539,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                     );
                     new_router_data.response = Ok(ConnectorCustomerResponse {
                         connector_customer_id: existing_profile_id,
+                        status_code: http_code,
                     });
                 } else {
                     // Couldn't extract ID, return error

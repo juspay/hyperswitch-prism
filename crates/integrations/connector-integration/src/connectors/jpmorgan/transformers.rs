@@ -875,6 +875,7 @@ impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
             mandate_reference: Some(Box::new(mandate_reference)),
             connector_metadata: None,
             network_txn_id,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(item.request_id.clone()),
             incremental_authorization_allowed: None,
             status_code: item.response_code.parse::<u16>().unwrap_or(0),

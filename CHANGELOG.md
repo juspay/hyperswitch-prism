@@ -19,6 +19,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.09.0
+
+### Bug Fixes
+
+- **payload:** Switch from form-urlencoded to JSON serialization for all flows ([#1434](https://github.com/juspay/connector-service/pull/1434)) ([`a4b99e1`](https://github.com/juspay/connector-service/commit/a4b99e167bb248c97c47501455f7a2ca77717844))
+
+**Full Changelog:** [`2026.06.08.1...2026.06.09.0`](https://github.com/juspay/connector-service/compare/2026.06.08.1...2026.06.09.0)
+
+- - -
+
+## 2026.06.08.1
+
+### Features
+
+- **adyen:** Populate network_txn_link_id and pmt for psync ([#1469](https://github.com/juspay/connector-service/pull/1469)) ([`6b6dc14`](https://github.com/juspay/connector-service/commit/6b6dc1420e1681e950d02e27ee5484c3eabbbd5c))
+- **config:** Named proxy map + x-proxy-name header for caller-driven proxy selection ([#1238](https://github.com/juspay/connector-service/pull/1238)) ([`489dc44`](https://github.com/juspay/connector-service/commit/489dc44c2beee838ff3d6ec9807dfebad5961fa9))
+- **connector:** Add PayConex (QSAPI/TSAPI) no-3DS card payments ([#1457](https://github.com/juspay/connector-service/pull/1457)) ([`2c94047`](https://github.com/juspay/connector-service/commit/2c9404756161091615c2858f9950b4b91a06bc07))
+
+**Full Changelog:** [`2026.06.08.0...2026.06.08.1`](https://github.com/juspay/connector-service/compare/2026.06.08.0...2026.06.08.1)
+
+- - -
+
+## 2026.06.08.0
+
+### Features
+
+- **error:** Add status field to connector error details and map PACO refund errors ([#1410](https://github.com/juspay/connector-service/pull/1410)) ([`fb51089`](https://github.com/juspay/connector-service/commit/fb510897c809ca2e82961329811af16d5c5d1105))
+
+### Bug Fixes
+
+- **connector:**
+  - Make shipping_cost optional in paypal authorize ([#1464](https://github.com/juspay/connector-service/pull/1464)) ([`410a508`](https://github.com/juspay/connector-service/commit/410a508126e778a6fd4f4c92d4a3115b3baa62e6))
+  - Map NMI connector_response_reference_id to orderid for setup_mandate and repeat ([#1470](https://github.com/juspay/connector-service/pull/1470)) ([`9c34b2f`](https://github.com/juspay/connector-service/commit/9c34b2f8c9292df369f4ab93d5ccaf808fc66795))
+  - Fixed request and router data diff for finix ([#1463](https://github.com/juspay/connector-service/pull/1463)) ([`c597863`](https://github.com/juspay/connector-service/commit/c597863531cbe0b45012e46d7abf5535fccf0fe0))
+  - [Cybersource] use peek() for card number in card type fallback ([#1437](https://github.com/juspay/connector-service/pull/1437)) ([`92ab79e`](https://github.com/juspay/connector-service/commit/92ab79ea255e61b540c26d8165a221771ef8526a))
+  - Populate finix repeat_payment mandate_reference and connector_response ([#1472](https://github.com/juspay/connector-service/pull/1472)) ([`7b7b878`](https://github.com/juspay/connector-service/commit/7b7b878c1a715e21b71237fbda22b5343420dca4))
+  - SetupMandate diff fix for payload and nmi ([#1477](https://github.com/juspay/connector-service/pull/1477)) ([`65121b9`](https://github.com/juspay/connector-service/commit/65121b9291ffb9819c36048ada11dbcc4b649981))
+- **nmi:** Send billing address + merchant_defined_field on repeat payment ([#1467](https://github.com/juspay/connector-service/pull/1467)) ([`2dd3045`](https://github.com/juspay/connector-service/commit/2dd30454de1561763c2d8c204b413794616c00b6))
+- **setup_mandate:** Use direct amount_captured in generate_setup_mandate_response ([#1405](https://github.com/juspay/connector-service/pull/1405)) ([`2853535`](https://github.com/juspay/connector-service/commit/28535355f0536d8bff945626c6030dfc163565f6))
+
+**Full Changelog:** [`2026.06.05.0...2026.06.08.0`](https://github.com/juspay/connector-service/compare/2026.06.05.0...2026.06.08.0)
+
+- - -
+
 ## 2026.06.05.0
 
 ### Features

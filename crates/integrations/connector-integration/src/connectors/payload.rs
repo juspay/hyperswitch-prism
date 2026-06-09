@@ -246,7 +246,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -318,7 +318,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadPaymentsRequest<T>),
+    curl_request: Json(PayloadPaymentsRequest<T>),
     curl_response: PayloadAuthorizeResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
@@ -388,7 +388,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadCaptureRequest),
+    curl_request: Json(PayloadCaptureRequest),
     curl_response: PayloadCaptureResponse,
     flow_name: Capture,
     resource_common_data: PaymentFlowData,
@@ -424,7 +424,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadVoidRequest),
+    curl_request: Json(PayloadVoidRequest),
     curl_response: PayloadVoidResponse,
     flow_name: Void,
     resource_common_data: PaymentFlowData,
@@ -458,7 +458,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadRefundRequest),
+    curl_request: Json(PayloadRefundRequest),
     curl_response: PayloadRefundResponse,
     flow_name: Refund,
     resource_common_data: RefundFlowData,
@@ -522,7 +522,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadCardsRequestData<T>),
+    curl_request: Json(PayloadCardsRequestData<T>),
     curl_response: PayloadSetupMandateResponse,
     flow_name: SetupMandate,
     resource_common_data: PaymentFlowData,
@@ -551,7 +551,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadRepeatPaymentRequest<T>),
+    curl_request: Json(PayloadRepeatPaymentRequest<T>),
     curl_response: PayloadRepeatPaymentResponse,
     flow_name: RepeatPayment,
     resource_common_data: PaymentFlowData,

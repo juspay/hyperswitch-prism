@@ -538,12 +538,6 @@
         "error": "client_authentication_token flow not supported by paytm connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for paytm"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_supported",
@@ -578,6 +572,12 @@
           },
           "body": "{\"head\":{\"clientId\":null,\"version\":\"v1\",\"requestTimestamp\":\"0000000000\",\"signature\":\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"},\"body\":{\"requestType\":\"Payment\",\"mid\":\"probe_merchant\",\"orderId\":\"\",\"websiteName\":\"probe_website\",\"txnAmount\":{\"value\":\"10.00\",\"currency\":\"USD\"},\"userInfo\":{\"custId\":\"cus_default\",\"mobile\":null,\"email\":null,\"firstName\":null,\"lastName\":null},\"enablePaymentMode\":[{\"mode\":\"UPI\",\"channels\":[\"UPIPUSH\",\"UPI\"]}],\"callbackUrl\":\"https://default-callback.com\",\"shippingInfo\":[{\"trackingNo\":\"\",\"chargeAmount\":{\"value\":\"10.00\",\"currency\":\"USD\"}}]}}"
         }
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for paytm"
       }
     },
     "dispute_accept": {

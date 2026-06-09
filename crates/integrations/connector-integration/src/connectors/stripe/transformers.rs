@@ -2756,6 +2756,7 @@ where
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: item
                     .router_data
@@ -3044,6 +3045,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata,
                 network_txn_id: network_transaction_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -3160,6 +3162,7 @@ impl<F, T> TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: None,
                 network_txn_id: network_transaction_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -4714,6 +4717,7 @@ impl<F, T> TryFrom<ResponseRouterData<CreateConnectorCustomerResponse, Self>>
         Ok(Self {
             response: Ok(ConnectorCustomerResponse {
                 connector_customer_id: item.response.id,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

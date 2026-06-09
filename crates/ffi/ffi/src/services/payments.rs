@@ -302,7 +302,7 @@ res_transformer!(
 
 // create connector customer request transformer
 req_transformer!(
-    fn_name: create_req_transformer,
+    fn_name: customer_create_req_transformer,
     request_type: CustomerServiceCreateRequest,
     flow_marker: CreateConnectorCustomer,
     resource_common_data_type: PaymentFlowData,
@@ -316,7 +316,7 @@ req_transformer!(
 
 // create connector customer response transformer
 res_transformer!(
-    fn_name: create_res_transformer,
+    fn_name: customer_create_res_transformer,
     request_type: CustomerServiceCreateRequest,
     response_type: CustomerServiceCreateResponse,
     flow_marker: CreateConnectorCustomer,

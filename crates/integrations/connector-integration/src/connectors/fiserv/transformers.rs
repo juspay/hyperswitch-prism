@@ -827,6 +827,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),
@@ -895,6 +896,7 @@ impl<F> TryFrom<ResponseRouterData<FiservCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),
@@ -961,6 +963,7 @@ impl<F> TryFrom<ResponseRouterData<FiservVoidResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),
@@ -1037,6 +1040,7 @@ impl<F> TryFrom<ResponseRouterData<FiservSyncResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),

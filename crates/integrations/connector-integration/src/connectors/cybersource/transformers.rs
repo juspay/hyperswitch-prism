@@ -178,11 +178,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .and_then(get_cybersource_card_type)
                     {
                         Some(card_network) => Some(card_network.to_string()),
-                        None => domain_types::utils::get_card_issuer(
-                            &(format!("{:?}", ccard.card_number.0)),
-                        )
-                        .ok()
-                        .map(card_issuer_to_string),
+                        None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                            .ok()
+                            .map(card_issuer_to_string),
                     };
 
                     (
@@ -1371,7 +1369,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
-            None => domain_types::utils::get_card_issuer(&(format!("{:?}", ccard.card_number.0)))
+            None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
                 .ok()
                 .map(card_issuer_to_string),
         };
@@ -2530,11 +2528,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 let payment_information =
@@ -3343,6 +3339,7 @@ fn get_payment_response(
                 network_txn_id: info_response.processor_information.as_ref().and_then(
                     |processor_information| processor_information.network_transaction_id.clone(),
                 ),
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     info_response
                         .client_reference_information
@@ -3560,11 +3557,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 Ok(PaymentInformation::Cards(Box::new(
@@ -3838,11 +3833,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 Ok(PaymentInformation::Cards(Box::new(
@@ -4309,6 +4302,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             processor_information.network_transaction_id.clone()
                         },
                     ),
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         item.response
                             .client_reference_information
@@ -4390,6 +4384,7 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: item
                                 .response
                                 .client_reference_information
@@ -4413,6 +4408,7 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
@@ -5774,5 +5770,22 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Regression: when card_network is absent, the fallback path must pass the
+    // raw card number to get_card_issuer. Previously the code used
+    // format!("{:?}", card_number) which triggered Debug masking
+    // ("424242**********") and broke the BIN regex match, producing card.type = null.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn card_type_fallback_returns_visa_001_for_test_card() {
+        let issuer = domain_types::utils::get_card_issuer("4242424242424242")
+            .expect("Visa BIN should be recognized");
+        assert_eq!(card_issuer_to_string(issuer), "001");
     }
 }

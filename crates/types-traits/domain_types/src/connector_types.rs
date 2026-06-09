@@ -145,6 +145,7 @@ pub enum ConnectorEnum {
     Axisbank,
     TwocTwopPaco,
     Juspay,
+    Payconex,
     Tamara,
 }
 
@@ -381,6 +382,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
+            grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
             grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -1692,6 +1694,9 @@ pub enum PaymentsResponseData {
         connector_metadata: Option<serde_json::Value>,
         mandate_reference: Option<Box<MandateReference>>,
         network_txn_id: Option<String>,
+        /// Network-issued link/reference id (Adyen `transactionLinkId`, etc.) that
+        /// chains related network transactions. Distinct from `network_txn_id`.
+        network_txn_link_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
         status_code: u16,
@@ -2185,6 +2190,7 @@ impl ConnectorCustomerData {
 #[derive(Debug, Clone)]
 pub struct ConnectorCustomerResponse {
     pub connector_customer_id: String,
+    pub status_code: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -4729,6 +4735,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
+            AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {

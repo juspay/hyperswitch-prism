@@ -65,7 +65,10 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateRequest,
+    PaymentMethodServiceCreateResponse, PaymentMethodServiceGetRequest,
+    PaymentMethodServiceGetResponse, PaymentMethodServiceRechargeRequest,
+    PaymentMethodServiceRechargeResponse, PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
@@ -103,6 +106,7 @@ struct EventParams<'a> {
     reference_id: &'a Option<String>,
     resource_id: &'a Option<String>,
     shadow_mode: bool,
+    proxy_name: Option<&'a str>,
     tenant_id: &'a str,
     merchant_id: &'a str,
 }
@@ -410,6 +414,7 @@ impl CustomerService for Customer {
                         reference_id: &metadata_payload.reference_id,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
+                        proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
@@ -540,6 +545,7 @@ impl Payments {
             reference_id: &metadata_payload.reference_id,
             resource_id: &metadata_payload.resource_id,
             shadow_mode: metadata_payload.shadow_mode,
+            proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
@@ -662,6 +668,7 @@ impl Payments {
             reference_id: &metadata_payload.reference_id,
             resource_id: &metadata_payload.resource_id,
             shadow_mode: metadata_payload.shadow_mode,
+            proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
@@ -1052,6 +1059,7 @@ impl PaymentService for Payments {
                         reference_id: &metadata_payload.reference_id,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
+                        proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
@@ -2019,7 +2027,7 @@ impl PaymentMethodService for PaymentMethod {
                             tonic::Status::invalid_argument("Invalid payment method data")
                         })?);
 
-                    self.handle_tokenize_internal::<VaultTokenHolder>(
+                    Box::pin(self.handle_tokenize_internal::<VaultTokenHolder>(
                         &config,
                         payload,
                         metadata_payload.connector.clone(),
@@ -2030,7 +2038,7 @@ impl PaymentMethodService for PaymentMethod {
                         request_id,
                         Some(token_data),
                         payment_method_data,
-                        )
+                        ))
                         .await?
 
                     },
@@ -2040,7 +2048,7 @@ impl PaymentMethodService for PaymentMethod {
                             tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to get payment method data action - error: {:?}", err);
                             tonic::Status::invalid_argument("Invalid payment method data")
                         })?);
-                        self.handle_tokenize_internal::<DefaultPCIHolder>(
+                        Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
                         &config,
                         payload,
                         metadata_payload.connector.clone(),
@@ -2051,7 +2059,7 @@ impl PaymentMethodService for PaymentMethod {
                         request_id,
                         None,
                         payment_method_data,
-                        ).await?
+                        )).await?
                     },
                     PaymentMethodDataAction::Default => {
                         let payment_method_data = payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(payload.payment_method.clone().ok_or(tonic::Status::invalid_argument("missing request_details in the payload"))?)
@@ -2059,7 +2067,7 @@ impl PaymentMethodService for PaymentMethod {
                                 tracing::error!("Failed to convert payment method data: {:?}", err);
                                 tonic::Status::invalid_argument("Invalid payment method data")
                             })?;
-                        self.handle_tokenize_internal::<DefaultPCIHolder>(
+                        Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
                         &config,
                         payload,
                         metadata_payload.connector.clone(),
@@ -2070,7 +2078,7 @@ impl PaymentMethodService for PaymentMethod {
                         request_id,
                         None,
                         payment_method_data,
-                        ).await?
+                        )).await?
                     }
                 };
                 Ok(tonic::Response::new(payment_method_tokenize_response))
@@ -2086,6 +2094,31 @@ impl PaymentMethodService for PaymentMethod {
         Err(tonic::Status::unimplemented(
             "Eligibility check not implemented yet",
         ))
+    }
+
+    async fn create(
+        &self,
+        _request: tonic::Request<PaymentMethodServiceCreateRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceCreateResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented(
+            "Create payment method not implemented yet",
+        ))
+    }
+
+    async fn get(
+        &self,
+        _request: tonic::Request<PaymentMethodServiceGetRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceGetResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented(
+            "Get payment method not implemented yet",
+        ))
+    }
+
+    async fn recharge(
+        &self,
+        _request: tonic::Request<PaymentMethodServiceRechargeRequest>,
+    ) -> Result<tonic::Response<PaymentMethodServiceRechargeResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented("Recharge not implemented yet"))
     }
 }
 
@@ -2178,6 +2211,7 @@ impl PaymentMethod {
             reference_id: &metadata_payload.reference_id,
             resource_id: &metadata_payload.resource_id,
             shadow_mode: metadata_payload.shadow_mode,
+            proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
@@ -2287,6 +2321,7 @@ impl MerchantAuthentication {
             reference_id: event_params.reference_id,
             resource_id: event_params.resource_id,
             shadow_mode: event_params.shadow_mode,
+            proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
@@ -2402,6 +2437,7 @@ impl MerchantAuthentication {
             reference_id: event_params.reference_id,
             resource_id: event_params.resource_id,
             shadow_mode: event_params.shadow_mode,
+            proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
@@ -2577,6 +2613,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         reference_id: &metadata_payload.reference_id,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
+                        proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                     };
@@ -2694,6 +2731,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         reference_id: &metadata_payload.reference_id,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
+                        proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                     };
@@ -2905,6 +2943,7 @@ impl RecurringPaymentService for RecurringPayments {
                         reference_id: &metadata_payload.reference_id,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
+                        proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
