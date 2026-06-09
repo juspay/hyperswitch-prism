@@ -282,8 +282,8 @@ use crate::{
     },
     payment_method_data,
     payment_method_data::{
-        DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
-        VaultTokenHolder,
+        CustomerDocumentDetails, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, VaultTokenHolder,
     },
     router_data::{
         self, AdditionalPaymentMethodConnectorResponse, ConnectorResponseData,
@@ -2359,6 +2359,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for Option<Paym
             grpc_api_types::payments::PaymentMethodType::AliPay => {
                 Ok(Some(PaymentMethodType::AliPay))
             }
+            grpc_api_types::payments::PaymentMethodType::Gcash => {
+                Ok(Some(PaymentMethodType::Gcash))
+            }
             grpc_api_types::payments::PaymentMethodType::Cashapp => {
                 Ok(Some(PaymentMethodType::Cashapp))
             }
@@ -3409,6 +3412,39 @@ impl ForeignTryFrom<grpc_api_types::payments::Money> for common_utils::types::Mo
     }
 }
 
+/// Core proto -> domain mapping for the document kind. `UNSPECIFIED` (the proto
+/// default, set when the field is absent) has no domain equivalent, so it is the
+/// only failing case; callers map that `Err` to "no document" via `.ok()`.
+impl TryFrom<grpc_payment_types::DocumentKind> for crate::payment_method_data::DocumentKind {
+    type Error = ();
+    fn try_from(value: grpc_payment_types::DocumentKind) -> Result<Self, Self::Error> {
+        match value {
+            grpc_payment_types::DocumentKind::Cpf => Ok(Self::Cpf),
+            grpc_payment_types::DocumentKind::Cnpj => Ok(Self::Cnpj),
+            grpc_payment_types::DocumentKind::Psn => Ok(Self::Psn),
+            grpc_payment_types::DocumentKind::Other => Ok(Self::Other),
+            grpc_payment_types::DocumentKind::Unspecified => Err(()),
+        }
+    }
+}
+
+/// Builds the optional domain `CustomerDocumentDetails` from the gRPC message:
+/// convert the document kind first, then make the whole thing optional. Returns
+/// `None` when the document type is `UNSPECIFIED` or the document number is missing
+/// — i.e. there is no usable customer document. Shared by the Authorize,
+/// SetupMandate (CIT) and RepeatPayment (MIT) request conversions.
+fn map_customer_document_details(
+    doc: &grpc_payment_types::CustomerDocumentDetails,
+) -> Option<CustomerDocumentDetails> {
+    crate::payment_method_data::DocumentKind::try_from(doc.document_type())
+        .ok()
+        .zip(doc.document_number.clone())
+        .map(|(document_type, document_number)| CustomerDocumentDetails {
+            document_type,
+            document_number,
+        })
+}
+
 impl<
         T: PaymentMethodDataTypes
             + Default
@@ -3453,6 +3489,14 @@ impl<
             }
             None => None,
         };
+        // Extract the customer identification document (mirrors the EMAIL field above).
+        // Proto DocumentKind -> domain DocumentKind; UNSPECIFIED document_type means
+        // no usable document, so the whole detail is treated as None.
+        let customer_document_details: Option<CustomerDocumentDetails> = value
+            .customer
+            .as_ref()
+            .and_then(|customer| customer.customer_document_details.as_ref())
+            .and_then(map_customer_document_details);
         let merchant_config_currency = common_enums::Currency::foreign_try_from(amount.currency())?;
 
         let connector_feature_data = value
@@ -3558,6 +3602,7 @@ impl<
             )?,
             minor_amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             email,
+            customer_document_details,
             customer_name: value
                 .customer
                 .as_ref()
@@ -3668,6 +3713,14 @@ impl<
             }
             None => None,
         };
+        // Extract the customer identification document (mirrors the EMAIL field above).
+        // Proto DocumentKind -> domain DocumentKind; UNSPECIFIED document_type means
+        // no usable document, so the whole detail is treated as None.
+        let customer_document_details: Option<CustomerDocumentDetails> = value
+            .customer
+            .as_ref()
+            .and_then(|customer| customer.customer_document_details.as_ref())
+            .and_then(map_customer_document_details);
         let amount = value.amount.ok_or_else(|| {
             report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
@@ -3724,6 +3777,7 @@ impl<
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
             email,
+            customer_document_details,
             customer_name: value
                 .customer
                 .as_ref()
@@ -9128,6 +9182,14 @@ impl<
             }
             None => None,
         };
+        // Extract the customer identification document (mirrors the EMAIL field above).
+        // Proto DocumentKind -> domain DocumentKind; UNSPECIFIED document_type means
+        // no usable document, so the whole detail is treated as None.
+        let customer_document_details: Option<CustomerDocumentDetails> = value
+            .customer
+            .as_ref()
+            .and_then(|customer| customer.customer_document_details.as_ref())
+            .and_then(map_customer_document_details);
         let customer_acceptance = value.customer_acceptance.clone().ok_or_else(|| {
             error_stack::Report::new(IntegrationError::InvalidDataFormat {
                 field_name: "unknown",
@@ -9200,6 +9262,7 @@ impl<
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
             email,
+            customer_document_details,
             customer_name: value
                 .customer
                 .as_ref()
@@ -11208,6 +11271,14 @@ impl<
             None => None,
         };
 
+        // Extract the customer identification document (mirrors the EMAIL field above).
+        // Proto DocumentKind -> domain DocumentKind; UNSPECIFIED document_type means
+        // no usable document, so the whole detail is treated as None.
+        let customer_document_details: Option<CustomerDocumentDetails> = value
+            .customer_document_details
+            .as_ref()
+            .and_then(map_customer_document_details);
+
         // Extract mandate reference_id
         let mandate_ref = match value.connector_recurring_payment_id {
             Some(mandate_reference_id) => match mandate_reference_id.mandate_id_type {
@@ -11293,6 +11364,7 @@ impl<
             integrity_object: None,
             capture_method: Some(CaptureMethod::foreign_try_from(capture_method)?),
             email,
+            customer_document_details,
             browser_info: value
                 .browser_info
                 .map(BrowserInformation::foreign_try_from)

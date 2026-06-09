@@ -124,6 +124,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -318,6 +319,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -463,6 +465,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -630,6 +633,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -995,6 +999,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                customer_document_details: None,
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
@@ -1196,6 +1201,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                customer_document_details: None,
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
@@ -1644,6 +1650,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
