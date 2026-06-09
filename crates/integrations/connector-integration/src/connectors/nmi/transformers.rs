@@ -739,6 +739,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StandardResponse, Sel
                 }),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.orderid.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -864,6 +865,7 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -963,6 +965,7 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.orderid.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -1264,6 +1267,7 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.orderid.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -1773,6 +1777,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         // Hyperswitch parity: NMI maps connector_response_reference_id to the
                         // merchant `orderid` (echoed back), not the connector `transactionid`
                         // (which is already the resource_id / ConnectorTransactionId above).
@@ -1951,6 +1956,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     // Hyperswitch parity: NMI maps connector_response_reference_id to the
                     // merchant `orderid` (echoed back), not the connector `transactionid`
                     // (which is already the resource_id / ConnectorTransactionId above).

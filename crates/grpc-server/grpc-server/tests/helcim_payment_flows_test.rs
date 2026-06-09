@@ -281,6 +281,7 @@ fn create_payment_sync_request(
         payment_experience: None,
 
         merchant_request_id: None,
+        payment_method_type: None,
     }
 }
 

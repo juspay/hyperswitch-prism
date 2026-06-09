@@ -410,7 +410,7 @@ async def process_customer_create(merchant_transaction_id: str, config: sdk_conf
 
     customer_response = await customer_client.customer_create(_build_customer_create_request())
 
-    return {"status": customer_response.status}
+    return {"customer_id": customer_response.connector_customer_id}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
