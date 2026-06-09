@@ -141,6 +141,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             "https://hyperswitch.io/connector-service/authnet_webhook_grpcurl".to_string(),
         ),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: None,

@@ -90,6 +90,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             )),
         }),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: Some("cust_1233".to_string()),

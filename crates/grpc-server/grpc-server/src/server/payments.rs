@@ -1971,7 +1971,7 @@ impl PaymentMethodService for PaymentMethod {
         name = "tokenize",
         fields(
             name = common_utils::consts::NAME,
-            service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
+            service_name = common_utils::consts::PAYMENT_METHOD_SERVICE_NAME,
             service_method = "Tokenize",
             request_body = tracing::field::Empty,
             response_body = tracing::field::Empty,
@@ -2103,7 +2103,7 @@ impl PaymentMethodService for PaymentMethod {
         name = "create_payment_method",
         fields(
             name = common_utils::consts::NAME,
-            service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
+            service_name = common_utils::consts::PAYMENT_METHOD_SERVICE_NAME,
             service_method = "Create",
             request_body = tracing::field::Empty,
             response_body = tracing::field::Empty,
@@ -2146,7 +2146,7 @@ impl PaymentMethodService for PaymentMethod {
         name = "get_payment_method",
         fields(
             name = common_utils::consts::NAME,
-            service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
+            service_name = common_utils::consts::PAYMENT_METHOD_SERVICE_NAME,
             service_method = "Get",
             request_body = tracing::field::Empty,
             response_body = tracing::field::Empty,
@@ -2189,7 +2189,7 @@ impl PaymentMethodService for PaymentMethod {
         name = "recharge",
         fields(
             name = common_utils::consts::NAME,
-            service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
+            service_name = common_utils::consts::PAYMENT_METHOD_SERVICE_NAME,
             service_method = "Recharge",
             request_body = tracing::field::Empty,
             response_body = tracing::field::Empty,
