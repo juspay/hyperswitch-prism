@@ -1082,9 +1082,10 @@ pub fn create_client(
                 .transpose()?
                 .unwrap_or_default()
                 .into_iter()
-                .fold(client_builder.identity(identity).use_rustls_tls(), |b, ca| {
-                    b.add_root_certificate(ca)
-                });
+                .fold(
+                    client_builder.identity(identity).use_rustls_tls(),
+                    |b, ca| b.add_root_certificate(ca),
+                );
             client_builder
                 .build()
                 .change_context(ApiClientError::ClientConstructionFailed)

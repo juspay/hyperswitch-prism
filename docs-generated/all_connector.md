@@ -122,7 +122,6 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 
 **Legend:** ✓ Supported | x Not Supported | ⚠ Not Implemented | ? Error / Missing required fields
 
-| [Deutschebank](connectors/deutschebank.md) | x | x | x | x | x | x | x | ⚠ | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | Connector | Pay.Get | Pay.Void | Pay.Reverse | Pay.Capture | Pay.CreateOrder | Pay.Refund | Pay.IncrementalAuthorization | Pay.VerifyRedirectResponse | Pay.SetupRecurring | Pay.TokenAuthorize | Pay.TokenSetupRecurring | Pay.ProxyAuthorize | Pay.ProxySetupRecurring | RecPay.Charge | RecPay.Revoke | Refund.Get | Customer.Create | PayMethod.Tokenize | PayMethod.Create | PayMethod.Get | PayMethod.Eligibility | PayMethod.Recharge | MerchantAuthentication.CreateServerAuthenticationToken | MerchantAuthentication.CreateServerSessionAuthenticationToken | MerchantAuthentication.CreateClientAuthenticationToken | PayMethodAuthentication.PreAuthenticate | PayMethodAuthentication.Authenticate | PayMethodAuthentication.PostAuthenticate | Dispute.SubmitEvidence | Dispute.Get | Dispute.Defend | Dispute.Accept | Event.ParseEvent | Event.HandleEvent | Event.NotifyConnector |
 |-----------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | [Absasanlam](connectors/absasanlam.md) | ⚠ | x | x | ⚠ | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | x | x | x | x | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
@@ -147,6 +146,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [CryptoPay](connectors/cryptopay.md) | ✓ | x | x | x | x | ⚠ | x | ⚠ | ⚠ | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | x | x | ⚠ | x | x | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [CyberSource](connectors/cybersource.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ✓ | ⚠ | ? | ✓ | ? | ✓ | ? | ✓ | ✓ | ✓ | ⚠ | ⚠ | x | x | ⚠ | x | ⚠ | ⚠ | ? | ✓ | ✓ | ✓ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Datatrans](connectors/datatrans.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | x | x | ⚠ | x | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
+| [Deutschebank](connectors/deutschebank.md) | x | x | x | x | x | x | x | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [dLocal](connectors/dlocal.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ? | ? | ? | ? | ? | ? | ⚠ | ✓ | x | ⚠ | x | x | ⚠ | x | x | x | ⚠ | x | x | x | ⚠ | ⚠ | ⚠ | x | ✓ | ✓ | x |
 | [Easebuzz](connectors/easebuzz.md) | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | x | x | ⚠ | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Elavon](connectors/elavon.md) | ✓ | ⚠ | ⚠ | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | x | x | ⚠ | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |

@@ -71,9 +71,7 @@ fn format_http_date(dt: OffsetDateTime) -> Result<String, error_stack::Report<In
         .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 additional_context: Some("formatting HTTP date for CSEAL Date header".to_string()),
-                suggested_action: Some(
-                    "Retry the request; report if persistent.".to_string(),
-                ),
+                suggested_action: Some("Retry the request; report if persistent.".to_string()),
                 doc_url: None,
             },
         })

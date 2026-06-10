@@ -464,26 +464,26 @@ impl
             req.request.amount,
             req.request.destination_currency,
         )?;
-        let purpose_code =
-            req.resource_common_data
-                .description
-                .clone()
-                .ok_or_else(|| {
-                    error_stack::report!(IntegrationError::MissingRequiredField {
-                        field_name: "description",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "Deutsche Bank uses `description` as the SEPA proprietary \
+        let purpose_code = req
+            .resource_common_data
+            .description
+            .clone()
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "description",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Deutsche Bank uses `description` as the SEPA proprietary \
                                  purpose code"
-                                    .to_string(),
-                            ),
-                            suggested_action: Some(
-                                "Set `description` on the payout request.".to_string(),
-                            ),
-                            doc_url: None,
-                        },
-                    })
-                })?;
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Set `description` on the payout request.".to_string(),
+                        ),
+                        doc_url: None,
+                    },
+                })
+            })?;
 
         let request = DeutschebankSepaPaymentRequest {
             customer_credit_transfer_initiation: DeutschebankCustomerCreditTransferInitiation {
@@ -763,9 +763,7 @@ fn extract_payee_iban(
                 additional_context: Some(
                     "Provide `payout_method_data.bank.sepa.iban` for the payee account".to_string(),
                 ),
-                suggested_action: Some(
-                    "Set `payout_method_data.bank.sepa.iban`.".to_string(),
-                ),
+                suggested_action: Some("Set `payout_method_data.bank.sepa.iban`.".to_string(),),
                 doc_url: None,
             },
         })),
@@ -786,9 +784,7 @@ fn extract_payee_bic(
                     additional_context: Some(
                         "Deutsche Bank SEPA requires the creditor agent BIC".to_string(),
                     ),
-                    suggested_action: Some(
-                        "Set `payout_method_data.bank.sepa.bic`.".to_string(),
-                    ),
+                    suggested_action: Some("Set `payout_method_data.bank.sepa.bic`.".to_string(),),
                     doc_url: None,
                 },
             }
@@ -800,9 +796,7 @@ fn extract_payee_bic(
                 additional_context: Some(
                     "Provide `payout_method_data.bank.sepa` with iban + bic".to_string(),
                 ),
-                suggested_action: Some(
-                    "Use SEPA bank payout method.".to_string(),
-                ),
+                suggested_action: Some("Use SEPA bank payout method.".to_string(),),
                 doc_url: None,
             },
         })),
@@ -841,9 +835,7 @@ fn current_iso_utc_seconds() -> Result<String, error_stack::Report<IntegrationEr
                 additional_context: Some(
                     "formatting current UTC datetime for SEPA creationDateTime".to_string(),
                 ),
-                suggested_action: Some(
-                    "Retry the request; report if persistent.".to_string(),
-                ),
+                suggested_action: Some("Retry the request; report if persistent.".to_string()),
                 doc_url: None,
             },
         },
@@ -880,7 +872,9 @@ fn extract_customer_name(
                 field_name: "customer.name",
                 context: IntegrationErrorContext {
                     additional_context: Some(purpose_description.to_string()),
-                    suggested_action: Some("Set `customer.name` on the payout request.".to_string()),
+                    suggested_action: Some(
+                        "Set `customer.name` on the payout request.".to_string()
+                    ),
                     doc_url: None,
                 },
             })

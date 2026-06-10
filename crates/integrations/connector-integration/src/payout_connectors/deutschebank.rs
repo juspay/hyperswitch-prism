@@ -138,9 +138,7 @@ fn current_iso_utc_seconds() -> CustomResult<String, IntegrationError> {
                     "formatting current UTC datetime for CSEAL request timestamp header"
                         .to_string(),
                 ),
-                suggested_action: Some(
-                    "Retry the request; report if persistent.".to_string(),
-                ),
+                suggested_action: Some("Retry the request; report if persistent.".to_string()),
                 doc_url: None,
             },
         },
@@ -619,8 +617,9 @@ impl
             })?;
         event_builder.map(|i| i.set_connector_response(&response));
 
-        let built = DeutschebankSepaPaymentBuilt::try_from(data).change_context(
-            ConnectorError::ResponseDeserializationFailed {
+        let built =
+            DeutschebankSepaPaymentBuilt::try_from(data)
+                .change_context(ConnectorError::ResponseDeserializationFailed {
                 context: domain_types::errors::ResponseTransformationErrorContext {
                     http_status_code: Some(res.status_code),
                     additional_context: Some(
@@ -628,8 +627,7 @@ impl
                             .to_string(),
                     ),
                 },
-            },
-        )?;
+            })?;
         let compound = encode_connector_payout_id(&built.end_to_end_id, &built.debtor_iban);
 
         let payout_status = response

@@ -224,7 +224,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaysafeCardAccountId: ["noThreeDs", "threeDs"],
   PaysafeAchAccountId: ["accountId"],
   LoonioConfig: ["merchantId", "merchantToken"],
-  DeutschebankConfig: ["apikey", "customerIdentifier", "consumerIdentifier", "keyId", "signingPrivateKey", "clientCertificate", "clientCertificateKey", "serverCaBundle"],
+  DeutschebankConfig: ["customerIdentifier", "consumerIdentifier", "keyId", "signingPrivateKey", "clientCertificate", "clientCertificateKey", "serverCaBundle"],
   PaysafeConfig: ["username", "password"],
   PayuConfig: ["apiKey", "apiSecret"],
   PowertranzConfig: ["powerTranzId", "powerTranzPassword"],
