@@ -3,9 +3,8 @@ use grpc_api_types::payments::{
     CompositeAuthorizeRequest, CompositeCaptureRequest, CompositeGetRequest,
     CompositePaymentMethodCreateRequest, CompositePaymentMethodGetRequest,
     CompositePaymentMethodRechargeRequest, CompositeRefundGetRequest, CompositeRefundRequest,
-    CompositeVerifyRedirectResponseRequest,
-    CompositeVoidRequest, ConnectorState, CustomerServiceCreateRequest,
-    CustomerServiceCreateResponse,
+    CompositeVerifyRedirectResponseRequest, CompositeVoidRequest, ConnectorState,
+    CustomerServiceCreateRequest, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -18,7 +17,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateRequest,
     PaymentMethodServiceGetRequest, PaymentMethodServiceRechargeRequest,
     PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceGetRequest,
-    PaymentServiceRefundRequest,     PaymentServiceVerifyRedirectResponseResponse,
+    PaymentServiceRefundRequest, PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest, RefundServiceGetRequest,
 };
 
@@ -820,13 +819,13 @@ impl ForeignFrom<(&CompositeVerifyRedirectResponseRequest, &ConnectorEnum)>
     fn foreign_from(
         (item, _connector): (&CompositeVerifyRedirectResponseRequest, &ConnectorEnum),
     ) -> Self {
-        let payment_context = item.amount.map(|amount| {
-            grpc_api_types::payments::PaymentSessionContext {
-                amount: Some(amount),
-                metadata: item.metadata.clone(),
-                browser_info: item.browser_info.clone(),
-            }
-        });
+        let payment_context =
+            item.amount
+                .map(|amount| grpc_api_types::payments::PaymentSessionContext {
+                    amount: Some(amount),
+                    metadata: item.metadata.clone(),
+                    browser_info: item.browser_info.clone(),
+                });
 
         Self {
             merchant_server_session_id: item.merchant_server_session_id.clone(),
@@ -894,4 +893,3 @@ impl
         }
     }
 }
-

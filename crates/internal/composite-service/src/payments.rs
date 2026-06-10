@@ -1009,10 +1009,8 @@ where
         payload: &grpc_api_types::payments::CompositeVerifyRedirectResponseRequest,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
-    ) -> Result<
-        grpc_api_types::payments::PaymentServiceVerifyRedirectResponseResponse,
-        tonic::Status,
-    > {
+    ) -> Result<grpc_api_types::payments::PaymentServiceVerifyRedirectResponseResponse, tonic::Status>
+    {
         // Build verify request from composite request
         let verify_payload =
             grpc_api_types::payments::PaymentServiceVerifyRedirectResponseRequest {
@@ -1060,13 +1058,13 @@ where
         let connector_data = ConnectorData::<
             domain_types::payment_method_data::DefaultPCIHolder,
         >::get_connector_by_name(&connector);
-        let requires_authorize = connector_data
-            .connector
-            .requires_authorize_post_redirect();
+        let requires_authorize = connector_data.connector.requires_authorize_post_redirect();
 
         // 5. Conditionally perform authorize flow (only if verification was successful)
         let (access_token_response, session_token_response, authorize_response) =
-            if requires_authorize && verify_response.source_verified && verify_response.error.is_none()
+            if requires_authorize
+                && verify_response.source_verified
+                && verify_response.error.is_none()
             {
                 let (access_token, session_token, authorize) = self
                     .authorize_post_redirect(
@@ -1141,8 +1139,12 @@ where
     async fn verify_redirect_response(
         &self,
         request: tonic::Request<grpc_api_types::payments::CompositeVerifyRedirectResponseRequest>,
-    ) -> Result<tonic::Response<grpc_api_types::payments::CompositeVerifyRedirectResponseResponse>, tonic::Status> {
-        self.process_composite_verify_redirect_response(request).await
+    ) -> Result<
+        tonic::Response<grpc_api_types::payments::CompositeVerifyRedirectResponseResponse>,
+        tonic::Status,
+    > {
+        self.process_composite_verify_redirect_response(request)
+            .await
     }
 }
 
