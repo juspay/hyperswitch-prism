@@ -4003,9 +4003,19 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             .unwrap_or(info_response.id.clone()),
                     );
 
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(ConnectorError::response_handling_failed(item.http_code))?;
+                    let connector_feature_data = Some(Secret::new(serde_json::json!({
+                        "three_ds_data": three_ds_data
+                    })));
+
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
+                            connector_feature_data,
                             ..item.router_data.resource_common_data
                         },
                         response: Ok(PaymentsResponseData::PostAuthenticateResponse {
