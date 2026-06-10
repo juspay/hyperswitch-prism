@@ -426,6 +426,41 @@ pub enum BankNames {
     IndianOverseasBank,
     CentralBankOfIndia,
     Absa,
+    AccessBank,
+    Albaraka,
+    ChinaConstructionBank,
+    Discovery,
+    EnlBank,
+    FirstNationalBank,
+    GotymeBank,
+    HabibOverseas,
+    HbzBank,
+    Investec,
+    JpMorganChase,
+    MtnBanking,
+    Olympus,
+    OldMutual,
+    PermanentBank,
+    SocieteGenerale,
+    StandardBank,
+    StateBankOfIndia,
+    Ubank,
+    VbsMutualBank,
+    BankZero,
+    BidvestBank,
+    BidvestBankAlliances,
+    FbcFidelityBank,
+    FinbondEpe,
+    FinbondMutualBank,
+    Ithala,
+    PeoplesBankPepBank,
+    PeoplesBank,
+    PostBank,
+    Nedbank,
+    Capitec,
+    CapitecBusiness,
+    AfricanBank,
+    AfricanBankBusiness,
 }
 
 /// Specifies the regulated name for a card network, primarily used for US debit card routing regulations.
@@ -1143,6 +1178,71 @@ pub enum RefundStatus {
     Success,
     #[serde(alias = "TransactionFailure")]
     TransactionFailure,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RechargeStatus {
+    Success,
+    Failure,
+    #[default]
+    Pending,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+pub enum WalletStatus {
+    #[default]
+    Unspecified,
+    Active,
+    Inactive,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+pub enum WalletItemStatus {
+    #[default]
+    Unspecified,
+    Active,
+    Inactive,
+    Depleted,
+    Expired,
 }
 
 #[derive(

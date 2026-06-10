@@ -45,6 +45,12 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
+    PaymentMethodServiceCreateRequest,
+    PaymentMethodServiceCreateResponse,
+    PaymentMethodServiceGetRequest,
+    PaymentMethodServiceGetResponse,
+    PaymentMethodServiceRechargeRequest,
+    PaymentMethodServiceRechargeResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -158,7 +164,7 @@ impl_grpc_client!(
     GrpcCustomerClient,
     CustomerServiceClient,
     (
-        create,
+        customer_create,
         create,
         CustomerServiceCreateRequest,
         CustomerServiceCreateResponse
@@ -273,10 +279,28 @@ impl_grpc_client!(
         PaymentMethodServiceTokenizeResponse
     ),
     (
+        create,
+        create,
+        PaymentMethodServiceCreateRequest,
+        PaymentMethodServiceCreateResponse
+    ),
+    (
+        payment_method_get,
+        get,
+        PaymentMethodServiceGetRequest,
+        PaymentMethodServiceGetResponse
+    ),
+    (
         eligibility,
         eligibility,
         PayoutMethodEligibilityRequest,
         PayoutMethodEligibilityResponse
+    ),
+    (
+        recharge,
+        recharge,
+        PaymentMethodServiceRechargeRequest,
+        PaymentMethodServiceRechargeResponse
     ),
 );
 
@@ -479,7 +503,7 @@ impl_grpc_client!(
 ///     connector_config: build_connector_config("Stripe", ConnectorSpecificConfig::new("sk_test_...")),
 /// }).await?;
 ///
-/// let _ = client.customer.create(Default::default()).await;
+/// let _ = client.customer.customer_create(Default::default()).await;
 /// let _ = client.dispute.submit_evidence(Default::default()).await;
 /// let _ = client.event.parse_event(Default::default()).await;
 /// let _ = client.merchant_authentication.create_server_authentication_token(Default::default()).await;

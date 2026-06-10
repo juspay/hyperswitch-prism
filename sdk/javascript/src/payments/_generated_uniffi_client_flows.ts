@@ -89,23 +89,6 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('charge', responseBytes, requestBytes, optionsBytes);
   }
 
-  /** Build connector HTTP request for create flow. */
-  createReq(
-    requestBytes: Buffer | Uint8Array,
-    optionsBytes: Buffer | Uint8Array
-  ): Buffer {
-    return this.callReq('create', requestBytes, optionsBytes);
-  }
-
-  /** Parse connector HTTP response for create flow. */
-  createRes(
-    responseBytes: Buffer | Uint8Array,
-    requestBytes: Buffer | Uint8Array,
-    optionsBytes: Buffer | Uint8Array
-  ): Buffer {
-    return this.callRes('create', responseBytes, requestBytes, optionsBytes);
-  }
-
   /** Build connector HTTP request for create_client_authentication_token flow. */
   createClientAuthenticationTokenReq(
     requestBytes: Buffer | Uint8Array,
@@ -172,6 +155,23 @@ export class UniffiClient extends _UniffiClientBase {
     optionsBytes: Buffer | Uint8Array
   ): Buffer {
     return this.callRes('create_server_session_authentication_token', responseBytes, requestBytes, optionsBytes);
+  }
+
+  /** Build connector HTTP request for customer_create flow. */
+  customerCreateReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('customer_create', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for customer_create flow. */
+  customerCreateRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('customer_create', responseBytes, requestBytes, optionsBytes);
   }
 
   /** Build connector HTTP request for defend flow. */

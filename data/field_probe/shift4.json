@@ -580,7 +580,25 @@
         }
       }
     },
-    "create_customer": {
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for shift4"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by shift4 connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by shift4 connector"
+      }
+    },
+    "customer_create": {
       "default": {
         "status": "supported",
         "proto_request": {
@@ -599,24 +617,6 @@
           },
           "body": "{\"email\":\"test@example.com\"}"
         }
-      }
-    },
-    "create_order": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_order flow for shift4"
-      }
-    },
-    "create_server_authentication_token": {
-      "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by shift4 connector"
-      }
-    },
-    "create_server_session_authentication_token": {
-      "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by shift4 connector"
       }
     },
     "dispute_accept": {

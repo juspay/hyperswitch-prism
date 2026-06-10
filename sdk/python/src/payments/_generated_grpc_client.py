@@ -108,11 +108,11 @@ class GrpcCustomerClient:
         self._ffi    = ffi
         self._config = config
 
-    def create(self, req: payment_pb2.CustomerServiceCreateRequest) -> payment_pb2.CustomerServiceCreateResponse:
+    def customer_create(self, req: payment_pb2.CustomerServiceCreateRequest) -> payment_pb2.CustomerServiceCreateResponse:
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
         return _call_grpc(
             self._ffi, self._config,
-            "customer/create",
+            "customer/customer_create",
             req, payment_pb2.CustomerServiceCreateResponse,
         )
 
@@ -253,12 +253,33 @@ class GrpcPaymentMethodClient:
             "payment_method/tokenize",
             req, payment_pb2.PaymentMethodServiceTokenizeResponse,
         )
+    def create(self, req: payment_pb2.PaymentMethodServiceCreateRequest) -> payment_pb2.PaymentMethodServiceCreateResponse:
+        """PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/create",
+            req, payment_pb2.PaymentMethodServiceCreateResponse,
+        )
+    def payment_method_get(self, req: payment_pb2.PaymentMethodServiceGetRequest) -> payment_pb2.PaymentMethodServiceGetResponse:
+        """PaymentMethodService.Get — Retrieve payment method details from the payment processor."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/payment_method_get",
+            req, payment_pb2.PaymentMethodServiceGetResponse,
+        )
     def eligibility(self, req: payment_pb2.PayoutMethodEligibilityRequest) -> payment_pb2.PayoutMethodEligibilityResponse:
         """PaymentMethodService.Eligibility — Check if the payout method is eligible for the transaction"""
         return _call_grpc(
             self._ffi, self._config,
             "payment_method/eligibility",
             req, payment_pb2.PayoutMethodEligibilityResponse,
+        )
+    def recharge(self, req: payment_pb2.PaymentMethodServiceRechargeRequest) -> payment_pb2.PaymentMethodServiceRechargeResponse:
+        """PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/recharge",
+            req, payment_pb2.PaymentMethodServiceRechargeResponse,
         )
 
 class GrpcPaymentClient:
@@ -506,7 +527,7 @@ class GrpcClient:
             connector = "stripe",
             connector_config = {"config": {"Stripe": {"api_key": "sk_test_..."}}},
         ))
-        res = client.customer.create(...)
+        res = client.customer.customer_create(...)
         res = client.dispute.submit_evidence(...)
         res = client.event.parse_event(...)
         res = client.merchant_authentication.create_server_authentication_token(...)

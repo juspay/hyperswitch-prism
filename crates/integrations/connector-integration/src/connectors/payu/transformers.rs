@@ -1044,6 +1044,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(transaction_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -1092,7 +1093,8 @@ impl TryFrom<ResponseRouterData<PayuSyncResponse, Self>>
                             redirection_data: None,
                             mandate_reference: None,
                             connector_metadata: None,
-                            network_txn_id: txn_detail.field1.clone(), // UPI transaction ID
+                            network_txn_id: txn_detail.field1.clone(),
+                            network_txn_link_id: None, // UPI transaction ID
                             connector_response_reference_id: txn_detail.mihpayid.clone(),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
@@ -1390,6 +1392,7 @@ impl TryFrom<ResponseRouterData<PayuCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(connector_transaction_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -1573,6 +1576,7 @@ impl TryFrom<ResponseRouterData<PayuVoidResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(connector_transaction_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,

@@ -457,7 +457,7 @@ impl
         .simple()
         .to_string();
         let creation_date_time = current_iso_utc_seconds()?;
-        let execution_date = current_iso_date()?;
+        let execution_date = sepa_execution_date()?;
 
         let amount = utils::convert_amount(
             &FloatMajorUnitForConnector,
@@ -850,19 +850,19 @@ fn current_iso_utc_seconds() -> Result<String, error_stack::Report<IntegrationEr
     )
 }
 
-fn current_iso_date() -> Result<String, error_stack::Report<IntegrationError>> {
+fn sepa_execution_date() -> Result<String, error_stack::Report<IntegrationError>> {
     use time::format_description::well_known::Iso8601;
-    time::OffsetDateTime::now_utc()
-        .date()
+    // SEPA SCT has a same-day cutoff (~14:00-16:00 CET). Submitting after cutoff with
+    // execution_date = today triggers APP-RULE at Deutsche Bank. D+1 sidesteps it
+    // unconditionally and DB advances to the next TARGET2 business day on its side.
+    (time::OffsetDateTime::now_utc().date() + time::Duration::days(1))
         .format(&Iso8601::DATE)
         .change_context(IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "formatting current UTC date for SEPA requestedExecutionDate".to_string(),
+                    "formatting D+1 date for SEPA requestedExecutionDate".to_string(),
                 ),
-                suggested_action: Some(
-                    "Retry the request; report if persistent.".to_string(),
-                ),
+                suggested_action: Some("Retry the request; report if persistent.".to_string()),
                 doc_url: None,
             },
         })

@@ -7,9 +7,9 @@ import payments.generated.payment_pb2 as _pb2
 class CustomerClient(_ConnectorClientBase):
     """CustomerService flows"""
 
-    def create(self, request, options=None):
+    def customer_create(self, request, options=None):
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
-        return self._execute_flow("create", request, _pb2.CustomerServiceCreateResponse, options)
+        return self._execute_flow("customer_create", request, _pb2.CustomerServiceCreateResponse, options)
 
 class DisputeClient(_ConnectorClientBase):
     """DisputeService flows"""

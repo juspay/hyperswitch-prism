@@ -1,0 +1,178 @@
+# 10XGRACE pipeline configuration
+# Fill in llm.baseUrl and llm.apiKey below, then start the engine with `pnpm dev`.
+
+projectRoot: "" # target repo (absolute path). Leave blank and set TENXGRACE_PROJECT_ROOT per-machine.
+# Absolute path to the connector creds.json. SessionManager symlinks this
+# into every new session worktree so the grpc-server + agents find creds
+# at <worktree>/creds.json without per-worktree copying. Override per-machine
+# with TENXGRACE_CREDS_PATH (recommended — keeps secrets out of this committed file).
+# credsPath: /absolute/path/to/creds.json
+devServerUrl: http://localhost:9000 # hyperswitch webpack-dev-server default
+designMatchThreshold: 0.90
+maxRetries: 3 # default; individual checkpoints (e.g. l2_review, l3_review, requirements) may pin their own value in source — see packages/core/src/checkpoints/*.ts
+dashboardPort: 3141
+wsPort: 3142
+
+# Switch the engine's checkpoint runner to claude-code so checkpoints use the
+# locally-authenticated `claude` CLI (no LLM API key needed; works with the
+# user's existing OAuth session). Discovery already uses claude-code regardless
+# of this setting. Set to "opencode" if you have `opencode serve` running.
+runner: claude-code
+
+claudeCode:
+  model: "claude-sonnet-4-6"
+  timeoutMs: 1800000 # 30 min per call — matches discovery's bumped default
+  implementationConcurrency: 4
+  useGlobalConfig: true
+
+opencode:
+  # opencode CLI is used for L2 (research), L3, L4 and per-file implementation steps
+  # so that the model can use tools (web_search, read_file, grep, write).
+  # Model is left empty to use opencode default (kimi-latest)
+  model: "" # Use opencode default model
+  attachUrl: "http://127.0.0.1:4096" # running `opencode serve` instance
+  timeoutMs: 900000 # per-call hard timeout (15 min)
+  implementationConcurrency: 4
+
+llm:
+  # === FILL THESE IN ===
+  baseUrl: "https://grid.ai.juspay.net/v1/chat/completions" # e.g. https://llm.yourhost.internal
+  apiKey: "" # your hosted model API key
+  model: "kimi-latest" # default model for all checkpoints
+
+  # Per-checkpoint model overrides. Falls back to `model` when unset.
+  # Use stronger models for steps that need repo reasoning or bulk code generation.
+  models:
+    # l3_gen: "claude-sonnet-4-6"
+    # l4_gen: "claude-sonnet-4-6"
+    # implementation: "claude-sonnet-4-6"
+
+  # "openai"     -> POSTs to {baseUrl}/v1/chat/completions with {model, messages}
+  # "anthropic"  -> POSTs to {baseUrl}/v1/messages            with {model, system, messages}
+  protocol: openai
+
+  maxTokens: 4000
+  temperature: 0
+  timeoutMs: 180000
+
+  # Auth header customization. Defaults work for most hosted gateways.
+  authHeader: "Authorization" # header name
+  authScheme: "Bearer" # prefix; set to "" to send raw key
+  extraHeaders: # any custom headers your gateway requires
+    # x-tenant-id: juspay
+    # x-client:    10xgrace
+
+checkpoints:
+  compiler:
+    command: cargo
+    args: ["build", "--package", "connector-integration"] # Rust build for hyperswitch-prism
+  cypress:
+    command: npm
+    args: ["run", "cy:run"] # control-center script: starts hyperswitch then runs cypress
+  playwright:
+    command: npm
+    args: ["run", "pw:test"] # control-center script: runs playwright test
+  regression:
+    enabled: false # PAUSED — set to true to re-enable
+    command: npm
+    args: ["run", "re:build"]
+  design_match:
+    enabled: true
+    screenshotRoute: "/"
+  pr_review:
+    requireHumanApproval: false
+    humanApprovalTimeoutMs: 300000
+
+# Parity Autopilot
+# Paths can be overridden per machine via env vars (PARITY_PRISM_PATH,
+# PARITY_ORACLE_PATH, PARITY_BRIDGE_PATH, PARITY_CREDS_PATH). Keep secrets
+# (creds.json) out of this committed file by leaving credsPath empty here
+# and exporting PARITY_CREDS_PATH locally.
+parityAutopilot:
+  prismPath: ""            # absolute path to a hyperswitch-prism clone; set PARITY_PRISM_PATH (or rely on TENXGRACE_PROJECT_ROOT)
+  oracleReadOnlyPath: ""   # set PARITY_ORACLE_PATH to a hyperswitch clone (read-only)
+  bridgeWritePath: ""      # set PARITY_BRIDGE_PATH (often same as oracle path) to enable hs-bridge locus
+  credsPath: ""            # set PARITY_CREDS_PATH to abs path of creds.json
+
+  github:
+    owner: juspay
+    repo: hyperswitch-cloud
+    rootIssue: 15576
+    actor: ""              # your GitHub login; sweep filters "PRs you authored" by this
+
+  grpc:
+    port: 8000
+    metricsPort: 8080
+    bootTimeoutMs: 30000
+    callTimeoutMs: 60000
+
+  cache:
+    dir: .cache
+    treeTtlMs: 21600000    # 6h
+
+  llm:
+    runner: "claude-code"
+    understandModel: ""
+    planModel: ""
+    executeModel: ""
+
+  heartbeat:
+    pickOldestFirst: true
+    maxInflightClaimed: 1
+    sweepStalePrDays: 7
+    rcaStaleHours: 24
+
+  rules:
+    forbiddenOracleDirs:
+      - "crates/hyperswitch_connectors/"
+      - "crates/hyperswitch_domain_models/"
+      - "crates/api_models/"
+      - "crates/router/"
+    forbiddenPrismDirs:
+      - "crates/types-traits/"
+
+# PR Resolver — polls GitHub for review comments tagged with `trigger` and
+# drives Claude to fix them via cargo build/clippy fix-loop. The supervisor
+# only boots the polling loop when `enabled: true` AND `githubRepo` is set.
+# Most users override `enabled` and `githubRepo` via .env so the values
+# aren't committed.
+prResolver:
+  enabled: false
+  autoApprove: false # when true, the resolver pushes immediately after build/clippy pass. When false, the dashboard waits for the user to approve from the PR detail page.
+  githubRepo: "" # e.g. "juspay/hyperswitch-prism" — set via TENXGRACE_PR_RESOLVER_GITHUB_REPO
+  trigger: "@HS-prism-bot"
+  pollInterval: 300 # seconds between polls
+  maxConcurrent: 1 # MVP: one PR at a time. Raise once clone-pool ships.
+  maxBuildLoops: 3 # max cargo build/clippy retries per sub-task
+  maxCommentsPerCycle: 20
+  # Path defaults are resolved at load time when left blank:
+  #   stateFilePath → ~/.tenxgrace/pr-resolver-state.json
+  #   worktreePath  → ~/.tenxgrace/pr-resolver/worktree
+  #   promptsDir    → <projectRoot>/grace/pr-resolver/prompts
+  stateFilePath: ""
+  worktreePath: ""
+  promptsDir: ""
+  cargoBuild:
+    command: cargo
+    args: ["build", "--package", "connector-integration"]
+  cargoClippy:
+    command: cargo
+    args: ["clippy", "--package", "connector-integration", "--", "-D", "warnings"]
+  allowedAssociations: ["MEMBER", "OWNER", "COLLABORATOR"]
+  allowedUsers: []
+  blockedUsers: []
+  # Phase B: gRPC verification step. Runs after build/clippy pass — tries to
+  # extract `grpcurl` commands from the PR's "## Testing" section, falls back
+  # to generating them via Claude (using grpc-test-gen.md) when missing.
+  grpcTestEnabled: false
+  grpcPort: 8000
+  grpcTestTimeoutMs: 30000
+  maxGrpcCommands: 5
+  # How long we wait for `cargo run -p grpc-server` to become healthy. 10 min
+  # covers a cold-cache build on hyperswitch-prism; if you keep hitting the
+  # ceiling, bump it from the dashboard's Settings card.
+  grpcServerStartTimeoutMs: 600000
+  # Cargo build/clippy hard timeout. Cold-cache builds on hyperswitch-prism
+  # can take 15-25 minutes; the resolver used to default to 15 minutes which
+  # produced misleading "build failed" entries that were actually timeouts.
+  cargoTimeoutMs: 1800000  # 30 minutes

@@ -131,8 +131,8 @@ class GrpcCustomerClient internal constructor(
     /**
      * CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
      */
-    suspend fun create(req: CustomerServiceCreateRequest): CustomerServiceCreateResponse =
-        callGrpc(config, "customer/create", req, CustomerServiceCreateResponse.parser())
+    suspend fun customer_create(req: CustomerServiceCreateRequest): CustomerServiceCreateResponse =
+        callGrpc(config, "customer/customer_create", req, CustomerServiceCreateResponse.parser())
 }
 
 /**
@@ -244,10 +244,25 @@ class GrpcPaymentMethodClient internal constructor(
     suspend fun tokenize(req: PaymentMethodServiceTokenizeRequest): PaymentMethodServiceTokenizeResponse =
         callGrpc(config, "payment_method/tokenize", req, PaymentMethodServiceTokenizeResponse.parser())
     /**
+     * PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details.
+     */
+    suspend fun create(req: PaymentMethodServiceCreateRequest): PaymentMethodServiceCreateResponse =
+        callGrpc(config, "payment_method/create", req, PaymentMethodServiceCreateResponse.parser())
+    /**
+     * PaymentMethodService.Get — Retrieve payment method details from the payment processor.
+     */
+    suspend fun payment_method_get(req: PaymentMethodServiceGetRequest): PaymentMethodServiceGetResponse =
+        callGrpc(config, "payment_method/payment_method_get", req, PaymentMethodServiceGetResponse.parser())
+    /**
      * PaymentMethodService.Eligibility — Check if the payout method is eligible for the transaction
      */
     suspend fun eligibility(req: PayoutMethodEligibilityRequest): PayoutMethodEligibilityResponse =
         callGrpc(config, "payment_method/eligibility", req, PayoutMethodEligibilityResponse.parser())
+    /**
+     * PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds.
+     */
+    suspend fun recharge(req: PaymentMethodServiceRechargeRequest): PaymentMethodServiceRechargeResponse =
+        callGrpc(config, "payment_method/recharge", req, PaymentMethodServiceRechargeResponse.parser())
 }
 
 /**

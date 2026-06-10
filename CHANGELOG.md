@@ -19,6 +19,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.10.0
+
+### Features
+
+- **core:** Add create, get and recharge core support for payment method service ([#1482](https://github.com/juspay/connector-service/pull/1482)) ([`e1ed5bd`](https://github.com/juspay/connector-service/commit/e1ed5bdfdeb3381e4d3ae31abaa3a808fd3e6a94))
+- **dlocal:** GCash Recurring (CIT/MIT) end-to-end + GCash & APM redirect payment methods ([#1459](https://github.com/juspay/connector-service/pull/1459)) ([`9764a8f`](https://github.com/juspay/connector-service/commit/9764a8f0f586fc4bbac83b0fa3b964a81bdbfa6e))
+- **grace:** Grace-workspace + docker host-cache CLI extraction ([#1427](https://github.com/juspay/connector-service/pull/1427)) ([`39f1010`](https://github.com/juspay/connector-service/commit/39f1010892339024a389603c754061b267a5ec53))
+- **proto:** Add create, get and recharge payment method service ([#1478](https://github.com/juspay/connector-service/pull/1478)) ([`fe38bd8`](https://github.com/juspay/connector-service/commit/fe38bd853ed519ee1316f5cdb93d1e0f2973ec2a))
+- **skill:** Coverage-report — meeting-ready connector coverage metrics ([#1484](https://github.com/juspay/connector-service/pull/1484)) ([`9ec9667`](https://github.com/juspay/connector-service/commit/9ec96674c7591949eba330cfb2a7951acde85b2e))
+- Add South African bank names to BankNames enum ([#1443](https://github.com/juspay/connector-service/pull/1443)) ([`faafd00`](https://github.com/juspay/connector-service/commit/faafd0054dc0591a2e3a8483b19de353cd87d0b4))
+
+### Bug Fixes
+
+- **config:** Accept legacy mitm_ca_cert and bypass_proxy_urls as serde aliases ([#1488](https://github.com/juspay/connector-service/pull/1488)) ([`3d34f5d`](https://github.com/juspay/connector-service/commit/3d34f5d9098572dd145a3362dcae1bfc55007cc6))
+
+**Full Changelog:** [`2026.06.09.0...2026.06.10.0`](https://github.com/juspay/connector-service/compare/2026.06.09.0...2026.06.10.0)
+
+- - -
+
+## 2026.06.09.0
+
+### Bug Fixes
+
+- **payload:** Switch from form-urlencoded to JSON serialization for all flows ([#1434](https://github.com/juspay/connector-service/pull/1434)) ([`a4b99e1`](https://github.com/juspay/connector-service/commit/a4b99e167bb248c97c47501455f7a2ca77717844))
+
+**Full Changelog:** [`2026.06.08.1...2026.06.09.0`](https://github.com/juspay/connector-service/compare/2026.06.08.1...2026.06.09.0)
+
+- - -
+
+## 2026.06.08.1
+
+### Features
+
+- **adyen:** Populate network_txn_link_id and pmt for psync ([#1469](https://github.com/juspay/connector-service/pull/1469)) ([`6b6dc14`](https://github.com/juspay/connector-service/commit/6b6dc1420e1681e950d02e27ee5484c3eabbbd5c))
+- **config:** Named proxy map + x-proxy-name header for caller-driven proxy selection ([#1238](https://github.com/juspay/connector-service/pull/1238)) ([`489dc44`](https://github.com/juspay/connector-service/commit/489dc44c2beee838ff3d6ec9807dfebad5961fa9))
+- **connector:** Add PayConex (QSAPI/TSAPI) no-3DS card payments ([#1457](https://github.com/juspay/connector-service/pull/1457)) ([`2c94047`](https://github.com/juspay/connector-service/commit/2c9404756161091615c2858f9950b4b91a06bc07))
+
+**Full Changelog:** [`2026.06.08.0...2026.06.08.1`](https://github.com/juspay/connector-service/compare/2026.06.08.0...2026.06.08.1)
+
+- - -
+
 ## 2026.06.08.0
 
 ### Features

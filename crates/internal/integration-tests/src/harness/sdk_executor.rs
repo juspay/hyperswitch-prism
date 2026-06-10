@@ -134,8 +134,8 @@ pub fn execute_sdk_request_from_payload(
             connector,
             grpc_req,
             &options_bytes,
-            ffi_bindings::create_req_transformer,
-            ffi_bindings::create_res_transformer,
+            ffi_bindings::customer_create_req_transformer,
+            ffi_bindings::customer_create_res_transformer,
         ),
         "PaymentService/Authorize" => execute_sdk_flow::<
             payments::PaymentServiceAuthorizeRequest,

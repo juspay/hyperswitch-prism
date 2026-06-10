@@ -45,6 +45,7 @@ endif
         proto-format proto-generate proto-build proto-lint proto-clean \
         generate certify-client-sanity field-probe docs docs-check \
         setup-connector-tests \
+        grace-workspace grace-workspace-docker \
         start-grpc stop-grpc \
         test-prism test-ucs test-connector test-scenario cargo \
         validate-pre-push \
@@ -107,6 +108,34 @@ ci:
 setup-connector-tests:
 	@echo "▶ Setting up connector integration tests…"
 	@bash scripts/setup-connector-tests.sh
+
+# ── grace-workspace bootstrap ─────────────────────────────────────────────────
+
+## One-command bootstrap for the grace/ TypeScript workspace.
+## Auto-installs pnpm via corepack on first run (Node 20+ required — corepack
+## ships with Node ≥ 16.10), then runs prereq probe + install + build +
+## interactive .env/runner scaffold via scripts/setup.sh. Safe to re-run.
+##
+## After this target succeeds, `cd grace/grace-workspace` and use pnpm directly
+## (pnpm dev, pnpm check, pnpm test) — this Makefile entry is for first-time
+## setup only.
+grace-workspace:
+	@echo "▶ Bootstrapping grace/grace-workspace…"
+	@cd grace/grace-workspace && bash scripts/setup.sh
+
+## Docker alternative to `grace-workspace`. Builds the grace image and starts
+## the supervisor + dashboard + opencode-serve sidecar via docker-compose.
+## Requires Docker installed. Requires TENXGRACE_PROJECT_ROOT exported to the
+## absolute path of the target repo. See grace/grace-workspace/README.md's
+## "Docker (alternative entry)" section for full prereqs + auth setup.
+grace-workspace-docker:
+	@printf "▶ Building + starting grace docker stack…\n\n"
+	@printf "  Once 'dashboard connected' appears in the logs below, open:\n\n"
+	@printf "    \033[1;36mhttp://localhost:3141\033[0m   ← dashboard (Vite preview serves the built dist)\n"
+	@printf "    \033[1;36mws://localhost:3142\033[0m     ← supervisor control WebSocket\n\n"
+	@printf "  opencode-serve is sidecar-only at http://opencode-serve:4096 (compose network — not exposed on host).\n"
+	@printf "  Press Ctrl+C to stop. To detach without stopping: Ctrl+C then 'cd grace/grace-workspace && docker compose up -d'.\n\n"
+	@cd grace/grace-workspace && docker compose up --build
 
 # ── gRPC server lifecycle ──────────────────────────────────────────────────────
 
