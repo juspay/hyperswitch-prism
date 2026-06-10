@@ -45,10 +45,9 @@ use domain_types::{
     types::{PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
 };
 use error_stack::ResultExt;
-use serde_json::Value;
 
 use crate::{
-    api::{ApplicationResponse, ConnectorCommon},
+    api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     decode::BodyDecoding,
     verification::{ConnectorSourceVerificationSecrets, SourceVerification},
@@ -572,8 +571,13 @@ pub trait IncomingWebhook {
         &self,
         _request: RequestDetails,
         _error_kind: Option<IncomingWebhookFlowError>,
-    ) -> Result<ApplicationResponse<Value>, error_stack::Report<WebhookError>> {
-        Ok(ApplicationResponse::StatusOk)
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<crate::api::EventAckResponse, error_stack::Report<WebhookError>> {
+        Ok(crate::api::EventAckResponse {
+            status_code: 200,
+            headers: vec![],
+            body: None,
+        })
     }
 }
 

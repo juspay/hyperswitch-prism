@@ -1473,6 +1473,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                 (
                     AttemptStatus::AuthenticationPending,
                     Ok(PaymentsResponseData::PreAuthenticateResponse {
+                        resource_id: None,
                         authentication_data: None,
                         redirection_data: Some(Box::new(RedirectForm::Nmi {
                             amount: Money {
