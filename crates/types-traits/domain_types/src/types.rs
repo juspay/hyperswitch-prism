@@ -8881,6 +8881,17 @@ pub fn generate_payment_capture_response(
                             })),
                     });
 
+                let connector_response = router_data_v2
+                    .resource_common_data
+                    .connector_response
+                    .as_ref()
+                    .map(|connector_response_data| {
+                        grpc_api_types::payments::ConnectorResponseData::foreign_try_from(
+                            connector_response_data.clone(),
+                        )
+                    })
+                    .transpose()?;
+
                 Ok(PaymentServiceCaptureResponse {
                     connector_transaction_id: extract_connector_request_reference_id(
                         &grpc_resource_id,
@@ -8900,6 +8911,7 @@ pub fn generate_payment_capture_response(
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
+                    connector_response,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -8948,6 +8960,7 @@ pub fn generate_payment_capture_response(
                 mandate_reference: None,
                 captured_amount: None,
                 connector_feature_data: None,
+                connector_response: None,
             })
         }
     }
