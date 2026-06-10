@@ -494,6 +494,7 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
 
         merchant_request_id: None,
         connector_order_id: None,
+        payment_method: None,
     }
 }
 

@@ -45,6 +45,37 @@ pub(crate) fn qc_err_ctx(
     }
 }
 
+pub(crate) fn require_customer_phone(
+    customer: &CustomerInfo,
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    customer.customer_phone_number.clone().ok_or_else(|| {
+        error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name: "customer.phone_number",
+            context: qc_err_ctx(
+                "Pine Labs uses the customer's phone number as `ExternalWalletId`, which is \
+                 how subsequent lookups (Get / Recharge / Redeem) identify the wallet's owner.",
+                "Set `customer.phone_number` to the mobile number in E.164 or local format. \
+                 Country-code rules vary by Pine Labs region/program.",
+            ),
+        })
+    })
+}
+
+pub(crate) fn require_customer_first_name(
+    customer: &CustomerInfo,
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    customer.first_name.clone().ok_or_else(|| {
+        error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name: "customer.first_name",
+            context: qc_err_ctx(
+                "Qwikcilver requires a non-empty first name on wallet creation — the wallet \
+                 holder name is rendered on receipts and reports.",
+                "Set `customer.first_name`. `last_name` is optional but recommended.",
+            ),
+        })
+    })
+}
+
 #[derive(Debug, Clone)]
 pub struct QwikcilverAuthType {
     pub(super) bootstrap_bearer_token: Secret<String>,
@@ -127,8 +158,7 @@ where
         let common = &item.router_data.resource_common_data;
         let transaction_id =
             derive_transaction_id_from_reference(&common.connector_request_reference_id);
-        let date_at_client =
-            resolve_date_at_client(common.connector_feature_data.as_ref().map(|s| s.peek()))?;
+        let date_at_client = current_datetime_qwikcilver();
         Ok(Self {
             terminal_id: auth.terminal_id,
             username: auth.username,
@@ -143,33 +173,9 @@ where
 #[serde(rename_all = "camelCase")]
 pub struct QwikcilverAuthorizeResponse {
     pub auth_token: Secret<String>,
-    pub merchant_outlet_info: Option<QwikcilverMerchantOutletInfo>,
-    pub locale_info: Option<QwikcilverLocaleInfo>,
-    pub receipt_info: Option<serde_json::Value>,
     pub response_code: i64,
     pub response_message: Option<String>,
     pub batch_id: Option<i64>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct QwikcilverMerchantOutletInfo {
-    pub merchant_outlet_name: Option<String>,
-    pub merchant_outlet_address1: Option<String>,
-    pub merchant_outlet_address2: Option<String>,
-    pub merchant_outlet_city: Option<String>,
-    pub merchant_outlet_state: Option<String>,
-    pub merchant_outlet_pin_code: Option<String>,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct QwikcilverLocaleInfo {
-    pub culture: Option<String>,
-    pub currency_symbol: Option<String>,
-    pub currency_position: Option<i32>,
-    pub currency_decimal_digits: Option<i32>,
-    pub display_unit_for_points: Option<String>,
 }
 
 const SESSION_EXPIRY_SECONDS: i64 = 60 * 20;
@@ -326,18 +332,18 @@ where
             })?;
         let invoice_number = item
             .router_data
-            .request
-            .merchant_order_id
+            .resource_common_data
+            .merchant_request_id
             .clone()
             .ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
-                    field_name: "merchant_order_id",
+                    field_name: "merchant_request_id",
                     context: qc_err_ctx(
                         "Pine Labs Redeem needs an alphanumeric `InvoiceNumber` (also reused as \
                      `IdempotencyKey`); a purely-numeric value triggers their ASP.NET Runtime \
                      Error 500. The caller must supply this — Prism won't substitute a numeric \
                      reference that is guaranteed to fail on the wire.",
-                        "Send `merchant_order_id` on the Authorize/Redeem request, e.g. \
+                        "Send `merchant_request_id` on the Authorize/Redeem request, e.g. \
                      `\"qc-redeem-<merchant>-<order>\"`. Composite callers already do this; \
                      non-composite callers must follow suit.",
                     ),
@@ -421,40 +427,26 @@ where
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct QwikcilverRefundMetadata {
-    pub wallet_number: Secret<String>,
-}
-
-impl QwikcilverRefundMetadata {
-    pub(crate) fn from_request(
-        req: &RefundsData,
-    ) -> Result<Self, error_stack::Report<IntegrationError>> {
-        let raw = req.refund_connector_metadata.as_ref().ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "refund_metadata",
+pub(crate) fn qwikcilver_wallet_number_from_refund(
+    req: &RefundsData,
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    use payment_method_data::{PaymentMethodData, WalletData};
+    match req.payment_method_data.as_ref() {
+        Some(PaymentMethodData::Wallet(WalletData::QwikcilverWalletDirect(d))) => {
+            Ok(d.wallet_number.clone())
+        }
+        _ => Err(error_stack::report!(
+            IntegrationError::MissingRequiredField {
+                field_name: "payment_method.qwikcilver_wallet_direct.wallet_number",
                 context: qc_err_ctx(
-                    "Qwikcilver Cancel Redeem needs the wallet number of the wallet whose \
-                     Redeem is being reversed. `RefundsData` carries no typed wallet identifier, \
-                     so callers must supply it via `refund_metadata`.",
-                    "Send `refund_metadata` as a JSON-string on the gRPC request: \
-                     `{\"wallet_number\":\"<wn>\",\"date_at_client\":\"<iso8601>\"}`. The \
-                     original Redeem's transaction id is read directly from \
-                     `connector_transaction_id` (bare numeric), and its batch number is read \
-                     from `connector_feature_data.batch_number` — not from `refund_metadata`.",
+                    "Cancel Redeem needs the wallet number of the wallet whose Redeem is being \
+                 reversed. Pass it on the typed `payment_method.qwikcilver_wallet_direct` \
+                 variant — the same shape Authorize uses.",
+                    "Send `payment_method: { payment_method: { qwikcilver_wallet_direct: \
+                 { wallet_number: \"<wn>\" } } }` on the Refund request.",
                 ),
-            })
-        })?;
-        serde_json::from_value(raw.clone().expose()).map_err(|e| {
-            error_stack::report!(IntegrationError::InvalidDataFormat {
-                field_name: "refund_metadata",
-                context: qc_err_ctx(
-                    format!("invalid Qwikcilver refund_metadata: {e}"),
-                    "Ensure `refund_metadata` is a JSON-encoded string (not a nested object) \
-                     containing `wallet_number` as a string.",
-                ),
-            })
-        })
+            }
+        )),
     }
 }
 
@@ -542,8 +534,7 @@ where
                          it on `connector_feature_data.batch_number`. Capture it from the \
                          Authorize response's `connector_metadata.batch_number`.",
                         "Send `connector_feature_data` as a JSON-string containing \
-                         `batch_number` (i64) and `date_at_client` (ISO-8601), e.g. \
-                         `{\"batch_number\":17322479,\"date_at_client\":\"2026-06-09T…Z\"}`.",
+                         `batch_number` (i64), e.g. `{\"batch_number\":17322479}`.",
                     ),
                 })
             })?;
@@ -657,21 +648,30 @@ where
                     req.currency
                 )
             })?;
-        let idempotency_key = req.merchant_recharge_id.clone().ok_or_else(|| {
+        let invoice_number = req.merchant_recharge_id.clone().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "merchant_recharge_id",
                 context: qc_err_ctx(
-                    "Qwikcilver Add Card needs an idempotency key so repeated submissions of \
-                     the same recharge don't double-credit the wallet.",
-                    "Set `merchant_recharge_id` on every PaymentMethodService.Recharge request \
-                     to a value unique per logical recharge attempt (e.g. \
-                     `\"rch-<merchant>-<order>-<timestamp>\"`). Pine Labs maps it onto both \
-                     `IdempotencyKey` and `InvoiceNumber` on the wire.",
+                    "Pine Labs `InvoiceNumber` on Add Card must be unique per recharge attempt; \
+                     `merchant_recharge_id` is the natural per-recharge identifier.",
+                    "Set `merchant_recharge_id` on every PaymentMethodService.Recharge request, \
+                     e.g. `\"rch-<merchant>-<order>-<timestamp>\"`.",
+                ),
+            })
+        })?;
+        let idempotency_key = req.merchant_request_id.clone().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "merchant_request_id",
+                context: qc_err_ctx(
+                    "Pine Labs `IdempotencyKey` on Add Card guards against double-credit on \
+                     retried submissions; `merchant_request_id` is the natural per-request token.",
+                    "Set `merchant_request_id` on every PaymentMethodService.Recharge request \
+                     to a value unique per logical attempt.",
                 ),
             })
         })?;
         Ok(Self {
-            invoice_number: idempotency_key.clone(),
+            invoice_number,
             idempotency_key,
             amount,
             card_program_name: req.product_id.clone(),
@@ -822,9 +822,8 @@ impl QwikcilverCreateFeatureData {
                 context: qc_err_ctx(
                     format!("invalid Qwikcilver connector_feature_data for Create: {e}"),
                     "Send `connector_feature_data` as a JSON-string (e.g. \
-                     `\"{\\\"wallet_program_group_name\\\":\\\"…\\\",\\\"date_at_client\\\":\\\"…\\\",\
-                     \\\"currency\\\":\\\"AED\\\"}\"`) — not a nested JSON object. The string is \
-                     parsed server-side after secret-unwrap.",
+                     `\"{\\\"currency\\\":\\\"AED\\\",\\\"salutation\\\":\\\"Mr.\\\"}\"`) — not \
+                     a nested JSON object. The string is parsed server-side after secret-unwrap.",
                 ),
             })
         })
@@ -871,27 +870,8 @@ where
                 ),
             })
         })?;
-        let phone = customer.customer_phone_number.clone().ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "customer.phone_number",
-                context: qc_err_ctx(
-                    "Pine Labs uses the customer's phone number as `ExternalWalletId`, which is \
-                     how subsequent lookups (Get / Recharge / Redeem) identify the wallet's owner.",
-                    "Set `customer.phone_number` to the mobile number in E.164 or local format. \
-                     Country-code rules vary by Pine Labs region/program.",
-                ),
-            })
-        })?;
-        let first = customer.first_name.clone().ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "customer.first_name",
-                context: qc_err_ctx(
-                    "Qwikcilver requires a non-empty first name on wallet creation — the wallet \
-                     holder name is rendered on receipts and reports.",
-                    "Set `customer.first_name`. `last_name` is optional but recommended.",
-                ),
-            })
-        })?;
+        let phone = require_customer_phone(&customer)?;
+        let first = require_customer_first_name(&customer)?;
         let feature = QwikcilverCreateFeatureData::from_request(req)?;
         let program = req.product_id.clone();
         Ok(Self {
@@ -899,7 +879,7 @@ where
             wallet_program_group_name: program,
             customer: QwikcilverCreateCustomer {
                 customer_type: feature.customer_type,
-                salutation: feature.salutation,
+                salutation: customer.salutation.clone(),
                 first_name: first,
                 last_name: customer.last_name.clone(),
                 phone_number: phone,
@@ -949,6 +929,10 @@ where
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct QwikcilverWalletEnvelope {
+    // Pine Labs's by-external-id lookup returns the same `Wallet` envelope on not-found, but
+    // with every field null (including WalletNumber). Custom deserializer drops the block to
+    // `None` in that case so the strict WalletDetails contract holds for all success responses.
+    #[serde(default, deserialize_with = "deserialize_wallet_or_null_fields")]
     pub wallet: Option<QwikcilverWalletDetails>,
     pub current_batch_number: Option<i64>,
     pub notes: Option<String>,
@@ -959,6 +943,28 @@ pub struct QwikcilverWalletEnvelope {
     pub transaction_type: Option<String>,
     pub error_code: Option<String>,
     pub error_description: Option<String>,
+}
+
+fn deserialize_wallet_or_null_fields<'de, D>(
+    deserializer: D,
+) -> Result<Option<QwikcilverWalletDetails>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw: Option<serde_json::Value> = Option::deserialize(deserializer)?;
+    let Some(value) = raw else {
+        return Ok(None);
+    };
+    if value.is_null()
+        || value
+            .get("WalletNumber")
+            .is_none_or(serde_json::Value::is_null)
+    {
+        return Ok(None);
+    }
+    serde_json::from_value(value)
+        .map(Some)
+        .map_err(serde::de::Error::custom)
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1334,31 +1340,20 @@ pub(crate) fn derive_transaction_id_from_reference(reference_id: &str) -> u64 {
     u64::from_be_bytes(buf) & 0x3FFF_FFFF_FFFF_FFFF
 }
 
-pub(crate) fn resolve_date_at_client(
-    feature: Option<&serde_json::Value>,
-) -> Result<String, error_stack::Report<IntegrationError>> {
-    feature
-        .and_then(|v| v.get("date_at_client"))
-        .and_then(|v| v.as_str())
-        .filter(|s| !s.is_empty())
-        .map(String::from)
-        .ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "connector_feature_data.date_at_client",
-                context: qc_err_ctx(
-                    "Qwikcilver hard-requires a `DateAtClient` header on every authenticated \
-                     call (including the JWT-bootstrap), and Prism never substitutes a server-\
-                     side `now()` so the value is fully reconcilable from the caller's request.",
-                    "Send `connector_feature_data` as a JSON-string with a `date_at_client` key \
-                     in ISO-8601/RFC-3339 (e.g. `\"2026-06-08T12:00:00Z\"`). For composite Refund, \
-                     it also needs to live inside `refund_metadata`. The Postman collection uses \
-                     `{{$isoTimestamp}}` to set it per send.",
-                ),
-            })
-        })
+pub(crate) fn current_datetime_qwikcilver() -> String {
+    let now = time::OffsetDateTime::now_utc();
+    let (h, m, s) = (now.hour(), now.minute(), now.second());
+    format!(
+        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+        now.year(),
+        u8::from(now.month()),
+        now.day(),
+        h,
+        m,
+        s,
+    )
 }
 
-/// `attempt_status` is `Some(Failure)` for payments, `None` for bootstrap/refund/recharge.
 fn make_error_response(
     response_code: i64,
     response_message: Option<String>,

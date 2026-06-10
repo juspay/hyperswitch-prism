@@ -2637,6 +2637,9 @@ message PaymentServiceRefundRequest {
 
   // Connector-side identifier for the original payment that this refund targets.  
   optional string connector_order_id = 18;
+
+  // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
+  optional PaymentMethod payment_method = 19;
 }
 
 // Response message for a refund operation (unified for both Create and Get)

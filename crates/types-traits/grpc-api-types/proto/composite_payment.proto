@@ -229,7 +229,7 @@ message CompositeRefundRequest {
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 19;
 
-  // Connector-side identifier for the original payment that this refund targets. 
+  // Connector-side identifier for the original payment that this refund targets.
   optional string connector_order_id = 20;
 }
 

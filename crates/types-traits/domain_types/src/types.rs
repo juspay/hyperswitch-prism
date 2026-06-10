@@ -8194,6 +8194,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
             integrity_object: None,
             split_refunds: None,
             connector_order_id: value.connector_order_id,
+            payment_method_data: value.payment_method.and_then(|pm| {
+                payment_method_data::PaymentMethodData::<
+                    payment_method_data::DefaultPCIHolder,
+                >::convert_to_domain_model_for_non_card_payment_methods(pm)
+                .ok()
+            }),
         })
     }
 }

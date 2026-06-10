@@ -41,8 +41,7 @@ use transformers::{
     QwikcilverAuthorizeResponse, QwikcilverCancelRedeemBody, QwikcilverCancelRedeemResponse,
     QwikcilverCreateWalletRequest, QwikcilverEmptyBody, QwikcilverErrorResponse,
     QwikcilverGetWalletResponse, QwikcilverRechargeRequest, QwikcilverRechargeResponse,
-    QwikcilverRedeemRequest, QwikcilverRedeemResponse, QwikcilverRefundMetadata,
-    QwikcilverWalletEnvelope,
+    QwikcilverRedeemRequest, QwikcilverRedeemResponse, QwikcilverWalletEnvelope,
 };
 
 use super::macros;
@@ -108,7 +107,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-// `_payout_` in the macro name is a historical artifact — it's the universal default-stub fan-out for every connector.
 macros::macro_connector_payout_implementation!(
     connector: Qwikcilver,
     generic_type: T,
@@ -192,15 +190,12 @@ macros::create_all_prerequisites!(
             ])
         }
 
-        pub fn extract_access_token<F, FCD, Req, Res>(
+        pub fn extract_access_token(
             &self,
-            req: &RouterDataV2<F, FCD, Req, Res>,
-        ) -> CustomResult<hyperswitch_masking::Secret<String>, IntegrationError>
-        where
-            FCD: AccessTokenHolder,
-        {
-            req.resource_common_data
-                .access_token_secret()
+            access_token: Option<&ServerAuthenticationTokenResponseData>,
+        ) -> CustomResult<hyperswitch_masking::Secret<String>, IntegrationError> {
+            access_token
+                .map(|t| t.access_token.clone())
                 .ok_or_else(|| {
                     IntegrationError::FailedToObtainAuthType {
                         context: qwikcilver::qc_err_ctx(
@@ -233,23 +228,6 @@ macros::create_all_prerequisites!(
         }
     }
 );
-
-// `RouterDataV2` has no shared `access_token` accessor; implement this trait for any new FCD that needs the JWT.
-pub trait AccessTokenHolder {
-    fn access_token_secret(&self) -> Option<hyperswitch_masking::Secret<String>>;
-}
-
-impl AccessTokenHolder for PaymentFlowData {
-    fn access_token_secret(&self) -> Option<hyperswitch_masking::Secret<String>> {
-        self.access_token.as_ref().map(|t| t.access_token.clone())
-    }
-}
-
-impl AccessTokenHolder for RefundFlowData {
-    fn access_token_secret(&self) -> Option<hyperswitch_masking::Secret<String>> {
-        self.access_token.as_ref().map(|t| t.access_token.clone())
-    }
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Qwikcilver<T>
@@ -395,10 +373,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let token = self.extract_access_token(req)?;
-            let date = qwikcilver::resolve_date_at_client(
-                req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
-            )?;
+            let token = self.extract_access_token(req.resource_common_data.access_token.as_ref())?;
+            let date = qwikcilver::current_datetime_qwikcilver();
             let txn_id = qwikcilver::derive_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
             );
@@ -424,11 +400,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let metadata = QwikcilverRefundMetadata::from_request(&req.request)?;
+            let wallet_number = qwikcilver::qwikcilver_wallet_number_from_refund(&req.request)?;
             Ok(format!(
                 "{}Qwikcilver/eGMS.RestApi/api/v2/wallet/{}/CANCELREDEEM",
                 self.connector_base_url_refunds(req),
-                urlencoding::encode(metadata.wallet_number.peek()),
+                urlencoding::encode(wallet_number.peek()),
             ))
         }
 
@@ -436,10 +412,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let token = self.extract_access_token(req)?;
-            let date = qwikcilver::resolve_date_at_client(
-                req.request.refund_connector_metadata.as_ref().map(|s| s.peek()),
-            )?;
+            let token = self.extract_access_token(req.resource_common_data.access_token.as_ref())?;
+            let date = qwikcilver::current_datetime_qwikcilver();
             let txn_id = qwikcilver::derive_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
             );
@@ -494,10 +468,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Recharge, PaymentFlowData, RechargeRequestData, RechargeResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let token = self.extract_access_token(req)?;
-            let date = qwikcilver::resolve_date_at_client(
-                req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
-            )?;
+            let token = self.extract_access_token(req.resource_common_data.access_token.as_ref())?;
+            let date = qwikcilver::current_datetime_qwikcilver();
             let txn_id = qwikcilver::derive_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
             );
@@ -533,10 +505,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<CreatePaymentMethod, PaymentFlowData, CreatePaymentMethodData, CreatePaymentMethodResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let token = self.extract_access_token(req)?;
-            let date = qwikcilver::resolve_date_at_client(
-                req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
-            )?;
+            let token = self.extract_access_token(req.resource_common_data.access_token.as_ref())?;
+            let date = qwikcilver::current_datetime_qwikcilver();
             let txn_id = qwikcilver::derive_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
             );
@@ -562,38 +532,47 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<GetPaymentMethod, PaymentFlowData, GetPaymentMethodData, GetPaymentMethodResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let wallet_number = req
+            // Primary: wallet number → `/wallet/{wn}`.
+            // Fallback: customer phone → `/wallet/customer?phonenumber={phone}` (Pine Labs's documented
+            // by-external-id lookup; response envelope is identical to the by-wallet-number variant).
+            let base = self.connector_base_url_payments(req);
+            if let Some(wallet_number) = req.request.connector_payment_method_id.as_deref() {
+                return Ok(format!(
+                    "{base}Qwikcilver/eGMS.RestApi/api/v2/wallet/{}",
+                    urlencoding::encode(wallet_number),
+                ));
+            }
+            if let Some(phone) = req
                 .request
-                .connector_payment_method_id
-                .as_deref()
-                .ok_or_else(|| {
-                    IntegrationError::MissingRequiredField {
-                        field_name: "connector_payment_method_id",
-                        context: qwikcilver::qc_err_ctx(
-                            "Qwikcilver Get fetches a wallet by its PAN — we URL-encode the \
-                             wallet number into the path `/wallet/{wallet_number}`, so without \
-                             it there's no resource to look up.",
-                            "Set `connector_payment_method_id` to the wallet number returned by \
-                             a prior PaymentMethodService.Create response \
-                             (`create_response.connector_payment_method_id`).",
-                        ),
-                    }
-                })?;
-            Ok(format!(
-                "{}Qwikcilver/eGMS.RestApi/api/v2/wallet/{}",
-                self.connector_base_url_payments(req),
-                urlencoding::encode(wallet_number),
-            ))
+                .customer
+                .as_ref()
+                .and_then(|c| c.customer_phone_number.as_ref())
+            {
+                return Ok(format!(
+                    "{base}Qwikcilver/eGMS.RestApi/api/v2/wallet/customer?phonenumber={}",
+                    urlencoding::encode(phone.peek()),
+                ));
+            }
+            Err(IntegrationError::MissingRequiredField {
+                field_name: "connector_payment_method_id | customer.phone_number",
+                context: qwikcilver::qc_err_ctx(
+                    "Qwikcilver Get accepts either the wallet number (preferred) or the \
+                     customer's phone number as a fallback. Neither was supplied, so there's \
+                     no way to identify which wallet to fetch.",
+                    "Set `connector_payment_method_id` to the wallet number returned by a \
+                     prior Create, OR set `customer.phone_number` to look up by Pine Labs's \
+                     external wallet id (the customer's mobile).",
+                ),
+            }
+            .into())
         }
 
         fn get_headers(
             &self,
             req: &RouterDataV2<GetPaymentMethod, PaymentFlowData, GetPaymentMethodData, GetPaymentMethodResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let token = self.extract_access_token(req)?;
-            let date = qwikcilver::resolve_date_at_client(
-                req.resource_common_data.connector_feature_data.as_ref().map(|s| s.peek()),
-            )?;
+            let token = self.extract_access_token(req.resource_common_data.access_token.as_ref())?;
+            let date = qwikcilver::current_datetime_qwikcilver();
             let txn_id = qwikcilver::derive_transaction_id_from_reference(
                 &req.resource_common_data.connector_request_reference_id,
             );

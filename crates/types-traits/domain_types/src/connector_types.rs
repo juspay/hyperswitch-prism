@@ -2878,6 +2878,8 @@ pub struct RefundsData {
     pub split_refunds: Option<SplitRefundsRequest>,
     /// Connector-side identifier for the original payment that this refund targets.
     pub connector_order_id: Option<String>,
+    pub payment_method_data:
+        Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
 }
 
 impl RefundsData {

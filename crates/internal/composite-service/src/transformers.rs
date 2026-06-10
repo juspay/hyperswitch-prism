@@ -331,6 +331,7 @@ impl
             customer_id: item.customer_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
             connector_order_id: item.connector_order_id.clone(),
+            payment_method: item.payment_method.clone(),
         }
     }
 }
