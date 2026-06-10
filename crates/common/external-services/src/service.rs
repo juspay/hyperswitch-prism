@@ -322,14 +322,9 @@ where
                         "response.status_code",
                         tracing::field::display(error_response.status_code),
                     );
-                    if event_params.is_some_and(|p| p.shadow_mode) {
-                        updated_router_data.response = Err(error_response);
-                        updated_router_data
-                    } else {
-                        Err(error_stack::report!(
-                            ConnectorError::ConnectorErrorResponse(error_response)
-                        ))?
-                    }
+                    Err(error_stack::report!(
+                        ConnectorError::ConnectorErrorResponse(error_response)
+                    ))?
                 }
             };
             Ok(response)
