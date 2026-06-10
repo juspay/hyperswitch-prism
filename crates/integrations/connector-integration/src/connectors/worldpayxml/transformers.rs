@@ -79,7 +79,6 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayxmlAuthType {
 
 // Helper function to get currency exponent
 
-const DEFAULT_CARD_HOLDER_NAME: &str = "Card Holder";
 const DEFAULT_PAYMENT_DESCRIPTION: &str = "Payment";
 
 // Helper function to get payment method XML element
@@ -99,8 +98,7 @@ where
                 &card.card_holder_name,
                 billing_address.and_then(|b| b.address.first_name.clone()),
                 billing_address.and_then(|b| b.address.last_name.clone()),
-            )
-            .unwrap_or_else(|| Secret::new(DEFAULT_CARD_HOLDER_NAME.to_string()));
+            );
 
             let card_data = requests::WorldpayxmlCard {
                 card_number: Secret::new(card.card_number.peek().to_string()),
@@ -110,11 +108,10 @@ where
                         year: formatted_year,
                     },
                 },
-                card_holder_name: Some(card_holder_name),
+                card_holder_name,
                 cvc: card.card_cvc.clone(),
             };
 
-            // Map card network to specific payment method type
             match card.card_network.as_ref() {
                 Some(network) => match network {
                     common_enums::CardNetwork::Visa => {

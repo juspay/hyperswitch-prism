@@ -61,23 +61,6 @@ impl TryFrom<&ConnectorSpecificConfig> for CybersourceAuthType {
     }
 }
 
-fn card_issuer_to_string(card_issuer: domain_types::utils::CardIssuer) -> String {
-    use domain_types::utils::CardIssuer;
-    let card_type = match card_issuer {
-        CardIssuer::AmericanExpress => "003",
-        CardIssuer::Master => "002",
-        CardIssuer::Maestro => "042",
-        CardIssuer::Visa => "001",
-        CardIssuer::Discover => "004",
-        CardIssuer::DinersClub => "005",
-        CardIssuer::CarteBlanche => "006",
-        CardIssuer::JCB => "007",
-        CardIssuer::CartesBancaires => "036",
-        CardIssuer::UnionPay => "062",
-    };
-    card_type.to_string()
-}
-
 // ===== PAYOUT TRANSFER (PoFulfill) =====
 
 #[derive(Debug, Serialize)]
@@ -237,7 +220,7 @@ impl
             .or_else(|| {
                 domain_types::utils::get_card_issuer(&card.card_number.get_card_no())
                     .ok()
-                    .map(card_issuer_to_string)
+                    .and_then(|issuer| issuer.type_code().map(str::to_string))
             });
         let payment_information = CybersourcePayoutPaymentInformation::Card(Box::new(
             CybersourcePayoutCardPaymentInformation {
