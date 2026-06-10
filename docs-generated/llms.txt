@@ -555,7 +555,7 @@ connector_id: qwikcilver
 doc: docs/connectors/qwikcilver.md
 scenarios: none
 payment_methods: none
-flows: 
+flows: create_server_authentication_token
 examples_python: none
 
 ## Rapyd

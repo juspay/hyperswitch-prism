@@ -469,8 +469,18 @@
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: connector_feature_data.date_at_client. Qwikcilver hard-requires a `DateAtClient` header on every authenticated call — Missing required field: connector_feature_data.date_at_client. Qwikcilver hard-requires a `DateAtClient` header on every authenticated call (including the JWT-bootstrap), and Prism never substitutes a server-side `now()` so the value is fully reconcilable from the caller's request."
+        "status": "supported",
+        "proto_request": {},
+        "sample": {
+          "url": "https://qc3.qwikcilver.com/Qwikcilver/eGMS.RestApi/api/v2/authorize",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"TerminalID\":\"probe_key\",\"Username\":\"probe_key\",\"Password\":\"probe_key\",\"TransactionId\":1781089315229663816,\"DateAtClient\":\"2020-01-01T00:00:00+00:00\"}"
+        }
       }
     },
     "create_server_session_authentication_token": {
@@ -574,7 +584,7 @@
     "refund": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: refund_metadata. Qwikcilver Cancel Redeem needs the wallet number of the wallet whose Redeem is being reversed. `RefundsData` carries no typed wallet identifier, so callers must supply it via `refund_metadata`. — Missing required field: refund_metadata. Qwikcilver Cancel Redeem needs the wallet number of the wallet whose Redeem is being reversed. `RefundsData` carries no typed wallet identifier, so callers must supply it via `refund_metadata`."
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Cancel Redeem needs the wallet number of the wallet whose Redeem is being reversed. Pass it on the typed `payment_method.qwikcilver_wallet_direct` variant — the same shape Authorize uses. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Cancel Redeem needs the wallet number of the wallet whose Redeem is being reversed. Pass it on the typed `payment_method.qwikcilver_wallet_direct` variant — the same shape Authorize uses."
       }
     },
     "refund_get": {
