@@ -297,6 +297,7 @@ fn create_payment_capture_request(
             minor_amount: amount,
             currency: i32::from(Currency::Usd),
         }),
+        order_tax_amount: None,
         multiple_capture_data: None,
         browser_info: Some(create_test_browser_info()),
         ..Default::default()
