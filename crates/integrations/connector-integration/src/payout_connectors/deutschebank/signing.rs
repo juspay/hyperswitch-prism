@@ -3,10 +3,11 @@
 use base64::Engine;
 use common_utils::request::Method;
 use domain_types::errors::{IntegrationError, IntegrationErrorContext};
+use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use ring::{rand, signature};
 use sha2::{Digest, Sha256};
-use time::{Month, OffsetDateTime, Weekday};
+use time::{macros::format_description, OffsetDateTime};
 
 pub struct CsealHeaders {
     pub date: String,
@@ -21,7 +22,7 @@ pub fn build_cseal_headers(
     key_id: &Secret<String>,
     signing_private_key: &Secret<String>,
 ) -> Result<CsealHeaders, error_stack::Report<IntegrationError>> {
-    let date = format_http_date(OffsetDateTime::now_utc());
+    let date = format_http_date(OffsetDateTime::now_utc())?;
 
     let method_lower = match method {
         Method::Get => "get",
@@ -62,38 +63,20 @@ pub fn build_cseal_headers(
     })
 }
 
-fn format_http_date(dt: OffsetDateTime) -> String {
-    let weekday = match dt.weekday() {
-        Weekday::Monday => "Mon",
-        Weekday::Tuesday => "Tue",
-        Weekday::Wednesday => "Wed",
-        Weekday::Thursday => "Thu",
-        Weekday::Friday => "Fri",
-        Weekday::Saturday => "Sat",
-        Weekday::Sunday => "Sun",
-    };
-    let month = match dt.month() {
-        Month::January => "Jan",
-        Month::February => "Feb",
-        Month::March => "Mar",
-        Month::April => "Apr",
-        Month::May => "May",
-        Month::June => "Jun",
-        Month::July => "Jul",
-        Month::August => "Aug",
-        Month::September => "Sep",
-        Month::October => "Oct",
-        Month::November => "Nov",
-        Month::December => "Dec",
-    };
-    format!(
-        "{weekday}, {day:02} {month} {year:04} {hour:02}:{minute:02}:{second:02} GMT",
-        day = dt.day(),
-        year = dt.year(),
-        hour = dt.hour(),
-        minute = dt.minute(),
-        second = dt.second(),
-    )
+fn format_http_date(dt: OffsetDateTime) -> Result<String, error_stack::Report<IntegrationError>> {
+    let fmt = format_description!(
+        "[weekday repr:short], [day] [month repr:short] [year] [hour]:[minute]:[second] GMT"
+    );
+    dt.format(&fmt)
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                additional_context: Some("formatting HTTP date for CSEAL Date header".to_string()),
+                suggested_action: Some(
+                    "Retry the request; report if persistent.".to_string(),
+                ),
+                doc_url: None,
+            },
+        })
 }
 
 fn compute_digest(body: &[u8]) -> String {
@@ -114,7 +97,10 @@ fn sign_rsa_sha256(
             config: "signing_private_key",
             context: IntegrationErrorContext {
                 additional_context: Some("PEM body could not be base64-decoded".to_string()),
-                ..Default::default()
+                suggested_action: Some(
+                    "Re-upload `signing_private_key` as a well-formed PEM block.".to_string(),
+                ),
+                doc_url: None,
             },
         })?;
 
@@ -129,7 +115,10 @@ fn sign_rsa_sha256(
                 additional_context: Some(
                     "Could not parse RSA private key; expected PKCS#8 or PKCS#1 PEM".to_string(),
                 ),
-                ..Default::default()
+                suggested_action: Some(
+                    "Provide an RSA private key in PEM PKCS#8 or PKCS#1 form.".to_string(),
+                ),
+                doc_url: None,
             },
         })?;
 
@@ -142,7 +131,10 @@ fn sign_rsa_sha256(
                 additional_context: Some(
                     "RSA-SHA256 sign failed for CSEAL Signature header".to_string(),
                 ),
-                ..Default::default()
+                suggested_action: Some(
+                    "Verify `signing_private_key` is a valid RSA key and retry.".to_string(),
+                ),
+                doc_url: None,
             },
         })?;
 
@@ -164,16 +156,16 @@ fn wrap_pkcs1_as_pkcs8(pkcs1: &[u8]) -> Vec<u8> {
         0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00,
     ];
 
-    let octet_string = der_wrap(0x04, pkcs1);
+    let octet_string = encode_der_tlv(0x04, pkcs1);
     let version = vec![0x02, 0x01, 0x00]; // INTEGER 0
     let mut content = Vec::with_capacity(version.len() + ALG_ID.len() + octet_string.len());
     content.extend_from_slice(&version);
     content.extend_from_slice(ALG_ID);
     content.extend_from_slice(&octet_string);
-    der_wrap(0x30, &content)
+    encode_der_tlv(0x30, &content)
 }
 
-fn der_wrap(tag: u8, data: &[u8]) -> Vec<u8> {
+fn encode_der_tlv(tag: u8, data: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(data.len() + 4);
     out.push(tag);
     let len = data.len();

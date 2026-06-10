@@ -77,8 +77,8 @@ impl DeutschebankPayouts {
         &self,
         auth: &DeutschebankAuthType,
         correlation_prefix: &str,
-    ) -> Vec<(String, Maskable<String>)> {
-        vec![
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
                 "application/json".to_string().into(),
@@ -101,9 +101,9 @@ impl DeutschebankPayouts {
             ),
             (
                 headers::X_APICONSUMER_REQUEST_TIMESTAMP.to_string(),
-                current_iso_utc_seconds().into(),
+                current_iso_utc_seconds()?.into(),
             ),
-        ]
+        ])
     }
 
     fn append_cseal_headers(
@@ -128,17 +128,46 @@ impl DeutschebankPayouts {
     }
 }
 
-fn current_iso_utc_seconds() -> String {
+fn current_iso_utc_seconds() -> CustomResult<String, IntegrationError> {
     use time::macros::format_description;
     let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
-    time::OffsetDateTime::now_utc()
-        .format(&fmt)
-        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
+    time::OffsetDateTime::now_utc().format(&fmt).change_context(
+        IntegrationError::RequestEncodingFailed {
+            context: domain_types::errors::IntegrationErrorContext {
+                additional_context: Some(
+                    "formatting current UTC datetime for CSEAL request timestamp header"
+                        .to_string(),
+                ),
+                suggested_action: Some(
+                    "Retry the request; report if persistent.".to_string(),
+                ),
+                doc_url: None,
+            },
+        },
+    )
+}
+
+fn unsupported_flow_context() -> domain_types::errors::IntegrationErrorContext {
+    domain_types::errors::IntegrationErrorContext {
+        additional_context: Some(
+            "Deutsche Bank UCS connector implements only Eligibility / Transfer / Get".to_string(),
+        ),
+        suggested_action: Some("Use a different connector for this flow.".to_string()),
+        doc_url: None,
+    }
 }
 
 fn serialize_json<T: serde::Serialize>(value: &T) -> CustomResult<Vec<u8>, IntegrationError> {
     serde_json::to_vec(value).change_context(IntegrationError::RequestEncodingFailed {
-        context: Default::default(),
+        context: domain_types::errors::IntegrationErrorContext {
+            additional_context: Some(
+                "JSON-serializing outbound Deutsche Bank request body".to_string(),
+            ),
+            suggested_action: Some(
+                "Inspect the request payload and report if persistent.".to_string(),
+            ),
+            doc_url: None,
+        },
     })
 }
 
@@ -347,7 +376,7 @@ impl
         let body_struct = DeutschebankVopRequest::try_from(req)?;
         let body_bytes = serialize_json(&body_struct)?;
 
-        let mut headers = self.build_identity_headers(&auth, CORRELATION_PREFIX_VOP);
+        let mut headers = self.build_identity_headers(&auth, CORRELATION_PREFIX_VOP)?;
         let vop_id = derive_vop_id(
             req.resource_common_data.merchant_id.get_string_repr(),
             &req.resource_common_data.connector_request_reference_id,
@@ -402,7 +431,10 @@ impl
             .response
             .parse_struct("DeutschebankVopResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some("parsing Deutsche Bank VoP response".to_string()),
+                },
             })?;
         event_builder.map(|i| i.set_connector_response(&response));
 
@@ -522,12 +554,17 @@ impl
                          PayoutEligibility call in `connector_payout_id`"
                             .to_string(),
                     ),
-                    ..Default::default()
+                    suggested_action: Some(
+                        "Call PayoutService/Eligibility first and pass the returned \
+                         `connectorPayoutId` on Transfer."
+                            .to_string(),
+                    ),
+                    doc_url: None,
                 },
             }
         })?;
 
-        let mut headers = self.build_identity_headers(&auth, CORRELATION_PREFIX_PAYMENT);
+        let mut headers = self.build_identity_headers(&auth, CORRELATION_PREFIX_PAYMENT)?;
         headers.push((
             headers::X_VERIFICATIONOFPAYEE_IDENTIFIER.to_string(),
             vop_id.into(),
@@ -573,13 +610,24 @@ impl
             .response
             .parse_struct("DeutschebankSepaPaymentResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some(
+                        "parsing Deutsche Bank SEPA credit-transfer response".to_string(),
+                    ),
+                },
             })?;
         event_builder.map(|i| i.set_connector_response(&response));
 
         let built = DeutschebankSepaPaymentBuilt::try_from(data).change_context(
             ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some(
+                        "rebuilding SEPA endToEndId + debtor IBAN to encode connector_payout_id"
+                            .to_string(),
+                    ),
+                },
             },
         )?;
         let compound = encode_connector_payout_id(&built.end_to_end_id, &built.debtor_iban);
@@ -664,7 +712,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         let body_struct = DeutschebankStatusRequest::try_from(req)?;
         let body_bytes = serialize_json(&body_struct)?;
 
-        let mut headers = self.build_identity_headers(&auth, CORRELATION_PREFIX_PAYMENT);
+        let mut headers = self.build_identity_headers(&auth, CORRELATION_PREFIX_PAYMENT)?;
         self.append_cseal_headers(
             &mut headers,
             common_utils::request::Method::Post,
@@ -696,7 +744,12 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
             .response
             .parse_struct("DeutschebankStatusResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some(
+                        "parsing Deutsche Bank SEPA status-enquiry response".to_string(),
+                    ),
+                },
             })?;
         event_builder.map(|i| i.set_connector_response(&response));
 
@@ -736,7 +789,7 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_create",
-            Default::default(),
+            unsupported_flow_context(),
         )
         .into())
     }
@@ -754,7 +807,7 @@ impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, Payou
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_void",
-            Default::default(),
+            unsupported_flow_context(),
         )
         .into())
     }
@@ -772,7 +825,7 @@ impl ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest, Pay
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_stage",
-            Default::default(),
+            unsupported_flow_context(),
         )
         .into())
     }
@@ -800,7 +853,7 @@ impl
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_create_link",
-            Default::default(),
+            unsupported_flow_context(),
         )
         .into())
     }
@@ -828,7 +881,7 @@ impl
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_create_recipient",
-            Default::default(),
+            unsupported_flow_context(),
         )
         .into())
     }
@@ -856,7 +909,7 @@ impl
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),
             "payout_enroll_disburse_account",
-            Default::default(),
+            unsupported_flow_context(),
         )
         .into())
     }

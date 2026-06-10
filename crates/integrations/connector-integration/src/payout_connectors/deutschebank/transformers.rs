@@ -15,11 +15,17 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     utils,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 const DEUTSCHEBANK_BICFI: &str = "DEUTDEDDXXX";
 const VOP_ID_SEPARATOR: char = '|';
+
+const SEPA_PAYMENT_METHOD_CODE: &str = "TRF";
+const SEPA_SERVICE_LEVEL_CODE: &str = "SEPA";
+
+const SEPA_SINGLE_TRANSACTION_COUNT: &str = "1";
 
 // ===== AUTH TYPE =====
 
@@ -59,7 +65,18 @@ impl TryFrom<&ConnectorSpecificConfig> for DeutschebankAuthType {
             }),
             _ => Err(error_stack::report!(
                 IntegrationError::FailedToObtainAuthType {
-                    context: Default::default()
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Deutsche Bank CSEAL requires ConnectorSpecificConfig::Deutschebank"
+                                .to_string(),
+                        ),
+                        suggested_action: Some(
+                            "Configure the merchant connector account with the Deutsche Bank \
+                             CSEAL fields."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                    },
                 }
             )),
         }
@@ -68,15 +85,13 @@ impl TryFrom<&ConnectorSpecificConfig> for DeutschebankAuthType {
 
 // ===== ERROR RESPONSE =====
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeutschebankErrorResponse {
     pub code: Option<String>,
     pub message: Option<String>,
     pub reason: Option<String>,
-    #[serde(rename = "errorCode")]
     pub error_code: Option<String>,
-    #[serde(rename = "errorMessage")]
     pub error_message: Option<String>,
-    #[serde(rename = "errors")]
     pub errors: Option<Vec<DeutschebankErrorEntry>>,
 }
 
@@ -172,23 +187,10 @@ impl
     ) -> Result<Self, Self::Error> {
         let payee_iban = extract_payee_iban(req.request.payout_method_data.as_ref())?;
         let debtor_iban = extract_debtor_iban(req.request.source_bank_data.as_ref())?;
-        let payee_name = req
-            .request
-            .customer
-            .as_ref()
-            .and_then(|c| c.name.clone())
-            .map(Secret::new)
-            .ok_or_else(|| {
-                error_stack::report!(IntegrationError::MissingRequiredField {
-                    field_name: "customer.name",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "Payee name is required for Deutsche Bank VoP check".to_string(),
-                        ),
-                        ..Default::default()
-                    },
-                })
-            })?;
+        let payee_name = extract_customer_name(
+            req.request.customer.as_ref(),
+            "Payee name is required for Deutsche Bank VoP check",
+        )?;
 
         Ok(Self {
             payee: DeutschebankVopPayee { name: payee_name },
@@ -214,7 +216,12 @@ pub fn build_eligibility_response(
         vop_body
             .match_status
             .ok_or_else(|| ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(http_code),
+                    additional_context: Some(
+                        "Deutsche Bank VoP response missing `payeeNameMatch`".to_string(),
+                    ),
+                },
             })?;
     let payout_status = PayoutStatus::from(match_status);
     let is_eligible = matches!(
@@ -290,16 +297,12 @@ pub struct DeutschebankCustomerCreditTransferInitiation {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeutschebankGroupHeader {
-    #[serde(rename = "messageIdentification")]
     pub message_identification: String,
-    #[serde(rename = "creationDateTime")]
     pub creation_date_time: String,
-    #[serde(rename = "controlSum")]
     pub control_sum: common_utils::types::FloatMajorUnit,
-    #[serde(rename = "numberOfTransactions")]
     pub number_of_transactions: String,
-    #[serde(rename = "initiatingParty")]
     pub initiating_party: DeutschebankParty,
 }
 
@@ -309,27 +312,18 @@ pub struct DeutschebankParty {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DeutschebankPaymentInformation {
-    #[serde(rename = "paymentInformationIdentification")]
     pub payment_information_identification: String,
-    #[serde(rename = "paymentMethod")]
     pub payment_method: &'static str,
-    #[serde(rename = "batchBooking")]
     pub batch_booking: bool,
-    #[serde(rename = "controlSum")]
     pub control_sum: common_utils::types::FloatMajorUnit,
-    #[serde(rename = "numberOfTransactions")]
     pub number_of_transactions: String,
-    #[serde(rename = "paymentTypeInformation")]
     pub payment_type_information: DeutschebankPaymentTypeInformation,
-    #[serde(rename = "requestedExecutionDate")]
     pub requested_execution_date: DeutschebankExecutionDate,
     pub debtor: DeutschebankParty,
-    #[serde(rename = "debtorAccount")]
     pub debtor_account: DeutschebankAccount,
-    #[serde(rename = "debtorAgent")]
     pub debtor_agent: DeutschebankAgent,
-    #[serde(rename = "creditTransferTransactionInformation")]
     pub credit_transfer_transaction_information: Vec<DeutschebankCreditTransfer>,
 }
 
@@ -439,23 +433,10 @@ impl
         let creditor_iban = extract_payee_iban(req.request.payout_method_data.as_ref())?;
         let creditor_bic = extract_payee_bic(req.request.payout_method_data.as_ref())?;
         let debtor_iban = extract_debtor_iban(req.request.source_bank_data.as_ref())?;
-        let creditor_name = req
-            .request
-            .customer
-            .as_ref()
-            .and_then(|c| c.name.clone())
-            .map(Secret::new)
-            .ok_or_else(|| {
-                error_stack::report!(IntegrationError::MissingRequiredField {
-                    field_name: "customer.name",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "Creditor name is required for Deutsche Bank SEPA payment".to_string(),
-                        ),
-                        ..Default::default()
-                    },
-                })
-            })?;
+        let creditor_name = extract_customer_name(
+            req.request.customer.as_ref(),
+            "Creditor name is required for Deutsche Bank SEPA payment",
+        )?;
 
         let reference = req
             .resource_common_data
@@ -475,19 +456,34 @@ impl
         )
         .simple()
         .to_string();
-        let creation_date_time = current_iso_utc_seconds();
-        let execution_date = current_iso_date();
+        let creation_date_time = current_iso_utc_seconds()?;
+        let execution_date = current_iso_date()?;
 
         let amount = utils::convert_amount(
             &FloatMajorUnitForConnector,
             req.request.amount,
             req.request.destination_currency,
         )?;
-        let purpose_code = req
-            .resource_common_data
-            .description
-            .clone()
-            .unwrap_or_else(|| "PAYOUT".to_string());
+        let purpose_code =
+            req.resource_common_data
+                .description
+                .clone()
+                .ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "description",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Deutsche Bank uses `description` as the SEPA proprietary \
+                                 purpose code"
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Set `description` on the payout request.".to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    })
+                })?;
 
         let request = DeutschebankSepaPaymentRequest {
             customer_credit_transfer_initiation: DeutschebankCustomerCreditTransferInitiation {
@@ -495,19 +491,21 @@ impl
                     message_identification: message_id.clone(),
                     creation_date_time,
                     control_sum: amount,
-                    number_of_transactions: "1".to_string(),
+                    number_of_transactions: SEPA_SINGLE_TRANSACTION_COUNT.to_string(),
                     initiating_party: DeutschebankParty {
                         name: creditor_name.clone(),
                     },
                 },
                 payment_information: vec![DeutschebankPaymentInformation {
                     payment_information_identification: message_id.clone(),
-                    payment_method: "TRF",
+                    payment_method: SEPA_PAYMENT_METHOD_CODE,
                     batch_booking: false,
                     control_sum: amount,
-                    number_of_transactions: "1".to_string(),
+                    number_of_transactions: SEPA_SINGLE_TRANSACTION_COUNT.to_string(),
                     payment_type_information: DeutschebankPaymentTypeInformation {
-                        service_level: DeutschebankCode { code: "SEPA" },
+                        service_level: DeutschebankCode {
+                            code: SEPA_SERVICE_LEVEL_CODE,
+                        },
                     },
                     requested_execution_date: DeutschebankExecutionDate {
                         date: execution_date,
@@ -621,7 +619,11 @@ pub fn decode_connector_payout_id(
                 additional_context: Some(format!(
                     "Expected `<endToEndId>{VOP_ID_SEPARATOR}<debtorIban>` for Deutsche Bank status enquiry"
                 )),
-                ..Default::default()
+                suggested_action: Some(
+                    "Pass the exact `connector_payout_id` returned by Transfer; do not modify it."
+                        .to_string(),
+                ),
+                doc_url: None,
             },
         })
     })?;
@@ -679,7 +681,10 @@ impl TryFrom<&RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGe
                          Deutsche Bank status enquiry"
                             .to_string(),
                     ),
-                    ..Default::default()
+                    suggested_action: Some(
+                        "Pass the `connector_payout_id` returned by Transfer.".to_string(),
+                    ),
+                    doc_url: None,
                 },
             })
         })?;
@@ -758,7 +763,10 @@ fn extract_payee_iban(
                 additional_context: Some(
                     "Provide `payout_method_data.bank.sepa.iban` for the payee account".to_string(),
                 ),
-                ..Default::default()
+                suggested_action: Some(
+                    "Set `payout_method_data.bank.sepa.iban`.".to_string(),
+                ),
+                doc_url: None,
             },
         })),
     }
@@ -778,14 +786,25 @@ fn extract_payee_bic(
                     additional_context: Some(
                         "Deutsche Bank SEPA requires the creditor agent BIC".to_string(),
                     ),
-                    ..Default::default()
+                    suggested_action: Some(
+                        "Set `payout_method_data.bank.sepa.bic`.".to_string(),
+                    ),
+                    doc_url: None,
                 },
             }
         )),
         _ => Err(error_stack::report!(IntegrationError::NotSupported {
             message: "Deutsche Bank only supports SEPA bank payouts".to_string(),
             connector: "Deutschebank",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Provide `payout_method_data.bank.sepa` with iban + bic".to_string(),
+                ),
+                suggested_action: Some(
+                    "Use SEPA bank payout method.".to_string(),
+                ),
+                doc_url: None,
+            },
         })),
     }
 }
@@ -803,24 +822,67 @@ fn extract_debtor_iban(
                     "Deutsche Bank requires `source_bank_data.sepa.iban` for the debtor account"
                         .to_string(),
                 ),
-                ..Default::default()
+                suggested_action: Some(
+                    "Set `source_bank_data.sepa.iban`.".to_string(),
+                ),
+                doc_url: None,
             },
         }),
         ),
     }
 }
 
-fn current_iso_utc_seconds() -> String {
+fn current_iso_utc_seconds() -> Result<String, error_stack::Report<IntegrationError>> {
     use time::macros::format_description;
     let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
-    time::OffsetDateTime::now_utc()
-        .format(&fmt)
-        .unwrap_or_else(|_| "1970-01-01T00:00:00Z".to_string())
+    time::OffsetDateTime::now_utc().format(&fmt).change_context(
+        IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "formatting current UTC datetime for SEPA creationDateTime".to_string(),
+                ),
+                suggested_action: Some(
+                    "Retry the request; report if persistent.".to_string(),
+                ),
+                doc_url: None,
+            },
+        },
+    )
 }
 
-fn current_iso_date() -> String {
+fn current_iso_date() -> Result<String, error_stack::Report<IntegrationError>> {
     use time::format_description::well_known::Iso8601;
-    let date = time::OffsetDateTime::now_utc().date();
-    date.format(&Iso8601::DATE)
-        .unwrap_or_else(|_| "1970-01-01".to_string())
+    time::OffsetDateTime::now_utc()
+        .date()
+        .format(&Iso8601::DATE)
+        .change_context(IntegrationError::RequestEncodingFailed {
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "formatting current UTC date for SEPA requestedExecutionDate".to_string(),
+                ),
+                suggested_action: Some(
+                    "Retry the request; report if persistent.".to_string(),
+                ),
+                doc_url: None,
+            },
+        })
+}
+
+fn extract_customer_name(
+    customer: Option<&domain_types::payouts::payouts_types::PayoutCustomer>,
+    purpose_description: &'static str,
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    customer
+        .and_then(|c| c.name.as_ref())
+        .map(|n| Secret::new(n.clone()))
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "customer.name",
+                context: IntegrationErrorContext {
+                    additional_context: Some(purpose_description.to_string()),
+                    suggested_action: Some("Set `customer.name` on the payout request.".to_string()),
+                    doc_url: None,
+                },
+            })
+        })
 }

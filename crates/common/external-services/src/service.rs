@@ -1069,12 +1069,14 @@ pub fn create_client(
                 encoded_certificate,
                 encoded_certificate_key,
             )?;
-            let mut client_builder = client_builder.identity(identity).use_rustls_tls();
-            if let Some(ca_pem) = additional_ca_pem {
-                for ca_cert in create_certificate(ca_pem)? {
-                    client_builder = client_builder.add_root_certificate(ca_cert);
-                }
-            }
+            let client_builder = additional_ca_pem
+                .map(create_certificate)
+                .transpose()?
+                .unwrap_or_default()
+                .into_iter()
+                .fold(client_builder.identity(identity).use_rustls_tls(), |b, ca| {
+                    b.add_root_certificate(ca)
+                });
             client_builder
                 .build()
                 .change_context(ApiClientError::ClientConstructionFailed)
