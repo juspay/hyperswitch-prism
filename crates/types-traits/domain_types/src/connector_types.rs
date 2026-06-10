@@ -3799,6 +3799,32 @@ pub struct CustomerInfo {
     pub salutation: Option<String>,
 }
 
+impl CustomerInfo {
+    pub fn get_phone_number(&self) -> Result<Secret<String>, Error> {
+        self.customer_phone_number
+            .clone()
+            .ok_or_else(missing_field_err("customer.phone_number"))
+    }
+
+    pub fn get_first_name(&self) -> Result<Secret<String>, Error> {
+        self.first_name
+            .clone()
+            .ok_or_else(missing_field_err("customer.first_name"))
+    }
+
+    pub fn get_last_name(&self) -> Result<Secret<String>, Error> {
+        self.last_name
+            .clone()
+            .ok_or_else(missing_field_err("customer.last_name"))
+    }
+
+    pub fn get_email(&self) -> Result<common_utils::pii::Email, Error> {
+        self.customer_email
+            .clone()
+            .ok_or_else(missing_field_err("customer.email"))
+    }
+}
+
 impl L2L3Data {
     pub fn get_shipping_country(&self) -> Option<common_enums::enums::CountryAlpha2> {
         self.shipping_details

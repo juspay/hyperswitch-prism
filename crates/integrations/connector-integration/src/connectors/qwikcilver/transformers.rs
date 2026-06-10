@@ -45,37 +45,6 @@ pub(crate) fn qc_err_ctx(
     }
 }
 
-pub(crate) fn require_customer_phone(
-    customer: &CustomerInfo,
-) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
-    customer.customer_phone_number.clone().ok_or_else(|| {
-        error_stack::report!(IntegrationError::MissingRequiredField {
-            field_name: "customer.phone_number",
-            context: qc_err_ctx(
-                "Pine Labs uses the customer's phone number as `ExternalWalletId`, which is \
-                 how subsequent lookups (Get / Recharge / Redeem) identify the wallet's owner.",
-                "Set `customer.phone_number` to the mobile number in E.164 or local format. \
-                 Country-code rules vary by Pine Labs region/program.",
-            ),
-        })
-    })
-}
-
-pub(crate) fn require_customer_first_name(
-    customer: &CustomerInfo,
-) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
-    customer.first_name.clone().ok_or_else(|| {
-        error_stack::report!(IntegrationError::MissingRequiredField {
-            field_name: "customer.first_name",
-            context: qc_err_ctx(
-                "Qwikcilver requires a non-empty first name on wallet creation — the wallet \
-                 holder name is rendered on receipts and reports.",
-                "Set `customer.first_name`. `last_name` is optional but recommended.",
-            ),
-        })
-    })
-}
-
 #[derive(Debug, Clone)]
 pub struct QwikcilverAuthType {
     pub(super) bootstrap_bearer_token: Secret<String>,
@@ -333,24 +302,16 @@ where
                     item.router_data.request.currency
                 )
             })?;
-        let invoice_number = item
+        let idempotency_key = item
             .router_data
             .resource_common_data
-            .merchant_request_id
+            .get_merchant_request_id()?;
+        let invoice_number = item
+            .router_data
+            .request
+            .merchant_order_id
             .clone()
-            .ok_or_else(|| {
-                error_stack::report!(IntegrationError::MissingRequiredField {
-                    field_name: "merchant_request_id",
-                    context: qc_err_ctx(
-                        "Pine Labs Redeem needs an alphanumeric `InvoiceNumber` (also reused as \
-                     `IdempotencyKey`); a purely-numeric value triggers their ASP.NET Runtime \
-                     Error 500. The caller must supply this — Prism won't substitute a numeric \
-                     reference that is guaranteed to fail on the wire.",
-                        "Send `merchant_request_id` on the Authorize/Redeem request.",
-                    ),
-                })
-            })?;
-        let idempotency_key = invoice_number.clone();
+            .ok_or_else(domain_types::utils::missing_field_err("merchant_order_id"))?;
         Ok(Self {
             idempotency_key,
             invoice_number,
@@ -803,10 +764,6 @@ pub struct QwikcilverCreateCustomer {
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct QwikcilverCreateFeatureData {
     #[serde(default)]
-    pub wallet_program_group_name: Option<String>,
-    #[serde(default)]
-    pub salutation: Option<String>,
-    #[serde(default)]
     pub customer_type: Option<String>,
 }
 
@@ -823,8 +780,9 @@ impl QwikcilverCreateFeatureData {
                 context: qc_err_ctx(
                     format!("invalid Qwikcilver connector_feature_data for Create: {e}"),
                     "Send `connector_feature_data` as a JSON-string (e.g. \
-                     `\"{\\\"currency\\\":\\\"AED\\\",\\\"salutation\\\":\\\"Mr.\\\"}\"`) — not \
-                     a nested JSON object. The string is parsed server-side after secret-unwrap.",
+                     `\"{\\\"currency\\\":\\\"AED\\\",\\\"customer_type\\\":\\\"INDIVIDUAL\\\"}\"`) \
+                     — not a nested JSON object. The string is parsed server-side after \
+                     secret-unwrap.",
                 ),
             })
         })
@@ -871,8 +829,8 @@ where
                 ),
             })
         })?;
-        let phone = require_customer_phone(&customer)?;
-        let first = require_customer_first_name(&customer)?;
+        let phone = customer.get_phone_number()?;
+        let first = customer.get_first_name()?;
         let feature = QwikcilverCreateFeatureData::from_request(req)?;
         let program = req.product_id.clone();
         Ok(Self {
