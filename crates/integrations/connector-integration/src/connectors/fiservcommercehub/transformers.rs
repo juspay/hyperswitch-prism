@@ -34,7 +34,6 @@ pub(crate) const ENCRYPTION_TYPE_RSA: &str = "RSA";
 pub(crate) const ACCESS_TOKEN_SEPARATOR: &str = "|||";
 pub(crate) const TOKEN_SOURCE_TRANSARMOR: &str = "TRANSARMOR";
 
-/// Helper struct holding encrypted card data for Fiserv Commerce Hub
 #[derive(Debug)]
 pub struct EncryptedCardData {
     pub key_id: String,
@@ -42,16 +41,6 @@ pub struct EncryptedCardData {
     pub encryption_block_fields: String,
 }
 
-/// Encrypts card data using RSA-OAEP-SHA256 for Fiserv Commerce Hub
-///
-/// # Arguments
-/// * `card` - The card data to encrypt
-/// * `key_id` - The encryption key ID from access token
-/// * `public_key_der` - The DER-encoded RSA public key
-///
-/// # Returns
-/// * `Ok(EncryptedCardData)` - The encrypted card data structure
-/// * `Err` - If encryption fails or required fields are missing
 fn encrypt_card_data<T: PaymentMethodDataTypes>(
     card: &domain_types::payment_method_data::Card<T>,
     key_id: String,
@@ -142,10 +131,6 @@ impl FiservcommercehubAuthType {
             .to_string()
     }
 
-    /// Builds the HMAC-authenticated headers for Fiserv Commerce Hub API requests.
-    /// This is a common function used by all flows to generate the standard headers
-    /// including Content-Type, Api-Key, Timestamp, Client-Request-Id, Authorization,
-    /// Auth-Token-Type, and Accept-Language.
     pub fn build_hmac_headers(
         &self,
         content_type: &str,
@@ -267,7 +252,6 @@ pub struct FiservcommercehubAuthorizeRequest {
     pub merchant_details: FiservcommercehubMerchantDetails,
     pub transaction_details: FiservcommercehubTransactionDetailsReq,
     pub transaction_interaction: FiservcommercehubTransactionInteractionReq,
-    /// Additional 3DS data for external 3DS authentication (when authentication_data is present)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_data_3ds: Option<FiservcommercehubAdditionalData3DS>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -281,27 +265,27 @@ pub struct FiservcommercehubAuthorizeAmount {
 }
 
 #[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase", tag = "sourceType")]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubPaymentCardSource {
+    pub encryption_data: FiservcommercehubEncryptionData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservcommercehubPaymentTokenSource {
+    pub token_data: Secret<String>,
+    pub token_source: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub decline_duplicates: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card: Option<FiservcommercehubTokenCardInfo>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "sourceType")]
 pub enum FiservcommercehubSourceData {
-    /// Payment source using encrypted card data
-    #[serde(rename = "PaymentCard")]
-    PaymentCard {
-        #[serde(rename = "encryptionData")]
-        encryption_data: FiservcommercehubEncryptionData,
-    },
-    /// Payment source using tokenized card data
-    #[serde(rename = "PaymentToken")]
-    PaymentToken {
-        #[serde(rename = "tokenData")]
-        token_data: Secret<String>,
-        #[serde(rename = "tokenSource")]
-        token_source: String,
-        #[serde(rename = "declineDuplicates")]
-        #[serde(skip_serializing_if = "Option::is_none")]
-        decline_duplicates: Option<bool>,
-        #[serde(skip_serializing_if = "Option::is_none")]
-        card: Option<FiservcommercehubTokenCardInfo>,
-    },
+    PaymentCard(FiservcommercehubPaymentCardSource),
+    PaymentToken(FiservcommercehubPaymentTokenSource),
 }
 
 #[derive(Debug, Serialize)]
@@ -357,24 +341,17 @@ pub struct FiservcommercehubTransactionInteractionReq {
 // STORED CREDENTIALS STRUCTURES
 // =============================================================================
 
-/// Indicates whether it is a merchant-initiated transaction or explicitly
-/// consented to by the customer.
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FiservcommercehubStoredCredentialInitiator {
-    /// Transaction initiated by the merchant (MIT)
     Merchant,
-    /// Transaction explicitly consented to by the card holder (CIT)
     CardHolder,
 }
 
-/// Indicates if the transaction is FIRST or SUBSEQUENT.
 #[derive(Debug, Serialize, Clone, Eq, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FiservcommercehubStoredCredentialSequence {
-    /// First transaction in a stored credential series
     First,
-    /// Subsequent transaction using previously stored credentials
     Subsequent,
 }
 
@@ -382,19 +359,10 @@ pub enum FiservcommercehubStoredCredentialSequence {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubStoredCredentials {
-    /// Indicates whether it is a merchant-initiated transaction or
-    /// explicitly consented to by the customer.
-    /// Valid Values: MERCHANT, CARD_HOLDER
     pub initiator: FiservcommercehubStoredCredentialInitiator,
-    /// Indicates if this is a scheduled transaction.
-    // pub scheduled: bool,
-    /// The transaction ID received from the initial transaction.
-    /// Required when the sequence is SUBSEQUENT if available.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scheme_referenced_transaction_id: Option<String>,
-    /// Indicates if the transaction is FIRST or SUBSEQUENT.
     pub sequence: FiservcommercehubStoredCredentialSequence,
-    /// Original transaction amount. Required for Discover transactions.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub scheme_original_amount: Option<FloatMajorUnit>,
 }
@@ -429,53 +397,31 @@ impl FiservcommercehubStoredCredentials {
 // PAYMENT TOKEN STRUCTURES
 // =============================================================================
 
-/// Payment token information received from tokenization providers.
-/// Contains token data and metadata for network tokenization.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubPaymentToken {
-    /// Token created from the payment source (e.g., "1234123412340019")
-    /// Max Length: 2048
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token_data: Option<Secret<String>>,
-    /// Source for the Token Service Provider (TSP) (e.g., "TRANSARMOR")
-    /// Max Length: 256
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token_source: Option<String>,
-    /// Response code for token generation request (e.g., "000")
-    /// Max Length: 256
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token_response_code: Option<String>,
-    /// Response description for token generation request (e.g., "SUCCESS")
-    /// Max Length: 256
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token_response_description: Option<String>,
-    /// Cryptographic value sent by the merchant during payment authentication
-    /// Max Length: 256
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cryptogram: Option<Secret<String>>,
-    /// Token Requestor ID - identifier used by merchants to request network tokens
-    /// Max Length: 256
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token_requestor_id: Option<String>,
-    /// Token Assurance Method returned to merchants in auth response
-    /// Max Length: 256
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token_assurance_method: Option<String>,
-    /// Reference id of MPAN used for MPAN data management
-    /// Max Length: 100
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token_reference_id: Option<String>,
 }
 
-/// Wrapper for a list of payment tokens.
-/// Response contains a list of tokens and their status for each tokenization provider.
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct FiservcommercehubPaymentTokens(pub Vec<FiservcommercehubPaymentToken>);
 
 impl FiservcommercehubPaymentTokens {
-    /// Returns the first successful payment token from the list.
-    /// A token is considered successful if the response code is "000" or "SUCCESS".
     pub fn get_mandate_reference(
         &self,
         original_txn_id: Option<String>,
@@ -517,8 +463,6 @@ pub struct FiservcommercehubAdditionalData3DS {
     pub mpi_data: FiservcommercehubMpiData,
 }
 
-/// Builds the additional_data_3ds structure from authentication data.
-/// This is reusable across Authorize flow.
 pub fn build_additional_data_3ds(
     authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
 ) -> Option<FiservcommercehubAdditionalData3DS> {
@@ -621,14 +565,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     };
 
                 (
-                    FiservcommercehubSourceData::PaymentCard {
+                    FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
                         encryption_data: FiservcommercehubEncryptionData {
                             key_id: encrypted_card.key_id,
                             encryption_type: ENCRYPTION_TYPE_RSA.to_string(),
                             encryption_block: encrypted_card.encryption_block,
                             encryption_block_fields: encrypted_card.encryption_block_fields,
                         },
-                    },
+                    }),
                     stored_credentials,
                 )
             }
@@ -763,8 +707,6 @@ pub struct FiservcommercehubTxnDetails {
     pub transaction_id: String,
 }
 
-/// Builds the ConnectorResponseData with additional_payment_method_data containing
-/// 3DS authentication data if available
 fn build_connector_response_with_3ds(
     additional_data_3ds: Option<&serde_json::Value>,
 ) -> Option<domain_types::router_data::ConnectorResponseData> {
@@ -798,7 +740,6 @@ impl<T: PaymentMethodDataTypes>
             .transaction_processing_details;
         let status = AttemptStatus::from(&item.response.gateway_response.transaction_state);
 
-        // Build connector_response with 3DS authentication data if available
         let connector_response =
             build_connector_response_with_3ds(item.response.additional_data_3ds.as_ref());
 
@@ -1436,9 +1377,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-/// Capture response - wrapper around AuthorizeResponse using transparent serde
-/// This allows deserializing the same response format as Authorize, since Fiserv
-/// Commerce Hub uses the same response structure for both /charges and capture operations.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct FiservcommercehubCaptureResponse(pub FiservcommercehubAuthorizeResponse);
@@ -1451,7 +1389,6 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
     fn try_from(
         item: ResponseRouterData<FiservcommercehubCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Delegate to the Authorize response handling since the inner structure is identical
         let txn = &item
             .response
             .0
@@ -1459,7 +1396,6 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
             .transaction_processing_details;
         let status = AttemptStatus::from(&item.response.0.gateway_response.transaction_state);
 
-        // Build connector_response with 3DS authentication data if available
         let connector_response =
             build_connector_response_with_3ds(item.response.0.additional_data_3ds.as_ref());
 
@@ -1491,9 +1427,6 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
 // REPEAT PAYMENT FLOW
 // =============================================================================
 
-/// RepeatPayment request - reused from AuthorizeRequest since Fiserv Commerce Hub
-/// uses the same /charges endpoint for both initial authorization and repeat payments.
-/// The difference is in the source (PaymentToken vs PaymentCard) and stored credentials.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubRepeatPaymentRequest {
@@ -1504,9 +1437,6 @@ pub struct FiservcommercehubRepeatPaymentRequest {
     pub transaction_interaction: FiservcommercehubTransactionInteractionReq,
     pub stored_credentials: FiservcommercehubStoredCredentials,
 }
-
-/// RepeatPayment response - wrapper around AuthorizeResponse using transparent serde
-/// This allows deserializing the same response format as Authorize.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct FiservcommercehubRepeatResponse(pub FiservcommercehubAuthorizeResponse);
@@ -1612,12 +1542,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 currency: router_data.request.currency,
                 total,
             },
-            source: FiservcommercehubSourceData::PaymentToken {
-                token_data: Secret::new(connector_mandate_id),
-                token_source,
-                decline_duplicates: Some(false),
-                card: card_info,
-            },
+            source: FiservcommercehubSourceData::PaymentToken(
+                FiservcommercehubPaymentTokenSource {
+                    token_data: Secret::new(connector_mandate_id),
+                    token_source,
+                    decline_duplicates: Some(false),
+                    card: card_info,
+                },
+            ),
             merchant_details: FiservcommercehubMerchantDetails {
                 merchant_id: auth.merchant_id.clone(),
                 terminal_id: auth.terminal_id.clone(),
@@ -1687,8 +1619,6 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservcommercehubRepe
 // SETUP MANDATE FLOW (Tokenize Card)
 // =============================================================================
 
-/// SetupMandate request for tokenizing card data without charging
-/// Maps to POST /payments-vas/v1/tokens
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubSetupMandateRequest {
@@ -1696,11 +1626,8 @@ pub struct FiservcommercehubSetupMandateRequest {
     pub merchant_details: FiservcommercehubMerchantDetails,
     pub transaction_details: FiservcommercehubSetupMandateTransactionDetails,
     pub transaction_interaction: FiservcommercehubTransactionInteractionReq,
-    /// Additional 3DS data for external 3DS authentication (when authentication_data is present)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_data_3ds: Option<FiservcommercehubAdditionalData3DS>,
-    /// Stored credentials for CIT (Card Holder Initiated Transaction)
-    /// Indicates this is a first-time stored credential setup
     #[serde(skip_serializing_if = "Option::is_none")]
     pub stored_credentials: Option<FiservcommercehubStoredCredentials>,
 }
@@ -1793,14 +1720,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Card(card) => {
                 let encrypted_card = encrypt_card_data(card, key_id, &public_key_der)?;
 
-                FiservcommercehubSourceData::PaymentCard {
+                FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
                     encryption_data: FiservcommercehubEncryptionData {
                         key_id: encrypted_card.key_id,
                         encryption_type: ENCRYPTION_TYPE_RSA.to_string(),
                         encryption_block: encrypted_card.encryption_block,
                         encryption_block_fields: encrypted_card.encryption_block_fields,
                     },
-                }
+                })
             }
             _ => {
                 return Err(error_stack::report!(
@@ -1841,14 +1768,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-/// SetupMandate response - same structure as Authorize response
-/// The tokens endpoint returns a similar structure to charges
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FiservcommercehubSetupMandateResponse {
     pub gateway_response: FiservcommercehubGatewayResponseBody,
     pub payment_tokens: Option<FiservcommercehubPaymentTokens>,
-    /// Additional 3DS data returned in the response as a generic JSON Value
     #[serde(skip_serializing_if = "Option::is_none")]
     pub additional_data_3ds: Option<serde_json::Value>,
 }
@@ -1867,15 +1791,12 @@ where
             .response
             .gateway_response
             .transaction_processing_details;
-        // For setup mandate, Authorized status means the mandate was successfully set up
-        // and should be treated as charged/completed
         let txn_state = &item.response.gateway_response.transaction_state;
         let status = match txn_state {
             FiservcommercehubTransactionState::Authorized => AttemptStatus::Charged,
             _ => AttemptStatus::from(txn_state),
         };
 
-        // Build connector_response with 3DS authentication data if available
         let connector_response =
             build_connector_response_with_3ds(item.response.additional_data_3ds.as_ref());
 
