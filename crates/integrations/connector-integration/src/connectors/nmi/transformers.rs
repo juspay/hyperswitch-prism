@@ -807,7 +807,6 @@ pub struct SyncResponse {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SyncTransactionData {
     pub transaction_id: String,
-    #[serde(default)]
     pub order_id: String,
     pub condition: String, // Maps to status
 }
