@@ -428,7 +428,7 @@ message CompositePaymentMethodCreateRequest {
   optional SecretString metadata = 8;
   optional string merchant_access_token_id = 9;
 
-  string product_id = 10; // Product or program under which the payment method exists
+  optional string product_id = 10; // Product or program under which the payment method exists
   optional string merchant_request_id = 11; // Per-request idempotency / correlation token forwarded to the bootstrap call
 }
 

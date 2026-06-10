@@ -243,6 +243,9 @@ pub struct QwikcilverCustomer {
     pub first_name: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
     pub phone_number: Option<Secret<String>>,
+    // Pine Labs occasionally stuffs a phone number into Email; lenient deserializer drops
+    // anything that isn't a valid RFC-5322 address rather than failing the whole response.
+    #[serde(default, deserialize_with = "deserialize_lenient_email")]
     pub email: Option<common_utils::pii::Email>,
     #[serde(rename = "DOB")]
     pub dob: Option<Secret<String>>,
@@ -343,9 +346,7 @@ where
                      `IdempotencyKey`); a purely-numeric value triggers their ASP.NET Runtime \
                      Error 500. The caller must supply this — Prism won't substitute a numeric \
                      reference that is guaranteed to fail on the wire.",
-                        "Send `merchant_request_id` on the Authorize/Redeem request, e.g. \
-                     `\"qc-redeem-<merchant>-<order>\"`. Composite callers already do this; \
-                     non-composite callers must follow suit.",
+                        "Send `merchant_request_id` on the Authorize/Redeem request.",
                     ),
                 })
             })?;
@@ -467,9 +468,8 @@ where
                 "Qwikcilver Redeem requires the destination wallet number via the typed \
                  `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant \
                  is supported on this connector.",
-                "Send the body with \
-                 `payment_method.payment_method.qwikcilver_wallet_direct.wallet_number: \"<wallet-number>\"`. \
-                 Verify with the curl recipe at docs/qwikcilver-grpcurl-recipes.md.",
+                "Send `payment_method: { payment_method: { qwikcilver_wallet_direct: { \
+                 wallet_number: \"<wn>\" } } }` on the Authorize request.",
             ),
         })),
     }
@@ -744,7 +744,7 @@ impl TryFrom<ResponseRouterData<QwikcilverRechargeResponse, Self>>
                             .as_ref()
                             .map(|h| h.clone().expose()),
                         balance,
-                        product_id: w.wallet_program_group_name.clone().unwrap_or_default(),
+                        product_id: w.wallet_program_group_name.clone(),
                         items,
                     })
                 });
@@ -775,7 +775,8 @@ pub struct QwikcilverCreateWalletRequest {
     // Wire key is `Externalwalletid` (lowercase `w`), not PascalCase.
     #[serde(rename = "Externalwalletid")]
     pub external_wallet_id: Secret<String>,
-    pub wallet_program_group_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wallet_program_group_name: Option<String>,
     pub customer: QwikcilverCreateCustomer,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub notes: Option<String>,
@@ -945,6 +946,21 @@ pub struct QwikcilverWalletEnvelope {
     pub error_description: Option<String>,
 }
 
+fn deserialize_lenient_email<'de, D>(
+    deserializer: D,
+) -> Result<Option<common_utils::pii::Email>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw: Option<String> = Option::deserialize(deserializer)?;
+    Ok(raw.and_then(|s| {
+        if s.is_empty() {
+            return None;
+        }
+        serde_json::from_value::<common_utils::pii::Email>(serde_json::Value::String(s)).ok()
+    }))
+}
+
 fn deserialize_wallet_or_null_fields<'de, D>(
     deserializer: D,
 ) -> Result<Option<QwikcilverWalletDetails>, D::Error>
@@ -1064,7 +1080,7 @@ fn wallet_details_to_payment_method_details(
             .as_ref()
             .map(|h| h.clone().expose()),
         balance,
-        product_id: wallet.wallet_program_group_name.clone().unwrap_or_default(),
+        product_id: wallet.wallet_program_group_name.clone(),
         items,
     })
 }

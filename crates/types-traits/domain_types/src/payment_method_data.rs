@@ -1871,7 +1871,7 @@ pub struct WalletDetails {
     /// Current wallet balance in minor currency units (for stored value wallets)
     pub balance: Option<common_utils::types::MinorUnit>,
     /// Product or program identifier under which the wallet exists
-    pub product_id: String,
+    pub product_id: Option<String>,
     /// Payment method items stored in this wallet (for container/hybrid wallets)
     pub items: Vec<WalletItem>,
 }

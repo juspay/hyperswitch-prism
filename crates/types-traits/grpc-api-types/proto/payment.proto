@@ -3619,7 +3619,7 @@ message PaymentMethodServiceCreateRequest {
   optional string description = 3; // Human-readable description of the payment method
   PaymentMethodType payment_method_type = 4; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
   optional ConnectorState state = 5;   // State Information (for access token)
-  string product_id = 6; // Product or program under which the payment method exists
+  optional string product_id = 6; // Product or program under which the payment method exists
 
   optional SecretString metadata = 7; // Additional metadata for the connector
   optional SecretString connector_feature_data = 8; // Connector-specific metadata for the transaction
@@ -3705,7 +3705,7 @@ message WalletDetails {
   optional WalletStatus wallet_status = 3; // Current operational status (ACTIVE/INACTIVE)
   optional string wallet_holder_name = 4; // Name registered on the wallet account
   optional int64 balance = 5; // Current wallet balance in minor currency units (for stored value wallets)
-  string product_id = 6; // Product or program identifier under which the wallet exists
+  optional string product_id = 6; // Product or program identifier under which the wallet exists
   repeated WalletItem items = 7; // Payment method items stored in this wallet (for container/hybrid wallets)
 }
 

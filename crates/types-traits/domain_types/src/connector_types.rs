@@ -1868,7 +1868,7 @@ pub struct CreatePaymentMethodData {
     pub customer: Option<CustomerInfo>,
     pub description: Option<String>,
     pub payment_method_type: PaymentMethodType,
-    pub product_id: String,
+    pub product_id: Option<String>,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
 }
 
