@@ -551,7 +551,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .unwrap_or_else(|| "Payment declined".to_string()),
                     reason: response.declined_message.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.receipt.clone()),
                     network_decline_code: response.declined_code.clone(),
                     network_advice_code: None,
@@ -568,6 +568,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.receipt.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -678,7 +679,7 @@ impl TryFrom<ResponseRouterData<BamboraapacCaptureResponse, Self>>
                         .unwrap_or_else(|| "Capture declined".to_string()),
                     reason: response.declined_message.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.receipt.clone()),
                     network_decline_code: response.declined_code.clone(),
                     network_advice_code: None,
@@ -695,6 +696,7 @@ impl TryFrom<ResponseRouterData<BamboraapacCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.receipt.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -787,7 +789,9 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
                         message: "No matching transaction found".to_string(),
                         reason: Some("Transaction not found in query results".to_string()),
                         status_code: item.http_code,
-                        attempt_status: Some(common_enums::AttemptStatus::Failure),
+                        attempt_status: Some(FlowStatus::Payment(
+                            common_enums::AttemptStatus::Failure,
+                        )),
                         connector_transaction_id: None,
                         network_decline_code: None,
                         network_advice_code: None,
@@ -827,7 +831,7 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
                         .unwrap_or_else(|| "Payment declined".to_string()),
                     reason: response.declined_message.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.receipt.clone()),
                     network_decline_code: response.declined_code.clone(),
                     network_advice_code: None,
@@ -844,6 +848,7 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.receipt.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -1126,6 +1131,7 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
 // ============================================================================
 
 use domain_types::connector_types::SetupMandateRequestData;
+use domain_types::router_data::FlowStatus;
 
 // SetupMandate Request Structure (Customer Registration without payment)
 #[derive(Debug, Clone)]
@@ -1304,7 +1310,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: error_message.to_string(),
                     reason: Some(error_message.to_string()),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1338,6 +1344,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "action_code": response.action_code
             })),
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -1492,7 +1499,7 @@ impl<
                         .unwrap_or_else(|| "Payment declined".to_string()),
                     reason: response.declined_message.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.receipt.clone()),
                     network_decline_code: response.declined_code.clone(),
                     network_advice_code: None,
@@ -1509,6 +1516,7 @@ impl<
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.receipt.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,

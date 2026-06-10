@@ -18,9 +18,6 @@ const FLOWS = {
   // charge: RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
   charge                                     : { request: "RecurringPaymentServiceChargeRequest", response: "RecurringPaymentServiceChargeResponse" },
 
-  // create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
-  create                                     : { request: "CustomerServiceCreateRequest", response: "CustomerServiceCreateResponse" },
-
   // create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
   create_client_authentication_token         : { request: "MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest", response: "MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse" },
 
@@ -32,6 +29,9 @@ const FLOWS = {
 
   // create_server_session_authentication_token: MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
   create_server_session_authentication_token : { request: "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest", response: "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse" },
+
+  // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
+  customer_create                            : { request: "CustomerServiceCreateRequest", response: "CustomerServiceCreateResponse" },
 
   // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
   defend                                     : { request: "DisputeServiceDefendRequest", response: "DisputeServiceDefendResponse" },

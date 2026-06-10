@@ -478,27 +478,6 @@
         "error": "client_authentication_token flow not supported by finix connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_customer_id": "cust_probe_123",
-          "customer_name": "John Doe",
-          "email": "test@example.com",
-          "phone_number": "4155552671"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/identities",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"entity\":{\"phone\":null,\"first_name\":\"John\",\"last_name\":\"Doe\",\"email\":\"test@example.com\",\"personal_address\":null},\"tags\":null,\"type\":\"PERSONAL\"}"
-        }
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_supported",
@@ -515,6 +494,27 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by finix connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_customer_id": "cust_probe_123",
+          "customer_name": "John Doe",
+          "email": "test@example.com",
+          "phone_number": "4155552671"
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/identities",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"entity\":{\"phone\":null,\"first_name\":null,\"last_name\":null,\"email\":null,\"personal_address\":null},\"tags\":null,\"type\":\"PERSONAL\"}"
+        }
       }
     },
     "dispute_accept": {
@@ -744,38 +744,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "customer": {
-            "id": "cust_probe_123"
-          },
-          "address": {
-            "billing_address": {}
-          }
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/payment_instruments",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"type\":\"PAYMENT_CARD\",\"name\":\"John Doe\",\"number\":\"4111111111111111\",\"security_code\":\"737\",\"expiration_month\":3,\"expiration_year\":2030,\"identity\":\"cust_probe_123\",\"tags\":null}"
-        }
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
       }
     },
     "verify_redirect": {

@@ -15,7 +15,9 @@ use grpc_api_types::payments::{
     CompositeRefundGetResponse, CompositeRefundRequest, CompositeRefundResponse, CompositeStatus,
     CompositeVoidRequest, CompositeVoidResponse, ConnectorState, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
-    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, PaymentMethod,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse, PaymentMethod,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
@@ -258,6 +260,44 @@ where
         Ok(access_token_response)
     }
 
+    async fn create_server_session_authentication_token(
+        &self,
+        connector: &ConnectorEnum,
+        payload: &CompositeAuthorizeRequest,
+        metadata: &tonic::metadata::MetadataMap,
+        extensions: &tonic::Extensions,
+    ) -> Result<
+        Option<MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
+        tonic::Status,
+    > {
+        let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(connector);
+        let should_do_session_token = connector_data.connector.should_do_session_token();
+
+        let should_create_session_token =
+            payload.session_token.as_ref().is_none() && should_do_session_token;
+
+        let session_token_response = match should_create_session_token {
+            true => {
+                let session_token_payload =
+                    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest::foreign_from((payload, connector));
+                let mut session_token_request = tonic::Request::new(session_token_payload);
+                *session_token_request.metadata_mut() = metadata.clone();
+                *session_token_request.extensions_mut() = extensions.clone();
+
+                let session_token_response = self
+                    .merchant_authentication_service
+                    .create_server_session_authentication_token(session_token_request)
+                    .await?
+                    .into_inner();
+
+                Some(session_token_response)
+            }
+            false => None,
+        };
+
+        Ok(session_token_response)
+    }
+
     async fn create_connector_customer(
         &self,
         connector: &ConnectorEnum,
@@ -309,6 +349,9 @@ where
         access_token_response: Option<
             &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
+        session_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
+        >,
         create_customer_response: Option<&CustomerServiceCreateResponse>,
         authenticate_response: Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
         post_authenticate_response: Option<
@@ -320,6 +363,7 @@ where
         let authorize_payload = PaymentServiceAuthorizeRequest::foreign_from((
             payload,
             access_token_response,
+            session_token_response,
             create_customer_response,
             authenticate_response,
             post_authenticate_response,
@@ -464,6 +508,14 @@ where
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
+        let session_token_response = self
+            .create_server_session_authentication_token(
+                &connector,
+                &payload,
+                &metadata,
+                &extensions,
+            )
+            .await?;
         let create_customer_response = self
             .create_connector_customer(&connector, &payload, &metadata, &extensions)
             .await?;
@@ -547,6 +599,7 @@ where
                         self.authorize(
                             &payload,
                             access_token_response.as_ref(),
+                            session_token_response.as_ref(),
                             create_customer_response.as_ref(),
                             state.authn_response_opt.as_ref(),
                             state.post_authn_response_opt.as_ref(),
@@ -580,6 +633,7 @@ where
 
         Ok(tonic::Response::new(CompositeAuthorizeResponse {
             access_token_response,
+            session_token_response,
             create_customer_response,
             pre_authenticate_response: state.pre_auth_response_opt,
             authenticate_response: state.authn_response_opt,

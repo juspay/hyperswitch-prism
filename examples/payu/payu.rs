@@ -10,7 +10,14 @@ use hyperswitch_payments_client::ConnectorClient;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
-pub const SUPPORTED_FLOWS: &[&str] = &["capture", "get", "refund", "refund_get", "void"];
+pub const SUPPORTED_FLOWS: &[&str] = &[
+    "capture",
+    "create_server_session_authentication_token",
+    "get",
+    "refund",
+    "refund_get",
+    "void",
+];
 
 #[allow(dead_code)]
 fn build_client() -> ConnectorClient {
@@ -42,6 +49,14 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
             minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
+        ..Default::default()
+    }
+}
+
+pub fn build_create_server_session_authentication_token_request(
+) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+        // domain_context: {"payment": {"amount": {"minor_amount": 1000, "currency": "USD"}}}
         ..Default::default()
     }
 }
@@ -104,6 +119,22 @@ pub async fn process_capture(
         )
         .await?;
     Ok(format!("status: {:?}", response.status()))
+}
+
+// Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
+#[allow(dead_code)]
+pub async fn process_create_server_session_authentication_token(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .create_server_session_authentication_token(
+            build_create_server_session_authentication_token_request(),
+            &HashMap::new(),
+            None,
+        )
+        .await?;
+    Ok(format!("status: {:?}", response.status_code))
 }
 
 // Flow: PaymentService.Get
@@ -175,12 +206,15 @@ async fn main() {
         .unwrap_or_else(|| "process_capture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "process_capture" => process_capture(&client, "txn_001").await,
+        "process_create_server_session_authentication_token" => {
+            process_create_server_session_authentication_token(&client, "txn_001").await
+        }
         "process_get" => process_get(&client, "txn_001").await,
         "process_refund" => process_refund(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_capture, process_get, process_refund, process_refund_get, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_capture, process_create_server_session_authentication_token, process_get, process_refund, process_refund_get, process_void", flow);
             return;
         }
     };

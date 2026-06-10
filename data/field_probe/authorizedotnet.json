@@ -118,7 +118,7 @@
       },
       "Boleto": {
         "status": "not_supported",
-        "error": "Payment method Voucher(Boleto(BoletoVoucherData { social_security_number: None })) is not supported by authorizedotnet"
+        "error": "Payment method Voucher(Boleto(BoletoVoucherData { social_security_number: None, expiration_date: None })) is not supported by authorizedotnet"
       },
       "BriVaBankTransfer": {
         "status": "not_supported",
@@ -535,7 +535,43 @@
         "error": "This feature is not implemented: client_authentication_token flow for authorizedotnet"
       }
     },
-    "create_customer": {
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for authorizedotnet"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for authorizedotnet"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://apitest.authorize.net/xml/v1/request.api",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"getMerchantDetailsRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"}}}"
+        }
+      }
+    },
+    "customer_create": {
       "default": {
         "status": "supported",
         "proto_request": {
@@ -553,24 +589,6 @@
           },
           "body": "{\"createCustomerProfileRequest\":{\"merchantAuthentication\":{\"name\":\"probe_user\",\"transactionKey\":\"probe_key\"},\"profile\":{\"merchantCustomerId\":\"cust_probe_123\",\"email\":\"test@example.com\"}}}"
         }
-      }
-    },
-    "create_order": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_order flow for authorizedotnet"
-      }
-    },
-    "create_server_authentication_token": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: server_authentication_token flow for authorizedotnet"
-      }
-    },
-    "create_server_session_authentication_token": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: server_session_authentication_token flow for authorizedotnet"
       }
     },
     "dispute_accept": {

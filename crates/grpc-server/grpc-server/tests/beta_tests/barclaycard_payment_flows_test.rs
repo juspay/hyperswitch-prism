@@ -193,6 +193,7 @@ fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServ
         connector_metadata: HashMap::new(),
         setup_future_usage: None,
         sync_type: None,
+        payment_method_type: None,
     }
 }
 

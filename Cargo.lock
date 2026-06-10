@@ -1197,6 +1197,7 @@ dependencies = [
  "tonic 0.14.5",
  "ucs_common_enums",
  "ucs_common_utils",
+ "ucs_env",
 ]
 
 [[package]]
@@ -1396,6 +1397,15 @@ name = "core-foundation-sys"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
+
+[[package]]
+name = "cpf_cnpj"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3564ecde97fae9d4d28ae212e207337c0e92ee6c438930ae9b75ec3e9355a924"
+dependencies = [
+ "rand 0.9.2",
+]
 
 [[package]]
 name = "cpufeatures"
@@ -1780,6 +1790,7 @@ dependencies = [
  "base64 0.21.7",
  "bytes",
  "config_patch_derive",
+ "cpf_cnpj",
  "error-stack 0.4.1",
  "grpc-api-types",
  "http 0.2.12",
@@ -3266,6 +3277,7 @@ dependencies = [
  "log_utils",
  "once_cell",
  "prometheus",
+ "prost 0.14.3",
  "prost-types",
  "rand 0.8.5",
  "reqwest 0.11.27",

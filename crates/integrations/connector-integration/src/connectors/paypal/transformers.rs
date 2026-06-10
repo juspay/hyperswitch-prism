@@ -32,7 +32,7 @@ use domain_types::{
         GpayTokenizationData, PayLaterData, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, VoucherData, WalletData,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{RedirectForm, VerifyWebhookSourceResponseData, VerifyWebhookStatus},
@@ -143,16 +143,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
-        let shipping_cost = item.router_data.request.shipping_cost.ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "shipping_cost",
-                context: Default::default(),
-            },
-        )?;
+        // Hyperswitch treats `shipping_cost` as optional for the Authorize flow,
+        // defaulting to zero when absent (req.request.shipping_cost.unwrap_or(MinorUnit::zero())).
+        // Mirror that here instead of hard-failing with MissingRequiredField, otherwise UCS
+        // returns gRPC InvalidArgument for card payments that carry no shipping_cost.
         let shipping_value = item
             .connector
             .amount_converter
-            .convert(shipping_cost, item.router_data.request.currency)
+            .convert(
+                item.router_data
+                    .request
+                    .shipping_cost
+                    .unwrap_or(common_utils::types::MinorUnit::zero()),
+                item.router_data.request.currency,
+            )
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -2494,6 +2498,7 @@ where
                     status_code: item.http_code,
                     connector_metadata: Some(connector_meta),
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: purchase_units
                         .invoice_id
                         .clone()
@@ -2601,6 +2606,7 @@ impl TryFrom<ResponseRouterData<PaypalRedirectResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
                 ),
@@ -2632,6 +2638,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalThreeDsSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -2713,6 +2720,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -2753,6 +2761,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
                 ),
@@ -2823,6 +2832,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item
                     .response
                     .invoice_id
@@ -3008,6 +3018,7 @@ impl TryFrom<ResponseRouterData<PaypalCaptureResponse, Self>>
                     order_id: None
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: invoice_id.or(Some(capture_id)),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -3052,6 +3063,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsCancelResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item
                     .response
                     .invoice_id
@@ -3096,6 +3108,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalSetupMandatesResponse, Self>>
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(info_response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -3270,7 +3283,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 ..item.router_data.resource_common_data
                             },
                             response: Err(domain_types::router_data::ErrorResponse {
-                                attempt_status: Some(common_enums::AttemptStatus::Failure),
+                                attempt_status: Some(FlowStatus::Payment(
+                                    common_enums::AttemptStatus::Failure,
+                                )),
                                 code: "authentication_failed".to_string(),
                                 message: "3DS authentication failed".to_string(),
                                 connector_transaction_id: None,

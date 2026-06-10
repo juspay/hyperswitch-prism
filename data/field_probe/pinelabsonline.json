@@ -461,12 +461,6 @@
         "error": "client_authentication_token flow not supported by pinelabs_online connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by pinelabs_online connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "error",
@@ -492,6 +486,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by pinelabs_online connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by pinelabs_online connector"
       }
     },
     "dispute_accept": {

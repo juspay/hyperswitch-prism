@@ -17,7 +17,7 @@ use domain_types::{
         ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -874,6 +874,7 @@ impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
             mandate_reference: Some(Box::new(mandate_reference)),
             connector_metadata: None,
             network_txn_id,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(item.request_id.clone()),
             incremental_authorization_allowed: None,
             status_code: item.response_code.parse::<u16>().unwrap_or(0),
@@ -900,7 +901,7 @@ fn build_payments_response_result(
 ) -> Result<Result<PaymentsResponseData, ErrorResponse>, ResponseError> {
     if is_payment_failure(status) {
         Ok(Err(ErrorResponse {
-            attempt_status: Some(status),
+            attempt_status: Some(FlowStatus::Payment(status)),
             code: response.response_code.clone(),
             message: response
                 .response_message

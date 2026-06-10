@@ -760,6 +760,20 @@ pub enum ConnectorSpecificConfig {
         response_audience: Option<Secret<String>>,
         base_url: Option<String>,
     },
+    Juspay {
+        api_key: Secret<String>,
+        merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    Payconex {
+        api_key: Secret<String>,
+        account_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    Tamara {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1073,6 +1087,15 @@ impl ConnectorSpecificConfig {
                 client_id,
                 client_secret
             },
+            Juspay {
+                api_key,
+                merchant_id
+            },
+            Payconex {
+                api_key,
+                account_id
+            },
+            Tamara { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1485,6 +1508,15 @@ impl ConnectorSpecificConfig {
                     client_id,
                     client_secret
                 },
+                Juspay {
+                    api_key,
+                    merchant_id
+                },
+                Payconex {
+                    api_key,
+                    account_id
+                },
+                Tamara { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2024,6 +2056,20 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_salt: easebuzz.api_salt.ok_or_else(err)?,
                 base_url: easebuzz.base_url,
                 secondary_base_url: easebuzz.secondary_base_url,
+            }),
+            AuthType::Juspay(juspay) => Ok(Self::Juspay {
+                api_key: juspay.api_key.ok_or_else(err)?,
+                merchant_id: juspay.merchant_id.ok_or_else(err)?,
+                base_url: juspay.base_url,
+            }),
+            AuthType::Payconex(payconex) => Ok(Self::Payconex {
+                api_key: payconex.api_key.ok_or_else(err)?,
+                account_id: payconex.account_id.ok_or_else(err)?,
+                base_url: payconex.base_url,
+            }),
+            AuthType::Tamara(tamara) => Ok(Self::Tamara {
+                api_key: tamara.api_key.ok_or_else(err)?,
+                base_url: tamara.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3114,6 +3160,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Payconex => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
+                        api_key: api_key.clone(),
+                        account_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
@@ -3137,7 +3191,22 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Juspay => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Juspay {
+                        api_key: api_key.clone(),
+                        merchant_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::TwocTwopPaco => Err(err().into()),
+                ConnectorEnum::Tamara => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Tamara {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {
@@ -3231,13 +3300,47 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
     }
 }
 
+/// Unified status enum for different flow types in ErrorResponse
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq)]
+pub enum FlowStatus {
+    Payment(common_enums::enums::AttemptStatus),
+    Refund(common_enums::enums::RefundStatus),
+    Dispute(common_enums::enums::DisputeStatus),
+}
+
+impl FlowStatus {
+    /// Extract AttemptStatus if this is a Payment variant
+    pub fn as_attempt_status(&self) -> Option<common_enums::enums::AttemptStatus> {
+        match self {
+            FlowStatus::Payment(status) => Some(*status),
+            _ => None,
+        }
+    }
+
+    /// Extract RefundStatus if this is a Refund variant
+    pub fn as_refund_status(&self) -> Option<common_enums::enums::RefundStatus> {
+        match self {
+            FlowStatus::Refund(status) => Some(*status),
+            _ => None,
+        }
+    }
+
+    /// Extract DisputeStatus if this is a Dispute variant
+    pub fn as_dispute_status(&self) -> Option<common_enums::enums::DisputeStatus> {
+        match self {
+            FlowStatus::Dispute(status) => Some(*status),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct ErrorResponse {
     pub code: String,
     pub message: String,
     pub reason: Option<String>,
     pub status_code: u16,
-    pub attempt_status: Option<common_enums::enums::AttemptStatus>,
+    pub attempt_status: Option<FlowStatus>,
     pub connector_transaction_id: Option<String>,
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
@@ -3270,13 +3373,16 @@ impl ErrorResponse {
         http_status_code: u16,
         fallback_status: common_enums::enums::AttemptStatus,
     ) -> Option<common_enums::enums::AttemptStatus> {
-        self.attempt_status.or_else(|| {
-            if (200..300).contains(&http_status_code) {
-                Some(fallback_status)
-            } else {
-                None
-            }
-        })
+        self.attempt_status
+            .as_ref()
+            .and_then(|fs| fs.as_attempt_status())
+            .or_else(|| {
+                if (200..300).contains(&http_status_code) {
+                    Some(fallback_status)
+                } else {
+                    None
+                }
+            })
     }
 
     pub fn get_not_implemented() -> Self {
