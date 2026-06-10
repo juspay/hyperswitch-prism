@@ -379,8 +379,8 @@ message CompositeCaptureRequest {
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 14;
 
-  // Order-level tax amount in minor units.
-  optional int64 order_tax_amount = 15;
+  // Order-level tax amount.
+  optional Money order_tax_amount = 15;
 }
 
 // Response message for composite capture flow.

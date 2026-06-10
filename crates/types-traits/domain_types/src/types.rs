@@ -8552,7 +8552,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
             merchant_order_id: value.merchant_order_id,
             order_tax_amount: value
                 .order_tax_amount
-                .map(common_utils::types::MinorUnit::new),
+                .map(|amount| common_utils::types::MinorUnit::new(amount.minor_amount)),
         })
     }
 }
