@@ -207,6 +207,12 @@ pub trait ValidationTrait: ConnectorCommon {
     ) -> AuthenticationStep {
         AuthenticationStep::Authorize
     }
+
+    /// Returns whether this connector requires Authorize to be called
+    /// after VerifyRedirectResponse in the composite flow.
+    fn requires_authorize_post_redirect(&self) -> bool {
+        false
+    }
 }
 
 pub trait PaymentOrderCreate:

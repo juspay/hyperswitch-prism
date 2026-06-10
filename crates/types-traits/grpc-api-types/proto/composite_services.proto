@@ -22,6 +22,9 @@ service CompositePaymentService {
 
   // Runs composite capture flow.
   rpc Capture(CompositeCaptureRequest) returns (CompositeCaptureResponse);
+
+  // Runs composite verify redirect response flow (verify + conditional authorize).
+  rpc VerifyRedirectResponse(CompositeVerifyRedirectResponseRequest) returns (CompositeVerifyRedirectResponseResponse);
 }
 
 service CompositeRefundService {

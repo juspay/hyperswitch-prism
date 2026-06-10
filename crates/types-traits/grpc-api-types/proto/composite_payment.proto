@@ -494,3 +494,63 @@ message CompositePaymentMethodRechargeResponse {
   optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 1; // Access token generation result
   optional PaymentMethodServiceRechargeResponse recharge_response = 2; // Recharge operation result
 }
+
+// Request message for composite verify redirect response flow.
+message CompositeVerifyRedirectResponseRequest {
+  // Identification
+  optional string merchant_order_id = 1;
+  optional string merchant_transaction_id = 2;
+
+  // Request Details from redirect callback
+  RequestDetails request_details = 3;
+
+  // Security
+  optional RedirectResponseSecrets redirect_response_secrets = 4;
+
+  // Metadata needed for authorize (if required)
+  optional SecretString metadata = 5;
+  optional SecretString connector_feature_data = 6;
+
+  // Environment Configuration
+  optional bool test_mode = 7;
+
+  // State Information (for access token, session token if needed)
+  optional ConnectorState state = 8;
+
+  // Payment data needed for authorize (if required)
+  optional Money amount = 9;
+  optional PaymentMethod payment_method = 10;
+  optional CaptureMethod capture_method = 11;
+  
+  // Access Token
+  optional string merchant_access_token_id = 12;
+  
+  // Server Session Token
+  optional string merchant_server_session_id = 13;
+  
+  // Payment Experience
+  optional PaymentExperience payment_experience = 14;
+  
+  // Browser Information (may be needed for authorize)
+  optional BrowserInformation browser_info = 15;
+  
+  // Authentication type
+  optional AuthenticationType auth_type = 16;
+  
+  // Customer Information
+  optional Customer customer = 17;
+  
+  // Address Information
+  optional PaymentAddress address = 18;
+}
+
+// Response message for composite verify redirect response flow.
+message CompositeVerifyRedirectResponseResponse {
+  // Verification result (always populated)
+  PaymentServiceVerifyRedirectResponseResponse verify_redirect_response = 1;
+  
+  // Following fields are only populated if connector requires authorize post redirect
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 2;
+  optional MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse session_token_response = 3;
+  optional PaymentServiceAuthorizeResponse authorize_response = 4;
+}
