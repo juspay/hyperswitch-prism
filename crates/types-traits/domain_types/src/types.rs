@@ -13657,6 +13657,25 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
+    let connector_feature_data = router_data_v2
+        .resource_common_data
+        .connector_feature_data
+        .map(|s| {
+            serde_json::to_string(s.peek())
+                .map(Secret::new)
+                .map_err(|e| {
+                    report!(ConnectorError::ResponseHandlingFailed {
+                        context: ResponseTransformationErrorContext {
+                            http_status_code: None,
+                            additional_context: Some(format!(
+                                "Failed to serialize connector_feature_data: {}",
+                                e
+                            )),
+                        },
+                    })
+                })
+        })
+        .transpose()?;
 
     let response = match transaction_response {
         Ok(response) => match response {
@@ -13667,7 +13686,7 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
             } => PaymentMethodAuthenticationServicePostAuthenticateResponse {
                 connector_transaction_id: None,
                 redirection_data: None,
-                connector_feature_data: None,
+                connector_feature_data,
                 network_transaction_id: None,
                 merchant_order_id: connector_response_reference_id,
                 authentication_data: authentication_data.map(ForeignFrom::foreign_from),
