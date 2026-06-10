@@ -222,8 +222,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => TransactionType::Sale,
         };
 
-        let payment_type =
-            map_payment_type(request.payment_channel.as_ref(), request.off_session);
+        let payment_type = map_payment_type(request.payment_channel.as_ref(), request.off_session);
 
         let transaction_amount = item
             .connector
