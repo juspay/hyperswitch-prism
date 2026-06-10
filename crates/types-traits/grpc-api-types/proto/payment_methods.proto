@@ -96,9 +96,7 @@ message PaymentMethod {
     SkrillRedirectWallet skrill_redirect = 174;          // Skrill
     PayseraRedirectWallet paysera_redirect = 175;        // Paysera
 
-    // --- DIRECT WALLETS ---
-    // Server-to-server wallet APIs (no user redirect, no SDK, no QR).
-    // The wallet identifier is part of the payment_method itself.
+    // --- DIRECT WALLETS --- (server-to-server; wallet id rides on the payment_method itself)
     QwikcilverDirectWallet qwikcilver_wallet_direct = 185; // Qwikcilver / Pine Labs stored-value wallet
 
     // --- DEPRECATED REDIRECT WALLETS ---
@@ -480,10 +478,8 @@ message AmazonPayRedirectWallet {
   // Fields will be added as needed for Amazon Pay integration
 }
 
-// Qwikcilver / Pine Labs stored-value wallet. Server-to-server: the caller
-// already knows the wallet number, no user redirect, no SDK, no QR.
+// Qwikcilver / Pine Labs stored-value wallet.
 message QwikcilverDirectWallet {
-  // Pine Labs wallet number. PII.
   SecretString wallet_number = 1;
 }
 

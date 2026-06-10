@@ -4331,11 +4331,7 @@ impl
             payment_method: PaymentMethod::Card, // Default for access token operations
             address,
             auth_type: common_enums::AuthenticationType::default(),
-            // `merchant_request_id` (the caller's per-request idempotency
-            // token, propagated from the parent composite call) is preferred
-            // when present; `merchant_access_token_id` is the historical
-            // fallback. Either way this surfaces a stable, unique value to
-            // connectors that key wire-level idempotency on it.
+            // Prefer caller's per-request `merchant_request_id`; fall back to the historical `merchant_access_token_id`.
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value
                     .merchant_request_id

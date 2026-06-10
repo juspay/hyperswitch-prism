@@ -108,9 +108,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-// Despite the `_payout_` in its name, this macro is the framework's universal
-// "emit default stubs for every flow we don't explicitly handle" fan-out —
-// used by all payment connectors. Name is a historical artifact.
+// `_payout_` in the macro name is a historical artifact — it's the universal default-stub fan-out for every connector.
 macros::macro_connector_payout_implementation!(
     connector: Qwikcilver,
     generic_type: T,
@@ -164,10 +162,6 @@ macros::create_all_prerequisites!(
         amount_converter: FloatMajorUnit
     ],
     member_functions: {
-        /// `TransactionId` must be a positive `i64` numeric string. Prism derives
-        /// one via `derive_transaction_id_from_reference` (numeric verbatim,
-        /// SHA-256 hash of non-numeric input, or unix nanos when absent); the
-        /// raw caller string never reaches the wire.
         pub fn build_authenticated_headers<F, FCD, Req, Res>(
             &self,
             _req: &RouterDataV2<F, FCD, Req, Res>,
@@ -240,8 +234,7 @@ macros::create_all_prerequisites!(
     }
 );
 
-// Bridge trait: `RouterDataV2` has no shared `access_token` accessor because
-// not every FCD carries one. Implement for any new FCD that needs the JWT.
+// `RouterDataV2` has no shared `access_token` accessor; implement this trait for any new FCD that needs the JWT.
 pub trait AccessTokenHolder {
     fn access_token_secret(&self) -> Option<hyperswitch_masking::Secret<String>>;
 }
@@ -281,8 +274,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         auth_type: &ConnectorSpecificConfig,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-        // Only `/authorize` uses this long-lived bearer; all other calls use
-        // the session JWT via `build_authenticated_headers`.
+        // Only `/authorize` uses this long-lived bearer; all other calls use the session JWT via `build_authenticated_headers`.
         let auth = QwikcilverAuthType::try_from(auth_type)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),

@@ -232,7 +232,7 @@ pub struct QwikcilverWallet {
 pub struct QwikcilverCustomer {
     pub customer_type: Option<String>,
     pub salutation: Option<String>,
-    // Pine Labs is inconsistent on its own wire: `Firstname` is one word,`LastName` is two.
+    // Pine Labs wire is inconsistent: `Firstname` (one word) vs `LastName` (two); only `first_name` needs an explicit rename.
     #[serde(rename = "Firstname")]
     pub first_name: Option<Secret<String>>,
     pub last_name: Option<Secret<String>>,
@@ -788,8 +788,6 @@ pub struct QwikcilverCreateCustomer {
     pub customer_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub salutation: Option<String>,
-    // See QwikcilverCustomer above — Pine Labs uses `Firstname` (one word)
-    // but `LastName` (two words). Only `first_name` needs an explicit rename.
     #[serde(rename = "Firstname")]
     pub first_name: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -895,8 +893,6 @@ where
             })
         })?;
         let feature = QwikcilverCreateFeatureData::from_request(req)?;
-        // `product_id` is the proto's required top-level field; it carries
-        // Pine Labs's `WalletProgramGroupName` for the Create flow.
         let program = req.product_id.clone();
         Ok(Self {
             external_wallet_id: phone.clone(),
@@ -1016,9 +1012,7 @@ fn card_to_wallet_item(
     currency: Option<common_enums::Currency>,
 ) -> Option<payment_method_data::WalletItem> {
     let pan = card.card_number.peek();
-    // char-safe last-4 — byte-slicing would panic on a non-ASCII byte at the
-    // boundary. PANs are realistically ASCII but defending against the edge
-    // case costs nothing.
+    // char-safe last-4 — byte-slicing would panic on a non-ASCII byte at the boundary.
     let mut last_four: Vec<char> = pan.chars().rev().take(LAST_FOUR_DIGITS_LEN).collect();
     if last_four.len() < LAST_FOUR_DIGITS_LEN {
         return None;
@@ -1046,7 +1040,6 @@ fn wallet_details_to_payment_method_details(
     wallet: &QwikcilverWalletDetails,
     currency: Option<common_enums::Currency>,
 ) -> PaymentMethodDetails {
-    // Major-unit → MinorUnit conversion needs the currency exponent.
     let balance = wallet.balance.zip(currency).and_then(|(b, c)| {
         crate::connectors::qwikcilver::QwikcilverAmountConvertor::convert_back(b, c).ok()
     });

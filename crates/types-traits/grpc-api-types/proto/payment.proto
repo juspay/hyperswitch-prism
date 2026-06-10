@@ -2385,9 +2385,7 @@ message MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
   optional bool test_mode =
       5; // A boolean value to indicate if the connector is in Test mode
 
-  // Per-request idempotency / correlation token propagated from the parent
-  // composite request. Required by connectors (e.g. 2C2P PACO, Qwikcilver)
-  // that demand a per-request token on the bootstrap call too.
+  // Per-request idempotency / correlation token propagated from the parent composite request.
   optional string merchant_request_id = 6;
 }
 
@@ -4561,9 +4559,6 @@ message JuspayConfig {
 }
 
 // Qwikcilver (Pine Labs stored-value wallet) credentials.
-// Per-session flow: bootstrap_bearer_token + terminal_id/username/password
-// are POSTed to /authorize, which returns a short-lived JWT used as the
-// Bearer for every subsequent call.
 message QwikcilverConfig {
   // Long-lived Bearer token used only on the /authorize bootstrap call.
   SecretString bootstrap_bearer_token = 1;
