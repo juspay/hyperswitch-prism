@@ -1717,6 +1717,7 @@ pub enum PaymentsResponseData {
         status_code: u16,
     },
     PreAuthenticateResponse {
+        resource_id: Option<ResponseId>,
         authentication_data: Option<router_request_types::AuthenticationData>,
         /// For Device Data Collection
         redirection_data: Option<Box<RedirectForm>>,
