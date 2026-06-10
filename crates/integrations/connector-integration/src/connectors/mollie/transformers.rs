@@ -18,7 +18,9 @@ use domain_types::{
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId,
     },
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{
+        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -97,6 +99,8 @@ pub struct MolliePaymentsRequest {
     pub locale: Option<String>,
     pub cancel_url: Option<String>,
     pub customer_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub google_pay_payment_token: Option<String>,
 }
 
 // Mollie Payment Method Data enum
@@ -109,6 +113,7 @@ pub enum MolliePaymentMethodData {
 }
 
 // Credit Card Method Data
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreditCardMethodData {
@@ -182,6 +187,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .attach_printable("Failed to convert amount to string major unit")?;
 
         // Extract payment method data based on payment method type
+        let mut google_pay_payment_token: Option<String> = None;
         let payment_method_data = match &item.request.payment_method_data {
             PaymentMethodData::PaymentMethodToken(t) => {
                 MolliePaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
@@ -221,6 +227,50 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     billing_address,
                     shipping_address: None,
                 }))
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(ref gpay_data)) => {
+                match &gpay_data.tokenization_data {
+                    GpayTokenizationData::Encrypted(ref encrypted_data) => {
+                        // Mollie requires the full paymentData wrapper as a JSON string,
+                        // not just the inner ECv2 token blob.
+                        // Ref: https://docs.mollie.com/docs/direct-integration-of-google-pay
+                        let payment_data = serde_json::json!({
+                            "apiVersion": 2,
+                            "apiVersionMinor": 0,
+                            "paymentMethodData": {
+                                "type": gpay_data.pm_type,
+                                "description": gpay_data.description,
+                                "info": {
+                                    "cardNetwork": gpay_data.info.card_network,
+                                    "cardDetails": gpay_data.info.card_details
+                                },
+                                "tokenizationData": {
+                                    "type": encrypted_data.token_type,
+                                    "token": encrypted_data.token
+                                }
+                            }
+                        });
+                        google_pay_payment_token =
+                            Some(serde_json::to_string(&payment_data).map_err(|_| {
+                                IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                }
+                            })?);
+                        MolliePaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
+                            card_token: None,
+                            billing_address: None,
+                            shipping_address: None,
+                        }))
+                    }
+                    GpayTokenizationData::Decrypted(_) => {
+                        return Err(IntegrationError::NotImplemented(
+                            "Google Pay DIRECT (decrypted) mode is not supported by Mollie"
+                                .to_string(),
+                            Default::default(),
+                        )
+                        .into());
+                    }
+                }
             }
             _ => {
                 return Err(IntegrationError::NotImplemented(
@@ -279,6 +329,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             locale: None,
             cancel_url: None,
             customer_id: None,
+            google_pay_payment_token,
         })
     }
 }
