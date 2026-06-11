@@ -2146,7 +2146,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
         let card_data_input_mode = terminal_overrides
             .card_data_input_mode
-            .unwrap_or({ default_card_data_input_mode });
+            .unwrap_or(default_card_data_input_mode);
         let cardholder_authentication_entity = terminal_overrides
             .cardholder_authentication_entity
             .unwrap_or(TsysTransitCardholderAuthenticationEntity::NotAuthenticated);
@@ -3588,7 +3588,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
         let card_data_input_mode = terminal_overrides
             .card_data_input_mode
-            .unwrap_or({ default_card_data_input_mode });
+            .unwrap_or(default_card_data_input_mode);
         let cardholder_authentication_entity = terminal_overrides
             .cardholder_authentication_entity
             .unwrap_or(TsysTransitCardholderAuthenticationEntity::NotAuthenticated);
