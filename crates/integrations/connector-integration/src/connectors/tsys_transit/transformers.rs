@@ -226,9 +226,7 @@ pub enum TsysTransitAuthorizationIndicator {
 }
 #[derive(Debug, Clone, Copy, Serialize)]
 pub enum TsysTransitCardOnFile {
-    #[serde(rename = "Y")]
     Y,
-    #[serde(rename = "N")]
     N,
 }
 #[derive(Debug, Default, Clone, Copy, Serialize)]
@@ -253,10 +251,9 @@ pub enum TsysTransitBillingType {
     Installment,
 }
 #[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum TsysTransitCommercialCardLevel {
-    #[serde(rename = "LEVEL2")]
     Level2,
-    #[serde(rename = "LEVEL3")]
     Level3,
 }
 #[derive(Debug, Clone, Copy, Serialize)]
@@ -267,75 +264,61 @@ pub enum TsysTransitMcCitStatusIndicator {
     C104,
 }
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename = "mit")]
+#[serde(rename_all = "camelCase")]
 pub struct TsysTransitMit {
-    #[serde(rename = "mitIndicator")]
     pub mit_indicator: TsysTransitMitIndicator,
 }
 #[derive(Debug, Clone, Serialize)]
-#[serde(rename = "walletDetails")]
 pub struct TsysTransitWalletDetailsRef {
     #[serde(rename = "walletID")]
     pub wallet_id: Secret<String>,
 }
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TsysTransitAdditionalTaxDetails {
-    #[serde(rename = "taxType")]
     pub tax_type: String,
-    #[serde(rename = "taxAmount")]
     pub tax_amount: StringMajorUnit,
-    #[serde(rename = "taxRate", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_rate: Option<String>,
-    #[serde(rename = "taxCategory", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tax_category: Option<String>,
 }
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TsysTransitProductTaxDetails {
-    #[serde(rename = "productTaxName", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_tax_name: Option<String>,
-    #[serde(rename = "productTaxAmount", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_tax_amount: Option<StringMajorUnit>,
-    #[serde(
-        rename = "productTaxPercentage",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_tax_percentage: Option<String>,
-    #[serde(rename = "productTaxType", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_tax_type: Option<String>,
 }
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TsysTransitProductDiscountDetails {
-    #[serde(rename = "productDiscountName")]
     pub product_discount_name: String,
-    #[serde(rename = "productDiscountAmount")]
     pub product_discount_amount: StringMajorUnit,
-    #[serde(
-        rename = "productDiscountPercentage",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_discount_percentage: Option<String>,
-    #[serde(rename = "productDiscountType")]
     pub product_discount_type: String,
-    #[serde(rename = "priority")]
     pub priority: u16,
-    #[serde(rename = "stackable")]
     pub stackable: TsysTransitYesNo,
 }
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TsysTransitProductModifierDetails {
-    #[serde(rename = "modifierName")]
     pub modifier_name: String,
-    #[serde(rename = "modifierValue", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub modifier_value: Option<String>,
-    #[serde(rename = "modifierPrice", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub modifier_price: Option<StringMajorUnit>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
 pub enum TsysTransitProductDiscountIndicator {
-    #[serde(rename = "Y")]
     Y,
-    #[serde(rename = "N")]
     N,
 }
 
@@ -346,42 +329,27 @@ pub enum TsysTransitYesNo {
     No,
 }
 #[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TsysTransitProductDetails {
-    #[serde(rename = "productCode")]
     pub product_code: String,
-    #[serde(rename = "productName")]
     pub product_name: String,
-    #[serde(rename = "price")]
     pub price: StringMajorUnit,
-    #[serde(rename = "quantity")]
     pub quantity: u32,
-    #[serde(rename = "measurementUnit", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub measurement_unit: Option<String>,
-    #[serde(
-        rename = "productDiscountDetails",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_discount_details: Option<TsysTransitProductDiscountDetails>,
-    #[serde(rename = "productTaxDetails", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_tax_details: Option<TsysTransitProductTaxDetails>,
-    #[serde(rename = "productVariation", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_variation: Option<String>,
-    #[serde(
-        rename = "productModifierDetails",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_modifier_details: Option<TsysTransitProductModifierDetails>,
-    #[serde(rename = "productNotes", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_notes: Option<String>,
-    #[serde(
-        rename = "productDiscountIndicator",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_discount_indicator: Option<TsysTransitProductDiscountIndicator>,
-    #[serde(
-        rename = "productCommodityCode",
-        skip_serializing_if = "Option::is_none"
-    )]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_commodity_code: Option<String>,
 }
 #[derive(Debug, Clone, Serialize)]
@@ -392,31 +360,19 @@ pub enum TsysTransitRegisteredUserIndicator {
 }
 #[derive(Debug, Serialize)]
 #[allow(dead_code)]
-#[serde(rename = "terminalData")]
+#[serde(rename = "terminalData", rename_all = "camelCase")]
 pub struct TsysTransitTerminalData {
-    #[serde(rename = "terminalCapability")]
     pub terminal_capability: TsysTransitTerminalCapability,
-    #[serde(rename = "terminalOperatingEnvironment")]
     pub terminal_operating_environment: TsysTransitTerminalOperatingEnvironment,
-    #[serde(rename = "cardholderAuthenticationMethod")]
     pub cardholder_authentication_method: TsysTransitCardholderAuthenticationMethod,
-    #[serde(rename = "terminalAuthenticationCapability")]
     pub terminal_authentication_capability: TsysTransitTerminalAuthenticationCapability,
-    #[serde(rename = "terminalOutputCapability")]
     pub terminal_output_capability: TsysTransitTerminalOutputCapability,
-    #[serde(rename = "maxPinLength")]
     pub max_pin_length: TsysTransitMaxPinLength,
-    #[serde(rename = "terminalCardCaptureCapability")]
     pub terminal_card_capture_capability: TsysTransitTerminalCardCaptureCapability,
-    #[serde(rename = "cardholderPresentDetail")]
     pub cardholder_present_detail: TsysTransitCardholderPresentDetail,
-    #[serde(rename = "cardPresentDetail")]
     pub card_present_detail: TsysTransitCardPresentDetail,
-    #[serde(rename = "cardDataInputMode")]
     pub card_data_input_mode: TsysTransitCardDataInputMode,
-    #[serde(rename = "cardholderAuthenticationEntity")]
     pub cardholder_authentication_entity: TsysTransitCardholderAuthenticationEntity,
-    #[serde(rename = "cardDataOutputCapability")]
     pub card_data_output_capability: TsysTransitCardDataOutputCapability,
 }
 #[derive(Debug, Serialize)]
