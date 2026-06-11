@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.11.0
+
+### Features
+
+- **payconex:** Map MOTO payment_type from payment_channel ([#1496](https://github.com/juspay/connector-service/pull/1496)) ([`e713a25`](https://github.com/juspay/connector-service/commit/e713a2529cf954602271204b2b8da3c6e7ebb8f6))
+
+### Bug Fixes
+
+- **connector:**
+  - Map NMI refund connector_refund_id to orderid for Execute and RSync ([#1497](https://github.com/juspay/connector-service/pull/1497)) ([`107c1be`](https://github.com/juspay/connector-service/commit/107c1bef444e16ad83d554d634f75dc3d2d5fc08))
+  - Fixed cybersource post authenticate router data diff ([#1495](https://github.com/juspay/connector-service/pull/1495)) ([`9b93f6a`](https://github.com/juspay/connector-service/commit/9b93f6aee3f5355d02cd25ce2f1c9d2415a0bf55))
+- **nexixpay:** Pre_authenticate RouterData & request diffs vs hyperswitch (shadow validation) ([#1491](https://github.com/juspay/connector-service/pull/1491)) ([`dbcab7c`](https://github.com/juspay/connector-service/commit/dbcab7c417b691b58764dba2201776b8aa83969f))
+- Invoke get_webhook_api_response in webhook flow ([#1485](https://github.com/juspay/connector-service/pull/1485)) ([`ac89562`](https://github.com/juspay/connector-service/commit/ac895627a20c838c134e41facbdd5e68a14a2d4e))
+
+**Full Changelog:** [`2026.06.10.0...2026.06.11.0`](https://github.com/juspay/connector-service/compare/2026.06.10.0...2026.06.11.0)
+
+- - -
+
 ## 2026.06.10.0
 
 ### Features
