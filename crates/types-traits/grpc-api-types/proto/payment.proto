@@ -1445,7 +1445,7 @@ message NotifyConnectorRequest {
   // Event type
   NotifyEventType event_type = 3;
 
-  // Event content with notify connector content
+  // Event content with notify connector content 
   NotifyConnectorContent content = 4;
 
   // Timestamp when the event occurred (Unix timestamp in seconds)
@@ -1456,7 +1456,7 @@ message NotifyConnectorRequest {
 // Content of an event
 message NotifyConnectorContent {
   oneof content {
-    // surcharge details
+    // surcharge details 
     SurchargeContent surcharge_content = 1;
   }
 }
@@ -2656,7 +2656,7 @@ message PaymentServiceRefundRequest {
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 17;
 
-  // Connector-side identifier for the original payment that this refund targets.
+  // Connector-side identifier for the original payment that this refund targets.  
   optional string connector_order_id = 18;
 
   // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
@@ -3211,7 +3211,7 @@ message PaymentMethodAuthenticationServicePostAuthenticateRequest {
 
   // Redirection Information after DDC step
   optional RedirectionResponse redirection_response = 14;
-
+  
   // Capture Settings
   optional CaptureMethod capture_method = 15;
 }
@@ -3476,7 +3476,7 @@ message RefundServiceGetRequest {
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 16;
 
-  // Connector-side identifier for the original payment that this refund sync targets.
+  // Connector-side identifier for the original payment that this refund sync targets. 
   optional string connector_order_id = 17;
 }
 
