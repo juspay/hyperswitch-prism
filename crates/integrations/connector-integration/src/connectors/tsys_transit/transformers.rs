@@ -2144,9 +2144,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 _ => TsysTransitCardDataInputMode::KeyEnteredInput,
             }
         };
-        let card_data_input_mode = terminal_overrides.card_data_input_mode.unwrap_or({
-            default_card_data_input_mode
-        });
+        let card_data_input_mode = terminal_overrides
+            .card_data_input_mode
+            .unwrap_or({ default_card_data_input_mode });
         let cardholder_authentication_entity = terminal_overrides
             .cardholder_authentication_entity
             .unwrap_or(TsysTransitCardholderAuthenticationEntity::NotAuthenticated);
@@ -2437,7 +2437,9 @@ fn compute_original_recurring_amount(
             | Some(CardNetwork::DinersClub)
             | Some(CardNetwork::UnionPay),
             MandateDispatch::Ntid { .. } | MandateDispatch::Vault { .. },
-        ) => Ok(Some(super::TsysTransitAmountConvertor::convert(amount, currency)?)),
+        ) => Ok(Some(super::TsysTransitAmountConvertor::convert(
+            amount, currency,
+        )?)),
         _ => Ok(None),
     }
 }
@@ -3584,9 +3586,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 _ => TsysTransitCardDataInputMode::KeyEnteredInput,
             }
         };
-        let card_data_input_mode = terminal_overrides.card_data_input_mode.unwrap_or({
-            default_card_data_input_mode
-        });
+        let card_data_input_mode = terminal_overrides
+            .card_data_input_mode
+            .unwrap_or({ default_card_data_input_mode });
         let cardholder_authentication_entity = terminal_overrides
             .cardholder_authentication_entity
             .unwrap_or(TsysTransitCardholderAuthenticationEntity::NotAuthenticated);
