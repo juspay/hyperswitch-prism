@@ -2978,21 +2978,10 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
         let tokenization_strategy = req
             .tokenization_strategy
             .map(|_| req.tokenization_strategy());
-        let mit_category = match req.mit_category() {
-            grpc_payment_types::MitCategory::Unspecified => None,
-            grpc_payment_types::MitCategory::RecurringMit => {
-                Some(common_enums::MitCategory::Recurring)
-            }
-            grpc_payment_types::MitCategory::InstallmentMit => {
-                Some(common_enums::MitCategory::Installment)
-            }
-            grpc_payment_types::MitCategory::UnscheduledMit => {
-                Some(common_enums::MitCategory::Unscheduled)
-            }
-            grpc_payment_types::MitCategory::ResubmissionMit => {
-                Some(common_enums::MitCategory::Resubmission)
-            }
-        };
+        let mit_category = Some(
+            common_enums::MitCategory::foreign_try_from(req.mit_category())
+                .expect("gRPC MIT category must map to domain MIT category"),
+        );
         Self {
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
@@ -3111,21 +3100,10 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
 
 impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecurringRequest {
     fn from(req: grpc_payment_types::PaymentServiceSetupRecurringRequest) -> Self {
-        let mit_category = match req.mit_category() {
-            grpc_payment_types::MitCategory::Unspecified => None,
-            grpc_payment_types::MitCategory::RecurringMit => {
-                Some(common_enums::MitCategory::Recurring)
-            }
-            grpc_payment_types::MitCategory::InstallmentMit => {
-                Some(common_enums::MitCategory::Installment)
-            }
-            grpc_payment_types::MitCategory::UnscheduledMit => {
-                Some(common_enums::MitCategory::Unscheduled)
-            }
-            grpc_payment_types::MitCategory::ResubmissionMit => {
-                Some(common_enums::MitCategory::Resubmission)
-            }
-        };
+        let mit_category = Some(
+            common_enums::MitCategory::foreign_try_from(req.mit_category())
+                .expect("gRPC MIT category must map to domain MIT category"),
+        );
         Self {
             auth_type: req.auth_type(),
             setup_future_usage: req.setup_future_usage(),
@@ -9859,14 +9837,7 @@ impl ForeignTryFrom<grpc_api_types::payments::MitCategory> for common_enums::Mit
                 Ok(common_enums::MitCategory::Resubmission)
             }
             grpc_api_types::payments::MitCategory::Unspecified => {
-                Err(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Mit category must be specified".to_string()),
-                        ..Default::default()
-                    },
-                }
-                .into())
+                Ok(common_enums::MitCategory::Unscheduled)
             }
         }
     }
