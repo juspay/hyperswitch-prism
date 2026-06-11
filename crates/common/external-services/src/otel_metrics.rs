@@ -68,6 +68,10 @@ pub fn record_grpc_request(
 ) {
     let status_class = classify_grpc_status(grpc_status);
 
+    // `grpc_status` is the raw numeric gRPC code. Its cardinality is bounded —
+    // gRPC defines a fixed set of <= 17 status codes — so it does not cause
+    // unbounded time-series growth; it is kept alongside the coarse
+    // `status_class` because the exact code is valuable when debugging failures.
     GRPC_SERVER_REQUESTS_TOTAL.add(
         1,
         &[

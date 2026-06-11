@@ -27,6 +27,7 @@ port = 8080
 
 # OpenTelemetry (OTLP) metrics push. Requires building with the `otel` feature.
 # Disabled by default; the Prometheus /metrics scrape endpoint above is unaffected.
+# The endpoint must be an OTLP *gRPC* receiver (default port 4317), not an HTTP one.
 [metrics.otel]
 enabled = false
 # otel_exporter_otlp_endpoint = "http://<otel-collector-host>:4317"
