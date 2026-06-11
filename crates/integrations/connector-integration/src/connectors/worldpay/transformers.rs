@@ -232,7 +232,8 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::BillDeskRedirect(_)
             | WalletDataPaymentMethod::CashfreeRedirect(_)
             | WalletDataPaymentMethod::PayURedirect(_)
-            | WalletDataPaymentMethod::EaseBuzzRedirect(_) => {
+            | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+            | WalletDataPaymentMethod::QwikcilverWalletDirect(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("worldpay"),
                     connector: "Worldpay",
@@ -1417,6 +1418,7 @@ where
         let _connector_metadata = extract_three_ds_metadata(&item.response);
 
         let response = Ok(PaymentsResponseData::PreAuthenticateResponse {
+            resource_id: None,
             redirection_data: redirection_data.map(Box::new),
             connector_response_reference_id,
             status_code: item.http_code,

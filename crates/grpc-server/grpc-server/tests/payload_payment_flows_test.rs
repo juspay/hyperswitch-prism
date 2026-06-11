@@ -200,6 +200,7 @@ fn create_payment_capture_request(
             minor_amount: amount,
             currency: i32::from(Currency::Usd),
         }),
+        order_tax_amount: None,
         multiple_capture_data: None,
         merchant_capture_id: None,
         ..Default::default()

@@ -5,6 +5,7 @@ pub mod connector_flow;
 pub mod connector_types;
 pub mod errors;
 pub mod mandates;
+pub mod merchant_authentication_flow_data;
 pub mod payment_address;
 pub mod payment_method_data;
 pub mod payouts;

@@ -11,6 +11,7 @@ use domain_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -121,7 +122,8 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::BillDeskRedirect(_)
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
-            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 Default::default(),
             ))
@@ -321,7 +323,8 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::BillDeskRedirect(_)
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
-            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 Default::default(),
             ))
@@ -1139,7 +1142,7 @@ pub struct MultisafepayClientAuthData {
 impl TryFrom<ResponseRouterData<MultisafepayClientAuthResponse, Self>>
     for RouterDataV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     >

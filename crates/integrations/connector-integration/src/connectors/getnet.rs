@@ -18,6 +18,7 @@ use domain_types::{
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
@@ -243,7 +244,7 @@ macros::create_all_prerequisites!(
             flow: ServerAuthenticationToken,
             request_body: GetnetAccessTokenRequest,
             response_body: GetnetAccessTokenResponse,
-            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         (
             flow: PreAuthenticate,
@@ -304,6 +305,13 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.getnet.base_url
+        }
+
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.getnet.base_url
         }
@@ -588,7 +596,7 @@ macros::macro_connector_implementation!(
     curl_request: FormUrlEncoded(GetnetAccessTokenRequest),
     curl_response: GetnetAccessTokenResponse,
     flow_name: ServerAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerAuthenticationTokenRequestData,
     flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
@@ -597,7 +605,7 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = getnet::GetnetAuthType::try_from(&req.connector_config)
                 .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })
@@ -621,9 +629,9 @@ macros::macro_connector_implementation!(
 
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/authentication/oauth2/access_token", self.connector_base_url_payments(req)))
+            Ok(format!("{}/authentication/oauth2/access_token", self.connector_base_url_merchant_auth(req)))
         }
 
     }
