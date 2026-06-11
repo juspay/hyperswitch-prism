@@ -2980,7 +2980,18 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             .map(|_| req.tokenization_strategy());
         let mit_category = match req.mit_category() {
             grpc_payment_types::MitCategory::Unspecified => None,
-            _ => common_enums::MitCategory::foreign_try_from(req.mit_category()).ok(),
+            grpc_payment_types::MitCategory::RecurringMit => {
+                Some(common_enums::MitCategory::Recurring)
+            }
+            grpc_payment_types::MitCategory::InstallmentMit => {
+                Some(common_enums::MitCategory::Installment)
+            }
+            grpc_payment_types::MitCategory::UnscheduledMit => {
+                Some(common_enums::MitCategory::Unscheduled)
+            }
+            grpc_payment_types::MitCategory::ResubmissionMit => {
+                Some(common_enums::MitCategory::Resubmission)
+            }
         };
         Self {
             merchant_transaction_id: req.merchant_transaction_id.clone(),
@@ -3102,7 +3113,18 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
     fn from(req: grpc_payment_types::PaymentServiceSetupRecurringRequest) -> Self {
         let mit_category = match req.mit_category() {
             grpc_payment_types::MitCategory::Unspecified => None,
-            _ => common_enums::MitCategory::foreign_try_from(req.mit_category()).ok(),
+            grpc_payment_types::MitCategory::RecurringMit => {
+                Some(common_enums::MitCategory::Recurring)
+            }
+            grpc_payment_types::MitCategory::InstallmentMit => {
+                Some(common_enums::MitCategory::Installment)
+            }
+            grpc_payment_types::MitCategory::UnscheduledMit => {
+                Some(common_enums::MitCategory::Unscheduled)
+            }
+            grpc_payment_types::MitCategory::ResubmissionMit => {
+                Some(common_enums::MitCategory::Resubmission)
+            }
         };
         Self {
             auth_type: req.auth_type(),
@@ -9251,7 +9273,9 @@ impl<
 
         let mit_category = match value.mit_category() {
             grpc_payment_types::MitCategory::Unspecified => None,
-            _ => common_enums::MitCategory::foreign_try_from(value.mit_category()).ok(),
+            _ => Some(common_enums::MitCategory::foreign_try_from(
+                value.mit_category(),
+            )?),
         };
 
         Ok(Self {

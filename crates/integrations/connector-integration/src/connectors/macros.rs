@@ -222,7 +222,7 @@ macro_rules! expand_fn_get_request_body {
                 let input_data = [<$connector RouterData>] {
                     connector: self.to_owned(),
                     router_data: req.clone()
-                };
+};
                 let request = bridge.request_body(input_data)?;
                 let soap_xml = <$curl_req as GetSoapXml>::to_soap_xml(&request);
 

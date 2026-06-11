@@ -23,7 +23,7 @@ type = "grpc"
 
 [metrics]
 host = "0.0.0.0"
-port = 8081
+port = 8080
 
 [proxy]
 idle_pool_connection_timeout = 90
