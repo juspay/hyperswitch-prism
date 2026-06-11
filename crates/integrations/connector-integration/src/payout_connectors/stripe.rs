@@ -53,10 +53,7 @@ impl StripePayouts {
         &Self
     }
 
-    fn base_url<'a>(
-        &self,
-        req_connectors: &'a Connectors,
-    ) -> &'a str {
+    fn base_url<'a>(&self, req_connectors: &'a Connectors) -> &'a str {
         req_connectors.stripe.base_url.as_ref()
     }
 
@@ -197,7 +194,12 @@ impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, P
 
     fn handle_response_v2(
         &self,
-        data: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+        data: &RouterDataV2<
+            PayoutCreate,
+            PayoutFlowData,
+            PayoutCreateRequest,
+            PayoutCreateResponse,
+        >,
         event_builder: Option<&mut events::Event>,
         res: Response,
     ) -> CustomResult<
