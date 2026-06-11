@@ -4,7 +4,7 @@ use common_enums::{
     AttemptStatus, CaptureMethod, CardNetwork, FutureUsage, MitCategory, PaymentChannel,
     RefundStatus,
 };
-use common_utils::types::StringMajorUnit;
+use common_utils::types::{MinorUnit, StringMajorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment,
@@ -418,39 +418,30 @@ fn log_tsys_transit_response<T: Debug>(flow: &str, status_code: u16, response: &
     );
 }
 #[derive(Debug, Serialize)]
-pub enum TsysTransitAuthorizeRequest<
-    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
-> {
+pub enum TsysTransitAuthorizeRequest {
     #[serde(rename = "Sale")]
-    Sale(TsysTransitAuthorizeBody<T>),
+    Sale(TsysTransitAuthorizeBody),
     #[serde(rename = "Auth")]
-    Auth(TsysTransitAuthorizeBody<T>),
+    Auth(TsysTransitAuthorizeBody),
 }
 #[derive(Debug, Serialize)]
 #[serde(transparent)]
-pub struct TsysTransitRepeatPaymentRequest<
-    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
->(pub TsysTransitAuthorizeRequest<T>);
+pub struct TsysTransitRepeatPaymentRequest(pub TsysTransitAuthorizeRequest);
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> GetSoapXml
-    for TsysTransitRepeatPaymentRequest<T>
-{
+impl GetSoapXml for TsysTransitRepeatPaymentRequest {
     fn to_soap_xml(&self) -> String {
         self.0.to_soap_xml()
     }
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> GetSoapXml
-    for TsysTransitAuthorizeRequest<T>
-{
+impl GetSoapXml for TsysTransitAuthorizeRequest {
     fn to_soap_xml(&self) -> String {
         generate_logged_xml(self, "Sale")
     }
 }
 #[derive(Debug, Serialize)]
-pub struct TsysTransitAuthorizeBody<
-    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
-> {
+#[serde(rename_all = "camelCase")]
+pub struct TsysTransitAuthorizeBody {
     #[serde(rename = "deviceID")]
     pub device_id: Secret<String>,
     #[serde(rename = "transactionKey")]
@@ -633,10 +624,8 @@ pub struct TsysTransitAuthorizeBody<
         skip_serializing_if = "Option::is_none"
     )]
     pub authorization_indicator: Option<TsysTransitAuthorizationIndicator>,
-    #[serde(rename = "mit", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mit: Option<TsysTransitMit>,
-    #[serde(skip)]
-    pub _marker: std::marker::PhantomData<T>,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename = "TransactionInquiry")]
@@ -1032,8 +1021,6 @@ struct TsysTransitMerchantMetadata {
     terminal_data: Option<TsysTransitTerminalDataOverrides>,
     #[serde(default)]
     commercial_card: Option<TsysTransitCommercialCardMetadata>,
-    #[serde(default, alias = "sales_tax", alias = "salesTax")]
-    order_tax_amount: Option<i64>,
     #[serde(default, flatten)]
     terminal_overrides: TsysTransitTerminalDataOverrides,
 }
@@ -1044,9 +1031,6 @@ impl TsysTransitMerchantMetadata {
 
         if self.commercial_card.is_some() {
             inner.commercial_card = self.commercial_card;
-        }
-        if self.order_tax_amount.is_some() {
-            inner.order_tax_amount = self.order_tax_amount;
         }
 
         let mut terminal_data = inner.terminal_data.take().unwrap_or_default();
@@ -1068,8 +1052,6 @@ struct TsysTransitMerchantMetadataInner {
     terminal_data: Option<TsysTransitTerminalDataOverrides>,
     #[serde(default)]
     commercial_card: Option<TsysTransitCommercialCardMetadata>,
-    #[serde(default, alias = "sales_tax", alias = "salesTax")]
-    order_tax_amount: Option<i64>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
@@ -1172,7 +1154,7 @@ struct RecurringContext {
     current_payment_count: Option<u32>,
     mc_cit_status_indicator: Option<TsysTransitMcCitStatusIndicator>,
     mit_status_indicator: Option<TsysTransitMitIndicator>,
-    original_recurring_amount_minor: Option<i64>,
+    original_recurring_amount: Option<MinorUnit>,
 }
 
 #[derive(Debug, Default, Clone)]
@@ -1205,6 +1187,14 @@ struct ThreeDsContext {
     ucaf_collection_indicator: Option<String>,
     directory_server_transaction_id: Option<String>,
     eci_indicator: Option<String>,
+}
+
+#[derive(Debug, Default, Clone)]
+struct CardOnFileContext {
+    card_on_file: Option<TsysTransitCardOnFile>,
+    mit_block: Option<TsysTransitMit>,
+    previous_network_transaction_id: Option<String>,
+    card_on_file_transaction_identifier: Option<String>,
 }
 
 fn compute_three_ds_context<
@@ -1319,9 +1309,9 @@ fn compute_recurring_context(
             ),
             _ => (None, None),
         };
-    let original_recurring_amount_minor = recurring_data
+    let original_recurring_amount = recurring_data
         .and_then(|d| d.original_payment_authorized_amount.as_ref())
-        .map(|m| m.get_amount_as_i64());
+        .copied();
 
     Ok(RecurringContext {
         enabled: true,
@@ -1331,7 +1321,7 @@ fn compute_recurring_context(
         current_payment_count: mm.current_payment_count,
         mc_cit_status_indicator,
         mit_status_indicator: mc_mit_status_indicator.or(discover_family_mit_indicator),
-        original_recurring_amount_minor,
+        original_recurring_amount,
     })
 }
 #[derive(Debug, Clone)]
@@ -1451,12 +1441,6 @@ fn build_tsys_product_details(
         .unit_discount_amount
         .map(|amount| amount.get_amount_as_i64() > 0)
         .unwrap_or(false);
-    let discount_percentage = detail.unit_discount_amount.and_then(|discount| {
-        let line_amount = detail.amount.get_amount_as_i64();
-        (line_amount > 0).then(|| {
-            format_decimal((discount.get_amount_as_i64() as f64 / line_amount as f64) * 100.0)
-        })
-    });
     let product_tax_amount = detail
         .total_tax_amount
         .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
@@ -1497,7 +1481,7 @@ fn build_tsys_product_details(
         product_discount_details: Some(TsysTransitProductDiscountDetails {
             product_discount_name: "Line Item Discount".to_string(),
             product_discount_amount: unit_discount_amount,
-            product_discount_percentage: discount_percentage,
+            product_discount_percentage: Some("0".to_string()),
             product_discount_type: "DISCOUNT".to_string(),
             priority: 1,
             stackable: if has_discount {
@@ -1626,7 +1610,7 @@ fn compute_commercial_card_context<
     let is_mastercard = matches!(card_network, Some(CardNetwork::Mastercard));
     let is_amex = matches!(card_network, Some(CardNetwork::AmericanExpress));
     let zero_amount = super::TsysTransitAmountConvertor::convert(
-        common_utils::types::MinorUnit::new(0),
+        MinorUnit::new(0),
         router_data.request.currency,
     )?;
 
@@ -1639,17 +1623,6 @@ fn compute_commercial_card_context<
     let derived_tax_rate = order_details
         .iter()
         .find_map(|detail| detail.tax_rate.map(format_decimal))
-        .or_else(|| {
-            let transaction_amount = router_data.request.minor_amount.get_amount_as_i64();
-            let sales_tax_amount = order_tax_amount.map(|amount| amount.get_amount_as_i64())?;
-            if transaction_amount == 0 || sales_tax_amount == 0 {
-                None
-            } else {
-                Some(format_decimal(
-                    (sales_tax_amount as f64 / transaction_amount as f64) * 100.0,
-                ))
-            }
-        })
         .or_else(|| is_level3.then_some("0".to_string()));
     let derived_tax_type = order_details
         .iter()
@@ -1955,7 +1928,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             >,
             T,
         >,
-    > for TsysTransitAuthorizeRequest<T>
+    > for TsysTransitAuthorizeRequest
 {
     type Error = Report<IntegrationError>;
 
@@ -2101,35 +2074,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let terminal_capability = terminal_overrides
             .terminal_capability
             .unwrap_or(TsysTransitTerminalCapability::KeyedEntryOnly);
-        let terminal_operating_environment = terminal_overrides
-            .terminal_operating_environment
-            .unwrap_or_else(|| {
-                if recurring_context.enabled {
-                    match card_network {
-                        Some(CardNetwork::Mastercard) => {
-                            TsysTransitTerminalOperatingEnvironment::NoTerminal
-                        }
-                        _ => TsysTransitTerminalOperatingEnvironment::OffMerchantPremisesUnattended,
-                    }
-                } else {
+        let default_terminal_operating_environment = if recurring_context.enabled {
+            match card_network {
+                Some(CardNetwork::Mastercard) => {
                     TsysTransitTerminalOperatingEnvironment::NoTerminal
                 }
-            });
+                _ => TsysTransitTerminalOperatingEnvironment::OffMerchantPremisesUnattended,
+            }
+        } else {
+            TsysTransitTerminalOperatingEnvironment::NoTerminal
+        };
+        let terminal_operating_environment = terminal_overrides
+            .terminal_operating_environment
+            .unwrap_or(default_terminal_operating_environment);
         let cardholder_authentication_method = terminal_overrides
             .cardholder_authentication_method
             .unwrap_or(TsysTransitCardholderAuthenticationMethod::NotAuthenticated);
         let terminal_authentication_capability = terminal_overrides
             .terminal_authentication_capability
             .unwrap_or(TsysTransitTerminalAuthenticationCapability::NoCapability);
+        let default_terminal_output_capability = if recurring_context.enabled {
+            TsysTransitTerminalOutputCapability::DisplayOnly
+        } else {
+            TsysTransitTerminalOutputCapability::None
+        };
         let terminal_output_capability = terminal_overrides
             .terminal_output_capability
-            .unwrap_or_else(|| {
-                if recurring_context.enabled {
-                    TsysTransitTerminalOutputCapability::DisplayOnly
-                } else {
-                    TsysTransitTerminalOutputCapability::None
-                }
-            });
+            .unwrap_or(default_terminal_output_capability);
         let max_pin_length = terminal_overrides
             .max_pin_length
             .unwrap_or(TsysTransitMaxPinLength::NotSupported);
@@ -2162,17 +2133,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .unwrap_or(TsysTransitCardPresentDetail::CardNotPresent);
         let is_stored_credential_flow =
             !matches!(mandate_dispatch, MandateDispatch::None) || is_cit_setup;
-        let card_data_input_mode = terminal_overrides.card_data_input_mode.unwrap_or_else(|| {
-            if recurring_context.enabled || is_stored_credential_flow {
-                TsysTransitCardDataInputMode::MerchantInitiatedTransactionCardCredentialStoredOnFile
-            } else {
-                match channel {
-                    Some(PaymentChannel::Ecommerce) | None => {
-                        TsysTransitCardDataInputMode::PanEntryElectronicCommerceIncludingRemoteChip
-                    }
-                    _ => TsysTransitCardDataInputMode::KeyEnteredInput,
+        let default_card_data_input_mode = if recurring_context.enabled || is_stored_credential_flow
+        {
+            TsysTransitCardDataInputMode::MerchantInitiatedTransactionCardCredentialStoredOnFile
+        } else {
+            match channel {
+                Some(PaymentChannel::Ecommerce) | None => {
+                    TsysTransitCardDataInputMode::PanEntryElectronicCommerceIncludingRemoteChip
                 }
+                _ => TsysTransitCardDataInputMode::KeyEnteredInput,
             }
+        };
+        let card_data_input_mode = terminal_overrides.card_data_input_mode.unwrap_or({
+            default_card_data_input_mode
         });
         let cardholder_authentication_entity = terminal_overrides
             .cardholder_authentication_entity
@@ -2237,67 +2210,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }
                 .into());
             };
-        let visa_card_on_file = || {
-            matches!(card_network.as_ref(), Some(CardNetwork::Visa))
-                .then_some(TsysTransitCardOnFile::Y)
-        };
-
-        let (
-            card_on_file,
-            mit_block,
-            previous_network_transaction_id,
-            card_on_file_transaction_identifier,
-        ) = match (
+        let card_on_file_context = build_card_on_file_context(
             &mandate_dispatch,
             recurring_context.enabled,
             card_network.as_ref(),
-        ) {
-            (MandateDispatch::Ntid { .. }, true, Some(CardNetwork::Mastercard))
-            | (MandateDispatch::Ntid { .. }, true, Some(CardNetwork::AmericanExpress)) => {
-                (None, None, None, None)
-            }
-            (MandateDispatch::Ntid { ntid }, true, _) => {
-                (visa_card_on_file(), None, None, Some(ntid.clone()))
-            }
-            (MandateDispatch::Ntid { ntid }, false, _) => {
-                (visa_card_on_file(), None, None, Some(ntid.clone()))
-            }
-            (MandateDispatch::Vault { .. }, true, _) => (visa_card_on_file(), None, None, None),
-            (MandateDispatch::Vault { .. }, false, _) => (
-                visa_card_on_file(),
-                Some(TsysTransitMit {
-                    mit_indicator: TsysTransitMitIndicator::R,
-                }),
-                None,
-                None,
-            ),
-            (MandateDispatch::None, _, _) if is_cit_setup => {
-                (visa_card_on_file(), None, None, None)
-            }
-            (MandateDispatch::None, _, _) => (None, None, None, None),
-        };
-        let original_recurring_amount = match (
-            recurring_context.original_recurring_amount_minor,
+            is_cit_setup,
+        );
+        let original_recurring_amount = compute_original_recurring_amount(
+            &recurring_context,
             card_network.as_ref(),
             &mandate_dispatch,
-        ) {
-            (
-                Some(minor),
-                Some(CardNetwork::Discover)
-                | Some(CardNetwork::JCB)
-                | Some(CardNetwork::DinersClub)
-                | Some(CardNetwork::UnionPay),
-                MandateDispatch::Ntid { .. } | MandateDispatch::Vault { .. },
-            ) => {
-                use common_utils::types::MinorUnit;
-                let minor_unit = MinorUnit::new(minor);
-                Some(super::TsysTransitAmountConvertor::convert(
-                    minor_unit,
-                    router_data.request.currency,
-                )?)
-            }
-            _ => None,
-        };
+            router_data.request.currency,
+        )?;
 
         let cof_mit_status_indicator = match (
             card_network.as_ref(),
@@ -2364,8 +2288,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             eci_indicator: three_ds_context.eci_indicator,
             customer_code: customer_code_opt,
             wallet_details: wallet_details_opt,
-            card_on_file_transaction_identifier,
-            previous_network_transaction_id,
+            card_on_file_transaction_identifier: card_on_file_context
+                .card_on_file_transaction_identifier,
+            previous_network_transaction_id: card_on_file_context.previous_network_transaction_id,
             cit_status_indicator,
             mit_status_indicator,
             address_line1,
@@ -2390,7 +2315,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ship_from_zip: commercial_card_context.ship_from_zip,
             ship_to_zip: commercial_card_context.ship_to_zip,
             destination_country_code: commercial_card_context.destination_country_code,
-            card_on_file,
+            card_on_file: card_on_file_context.card_on_file,
             partial_auth_support,
             terminal_capability,
             terminal_operating_environment,
@@ -2413,8 +2338,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             registered_user_indicator,
             last_registered_change_date,
             authorization_indicator,
-            mit: mit_block,
-            _marker: std::marker::PhantomData,
+            mit: card_on_file_context.mit_block,
         };
 
         Ok(if is_manual_capture {
@@ -2455,6 +2379,69 @@ fn decode_mandate_dispatch(mandate_id: Option<&MandateIds>) -> MandateDispatch {
 
     MandateDispatch::None
 }
+
+fn visa_card_on_file(card_network: Option<&CardNetwork>) -> Option<TsysTransitCardOnFile> {
+    matches!(card_network, Some(CardNetwork::Visa)).then_some(TsysTransitCardOnFile::Y)
+}
+
+fn build_card_on_file_context(
+    mandate_dispatch: &MandateDispatch,
+    is_recurring: bool,
+    card_network: Option<&CardNetwork>,
+    is_cit_setup: bool,
+) -> CardOnFileContext {
+    match (mandate_dispatch, is_recurring, card_network) {
+        (MandateDispatch::Ntid { .. }, true, Some(CardNetwork::Mastercard))
+        | (MandateDispatch::Ntid { .. }, true, Some(CardNetwork::AmericanExpress)) => {
+            CardOnFileContext::default()
+        }
+        (MandateDispatch::Ntid { ntid }, _, _) => CardOnFileContext {
+            card_on_file: visa_card_on_file(card_network),
+            card_on_file_transaction_identifier: Some(ntid.clone()),
+            ..Default::default()
+        },
+        (MandateDispatch::Vault { .. }, true, _) => CardOnFileContext {
+            card_on_file: visa_card_on_file(card_network),
+            ..Default::default()
+        },
+        (MandateDispatch::Vault { .. }, false, _) => CardOnFileContext {
+            card_on_file: visa_card_on_file(card_network),
+            mit_block: Some(TsysTransitMit {
+                mit_indicator: TsysTransitMitIndicator::R,
+            }),
+            ..Default::default()
+        },
+        (MandateDispatch::None, _, _) if is_cit_setup => CardOnFileContext {
+            card_on_file: visa_card_on_file(card_network),
+            ..Default::default()
+        },
+        (MandateDispatch::None, _, _) => CardOnFileContext::default(),
+    }
+}
+
+fn compute_original_recurring_amount(
+    recurring_context: &RecurringContext,
+    card_network: Option<&CardNetwork>,
+    mandate_dispatch: &MandateDispatch,
+    currency: common_enums::Currency,
+) -> Result<Option<StringMajorUnit>, Report<IntegrationError>> {
+    match (
+        recurring_context.original_recurring_amount,
+        card_network,
+        mandate_dispatch,
+    ) {
+        (
+            Some(amount),
+            Some(CardNetwork::Discover)
+            | Some(CardNetwork::JCB)
+            | Some(CardNetwork::DinersClub)
+            | Some(CardNetwork::UnionPay),
+            MandateDispatch::Ntid { .. } | MandateDispatch::Vault { .. },
+        ) => Ok(Some(super::TsysTransitAmountConvertor::convert(amount, currency)?)),
+        _ => Ok(None),
+    }
+}
+
 fn decode_mandate_id_string(raw: &str) -> MandateDispatch {
     if let Some(rest) = raw.strip_prefix("cust:") {
         let mut parts = rest.splitn(2, ':');
@@ -2706,38 +2693,12 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
         })
     }
 }
-fn compute_capture_sales_tax<
-    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
->(
+fn compute_capture_sales_tax(
     router_data: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
 ) -> Result<Option<StringMajorUnit>, Report<IntegrationError>> {
-    let merchant_metadata = match router_data.request.metadata.as_ref() {
-        Some(meta) => serde_json::from_value::<TsysTransitMerchantMetadata>(meta.clone().expose())
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "connector_metadata.tsys_transit",
-                context: Default::default(),
-            })?,
-        None => TsysTransitMerchantMetadata::default(),
-    };
-    let merchant_inner = merchant_metadata.into_inner();
-    let metadata_order_tax_amount = merchant_inner
-        .order_tax_amount
-        .map(common_utils::types::MinorUnit::new);
-    if merchant_inner.commercial_card.is_none() && metadata_order_tax_amount.is_none() {
-        return Ok(None);
-    }
-
     router_data
         .request
         .order_tax_amount
-        .or_else(|| {
-            router_data
-                .resource_common_data
-                .l2_l3_data
-                .as_deref()
-                .and_then(|data| data.get_order_tax_amount())
-        })
-        .or(metadata_order_tax_amount)
         .map(|amount| {
             super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
         })
@@ -2768,7 +2729,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.minor_amount_to_capture,
             router_data.request.currency,
         )?;
-        let sales_tax = compute_capture_sales_tax::<T>(router_data)?;
+        let sales_tax = compute_capture_sales_tax(router_data)?;
         Ok(Self {
             device_id: auth.device_id,
             transaction_key: auth.transaction_key,
@@ -3344,7 +3305,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             })
         })?;
-        let (card_number, expiration_date) = extract_add_customer_card::<T>(router_data)?;
+        let (card_number, expiration_date) = extract_add_customer_card(router_data)?;
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3368,9 +3329,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         })
     }
 }
-fn extract_add_customer_card<
-    T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
->(
+fn extract_add_customer_card(
     _router_data: &RouterDataV2<
         CreateConnectorCustomer,
         PaymentFlowData,
@@ -3615,17 +3574,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .unwrap_or(TsysTransitCardPresentDetail::CardNotPresent);
         let is_cit_setup = router_data.request.setup_future_usage == Some(FutureUsage::OffSession)
             || router_data.request.off_session == Some(true);
-        let card_data_input_mode = terminal_overrides.card_data_input_mode.unwrap_or_else(|| {
-            if is_cit_setup {
-                TsysTransitCardDataInputMode::MerchantInitiatedTransactionCardCredentialStoredOnFile
-            } else {
-                match channel {
-                    Some(PaymentChannel::Ecommerce) | None => {
-                        TsysTransitCardDataInputMode::PanEntryElectronicCommerceIncludingRemoteChip
-                    }
-                    _ => TsysTransitCardDataInputMode::KeyEnteredInput,
+        let default_card_data_input_mode = if is_cit_setup {
+            TsysTransitCardDataInputMode::MerchantInitiatedTransactionCardCredentialStoredOnFile
+        } else {
+            match channel {
+                Some(PaymentChannel::Ecommerce) | None => {
+                    TsysTransitCardDataInputMode::PanEntryElectronicCommerceIncludingRemoteChip
                 }
+                _ => TsysTransitCardDataInputMode::KeyEnteredInput,
             }
+        };
+        let card_data_input_mode = terminal_overrides.card_data_input_mode.unwrap_or({
+            default_card_data_input_mode
         });
         let cardholder_authentication_entity = terminal_overrides
             .cardholder_authentication_entity
@@ -3834,7 +3794,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             >,
             T,
         >,
-    > for TsysTransitRepeatPaymentRequest<T>
+    > for TsysTransitRepeatPaymentRequest
 {
     type Error = Report<IntegrationError>;
 
@@ -3873,7 +3833,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data: synthetic_router_data,
         };
 
-        let inner = TsysTransitAuthorizeRequest::<T>::try_from(synthetic_wrapper)?;
+        let inner = TsysTransitAuthorizeRequest::try_from(synthetic_wrapper)?;
         Ok(Self(inner))
     }
 }
