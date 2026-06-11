@@ -308,7 +308,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::BillDeskRedirect(_)
                     | WalletData::CashfreeRedirect(_)
                     | WalletData::PayURedirect(_)
-                    | WalletData::EaseBuzzRedirect(_) => {
+                    | WalletData::EaseBuzzRedirect(_)
+                    | WalletData::QwikcilverWalletDirect(_) => {
                         Err(error_stack::report!(IntegrationError::NotSupported {
                             message:
                                 domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -2396,7 +2397,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => {
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message:
                             domain_types::utils::get_unimplemented_payment_method_error_message(

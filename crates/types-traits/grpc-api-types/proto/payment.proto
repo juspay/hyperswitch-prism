@@ -802,6 +802,7 @@ enum Connector {
   JUSPAY = 122;
   TAMARA = 123;
   PAYCONEX = 124;
+  QWIKCILVER = 125;
 }
 
 // Payment method types
@@ -919,6 +920,7 @@ enum PaymentMethodType {
   PAY_U = 110;
   EASE_BUZZ = 111;
   OPEN_BANKING = 112;
+  QWIKCILVER_WALLET = 113;
 }
 
 // Product type enumeration
@@ -2382,6 +2384,9 @@ message MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
   // Environment Configuration
   optional bool test_mode =
       5; // A boolean value to indicate if the connector is in Test mode
+
+  // Per-request idempotency / correlation token propagated from the parent composite request.
+  optional string merchant_request_id = 6;
 }
 
 // Response message for creating an access token
@@ -2634,6 +2639,9 @@ message PaymentServiceRefundRequest {
 
   // Connector-side identifier for the original payment that this refund targets.  
   optional string connector_order_id = 18;
+
+  // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
+  optional PaymentMethod payment_method = 19;
 }
 
 // Response message for a refund operation (unified for both Create and Get)
@@ -3613,7 +3621,7 @@ message PaymentMethodServiceCreateRequest {
   optional string description = 3; // Human-readable description of the payment method
   PaymentMethodType payment_method_type = 4; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
   optional ConnectorState state = 5;   // State Information (for access token)
-  string product_id = 6; // Product or program under which the payment method exists
+  optional string product_id = 6; // Product or program under which the payment method exists
 
   optional SecretString metadata = 7; // Additional metadata for the connector
   optional SecretString connector_feature_data = 8; // Connector-specific metadata for the transaction
@@ -3699,7 +3707,7 @@ message WalletDetails {
   optional WalletStatus wallet_status = 3; // Current operational status (ACTIVE/INACTIVE)
   optional string wallet_holder_name = 4; // Name registered on the wallet account
   optional int64 balance = 5; // Current wallet balance in minor currency units (for stored value wallets)
-  string product_id = 6; // Product or program identifier under which the wallet exists
+  optional string product_id = 6; // Product or program identifier under which the wallet exists
   repeated WalletItem items = 7; // Payment method items stored in this wallet (for container/hybrid wallets)
 }
 
@@ -4555,6 +4563,16 @@ message JuspayConfig {
   optional string base_url = 50;
 }
 
+// Qwikcilver (Pine Labs stored-value wallet) credentials.
+message QwikcilverConfig {
+  // Long-lived Bearer token used only on the /authorize bootstrap call.
+  SecretString bootstrap_bearer_token = 1;
+  SecretString terminal_id = 2;
+  SecretString username = 3;
+  SecretString password = 4;
+  optional string base_url = 50;
+}
+
 message PayconexConfig {
   SecretString api_key = 1;
   SecretString account_id = 2;
@@ -4843,6 +4861,8 @@ message ConnectorSpecificConfig {
 
     // PAYCONEX = 124
     PayconexConfig payconex = 129;
+    // QWIKCILVER = 125
+    QwikcilverConfig qwikcilver = 130;
   }
 }
 

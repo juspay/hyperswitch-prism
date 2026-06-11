@@ -935,11 +935,14 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::EaseBuzz
             | common_enums::PaymentMethodType::Skrill
             | common_enums::PaymentMethodType::Paysera
-            | common_enums::PaymentMethodType::Netbanking => Err(IntegrationError::NotImplemented(
-                get_unimplemented_payment_method_error_message("stripe"),
-                Default::default(),
-            )
-            .into()),
+            | common_enums::PaymentMethodType::Netbanking
+            | common_enums::PaymentMethodType::QwikcilverWallet => {
+                Err(IntegrationError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("stripe"),
+                    Default::default(),
+                )
+                .into())
+            }
         }
     }
 }
@@ -1237,7 +1240,8 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::BillDeskRedirect(_)
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
-        | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+        | WalletData::EaseBuzzRedirect(_)
+        | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
             get_unimplemented_payment_method_error_message("stripe"),
             Default::default(),
         )),
@@ -1724,7 +1728,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             | WalletData::BillDeskRedirect(_)
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
-            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )

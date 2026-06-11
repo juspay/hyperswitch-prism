@@ -266,6 +266,7 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
         capture_method: None,
         request_ref_id: None,
         state: None,
+        payment_method: None,
     }
 }
 

@@ -267,3 +267,6 @@ pub mod payconex;
 pub use self::payconex::Payconex;
 pub mod tamara;
 pub use self::tamara::Tamara;
+
+pub mod qwikcilver;
+pub use self::qwikcilver::Qwikcilver;
