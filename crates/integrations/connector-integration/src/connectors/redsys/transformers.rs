@@ -745,6 +745,7 @@ fn get_payments_response(
                 )),
                 redirection_data: None,
                 authentication_data,
+                connector_feature_data: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 status_code: http_code,
             })
@@ -778,6 +779,7 @@ fn get_payments_response(
                 )),
                 redirection_data: redirection_form.map(Box::new),
                 authentication_data,
+                connector_feature_data: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 status_code: http_code,
             })
