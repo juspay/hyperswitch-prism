@@ -1,12 +1,9 @@
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer, PayoutVoid},
     errors::{ConnectorError, IntegrationError},
-    payouts::{
-        payout_method_data::CardPayout,
-        payouts_types::{
-            PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
-            PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
-        },
+    payouts::payouts_types::{
+        PayoutFlowData, PayoutGetRequest, PayoutGetResponse, PayoutTransferRequest,
+        PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -49,26 +46,6 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayxmlAuthType {
             }
             .into()),
         }
-    }
-}
-
-/// Pads a 2-digit card expiry year to 4 digits ("25" → "2025"); pass-through if already 4.
-trait FormattedExpiryYear {
-    fn expiry_year(&self) -> &Secret<String>;
-
-    fn formatted_expiry_year(&self) -> Secret<String> {
-        let y = self.expiry_year().peek();
-        if y.len() == 2 {
-            Secret::new(format!("20{y}"))
-        } else {
-            Secret::new(y.clone())
-        }
-    }
-}
-
-impl FormattedExpiryYear for CardPayout {
-    fn expiry_year(&self) -> &Secret<String> {
-        &self.expiry_year
     }
 }
 
@@ -139,7 +116,7 @@ impl
             })?
             .get_card()?;
 
-        let formatted_year = card.formatted_expiry_year();
+        let formatted_year = crate::utils::pad_expiry_year_to_four_digits(&card.expiry_year);
 
         let card_holder_name = crate::utils::build_card_holder_name(
             &card.card_holder_name,

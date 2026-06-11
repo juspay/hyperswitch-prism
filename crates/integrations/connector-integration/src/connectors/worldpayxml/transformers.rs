@@ -13,7 +13,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::Serialize;
 
 use super::{
@@ -26,26 +26,6 @@ use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 const API_VERSION: &str = "1.4";
-
-/// Pads a 2-digit card expiry year to 4 digits ("25" → "2025"); pass-through if already 4.
-trait FormattedExpiryYear {
-    fn expiry_year(&self) -> &Secret<String>;
-
-    fn formatted_expiry_year(&self) -> Secret<String> {
-        let y = self.expiry_year().peek();
-        if y.len() == 2 {
-            Secret::new(format!("20{y}"))
-        } else {
-            Secret::new(y.clone())
-        }
-    }
-}
-
-impl<T: PaymentMethodDataTypes> FormattedExpiryYear for Card<T> {
-    fn expiry_year(&self) -> &Secret<String> {
-        &self.card_exp_year
-    }
-}
 
 #[derive(Debug, Clone)]
 pub struct WorldpayxmlAuthType {
@@ -92,7 +72,7 @@ where
 {
     match payment_method_data {
         PaymentMethodData::Card(_) => {
-            let formatted_year = card.formatted_expiry_year();
+            let formatted_year = crate::utils::pad_expiry_year_to_four_digits(&card.card_exp_year);
 
             let card_holder_name = crate::utils::build_card_holder_name(
                 &card.card_holder_name,
