@@ -515,10 +515,21 @@ fn generate_logged_xml<T: Serialize>(request: &T, fallback_root: &str) -> String
     let xml = generate_xml(request).unwrap_or(fallback);
     tracing::info!(
         connector = "tsysTransit",
-        raw_request = %xml,
+        root = fallback_root,
+        raw_request_xml = %xml,
         "tsysTransit raw connector request"
     );
     xml
+}
+
+fn log_tsys_transit_response<T: Debug>(flow: &str, status_code: u16, response: &T) {
+    tracing::info!(
+        connector = "tsysTransit",
+        flow,
+        http_status = status_code,
+        connector_response = ?response,
+        "tsysTransit connector response"
+    );
 }
 
 /// TransIT Sale / Auth request.
@@ -3081,6 +3092,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
+        log_tsys_transit_response("Authorize", item.http_code, response);
         let body = response.body();
 
         let status = map_authorize_status(response);
@@ -3229,6 +3241,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
+        log_tsys_transit_response("PSync", item.http_code, response);
 
         let status = map_sync_status(response);
 
@@ -3412,6 +3425,7 @@ impl TryFrom<ResponseRouterData<TsysTransitCaptureResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
+        log_tsys_transit_response("Capture", item.http_code, response);
 
         let status = map_capture_status(response);
 
@@ -3589,6 +3603,7 @@ impl TryFrom<ResponseRouterData<TsysTransitReturnResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
+        log_tsys_transit_response("Refund", item.http_code, response);
 
         let refund_status = map_refund_status(response);
 
@@ -3755,6 +3770,7 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
+        log_tsys_transit_response("RSync", item.http_code, response);
 
         let refund_status = map_rsync_status(response);
 
@@ -3924,6 +3940,7 @@ impl TryFrom<ResponseRouterData<TsysTransitVoidResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
+        log_tsys_transit_response("Void", item.http_code, response);
 
         let status = map_void_status(response);
 
@@ -4180,6 +4197,7 @@ impl TryFrom<ResponseRouterData<TsysTransitAddCustomerResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
+        log_tsys_transit_response("CreateConnectorCustomer", item.http_code, response);
 
         let is_success = matches!(response.status, Some(TsysTransitStatus::Pass))
             && response.response_code.as_deref() == Some("A0000");
@@ -4492,6 +4510,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
+        log_tsys_transit_response("SetupMandate", item.http_code, response);
 
         let is_success = matches!(response.status, Some(TsysTransitStatus::Pass))
             && response.response_code.as_deref() == Some("A0000");
@@ -4728,6 +4747,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let response = &item.response;
+        log_tsys_transit_response("RepeatPayment", item.http_code, response);
         let body = response.body();
 
         // Reuse the Authorize status mapper by projecting onto the Authorize

@@ -222,18 +222,9 @@ macro_rules! expand_fn_get_request_body {
                 let input_data = [<$connector RouterData>] {
                     connector: self.to_owned(),
                     router_data: req.clone()
-};
+                };
                 let request = bridge.request_body(input_data)?;
                 let soap_xml = <$curl_req as GetSoapXml>::to_soap_xml(&request);
-
-                if stringify!($connector) == "TsysTransit" {
-                    tracing::info!(
-                        connector = "tsysTransit",
-                        flow = stringify!($flow),
-                        raw_request_xml = %soap_xml,
-                        "tsysTransit raw connector request"
-                    );
-                }
 
                 // Validate XML structure before sending
                 crate::connectors::macros::validate_xml_structure(&soap_xml)
@@ -385,16 +376,6 @@ macro_rules! expand_fn_handle_response {
             use error_stack::ResultExt;
             paste::paste! {let bridge = self.[< $flow:snake >];}
 
-            if stringify!($connector) == "TsysTransit" {
-                tracing::info!(
-                    connector = "tsysTransit",
-                    flow = stringify!($flow),
-                    http_status = res.status_code,
-                    raw_response = %String::from_utf8_lossy(res.response.as_ref()),
-                    "tsysTransit raw connector response"
-                );
-            }
-
             // Apply preprocessing if specified in the macro
             let response_bytes = self
                 .preprocess_response_bytes(data, res.response, res.status_code)
@@ -427,15 +408,6 @@ macro_rules! expand_fn_handle_response {
             macro_types::ConnectorError,
         > {
             paste::paste! {let bridge = self.[< $flow:snake >];}
-            if stringify!($connector) == "TsysTransit" {
-                tracing::info!(
-                    connector = "tsysTransit",
-                    flow = stringify!($flow),
-                    http_status = res.status_code,
-                    raw_response = %String::from_utf8_lossy(res.response.as_ref()),
-                    "tsysTransit raw connector response"
-                );
-            }
             let response_body = bridge.response(res.response, res.status_code)?;
             event_builder.map(|i| i.set_connector_response(&response_body));
             let response_router_data = ResponseRouterData {
