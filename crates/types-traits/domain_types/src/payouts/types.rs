@@ -1530,6 +1530,13 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
             })
             .transpose()?;
 
+        let (vendor_details, individual_details) = value
+            .vendor_account_details
+            .map(|v| (v.vendor_details, v.individual_details))
+            .unwrap_or((None, None));
+        let vendor_details = vendor_details.unwrap_or_default();
+        let individual_details = individual_details.unwrap_or_default();
+
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
@@ -1538,22 +1545,22 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
             recipient_type: common_enums::PayoutRecipientType::foreign_try_from(
                 payout_recipient_type,
             )?,
-            phone: value.phone,
-            ssn_last_4: value.ssn_last_4,
-            id_number: value.id_number,
-            first_name: value.first_name,
-            last_name: value.last_name,
-            dob_day: value.dob_day,
-            dob_month: value.dob_month,
-            dob_year: value.dob_year,
-            business_profile_mcc: value.business_profile_mcc,
-            business_profile_url: value.business_profile_url,
-            business_profile_name: value.business_profile_name,
-            statement_descriptor: value.statement_descriptor,
-            tos_acceptance_ip: value.tos_acceptance_ip,
+            phone: individual_details.phone,
+            ssn_last_4: individual_details.ssn_last_4,
+            id_number: individual_details.id_number,
+            first_name: individual_details.first_name,
+            last_name: individual_details.last_name,
+            dob_day: individual_details.dob_day,
+            dob_month: individual_details.dob_month,
+            dob_year: individual_details.dob_year,
+            business_profile_mcc: vendor_details.business_profile_mcc,
+            business_profile_url: vendor_details.business_profile_url,
+            business_profile_name: vendor_details.business_profile_name,
+            statement_descriptor: vendor_details.statement_descriptor,
+            tos_acceptance_ip: individual_details.tos_acceptance_ip,
             address,
             customer,
-            account_type: value.account_type,
+            account_type: vendor_details.account_type,
         })
     }
 }
