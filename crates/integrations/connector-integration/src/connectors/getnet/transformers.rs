@@ -2077,7 +2077,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 resource_id,
                 redirection_data,
                 authentication_data,
-                connector_metadata: None,
+                connector_feature_data: None,
                 connector_response_reference_id: item.response.transaction_id.clone(),
                 status_code: item.http_code,
             }),

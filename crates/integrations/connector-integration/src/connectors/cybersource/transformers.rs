@@ -490,7 +490,7 @@ fn get_authentication_data_for_validation_response(
     }
 }
 
-/// Builds the `three_ds_data` JSON surfaced in `connector_metadata` for the Authenticate flow.
+/// Builds the `three_ds_data` JSON surfaced in `connector_feature_data` for the Authenticate flow.
 ///
 /// Matches Hyperswitch, which serializes only the slim `CybersourceConsumerAuthValidateResponse`
 /// subset (`ucafCollectionIndicator`, `cavv`, `ucafAuthenticationData`, `xid`,
@@ -513,7 +513,7 @@ fn get_three_ds_data_for_authenticate_response(
 ///
 /// Matches Hyperswitch's `UcsAuthenticationData` mapping for cybersource: `eci` comes from
 /// `indicator`, while `threeds_server_transaction_id`, `acs_transaction_id` and `trans_status`
-/// are intentionally left empty (the richer values are carried in `connector_metadata`).
+/// are intentionally left empty (the richer values are carried in `connector_feature_data`).
 fn get_authentication_data_for_authenticate_response(
     validate_response: &CybersourceConsumerAuthValidateResponse,
 ) -> router_request_types::AuthenticationData {
@@ -3736,7 +3736,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     let validate_response = &info_response
                         .consumer_authentication_information
                         .validate_response;
-                    let connector_metadata = Some(serde_json::json!({
+                    let connector_feature_data = Some(serde_json::json!({
                         "three_ds_data":
                             get_three_ds_data_for_authenticate_response(validate_response)
                     }));
@@ -3754,7 +3754,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             redirection_data: redirection_data.map(Box::new),
                             connector_response_reference_id,
                             authentication_data,
-                            connector_metadata,
+                            connector_feature_data,
                             status_code: item.http_code,
                         }),
                         ..item.router_data
