@@ -303,6 +303,13 @@ where
                                 body.status_code.to_string().as_str(),
                             ])
                             .inc();
+                        #[cfg(feature = "otel")]
+                        crate::otel_metrics::record_external_error(
+                            method,
+                            params.service_name,
+                            params.connector_name,
+                            body.status_code.to_string().as_str(),
+                        );
                     }
 
                     if all_keys_required.unwrap_or(true) && return_raw {
@@ -529,6 +536,12 @@ where
                             event_params.connector_name,
                         ])
                         .inc();
+                    #[cfg(feature = "otel")]
+                    crate::otel_metrics::record_external_call(
+                        &method.to_string(),
+                        event_params.service_name,
+                        event_params.connector_name,
+                    );
                     let external_service_start_latency = tokio::time::Instant::now();
                     tracing::Span::current().record("request.url", tracing::field::display(&url));
                     tracing::Span::current()
@@ -676,6 +689,13 @@ where
                             event_params.connector_name,
                         ])
                         .observe(external_service_elapsed.as_secs_f64());
+                    #[cfg(feature = "otel")]
+                    crate::otel_metrics::record_external_latency(
+                        &method.to_string(),
+                        event_params.service_name,
+                        event_params.connector_name,
+                        external_service_elapsed.as_secs_f64(),
+                    );
                     // Extract status code BEFORE creating event - one liner
                     let status_code = response.as_ref().ok().map(|result| match result {
                         Ok(body) | Err(body) => i32::from(body.status_code),
@@ -729,6 +749,12 @@ where
                             event_params.connector_name,
                         ])
                         .inc();
+                    #[cfg(feature = "otel")]
+                    crate::otel_metrics::record_external_call(
+                        "PUBLISH",
+                        event_params.service_name,
+                        event_params.connector_name,
+                    );
                     let external_service_start_latency = tokio::time::Instant::now();
 
                     let topic = record.topic.clone();
@@ -765,6 +791,13 @@ where
                             event_params.connector_name,
                         ])
                         .observe(external_service_elapsed.as_secs_f64());
+                    #[cfg(feature = "otel")]
+                    crate::otel_metrics::record_external_latency(
+                        "PUBLISH",
+                        event_params.service_name,
+                        event_params.connector_name,
+                        external_service_elapsed.as_secs_f64(),
+                    );
                     tracing::info!(?response, "response from connector");
 
                     // Extract status code BEFORE creating event - one liner
