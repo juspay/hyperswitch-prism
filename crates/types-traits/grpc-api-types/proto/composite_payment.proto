@@ -229,7 +229,7 @@ message CompositeRefundRequest {
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 19;
 
-  // Connector-side identifier for the original payment that this refund targets. 
+  // Connector-side identifier for the original payment that this refund targets.
   optional string connector_order_id = 20;
 }
 
@@ -427,8 +427,9 @@ message CompositePaymentMethodCreateRequest {
   // Access Token Request field
   optional SecretString metadata = 8;
   optional string merchant_access_token_id = 9;
-  
-  string product_id = 10; // Product or program under which the payment method exists
+
+  optional string product_id = 10; // Product or program under which the payment method exists
+  optional string merchant_request_id = 11; // Per-request idempotency / correlation token forwarded to the bootstrap call
 }
 
 // Response message for composite payment method create flow.
@@ -457,6 +458,7 @@ message CompositePaymentMethodGetRequest {
   // Access Token Request field
   optional SecretString metadata = 8;
   optional string merchant_access_token_id = 9;
+  optional string merchant_request_id = 10; // Per-request idempotency / correlation token forwarded to the bootstrap call
 }
 
 // Response message for composite payment method get flow.
