@@ -26,6 +26,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     mandates::AcceptanceType,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         self, AchTransfer, BankRedirectData, BankTransferInstructions, BankTransferNextStepsData,
         Card, CardRedirectData, GiftCardData, GooglePayWalletData, MultibancoTransferInstructions,
@@ -5356,7 +5357,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         StripeRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -5369,7 +5370,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         item: StripeRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -5408,7 +5409,7 @@ pub struct StripeClientAuthResponse(PaymentIntentResponse);
 impl TryFrom<ResponseRouterData<StripeClientAuthResponse, Self>>
     for RouterDataV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     >

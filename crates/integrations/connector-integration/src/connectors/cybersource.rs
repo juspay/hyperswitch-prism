@@ -23,6 +23,7 @@ use domain_types::{
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, SetupMandateRequestData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
@@ -275,7 +276,7 @@ macros::create_all_prerequisites!(
             flow: ClientAuthenticationToken,
             request_body: CybersourceClientAuthRequest,
             response_body: CybersourceClientAuthResponse,
-            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            router_data: RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ),
         (
             flow: IncrementalAuthorization,
@@ -363,6 +364,13 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.cybersource.base_url
+        }
+
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.cybersource.base_url
         }
@@ -970,7 +978,7 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Cybersource<T>
@@ -985,7 +993,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         req: &RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
@@ -996,21 +1004,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         req: &RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
         Ok(format!(
             "{}microform/v2/sessions",
-            self.connector_base_url_payments(req)
+            self.connector_base_url_merchant_auth(req)
         ))
     }
     fn get_request_body(
         &self,
         req: &RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
@@ -1029,7 +1037,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         data: &RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
@@ -1038,7 +1046,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> CustomResult<
         RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
@@ -1112,7 +1120,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let result = RouterDataV2::<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >::try_from(response_router_data)

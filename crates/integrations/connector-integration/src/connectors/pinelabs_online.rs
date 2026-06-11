@@ -5,6 +5,7 @@ use domain_types::{
     connector_flow::*,
     connector_types::*,
     errors,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -189,7 +190,7 @@ macros::create_all_prerequisites!(
             flow: ServerAuthenticationToken,
             request_body: PinelabsOnlineAccessTokenRequest,
             response_body: PinelabsOnlineAccessTokenResponse,
-            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         (
             flow: CreateOrder,
@@ -263,6 +264,13 @@ macros::create_all_prerequisites!(
         ) -> &'a str {
             &req.resource_common_data.connectors.pinelabs_online.base_url
         }
+
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.pinelabs_online.base_url
+        }
     }
 );
 
@@ -274,7 +282,7 @@ macros::macro_connector_implementation!(
     curl_request: Json(PinelabsOnlineAccessTokenRequest),
     curl_response: PinelabsOnlineAccessTokenResponse,
     flow_name: ServerAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerAuthenticationTokenRequestData,
     flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
@@ -283,7 +291,7 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            _req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            _req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
             Ok(vec![(
                 headers::CONTENT_TYPE.to_string(),
@@ -292,7 +300,7 @@ macros::macro_connector_implementation!(
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
             // The auth token endpoint shares the same host as the payments API but uses a
             // different path prefix (/api/auth/v1/token vs /api/pay/v1/...).  Since the
@@ -303,7 +311,7 @@ macros::macro_connector_implementation!(
             // sandbox URL), this replacement will be a no-op and the request will be sent to
             // the wrong endpoint.  A dedicated `auth_url` config field would be safer but is
             // not currently available in the connector config schema.
-            let base_url = self.connector_base_url_payments(req);
+            let base_url = self.connector_base_url_merchant_auth(req);
             let token_url = base_url.replace("/api/pay/v1", "/api/auth/v1/token");
             Ok(token_url)
         }

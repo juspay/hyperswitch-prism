@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.11.1
+
+### Features
+
+- **connector:** Adds new connector Qwikcilver(PineLabs) ([#1474](https://github.com/juspay/connector-service/pull/1474)) ([`6ff0923`](https://github.com/juspay/connector-service/commit/6ff0923542b413744c509bf9afb42244540e54e7))
+- **coverage-report:** Add test-pass coverage mode from grpc CI reports ([#1489](https://github.com/juspay/connector-service/pull/1489)) ([`549ae03`](https://github.com/juspay/connector-service/commit/549ae03585208b5ffa8ba139069c08e79a2fd98b))
+- **framework:** Introduced merchant authentication flow data ([#1460](https://github.com/juspay/connector-service/pull/1460)) ([`919cecc`](https://github.com/juspay/connector-service/commit/919cecc41937ac358f99a8a6ca1b7e6bf7effd2c))
+- **ucs:** Expose capture order tax amount ([#1490](https://github.com/juspay/connector-service/pull/1490)) ([`640fba7`](https://github.com/juspay/connector-service/commit/640fba7ef58ccd320f5b72c050ca4795b353a3e3))
+
+### Bug Fixes
+
+- **connector:** Shadow-validation parity batch (nmi, finix, cybersource) ([#1479](https://github.com/juspay/connector-service/pull/1479)) ([`d2a6057`](https://github.com/juspay/connector-service/commit/d2a6057af3c45a40f4b19b7c9188f02f809905c3))
+
+**Full Changelog:** [`2026.06.11.0...2026.06.11.1`](https://github.com/juspay/connector-service/compare/2026.06.11.0...2026.06.11.1)
+
+- - -
+
 ## 2026.06.11.0
 
 ### Features
