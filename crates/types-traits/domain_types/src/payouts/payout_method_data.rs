@@ -26,9 +26,29 @@ impl PayoutMethodData {
         match self {
             Self::Card(card) => Ok(card),
             _ => Err(IntegrationError::MismatchedPaymentData {
-                context: Default::default(),
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Expected card payout method data, but received {}",
+                        self.variant_name()
+                    )),
+                    suggested_action: Some(
+                        "Provide card payout method data for this flow".to_string(),
+                    ),
+                    doc_url: None,
+                },
             }
             .into()),
+        }
+    }
+
+    /// Name of the active `PayoutMethodData` variant, used for error context.
+    fn variant_name(&self) -> &'static str {
+        match self {
+            Self::Card(_) => "Card",
+            Self::Bank(_) => "Bank",
+            Self::Wallet(_) => "Wallet",
+            Self::BankRedirect(_) => "BankRedirect",
+            Self::Passthrough(_) => "Passthrough",
         }
     }
 }
