@@ -421,6 +421,7 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
                 connector_response_reference_id: response.external_reference,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                network_txn_link_id: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -531,6 +532,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 connector_response_reference_id: Some(merchant_ref),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                network_txn_link_id: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Charged,
