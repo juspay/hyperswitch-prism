@@ -130,19 +130,17 @@ where
         Box::pin(async move {
             let result = inner.call(req).await;
 
-            // Record metrics based on response
-            match &result {
-                Ok(response) => {
-                    // Check gRPC status from response
-                    if is_grpc_success(response) {
-                        GRPC_SERVER_REQUESTS_SUCCESSFUL
-                            .with_label_values(&[&method_name, &service_name, &connector])
-                            .inc();
-                    }
-                }
-                Err(_) => {
-                    // Network/transport level error
-                }
+            // Determine the gRPC status code for this request: 0 (OK) for a
+            // successful response, UNKNOWN (2) for a transport-level failure.
+            let grpc_status = match &result {
+                Ok(response) => extract_grpc_status_code(response),
+                Err(_) => 2, // UNKNOWN — network/transport level error
+            };
+
+            if grpc_status == 0 {
+                GRPC_SERVER_REQUESTS_SUCCESSFUL
+                    .with_label_values(&[&method_name, &service_name, &connector])
+                    .inc();
             }
 
             // Record latency
@@ -150,6 +148,16 @@ where
             GRPC_SERVER_REQUEST_LATENCY
                 .with_label_values(&[&method_name, &service_name, &connector])
                 .observe(duration);
+
+            // Mirror the same observation to the OTLP-exported instruments.
+            #[cfg(feature = "otel")]
+            crate::otel_metrics::record_grpc_request(
+                &method_name,
+                &service_name,
+                &connector,
+                grpc_status,
+                duration,
+            );
 
             result.map_err(|e| {
                 tonic::Status::internal(format!("GrpcMetricsService inner call error: {e:?}"))
@@ -194,25 +202,16 @@ fn extract_connector_from_request<B>(req: &hyper::Request<B>) -> String {
     "unknown".to_string()
 }
 
-// Check if gRPC response indicates success
-fn is_grpc_success<B>(response: &hyper::Response<B>) -> bool {
-    // gRPC success is based on grpc-status header, not HTTP status
-    if let Some(grpc_status) = response.headers().get("grpc-status") {
-        if let Ok(status_str) = grpc_status.to_str() {
-            if let Ok(status_code) = status_str.parse::<i32>() {
-                if status_code == 0 {
-                    return true; // gRPC OK
-                } else {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
-    }
-    true
+// Extract the gRPC status code from a response. gRPC status lives in the
+// `grpc-status` header/trailer, not the HTTP status. A successful response with
+// no `grpc-status` header is treated as OK (0), matching gRPC semantics.
+fn extract_grpc_status_code<B>(response: &hyper::Response<B>) -> i32 {
+    response
+        .headers()
+        .get("grpc-status")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|status| status.parse::<i32>().ok())
+        .unwrap_or(0)
 }
 
 // Metrics handler

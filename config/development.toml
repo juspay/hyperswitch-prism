@@ -25,6 +25,14 @@ type = "grpc"
 host = "0.0.0.0"
 port = 8080
 
+# OpenTelemetry (OTLP) metrics push. Requires building with the `otel` feature.
+# Disabled by default; the Prometheus /metrics scrape endpoint above is unaffected.
+[metrics.otel]
+enabled = false
+# otel_exporter_otlp_endpoint = "http://<otel-collector-host>:4317"
+# collection_interval_secs = 3
+# export_timeout_secs = 10
+
 [proxy]
 idle_pool_connection_timeout = 90
 bypass_urls = []
