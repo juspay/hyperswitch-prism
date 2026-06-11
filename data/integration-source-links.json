@@ -72,7 +72,7 @@
     "https://developer.peachpayments.com/docs/reference-webhooks",
     "https://peachpayments.docs.oppwa.com/reference/parameters"
   ],
-  "TsysXml": [
+  "TsysTransit": [
     "https://developerportal.transit-pass.com/developerportal/resources/dist/assets/build/api/API3.0/UseCases/Moto/index.html",
     "https://developerportal.transit-pass.com/developerportal/resources/dist/assets/build/api/API3.0/UseCases/Ecommerce/index.html",
     "https://developerportal.transit-pass.com/developerportal/resources/dist/assets/build/api/API3.0/UseCases/Recurring/index.html",

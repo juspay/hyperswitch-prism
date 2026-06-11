@@ -1,9 +1,9 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py tsystransit
+// Regenerate: python3 scripts/generate-connector-docs.py tsys_transit
 //
-// Tsystransit — all integration scenarios and flows in one file.
-// Run a scenario:  npx tsx tsystransit.ts checkout_autocapture
+// Tsys Transit — all integration scenarios and flows in one file.
+// Run a scenario:  npx tsx tsys_transit.ts checkout_autocapture
 
 import { PaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, Currency } = types;
@@ -13,7 +13,7 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { tsystransit: { apiKey: { value: 'YOUR_API_KEY' } } },
+    // connectorConfig: { tsys_transit: { apiKey: { value: 'YOUR_API_KEY' } } },
 };
 
 

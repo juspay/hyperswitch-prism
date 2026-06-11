@@ -686,17 +686,9 @@ payment_methods: Card
 flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, setup_recurring, void
 examples_python: examples/tsys/tsys.py
 
-## Tsystransit
-connector_id: tsystransit
-doc: docs/connectors/tsystransit.md
-scenarios: none
-payment_methods: none
-flows: capture, get, refund, refund_get, void
-examples_python: none
-
-## Tsysxml
-connector_id: tsysxml
-doc: docs/connectors/tsysxml.md
+## Tsys Transit
+connector_id: tsys_transit
+doc: docs/connectors/tsys_transit.md
 scenarios: none
 payment_methods: none
 flows: capture, get, refund, refund_get, void

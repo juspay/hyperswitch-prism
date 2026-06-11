@@ -1,9 +1,9 @@
-# Tsystransit
+# Tsys Transit
 
 <!--
 This file is auto-generated. Do not edit by hand.
-Source: data/field_probe/tsystransit.json
-Regenerate: python3 scripts/generators/docs/generate.py tsystransit
+Source: data/field_probe/tsys_transit.json
+Regenerate: python3 scripts/generators/docs/generate.py tsys_transit
 -->
 
 ## SDK Configuration
@@ -23,7 +23,7 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
     # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     tsystransit=payment_pb2.TsystransitConfig(api_key=...),
+    #     tsys_transit=payment_pb2.TsysTransitConfig(api_key=...),
     # ),
 )
 
@@ -43,7 +43,7 @@ const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism')
 const config = ConnectorConfig.create({
     connector: Connector.TSYSTRANSIT,
     environment: Environment.SANDBOX,
-    // auth: { tsystransit: { apiKey: { value: 'YOUR_API_KEY' } } },
+    // auth: { tsys_transit: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -57,7 +57,7 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Tsystransit credentials here
+    // .setConnectorConfig(...) — set your Tsys Transit credentials here
     .build()
 ```
 
@@ -107,7 +107,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L73) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L72) · [Rust](../../examples/tsystransit/tsystransit.rs)
+**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L73) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L72) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
 
 #### PaymentService.Get
 
@@ -118,7 +118,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L82) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L82) · [Rust](../../examples/tsystransit/tsystransit.rs)
+**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L82) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L82) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
 
 #### PaymentService.Refund
 
@@ -129,7 +129,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L91) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L90) · [Rust](../../examples/tsystransit/tsystransit.rs)
+**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L91) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L90) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
 
 #### PaymentService.Void
 
@@ -140,7 +140,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L112) · [Rust](../../examples/tsystransit/tsystransit.rs)
+**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L112) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
 
 ### Refunds
 
@@ -153,4 +153,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L100) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L100) · [Rust](../../examples/tsystransit/tsystransit.rs)
+**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L100) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L100) · [Rust](../../examples/tsys_transit/tsys_transit.rs)

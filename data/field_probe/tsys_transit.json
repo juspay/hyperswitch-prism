@@ -1,5 +1,5 @@
 {
-  "connector": "tsystransit",
+  "connector": "tsys_transit",
   "flows": {
     "authenticate": {
       "default": {

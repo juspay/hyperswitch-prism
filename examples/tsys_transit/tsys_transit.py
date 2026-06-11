@@ -1,9 +1,9 @@
 # This file is auto-generated. Do not edit manually.
 # Replace YOUR_API_KEY and placeholder values with real data.
-# Regenerate: python3 scripts/generate-connector-docs.py tsystransit
+# Regenerate: python3 scripts/generate-connector-docs.py tsys_transit
 #
-# Tsystransit — all integration scenarios and flows in one file.
-# Run a scenario:  python3 tsystransit.py checkout_card
+# Tsys Transit — all integration scenarios and flows in one file.
+# Run a scenario:  python3 tsys_transit.py checkout_card
 
 import asyncio
 import sys
@@ -16,7 +16,7 @@ SUPPORTED_FLOWS = ["capture", "get", "refund", "refund_get", "void"]
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
     # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     tsystransit=payment_pb2.TsystransitConfig(api_key=...),
+    #     tsys_transit=payment_pb2.TsysTransitConfig(api_key=...),
     # ),
 )
 

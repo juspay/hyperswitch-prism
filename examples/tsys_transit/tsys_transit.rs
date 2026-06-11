@@ -1,9 +1,9 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py tsystransit
+// Regenerate: python3 scripts/generate-connector-docs.py tsys_transit
 //
-// Tsystransit — all scenarios and flows in one file.
-// Run a scenario:  cargo run --example tsystransit -- process_checkout_card
+// Tsys Transit — all scenarios and flows in one file.
+// Run a scenario:  cargo run --example tsys_transit -- process_checkout_card
 use grpc_api_types::payments::connector_specific_config;
 use grpc_api_types::payments::*;
 use hyperswitch_payments_client::ConnectorClient;
