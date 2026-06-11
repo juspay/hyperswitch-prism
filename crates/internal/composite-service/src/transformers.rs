@@ -716,6 +716,7 @@ impl
         let resolved_state = Some(ConnectorState {
             access_token,
             connector_customer_id,
+            state_metadata: None,
         });
 
         Self {
@@ -759,6 +760,7 @@ impl
         let resolved_state = Some(ConnectorState {
             access_token,
             connector_customer_id,
+            state_metadata: None,
         });
 
         Self {
@@ -799,6 +801,7 @@ impl
         let resolved_state = Some(ConnectorState {
             access_token,
             connector_customer_id,
+            state_metadata: None,
         });
 
         Self {

@@ -7,15 +7,15 @@ use common_enums::{
 use common_utils::types::{MinorUnit, StringMajorUnit};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment,
-        SetupMandate, Void,
+        Authorize, CancelPostRefund, Capture, CreateConnectorCustomer, PSync, RSync, Refund,
+        RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, MandateIds, MandateReference,
         MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RecurringMandatePaymentData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        RefundCancelPostRefundData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -723,6 +723,28 @@ impl GetSoapXml for TsysTransitVoidRequest {
     }
 }
 #[derive(Debug, Serialize)]
+#[serde(rename = "Void")]
+pub struct TsysTransitCancelPostRefundRequest {
+    #[serde(rename = "deviceID")]
+    pub device_id: Secret<String>,
+    #[serde(rename = "transactionKey")]
+    pub transaction_key: Secret<String>,
+    #[serde(rename = "transactionAmount", skip_serializing_if = "Option::is_none")]
+    pub transaction_amount: Option<StringMajorUnit>,
+    #[serde(rename = "transactionID")]
+    pub transaction_id: String,
+    #[serde(rename = "developerID")]
+    pub developer_id: Secret<String>,
+    #[serde(rename = "voidReason")]
+    pub void_reason: String,
+}
+
+impl GetSoapXml for TsysTransitCancelPostRefundRequest {
+    fn to_soap_xml(&self) -> String {
+        generate_logged_xml(self, "Void")
+    }
+}
+#[derive(Debug, Serialize)]
 #[serde(rename = "personalDetails")]
 pub struct TsysTransitPersonalDetails {
     #[serde(rename = "firstName")]
@@ -950,6 +972,18 @@ pub struct TsysTransitReturnResponse {
 #[derive(Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename = "VoidResponse")]
 pub struct TsysTransitVoidResponse {
+    #[serde(rename = "status", default)]
+    pub status: Option<TsysTransitStatus>,
+    #[serde(rename = "responseCode", default)]
+    pub response_code: Option<String>,
+    #[serde(rename = "transactionID", default)]
+    pub transaction_id: Option<String>,
+    #[serde(rename = "responseMessage", default)]
+    pub response_message: Option<String>,
+}
+#[derive(Clone, Debug, Deserialize, Serialize, Default)]
+#[serde(rename = "VoidResponse")]
+pub struct TsysTransitCancelPostRefundResponse {
     #[serde(rename = "status", default)]
     pub status: Option<TsysTransitStatus>,
     #[serde(rename = "responseCode", default)]
@@ -3077,6 +3111,139 @@ impl TryFrom<ResponseRouterData<TsysTransitTransactionInquiryResponse, Self>>
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(refunds_response_data),
+            ..router_data.clone()
+        })
+    }
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        TsysTransitRouterData<
+            RouterDataV2<
+                CancelPostRefund,
+                RefundFlowData,
+                RefundCancelPostRefundData,
+                RefundsResponseData,
+            >,
+            T,
+        >,
+    > for TsysTransitCancelPostRefundRequest
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: TsysTransitRouterData<
+            RouterDataV2<
+                CancelPostRefund,
+                RefundFlowData,
+                RefundCancelPostRefundData,
+                RefundsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
+        let transaction_amount = router_data
+            .request
+            .refund_money
+            .as_ref()
+            .map(|amount| {
+                super::TsysTransitAmountConvertor::convert(amount.amount, amount.currency)
+            })
+            .transpose()?;
+        let void_reason = {
+            let raw = router_data
+                .request
+                .cancellation_reason
+                .clone()
+                .unwrap_or_else(|| "RETURN_REVERSAL".to_string());
+            if raw.len() > 80 {
+                raw.chars().take(80).collect()
+            } else {
+                raw
+            }
+        };
+
+        Ok(Self {
+            device_id: auth.device_id,
+            transaction_key: auth.transaction_key,
+            developer_id: auth.developer_id,
+            transaction_id: router_data.request.connector_refund_id.clone(),
+            transaction_amount,
+            void_reason,
+        })
+    }
+}
+
+fn map_cancel_post_refund_status(response: &TsysTransitCancelPostRefundResponse) -> RefundStatus {
+    match (response.status.as_ref(), response.response_code.as_deref()) {
+        (Some(TsysTransitStatus::Pass), Some("A0000" | "A0002")) => RefundStatus::Success,
+        (Some(TsysTransitStatus::Fail), _) => RefundStatus::Failure,
+        _ => RefundStatus::Failure,
+    }
+}
+
+impl TryFrom<ResponseRouterData<TsysTransitCancelPostRefundResponse, Self>>
+    for RouterDataV2<
+        CancelPostRefund,
+        RefundFlowData,
+        RefundCancelPostRefundData,
+        RefundsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<TsysTransitCancelPostRefundResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let response = &item.response;
+        log_tsys_transit_response("CancelPostRefund", item.http_code, response);
+
+        let cancel_post_refund_status = map_cancel_post_refund_status(response);
+
+        if matches!(cancel_post_refund_status, RefundStatus::Failure) {
+            return Ok(Self {
+                resource_common_data: RefundFlowData {
+                    status: RefundStatus::Success,
+                    ..router_data.resource_common_data.clone()
+                },
+                response: Err(ErrorResponse {
+                    status_code: item.http_code,
+                    code: response
+                        .response_code
+                        .clone()
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
+                    message: response
+                        .response_message
+                        .clone()
+                        .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+                    reason: response.response_message.clone(),
+                    attempt_status: None,
+                    connector_transaction_id: response.transaction_id.clone(),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: response.response_message.clone(),
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        let connector_refund_id = response
+            .transaction_id
+            .clone()
+            .unwrap_or_else(|| router_data.request.connector_refund_id.clone());
+
+        Ok(Self {
+            resource_common_data: RefundFlowData {
+                status: RefundStatus::Success,
+                ..router_data.resource_common_data.clone()
+            },
+            response: Ok(RefundsResponseData {
+                connector_refund_id,
+                refund_status: cancel_post_refund_status,
+                status_code: item.http_code,
+            }),
             ..router_data.clone()
         })
     }

@@ -889,6 +889,7 @@ macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
+        CancelPostRefund,
         IncrementalAuthorization,
         CreateOrder,
         ServerAuthenticationToken,

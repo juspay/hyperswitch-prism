@@ -2,16 +2,15 @@ use std::fmt::Debug;
 
 use connector_integration::types::ConnectorData;
 use domain_types::{
-    connector_flow::{FlowName as DomainFlowName, RSync, VoidPC},
+    connector_flow::{CancelPostRefund, FlowName as DomainFlowName, RSync},
     connector_types::{
-        PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData, RefundFlowData,
-        RefundSyncData, RefundsResponseData,
+        RefundCancelPostRefundData, RefundFlowData, RefundSyncData, RefundsResponseData,
     },
     utils::ForeignTryFrom,
 };
 use grpc_api_types::payments::{
-    refund_service_server::RefundService, RefundResponse, RefundServiceGetRequest,
-    RefundServiceReverseRequest,
+    refund_service_server::RefundService, RefundResponse, RefundServiceCancelPostRefundRequest,
+    RefundServiceGetRequest,
 };
 
 use ucs_env::error::ResultExtGrpc;
@@ -24,9 +23,9 @@ trait RefundOperationsInternal {
         request: RequestData<RefundServiceGetRequest>,
     ) -> Result<tonic::Response<RefundResponse>, tonic::Status>;
 
-    async fn internal_reverse(
+    async fn internal_cancel_post_refund(
         &self,
-        request: RequestData<RefundServiceReverseRequest>,
+        request: RequestData<RefundServiceCancelPostRefundRequest>,
     ) -> Result<tonic::Response<RefundResponse>, tonic::Status>;
 }
 
@@ -51,17 +50,17 @@ impl RefundOperationsInternal for Refunds {
     );
 
     implement_connector_operation!(
-        fn_name: internal_reverse,
-        log_prefix: "REFUND_VOID",
-        request_type: RefundServiceReverseRequest,
+        fn_name: internal_cancel_post_refund,
+        log_prefix: "REFUND_CANCEL_POST_REFUND",
+        request_type: RefundServiceCancelPostRefundRequest,
         response_type: RefundResponse,
-        flow_marker: VoidPC,
-        resource_common_data_type: PaymentFlowData,
-        request_data_type: PaymentsCancelPostCaptureData,
-        response_data_type: PaymentsResponseData,
-        request_data_constructor: PaymentsCancelPostCaptureData::foreign_try_from,
-        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
-        generate_response_fn: domain_types::types::generate_refund_void_response,
+        flow_marker: CancelPostRefund,
+        resource_common_data_type: RefundFlowData,
+        request_data_type: RefundCancelPostRefundData,
+        response_data_type: RefundsResponseData,
+        request_data_constructor: RefundCancelPostRefundData::foreign_try_from,
+        common_flow_data_constructor: RefundFlowData::foreign_try_from,
+        generate_response_fn: domain_types::types::generate_cancel_post_refund_response,
         connector_data_type: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder>,
         all_keys_required: None
     );
@@ -111,11 +110,11 @@ impl RefundService for Refunds {
     }
 
     #[tracing::instrument(
-        name = "refunds_reverse",
+        name = "refunds_cancel_post_refund",
         fields(
             name = common_utils::consts::NAME,
             service_name = tracing::field::Empty,
-            service_method = DomainFlowName::VoidPc.to_string(),
+            service_method = DomainFlowName::CancelPostRefund.to_string(),
             request_body = tracing::field::Empty,
             response_body = tracing::field::Empty,
             error_message = tracing::field::Empty,
@@ -126,14 +125,14 @@ impl RefundService for Refunds {
             message_ = "Golden Log Line (incoming)",
             response_time = tracing::field::Empty,
             tenant_id = tracing::field::Empty,
-            flow = DomainFlowName::VoidPc.to_string(),
+            flow = DomainFlowName::CancelPostRefund.to_string(),
             flow_specific_fields.status = tracing::field::Empty,
         )
         skip(self, request)
     )]
-    async fn reverse(
+    async fn cancel_post_refund(
         &self,
-        request: tonic::Request<RefundServiceReverseRequest>,
+        request: tonic::Request<RefundServiceCancelPostRefundRequest>,
     ) -> Result<tonic::Response<RefundResponse>, tonic::Status> {
         let service_name = request
             .extensions()
@@ -145,8 +144,8 @@ impl RefundService for Refunds {
             request,
             &service_name,
             config.clone(),
-            common_utils::events::FlowName::VoidPostCapture,
-            |request_data| async move { self.internal_reverse(request_data).await },
+            common_utils::events::FlowName::CancelPostRefund,
+            |request_data| async move { self.internal_cancel_post_refund(request_data).await },
         ))
         .await
     }

@@ -205,7 +205,8 @@ service RefundService {
   rpc Get(RefundServiceGetRequest) returns (RefundResponse);
 
   // Void/reverse a refund before processor settlement.
-  rpc Reverse(RefundServiceReverseRequest) returns (RefundResponse);
+  rpc CancelPostRefund(RefundServiceCancelPostRefundRequest)
+      returns (RefundResponse);
 }
 
 // ============================================================================

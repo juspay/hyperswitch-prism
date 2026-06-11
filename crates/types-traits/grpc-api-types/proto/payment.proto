@@ -2711,7 +2711,7 @@ message RefundResponse {
 }
 
 // Request message for voiding/reversing a refund before settlement.
-message RefundServiceReverseRequest {
+message RefundServiceCancelPostRefundRequest {
   // Identification
   optional string merchant_refund_id = 1;
   string connector_transaction_id = 2;
