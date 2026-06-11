@@ -807,6 +807,7 @@ pub struct SyncResponse {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SyncTransactionData {
     pub transaction_id: String,
+    pub order_id: String,
     pub condition: String, // Maps to status
 }
 
@@ -1079,7 +1080,7 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
 
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: response.transactionid.clone(),
+                connector_refund_id: response.orderid.clone(),
                 refund_status: status,
                 status_code: item.http_code,
             }),
@@ -1141,17 +1142,18 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
     fn try_from(item: ResponseRouterData<SyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        // Try to find exact match first, fallback to last transaction
+        // The query is keyed by order_id (= connector_refund_id), so match on the
+        // echoed order_id, falling back to the last transaction
         let transaction = response
             .transaction
             .iter()
-            .find(|txn| txn.transaction_id == item.router_data.request.connector_refund_id)
+            .find(|txn| txn.order_id == item.router_data.request.connector_refund_id)
             .or_else(|| response.transaction.last());
 
         // Map condition field from XML to RefundStatus using NmiStatus enum
         let (status, connector_refund_id) = if let Some(transaction) = transaction {
             let status = RefundStatus::from(NmiStatus::from(transaction.condition.clone()));
-            (status, transaction.transaction_id.clone())
+            (status, transaction.order_id.clone())
         } else {
             // Empty response - treat as pending with proper error for connector_refund_id
             return Err(error_stack::report!(
@@ -1473,6 +1475,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                 (
                     AttemptStatus::AuthenticationPending,
                     Ok(PaymentsResponseData::PreAuthenticateResponse {
+                        resource_id: None,
                         authentication_data: None,
                         redirection_data: Some(Box::new(RedirectForm::Nmi {
                             amount: Money {

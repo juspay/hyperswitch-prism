@@ -129,6 +129,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
         return_url: Some("https://example.com/return".to_string()),
         webhook_url: Some("https://example.com/webhook".to_string()),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: None,

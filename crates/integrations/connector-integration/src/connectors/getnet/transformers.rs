@@ -2011,6 +2011,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                resource_id: None,
                 authentication_data,
                 redirection_data,
                 connector_response_reference_id: item.response.transaction_id.clone(),

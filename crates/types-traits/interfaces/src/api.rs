@@ -79,3 +79,10 @@ pub enum ApplicationResponse<R> {
     JsonWithHeaders((R, Vec<(String, hyperswitch_masking::Maskable<String>)>)),
     GenericLinkForm(Box<GenericLinks>),
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct EventAckResponse {
+    pub status_code: u32,
+    pub headers: Vec<(String, String)>,
+    pub body: Option<Vec<u8>>,
+}

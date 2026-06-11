@@ -113,6 +113,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     authentication_data: None,
                     connector_testing_data: None,
                     access_token: None,
@@ -274,6 +275,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_method_data: PaymentMethodData::Wallet(WalletData::BluecodeRedirect {}),
                     authentication_data: None,
                     connector_testing_data: None,

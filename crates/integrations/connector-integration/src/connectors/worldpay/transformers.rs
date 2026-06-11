@@ -1417,6 +1417,7 @@ where
         let _connector_metadata = extract_three_ds_metadata(&item.response);
 
         let response = Ok(PaymentsResponseData::PreAuthenticateResponse {
+            resource_id: None,
             redirection_data: redirection_data.map(Box::new),
             connector_response_reference_id,
             status_code: item.http_code,

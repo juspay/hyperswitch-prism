@@ -19,6 +19,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.11.0
+
+### Features
+
+- **payconex:** Map MOTO payment_type from payment_channel ([#1496](https://github.com/juspay/connector-service/pull/1496)) ([`e713a25`](https://github.com/juspay/connector-service/commit/e713a2529cf954602271204b2b8da3c6e7ebb8f6))
+
+### Bug Fixes
+
+- **connector:**
+  - Map NMI refund connector_refund_id to orderid for Execute and RSync ([#1497](https://github.com/juspay/connector-service/pull/1497)) ([`107c1be`](https://github.com/juspay/connector-service/commit/107c1bef444e16ad83d554d634f75dc3d2d5fc08))
+  - Fixed cybersource post authenticate router data diff ([#1495](https://github.com/juspay/connector-service/pull/1495)) ([`9b93f6a`](https://github.com/juspay/connector-service/commit/9b93f6aee3f5355d02cd25ce2f1c9d2415a0bf55))
+- **nexixpay:** Pre_authenticate RouterData & request diffs vs hyperswitch (shadow validation) ([#1491](https://github.com/juspay/connector-service/pull/1491)) ([`dbcab7c`](https://github.com/juspay/connector-service/commit/dbcab7c417b691b58764dba2201776b8aa83969f))
+- Invoke get_webhook_api_response in webhook flow ([#1485](https://github.com/juspay/connector-service/pull/1485)) ([`ac89562`](https://github.com/juspay/connector-service/commit/ac895627a20c838c134e41facbdd5e68a14a2d4e))
+
+**Full Changelog:** [`2026.06.10.0...2026.06.11.0`](https://github.com/juspay/connector-service/compare/2026.06.10.0...2026.06.11.0)
+
+- - -
+
+## 2026.06.10.0
+
+### Features
+
+- **core:** Add create, get and recharge core support for payment method service ([#1482](https://github.com/juspay/connector-service/pull/1482)) ([`e1ed5bd`](https://github.com/juspay/connector-service/commit/e1ed5bdfdeb3381e4d3ae31abaa3a808fd3e6a94))
+- **dlocal:** GCash Recurring (CIT/MIT) end-to-end + GCash & APM redirect payment methods ([#1459](https://github.com/juspay/connector-service/pull/1459)) ([`9764a8f`](https://github.com/juspay/connector-service/commit/9764a8f0f586fc4bbac83b0fa3b964a81bdbfa6e))
+- **grace:** Grace-workspace + docker host-cache CLI extraction ([#1427](https://github.com/juspay/connector-service/pull/1427)) ([`39f1010`](https://github.com/juspay/connector-service/commit/39f1010892339024a389603c754061b267a5ec53))
+- **proto:** Add create, get and recharge payment method service ([#1478](https://github.com/juspay/connector-service/pull/1478)) ([`fe38bd8`](https://github.com/juspay/connector-service/commit/fe38bd853ed519ee1316f5cdb93d1e0f2973ec2a))
+- **skill:** Coverage-report — meeting-ready connector coverage metrics ([#1484](https://github.com/juspay/connector-service/pull/1484)) ([`9ec9667`](https://github.com/juspay/connector-service/commit/9ec96674c7591949eba330cfb2a7951acde85b2e))
+- Add South African bank names to BankNames enum ([#1443](https://github.com/juspay/connector-service/pull/1443)) ([`faafd00`](https://github.com/juspay/connector-service/commit/faafd0054dc0591a2e3a8483b19de353cd87d0b4))
+
+### Bug Fixes
+
+- **config:** Accept legacy mitm_ca_cert and bypass_proxy_urls as serde aliases ([#1488](https://github.com/juspay/connector-service/pull/1488)) ([`3d34f5d`](https://github.com/juspay/connector-service/commit/3d34f5d9098572dd145a3362dcae1bfc55007cc6))
+
+**Full Changelog:** [`2026.06.09.0...2026.06.10.0`](https://github.com/juspay/connector-service/compare/2026.06.09.0...2026.06.10.0)
+
+- - -
+
 ## 2026.06.09.0
 
 ### Bug Fixes
