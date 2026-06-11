@@ -231,6 +231,64 @@ pub async fn publish_to_kafka(
     Err(KafkaClientError::NotEnabled)?
 }
 
+/// Exposes a flow's outcome as a unified [`FlowStatus`], so the generic connector
+/// response handler can record the payment-outcome metric for any flow without
+/// knowing the concrete status type. Flows without a payment-style status return
+/// `None`.
+pub trait GetFlowStatus {
+    /// The flow's current outcome as a unified `FlowStatus`, if it has one.
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus>;
+}
+
+impl GetFlowStatus for domain_types::connector_types::PaymentFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        Some(domain_types::router_data::FlowStatus::Payment(self.status))
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::RefundFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        Some(domain_types::router_data::FlowStatus::Refund(self.status))
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::DisputeFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::VerifyWebhookSourceFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::payouts::payouts_types::PayoutFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::surcharge::surcharge_types::SurchargeFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus
+    for domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData
+{
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+
+/// Stringify a unified `FlowStatus` into a bounded metric label (e.g. `payment_charged`).
+#[cfg(feature = "otel")]
+fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> String {
+    use domain_types::router_data::FlowStatus;
+    match flow_status {
+        FlowStatus::Payment(status) => format!("payment_{status}"),
+        FlowStatus::Refund(status) => format!("refund_{status}"),
+        FlowStatus::Dispute(status) => format!("dispute_{status}"),
+    }
+}
+
 /// Handles the connector response, processing both successful and error responses
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
@@ -247,7 +305,8 @@ where
     F: Clone + 'static,
     Req: Clone + 'static + std::fmt::Debug,
     Resp: Clone + 'static + std::fmt::Debug,
-    ResourceCommonData: Clone + RawConnectorRequestResponse + ConnectorResponseHeaders,
+    ResourceCommonData:
+        Clone + RawConnectorRequestResponse + ConnectorResponseHeaders + GetFlowStatus,
 {
     let return_raw = event_params.is_none_or(|p| p.return_raw_connector_data);
     match response {
@@ -356,12 +415,6 @@ where
                     if let (Some(params), Some(flow_status)) =
                         (event_params, error_response.attempt_status.as_ref())
                     {
-                        use domain_types::router_data::FlowStatus;
-                        let status_label = match flow_status {
-                            FlowStatus::Payment(status) => format!("payment_{status}"),
-                            FlowStatus::Refund(status) => format!("refund_{status}"),
-                            FlowStatus::Dispute(status) => format!("dispute_{status}"),
-                        };
                         crate::otel_metrics::record_payment_status(
                             params.connector_name,
                             params.flow_name.as_str(),
@@ -370,7 +423,7 @@ where
                             } else {
                                 "primary"
                             },
-                            &status_label,
+                            &flow_status_label(flow_status),
                         );
                     }
                     Err(error_stack::report!(
@@ -378,6 +431,24 @@ where
                     ))?
                 }
             };
+            // Centralised success-path payment outcome: every connector flow returns
+            // through here, so the final status is recorded once without per-handler
+            // code. Additive, feature-gated.
+            #[cfg(feature = "otel")]
+            if let (Some(params), Some(flow_status)) =
+                (event_params, response.resource_common_data.flow_status())
+            {
+                crate::otel_metrics::record_payment_status(
+                    params.connector_name,
+                    params.flow_name.as_str(),
+                    if params.shadow_mode {
+                        "shadow"
+                    } else {
+                        "primary"
+                    },
+                    &flow_status_label(&flow_status),
+                );
+            }
             Ok(response)
         }
         Err(err) => {
@@ -463,7 +534,8 @@ where
         + RawConnectorRequestResponse
         + ConnectorResponseHeaders
         + ConnectorRequestReference
-        + AdditionalHeaders,
+        + AdditionalHeaders
+        + GetFlowStatus,
 {
     let start = tokio::time::Instant::now();
     let proxy_name = event_params.proxy_name.unwrap_or("primary");
