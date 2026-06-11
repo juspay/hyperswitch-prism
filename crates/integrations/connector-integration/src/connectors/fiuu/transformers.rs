@@ -665,7 +665,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )
@@ -1031,7 +1032,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )

@@ -403,6 +403,7 @@ pub struct Connectors {
     pub juspay: ConnectorParams,
     pub payconex: ConnectorParams,
     pub tamara: ConnectorParams,
+    pub qwikcilver: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -1258,6 +1259,19 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::BluecodeRedirect(_) => Ok(
                     Self::Wallet(payment_method_data::WalletData::BluecodeRedirect {}),
                 ),
+                grpc_api_types::payments::payment_method::PaymentMethod::QwikcilverWalletDirect(qd) => {
+                    let wallet_number = qd.wallet_number.ok_or_else(|| {
+                        report!(IntegrationError::MissingRequiredField {
+                            field_name: "payment_method.qwikcilver_wallet_direct.wallet_number",
+                            context: IntegrationErrorContext::default(),
+                        })
+                    })?;
+                    Ok(Self::Wallet(
+                        payment_method_data::WalletData::QwikcilverWalletDirect(Box::new(
+                            payment_method_data::QwikcilverWalletDirectData { wallet_number },
+                        )),
+                    ))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::RevolutPay(_) => {
                     Ok(Self::Wallet(payment_method_data::WalletData::RevolutPay(
                         payment_method_data::RevolutPayData {},
@@ -2411,6 +2425,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::EaseBuzz => {
                 Ok(PaymentMethodType::EaseBuzz)
             }
+            grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => {
+                Ok(PaymentMethodType::QwikcilverWallet)
+            }
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)
             }
@@ -2693,6 +2710,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::DanamonVaBankTransfer(_) => Ok(Some(PaymentMethodType::DanamonVa)),
                 grpc_api_types::payments::payment_method::PaymentMethod::MandiriVaBankTransfer(_) => Ok(Some(PaymentMethodType::MandiriVa)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Netbanking(_) => Ok(Some(PaymentMethodType::Netbanking)),
+                grpc_api_types::payments::payment_method::PaymentMethod::QwikcilverWalletDirect(_) => Ok(Some(PaymentMethodType::QwikcilverWallet)),
             },
             None => Err(IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Payment method data is required".to_string()), ..Default::default() } }
             .into()),
@@ -4313,9 +4331,13 @@ impl
             payment_method: PaymentMethod::Card, // Default for access token operations
             address,
             auth_type: common_enums::AuthenticationType::default(),
+            // Prefer caller's per-request `merchant_request_id`; fall back to the historical `merchant_access_token_id`.
             connector_request_reference_id: extract_connector_request_reference_id(
-                &value.merchant_access_token_id,
-            ), // No request_ref_id available for access token requests
+                &value
+                    .merchant_request_id
+                    .clone()
+                    .or(value.merchant_access_token_id.clone()),
+            ),
             customer_id: None,
             connector_customer: None,
             description: None,
@@ -4343,7 +4365,7 @@ impl
             recurring_mandate_payment_data: None,
             order_details: None,
             minor_amount_authorized: None,
-            merchant_request_id: None,
+            merchant_request_id: value.merchant_request_id,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
         })
@@ -5547,6 +5569,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::BluecodeRedirect(_)),
+            } => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::QwikcilverWalletDirect(_)),
             } => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -7106,6 +7132,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::CashFree => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::PayU => Ok(Self::Wallet),
             grpc_api_types::payments::PaymentMethodType::EaseBuzz => Ok(Self::Wallet),
+            grpc_api_types::payments::PaymentMethodType::QwikcilverWallet => Ok(Self::Wallet),
 
             grpc_api_types::payments::PaymentMethodType::UpiCollect => Ok(Self::Upi),
             grpc_api_types::payments::PaymentMethodType::UpiIntent => Ok(Self::Upi),
@@ -8167,6 +8194,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
             integrity_object: None,
             split_refunds: None,
             connector_order_id: value.connector_order_id,
+            payment_method_data: value.payment_method.and_then(|pm| {
+                payment_method_data::PaymentMethodData::<
+                    payment_method_data::DefaultPCIHolder,
+                >::convert_to_domain_model_for_non_card_payment_methods(pm)
+                .ok()
+            }),
         })
     }
 }
@@ -10567,6 +10600,7 @@ pub enum PaymentMethodDataType {
     SepaGuaranteedBankDebit,
     IndonesianBankTransfer,
     Netbanking,
+    QwikcilverWalletDirect,
 }
 
 impl ForeignTryFrom<String> for Secret<time::Date> {
@@ -11260,6 +11294,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceCreateRequest>
             customer,
             description: value.description,
             payment_method_type,
+            product_id: value.product_id,
             connector_feature_data: value
                 .connector_feature_data
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))

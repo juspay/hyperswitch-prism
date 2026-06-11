@@ -150,6 +150,7 @@ default_impl_verify_webhook_source_v2!(
         Trustly,
         Trustpay,
         Worldpayvantiv,
+        Qwikcilver,
     ],
     not_implemented: [
         Aci,

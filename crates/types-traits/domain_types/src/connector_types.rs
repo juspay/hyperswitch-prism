@@ -149,6 +149,7 @@ pub enum ConnectorEnum {
     Juspay,
     Payconex,
     Tamara,
+    Qwikcilver,
 }
 
 // snake case for enum variants
@@ -389,6 +390,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
             grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
             grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
+            grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -1870,6 +1872,7 @@ pub struct CreatePaymentMethodData {
     pub customer: Option<CustomerInfo>,
     pub description: Option<String>,
     pub payment_method_type: PaymentMethodType,
+    pub product_id: Option<String>,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
 }
 
@@ -2879,6 +2882,8 @@ pub struct RefundsData {
     pub split_refunds: Option<SplitRefundsRequest>,
     /// Connector-side identifier for the original payment that this refund targets.
     pub connector_order_id: Option<String>,
+    pub payment_method_data:
+        Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
 }
 
 impl RefundsData {
@@ -3453,6 +3458,9 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::CashfreeRedirect(_) => Self::CashfreeRedirect,
                 payment_method_data::WalletData::PayURedirect(_) => Self::PayURedirect,
                 payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
+                payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
+                    Self::QwikcilverWalletDirect
+                }
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -3793,6 +3801,32 @@ pub struct CustomerInfo {
     pub customer_phone_number: Option<Secret<String>>,
     pub customer_phone_country_code: Option<String>,
     pub salutation: Option<String>,
+}
+
+impl CustomerInfo {
+    pub fn get_phone_number(&self) -> Result<Secret<String>, Error> {
+        self.customer_phone_number
+            .clone()
+            .ok_or_else(missing_field_err("customer.phone_number"))
+    }
+
+    pub fn get_first_name(&self) -> Result<Secret<String>, Error> {
+        self.first_name
+            .clone()
+            .ok_or_else(missing_field_err("customer.first_name"))
+    }
+
+    pub fn get_last_name(&self) -> Result<Secret<String>, Error> {
+        self.last_name
+            .clone()
+            .ok_or_else(missing_field_err("customer.last_name"))
+    }
+
+    pub fn get_email(&self) -> Result<common_utils::pii::Email, Error> {
+        self.customer_email
+            .clone()
+            .ok_or_else(missing_field_err("customer.email"))
+    }
 }
 
 impl L2L3Data {
@@ -4698,6 +4732,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
+            AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
