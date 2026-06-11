@@ -350,6 +350,29 @@ where
                         "response.status_code",
                         tracing::field::display(error_response.status_code),
                     );
+                    // Additive: record the connector flow outcome (FlowStatus) so a
+                    // decline is visible even though the gRPC call "succeeded".
+                    #[cfg(feature = "otel")]
+                    if let (Some(params), Some(flow_status)) =
+                        (event_params, error_response.attempt_status.as_ref())
+                    {
+                        use domain_types::router_data::FlowStatus;
+                        let status_label = match flow_status {
+                            FlowStatus::Payment(status) => format!("payment_{status}"),
+                            FlowStatus::Refund(status) => format!("refund_{status}"),
+                            FlowStatus::Dispute(status) => format!("dispute_{status}"),
+                        };
+                        crate::otel_metrics::record_payment_status(
+                            params.connector_name,
+                            params.flow_name.as_str(),
+                            if params.shadow_mode {
+                                "shadow"
+                            } else {
+                                "primary"
+                            },
+                            &status_label,
+                        );
+                    }
                     Err(error_stack::report!(
                         ConnectorError::ConnectorErrorResponse(error_response)
                     ))?

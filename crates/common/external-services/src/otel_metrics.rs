@@ -125,6 +125,32 @@ pub fn record_external_error(
     );
 }
 
+/// Connector flow outcome (FlowStatus: payment/refund/dispute status), by
+/// connector, flow and mode. This is the payment-outcome signal — a connector
+/// decline is recorded here even when the transport/gRPC call "succeeded".
+static PAYMENT_STATUS_TOTAL: LazyLock<Counter<u64>> = LazyLock::new(|| {
+    METER
+        .u64_counter(format!("{METRIC_PREFIX}payment_status_total"))
+        .with_description(
+            "Connector flow outcome (payment/refund/dispute status), by connector and mode",
+        )
+        .build()
+});
+
+/// Record one connector flow outcome. `payment_status` is a `FlowStatus` label
+/// (e.g. `payment_failure`); cardinality is bounded by the finite status enums.
+pub fn record_payment_status(connector: &str, flow: &str, mode: &str, payment_status: &str) {
+    PAYMENT_STATUS_TOTAL.add(
+        1,
+        &[
+            KeyValue::new("connector", connector.to_string()),
+            KeyValue::new("flow", flow.to_string()),
+            KeyValue::new("mode", mode.to_string()),
+            KeyValue::new("payment_status", payment_status.to_string()),
+        ],
+    );
+}
+
 /// Classify a gRPC status code into a coarse outcome class, the gRPC way.
 ///
 /// `success` for OK(0); `client_error` for codes attributable to the caller
