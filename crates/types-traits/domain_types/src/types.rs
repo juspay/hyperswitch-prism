@@ -8583,6 +8583,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "connector metadata")))
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
+            order_tax_amount: value
+                .order_tax_amount
+                .map(|amount| common_utils::types::MinorUnit::new(amount.minor_amount)),
         })
     }
 }
