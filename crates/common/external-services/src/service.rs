@@ -308,6 +308,11 @@ where
                             method,
                             params.service_name,
                             params.connector_name,
+                            if params.shadow_mode {
+                                "shadow"
+                            } else {
+                                "primary"
+                            },
                             body.status_code.to_string().as_str(),
                         );
                     }
@@ -541,6 +546,11 @@ where
                         &method.to_string(),
                         event_params.service_name,
                         event_params.connector_name,
+                        if event_params.shadow_mode {
+                            "shadow"
+                        } else {
+                            "primary"
+                        },
                     );
                     let external_service_start_latency = tokio::time::Instant::now();
                     tracing::Span::current().record("request.url", tracing::field::display(&url));
@@ -694,6 +704,11 @@ where
                         &method.to_string(),
                         event_params.service_name,
                         event_params.connector_name,
+                        if event_params.shadow_mode {
+                            "shadow"
+                        } else {
+                            "primary"
+                        },
                         external_service_elapsed.as_secs_f64(),
                     );
                     // Extract status code BEFORE creating event - one liner
@@ -754,6 +769,11 @@ where
                         "PUBLISH",
                         event_params.service_name,
                         event_params.connector_name,
+                        if event_params.shadow_mode {
+                            "shadow"
+                        } else {
+                            "primary"
+                        },
                     );
                     let external_service_start_latency = tokio::time::Instant::now();
 
@@ -796,6 +816,11 @@ where
                         "PUBLISH",
                         event_params.service_name,
                         event_params.connector_name,
+                        if event_params.shadow_mode {
+                            "shadow"
+                        } else {
+                            "primary"
+                        },
                         external_service_elapsed.as_secs_f64(),
                     );
                     tracing::info!(?response, "response from connector");

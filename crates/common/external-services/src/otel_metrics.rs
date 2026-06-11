@@ -73,38 +73,53 @@ static EXTERNAL_SERVICE_API_CALLS_ERRORS: LazyLock<Counter<u64>> = LazyLock::new
         .build()
 });
 
-/// Record one outbound connector API call (count).
-pub fn record_external_call(method: &str, service: &str, connector: &str) {
+/// Record one outbound connector API call (count). `mode` is "primary"/"shadow".
+pub fn record_external_call(method: &str, service: &str, connector: &str, mode: &str) {
     EXTERNAL_SERVICE_TOTAL_API_CALLS.add(
         1,
         &[
             KeyValue::new("method", method.to_string()),
             KeyValue::new("service", service.to_string()),
             KeyValue::new("connector", connector.to_string()),
+            KeyValue::new("mode", mode.to_string()),
         ],
     );
 }
 
-/// Record the latency of one outbound connector API call.
-pub fn record_external_latency(method: &str, service: &str, connector: &str, duration_secs: f64) {
+/// Record the latency of one outbound connector API call. `mode` is "primary"/"shadow".
+pub fn record_external_latency(
+    method: &str,
+    service: &str,
+    connector: &str,
+    mode: &str,
+    duration_secs: f64,
+) {
     EXTERNAL_SERVICE_API_CALLS_LATENCY.record(
         duration_secs,
         &[
             KeyValue::new("method", method.to_string()),
             KeyValue::new("service", service.to_string()),
             KeyValue::new("connector", connector.to_string()),
+            KeyValue::new("mode", mode.to_string()),
         ],
     );
 }
 
 /// Record one errored outbound connector API call (`error` is typically the status code).
-pub fn record_external_error(method: &str, service: &str, connector: &str, error: &str) {
+pub fn record_external_error(
+    method: &str,
+    service: &str,
+    connector: &str,
+    mode: &str,
+    error: &str,
+) {
     EXTERNAL_SERVICE_API_CALLS_ERRORS.add(
         1,
         &[
             KeyValue::new("method", method.to_string()),
             KeyValue::new("service", service.to_string()),
             KeyValue::new("connector", connector.to_string()),
+            KeyValue::new("mode", mode.to_string()),
             KeyValue::new("error", error.to_string()),
         ],
     );
@@ -135,6 +150,7 @@ pub fn record_grpc_request(
     method: &str,
     service: &str,
     connector: &str,
+    mode: &str,
     grpc_status: i32,
     duration_secs: f64,
 ) {
@@ -144,6 +160,7 @@ pub fn record_grpc_request(
     // gRPC defines a fixed set of <= 17 status codes — so it does not cause
     // unbounded time-series growth; it is kept alongside the coarse
     // `status_class` because the exact code is valuable when debugging failures.
+    // `mode` is "primary"/"shadow" (bounded) for rollout observability.
     GRPC_SERVER_REQUESTS_TOTAL.add(
         1,
         &[
@@ -151,6 +168,7 @@ pub fn record_grpc_request(
             KeyValue::new("flow", method.to_string()),
             KeyValue::new("service", service.to_string()),
             KeyValue::new("connector", connector.to_string()),
+            KeyValue::new("mode", mode.to_string()),
             KeyValue::new("grpc_status", i64::from(grpc_status)),
             KeyValue::new("status_class", status_class),
         ],
@@ -163,6 +181,7 @@ pub fn record_grpc_request(
             KeyValue::new("flow", method.to_string()),
             KeyValue::new("service", service.to_string()),
             KeyValue::new("connector", connector.to_string()),
+            KeyValue::new("mode", mode.to_string()),
             KeyValue::new("status_class", status_class),
         ],
     );

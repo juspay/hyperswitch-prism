@@ -122,6 +122,10 @@ where
         // Extract connector from request headers/metadata
         let connector = extract_connector_from_request(&req);
 
+        // Rollout mode: "primary" unless HS marks the request shadow.
+        #[cfg(feature = "otel")]
+        let mode = extract_mode_from_request(&req);
+
         // Increment total requests counter
         GRPC_SERVER_REQUESTS_TOTAL
             .with_label_values(&[&method_name, &service_name, &connector])
@@ -155,6 +159,7 @@ where
                 &method_name,
                 &service_name,
                 &connector,
+                mode,
                 grpc_status,
                 duration,
             );
@@ -200,6 +205,20 @@ fn extract_connector_from_request<B>(req: &hyper::Request<B>) -> String {
     }
 
     "unknown".to_string()
+}
+
+// Rollout mode from the `x-shadow-mode` header: "shadow" when explicitly true,
+// otherwise "primary" (the default when HS does not mark the request as shadow).
+#[cfg(feature = "otel")]
+fn extract_mode_from_request<B>(req: &hyper::Request<B>) -> &'static str {
+    match req
+        .headers()
+        .get("x-shadow-mode")
+        .and_then(|value| value.to_str().ok())
+    {
+        Some(value) if value.eq_ignore_ascii_case("true") => "shadow",
+        _ => "primary",
+    }
 }
 
 // Extract the gRPC status code from a response. gRPC status lives in the
