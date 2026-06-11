@@ -654,6 +654,9 @@ impl Connectors {
             ConnectorEnum::Powertranz => {
                 patched.powertranz.apply(params_patch);
             }
+            ConnectorEnum::Qwikcilver => {
+                patched.qwikcilver.apply(params_patch);
+            }
             ConnectorEnum::Revolv3 => {
                 patched.revolv3.apply(params_patch);
             }
