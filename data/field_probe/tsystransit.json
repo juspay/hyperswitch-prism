@@ -467,7 +467,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Capture><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionAmount>10.00</transactionAmount><transactionID>probe_connector_txn_001</transactionID><developerID>probe_dev_id</developerID></Capture>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Capture><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionAmount>10.00</transactionAmount><transactionID>probe_connector_txn_001</transactionID><developerID>probe_secret</developerID></Capture>"
         }
       }
     },
@@ -547,7 +547,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TransactionInquiry><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_connector_txn_001</transactionID><developerID>probe_dev_id</developerID></TransactionInquiry>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TransactionInquiry><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_connector_txn_001</transactionID><developerID>probe_secret</developerID></TransactionInquiry>"
         }
       }
     },
@@ -623,7 +623,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Return><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionAmount>10.00</transactionAmount><transactionID>probe_connector_txn_001</transactionID><developerID>probe_dev_id</developerID></Return>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Return><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionAmount>10.00</transactionAmount><transactionID>probe_connector_txn_001</transactionID><developerID>probe_secret</developerID></Return>"
         }
       }
     },
@@ -642,7 +642,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TransactionInquiry><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_refund_id_001</transactionID><developerID>probe_dev_id</developerID></TransactionInquiry>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TransactionInquiry><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_refund_id_001</transactionID><developerID>probe_secret</developerID></TransactionInquiry>"
         }
       }
     },
@@ -695,7 +695,7 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Void><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_connector_txn_001</transactionID><developerID>probe_dev_id</developerID><voidReason>POST_AUTH_USER_DECLINE</voidReason></Void>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Void><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_connector_txn_001</transactionID><developerID>probe_secret</developerID><voidReason>POST_AUTH_USER_DECLINE</voidReason></Void>"
         }
       }
     }
