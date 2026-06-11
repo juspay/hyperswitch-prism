@@ -39,6 +39,18 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
         ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
     },
     CompositeFlowSpec {
+        name: "verify_redirect",
+        composite_request_message: "CompositeVerifyRedirectResponseRequest",
+        granular_request_messages: &[
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
+            "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest",
+            "PaymentServiceAuthorizeRequest",
+            "PaymentServiceVerifyRedirectResponseRequest",
+        ],
+        ignore_granular_only_fields: AUTHORIZE_IGNORE_GRANULAR_ONLY_FIELDS,
+        ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
+    },
+    CompositeFlowSpec {
         name: "get",
         composite_request_message: "CompositeGetRequest",
         granular_request_messages: &[

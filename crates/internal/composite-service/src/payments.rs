@@ -219,7 +219,7 @@ impl CompositeSessionTokenRequest
     }
 
     fn has_session_token(&self) -> bool {
-        false // New requests don't have session tokens
+        self.session_token.is_some()
     }
 }
 
@@ -967,17 +967,14 @@ where
         ),
         tonic::Status,
     > {
-        // Step 1: Create access token if needed (reuse existing logic)
         let access_token_response = self
             .create_server_authentication_token(connector, payload, metadata, extensions)
             .await?;
 
-        // Step 2: Create session token if needed (reuse existing logic)
         let session_token_response = self
             .create_server_session_authentication_token(connector, payload, metadata, extensions)
             .await?;
 
-        // Step 3: Build authorize request using verified data
         let authorize_payload = PaymentServiceAuthorizeRequest::foreign_from((
             payload,
             verify_response,
@@ -989,7 +986,6 @@ where
         *authorize_request.metadata_mut() = metadata.clone();
         *authorize_request.extensions_mut() = extensions.clone();
 
-        // Step 4: Call authorize
         let authorize_response = self
             .payment_service
             .authorize(authorize_request)
@@ -1042,30 +1038,20 @@ where
         tonic::Response<grpc_api_types::payments::CompositeVerifyRedirectResponseResponse>,
         tonic::Status,
     > {
-        // 1. Extract parts
         let (metadata, extensions, payload) = request.into_parts();
-
-        // 2. Get connector
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
 
-        // 3. Call verify_redirect_response helper
         let verify_response = self
             .verify_redirect_response(&payload, &metadata, &extensions)
             .await?;
 
-        // 4. Check if connector requires authorize post redirect
         let connector_data = ConnectorData::<
             domain_types::payment_method_data::DefaultPCIHolder,
         >::get_connector_by_name(&connector);
-        let requires_authorize = connector_data.connector.requires_authorize_post_redirect();
 
-        // 5. Conditionally perform authorize flow (only if verification was successful)
         let (access_token_response, session_token_response, authorize_response) =
-            if requires_authorize
-                && verify_response.source_verified
-                && verify_response.error.is_none()
-            {
+            if connector_data.connector.requires_authorize_post_redirect() {
                 let (access_token, session_token, authorize) = self
                     .authorize_post_redirect(
                         &connector,
@@ -1080,7 +1066,6 @@ where
                 (None, None, None)
             };
 
-        // 6. Return composite response (always includes verify_response)
         Ok(tonic::Response::new(
             grpc_api_types::payments::CompositeVerifyRedirectResponseResponse {
                 verify_redirect_response: Some(verify_response),
