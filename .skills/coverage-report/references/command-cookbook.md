@@ -214,6 +214,44 @@ PY
 
 ---
 
+## §5 Test coverage — pass-based growth from two grpc CI reports
+
+Unlike §1–§4 (capability, from `data/field_probe`), this reports what actually **PASSES** end-to-end in the
+grpc integration reports. It takes a **baseline** and a **current** report (local path or http(s) URL) and
+prints a markdown growth table.
+
+The reports base is read from the `REPORT_BASE_URL` environment variable; the commands construct the report
+URLs from it. `report_latest.json` is the stable alias for the most recent run; dated snapshots are
+`report_YYYYMMDD_HHMM.json`.
+
+```bash
+# Set REPORT_BASE_URL to your grpc reports base directory.
+: "${REPORT_BASE_URL:?set REPORT_BASE_URL to your grpc reports base, e.g. export REPORT_BASE_URL=https://<host>/<path>/reports/grpc}"
+
+BASE_REPORT="$REPORT_BASE_URL/report_20260506_1458.json"   # dated baseline snapshot
+CURR_REPORT="$REPORT_BASE_URL/report_latest.json"          # stable alias for the most recent run
+
+python3 scripts/generators/docs/test_coverage.py "$BASE_REPORT" "$CURR_REPORT" \
+  --base-label "May 6" --current-label "latest"
+```
+
+Or pass **local file paths** instead — the script treats any non-`http(s)` argument as a file:
+```bash
+python3 scripts/generators/docs/test_coverage.py ./report_baseline.json ./report_latest.json
+```
+
+Prints rows: Passing tests · Connectors with ≥1 pass · API coverage (`connector × flow`) · PMT coverage
+(`connector × method`) · Production API coverage · Production PMT coverage · Overall run pass rate — each as
+`Base | Current | Change | Growth`. Override the production roster with `--prod adyen,stripe,...` if it changes
+(default is the 14 live connectors baked into the script).
+
+**Definitions (match the capability unit):** a coverage cell counts when it has ≥1 **PASS**; the denominator is
+every `connector × flow` (or `connector × method`) cell **attempted** in that report — the full cross-product,
+not a count of distinct flows/methods. `SKIP` and dependency setup runs are excluded. Quote the **counts /
+Change** as growth; the `%` base drifts as the test matrix grows.
+
+---
+
 ## Verification (run to confirm the cookbook works)
 - §0 → prints `prism/main` SHA/date (e49dc144… or newer) without changing your branch.
 - §1 with `SINCE=2026-05-01 BASE=prism/main`: prints supported deltas, **PM drift / API drift / TOTAL drift**,
