@@ -45,7 +45,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"payment_method[bank_account][account_number]\":\"000123456789\",\"payment_method[bank_account][routing_number]\":\"110000000\",\"payment_method[bank_account][account_type]\":\"checking\",\"type\":\"payment\",\"payment_method[type]\":\"bank_account\",\"payment_method[account_holder]\":\"John Doe\",\"processing_id\":null,\"payment_method[keep_active]\":false}"
+          "body": "{\"amount\":10.0,\"payment_method\":{\"type\":\"bank_account\",\"bank_account\":{\"account_number\":\"000123456789\",\"routing_number\":\"110000000\",\"account_type\":\"checking\"},\"account_holder\":\"John Doe\",\"keep_active\":false},\"type\":\"payment\"}"
         }
       },
       "AchBankTransfer": {
@@ -177,7 +177,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"payment_method[card][card_number]\":\"4111111111111111\",\"payment_method[card][expiry]\":\"03/30\",\"payment_method[card][card_code]\":\"737\",\"type\":\"payment\",\"payment_method[type]\":\"card\",\"payment_method[billing_address][city]\":\"Seattle\",\"payment_method[billing_address][country_code]\":\"US\",\"payment_method[billing_address][postal_code]\":\"98101\",\"payment_method[billing_address][state_province]\":\"WA\",\"payment_method[billing_address][street_address]\":\"123 Main St\",\"processing_id\":null,\"payment_method[keep_active]\":false}"
+          "body": "{\"amount\":10.0,\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"4111111111111111\",\"expiry\":\"03/30\",\"card_code\":\"737\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":false},\"type\":\"payment\"}"
         }
       },
       "CashappQr": {
@@ -585,7 +585,25 @@
         }
       }
     },
-    "create_customer": {
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by payload connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by payload connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by payload connector"
+      }
+    },
+    "customer_create": {
       "default": {
         "status": "supported",
         "proto_request": {
@@ -604,24 +622,6 @@
           },
           "body": "{\"keep_active\":false,\"email\":\"test@example.com\",\"name\":\"John Doe\"}"
         }
-      }
-    },
-    "create_order": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by payload connector"
-      }
-    },
-    "create_server_authentication_token": {
-      "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by payload connector"
-      }
-    },
-    "create_server_session_authentication_token": {
-      "default": {
-        "status": "not_supported",
-        "error": "server_session_authentication_token flow not supported by payload connector"
       }
     },
     "dispute_accept": {
@@ -768,7 +768,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"payment_method[card][card_number]\":\"{{$card_number}}\",\"payment_method[card][expiry]\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"payment_method[card][card_code]\":\"{{$card_cvc}}\",\"type\":\"payment\",\"payment_method[type]\":\"card\",\"payment_method[billing_address][city]\":\"Seattle\",\"payment_method[billing_address][country_code]\":\"US\",\"payment_method[billing_address][postal_code]\":\"98101\",\"payment_method[billing_address][state_province]\":\"WA\",\"payment_method[billing_address][street_address]\":\"123 Main St\",\"processing_id\":null,\"payment_method[keep_active]\":false}"
+          "body": "{\"amount\":10.0,\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"{{$card_number}}\",\"expiry\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"card_code\":\"{{$card_cvc}}\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":false},\"type\":\"payment\"}"
         }
       }
     },
@@ -820,7 +820,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":0.0,\"payment_method[card][card_number]\":\"{{$card_number}}\",\"payment_method[card][expiry]\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"payment_method[card][card_code]\":\"{{$card_cvc}}\",\"type\":\"payment\",\"payment_method[type]\":\"card\",\"payment_method[billing_address][city]\":\"Seattle\",\"payment_method[billing_address][country_code]\":\"US\",\"payment_method[billing_address][postal_code]\":\"98101\",\"payment_method[billing_address][state_province]\":\"WA\",\"payment_method[billing_address][street_address]\":\"123 Main St\",\"processing_id\":null,\"payment_method[keep_active]\":true}"
+          "body": "{\"amount\":0.0,\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"{{$card_number}}\",\"expiry\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"card_code\":\"{{$card_cvc}}\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":true},\"type\":\"payment\"}"
         }
       }
     },
@@ -902,7 +902,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"type\":\"refund\",\"amount\":10.0,\"ledger[0][assoc_transaction_id]\":\"probe_connector_txn_001\"}"
+          "body": "{\"type\":\"refund\",\"amount\":10.0,\"ledger\":[{\"assoc_transaction_id\":\"probe_connector_txn_001\"}]}"
         }
       }
     },
@@ -990,7 +990,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":0.0,\"payment_method[card][card_number]\":\"4111111111111111\",\"payment_method[card][expiry]\":\"03/30\",\"payment_method[card][card_code]\":\"737\",\"type\":\"payment\",\"payment_method[type]\":\"card\",\"payment_method[billing_address][city]\":\"Seattle\",\"payment_method[billing_address][country_code]\":\"US\",\"payment_method[billing_address][postal_code]\":\"98101\",\"payment_method[billing_address][state_province]\":\"WA\",\"payment_method[billing_address][street_address]\":\"123 Main St\",\"processing_id\":null,\"payment_method[keep_active]\":true}"
+          "body": "{\"amount\":0.0,\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"4111111111111111\",\"expiry\":\"03/30\",\"card_code\":\"737\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":true},\"type\":\"payment\"}"
         }
       }
     },

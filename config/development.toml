@@ -27,8 +27,7 @@ port = 8080
 
 [proxy]
 idle_pool_connection_timeout = 90
-bypass_proxy_urls = []
-mitm_proxy_enabled = false
+bypass_urls = []
 
 [test]
 enabled = false
@@ -49,8 +48,10 @@ psync = "GW_TXN_SYNC"
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
+payconex.base_url = "https://cert.payconex.net"
 tamara.base_url = "https://api-sandbox.tamara.co"
 juspay.base_url = "https://sandbox.juspay.in/"
+qwikcilver.base_url = "https://qc3.qwikcilver.com/"
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
@@ -201,4 +202,4 @@ enqueue_timeout_ms = 5000
 # sasl_password = ""
 
 [unmasked_headers]
-keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode"]
+keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name"]

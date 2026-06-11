@@ -543,6 +543,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     auth_id: item.response.authorization_code
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -604,6 +605,7 @@ impl<F> TryFrom<ResponseRouterData<FortePaymentsSyncResponse, Self>>
                     auth_id: item.response.authorization_code
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -720,6 +722,7 @@ impl<F, T> TryFrom<ResponseRouterData<ForteCaptureResponse, Self>>
                     auth_id: item.response.authorization_code
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.transaction_id.to_string()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -806,6 +809,7 @@ impl<F, T> TryFrom<ResponseRouterData<ForteCancelResponse, Self>>
                     auth_id: item.response.authorization_code
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(transaction_id.to_string()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,

@@ -630,12 +630,6 @@
         "error": "This feature is not implemented: client_authentication_token flow for airwallex"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "Failed to obtain authentication type"
-      }
-    },
     "create_order": {
       "default": {
         "status": "supported",
@@ -686,6 +680,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for airwallex"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "Failed to obtain authentication type"
       }
     },
     "dispute_accept": {

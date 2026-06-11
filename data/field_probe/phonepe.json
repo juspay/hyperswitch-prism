@@ -568,12 +568,6 @@
         "error": "client_authentication_token flow not supported by phonepe connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by phonepe connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -590,6 +584,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by phonepe connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by phonepe connector"
       }
     },
     "dispute_accept": {

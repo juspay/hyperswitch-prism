@@ -144,6 +144,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                                 mandate_reference: None,
                                 connector_metadata: None,
                                 network_txn_id: None,
+                                network_txn_link_id: None,
                                 connector_response_reference_id: data
                                     .merchant_reference_id
                                     .to_owned(),
@@ -1295,6 +1296,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                         mandate_reference,
                                         connector_metadata: None,
                                         network_txn_id: None,
+                                        network_txn_link_id: None,
                                         connector_response_reference_id: data
                                             .merchant_reference_id
                                             .clone(),
@@ -1537,6 +1539,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: data.merchant_reference_id.to_owned(),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,

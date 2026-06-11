@@ -765,8 +765,21 @@ pub enum ConnectorSpecificConfig {
         merchant_id: Secret<String>,
         base_url: Option<String>,
     },
+    Payconex {
+        api_key: Secret<String>,
+        account_id: Secret<String>,
+        base_url: Option<String>,
+    },
     Tamara {
         api_key: Secret<String>,
+        base_url: Option<String>,
+    },
+    Qwikcilver {
+        // Long-lived Bearer used only on the `/authorize` bootstrap call.
+        bootstrap_bearer_token: Secret<String>,
+        terminal_id: Secret<String>,
+        username: Secret<String>,
+        password: Secret<String>,
         base_url: Option<String>,
     },
 }
@@ -1086,6 +1099,10 @@ impl ConnectorSpecificConfig {
                 api_key,
                 merchant_id
             },
+            Payconex {
+                api_key,
+                account_id
+            },
             Tamara { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -1093,6 +1110,12 @@ impl ConnectorSpecificConfig {
                 access_token,
                 office_id,
                 paco_kid
+            },
+            Qwikcilver {
+                bootstrap_bearer_token,
+                terminal_id,
+                username,
+                password
             },
         )
     }
@@ -1503,6 +1526,10 @@ impl ConnectorSpecificConfig {
                     api_key,
                     merchant_id
                 },
+                Payconex {
+                    api_key,
+                    account_id
+                },
                 Tamara { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -1510,6 +1537,12 @@ impl ConnectorSpecificConfig {
                     access_token,
                     office_id,
                     paco_kid
+                },
+                Qwikcilver {
+                    bootstrap_bearer_token,
+                    terminal_id,
+                    username,
+                    password
                 },
             ),
             serde_json::Value::Object(connector_patch),
@@ -2049,6 +2082,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_id: juspay.merchant_id.ok_or_else(err)?,
                 base_url: juspay.base_url,
             }),
+            AuthType::Payconex(payconex) => Ok(Self::Payconex {
+                api_key: payconex.api_key.ok_or_else(err)?,
+                account_id: payconex.account_id.ok_or_else(err)?,
+                base_url: payconex.base_url,
+            }),
             AuthType::Tamara(tamara) => Ok(Self::Tamara {
                 api_key: tamara.api_key.ok_or_else(err)?,
                 base_url: tamara.base_url,
@@ -2096,6 +2134,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_identity_id: finix.merchant_identity_id.ok_or_else(err)?,
                 merchant_id: finix.merchant_id.ok_or_else(err)?,
                 base_url: finix.base_url,
+            }),
+            AuthType::Qwikcilver(qwikcilver) => Ok(Self::Qwikcilver {
+                bootstrap_bearer_token: qwikcilver.bootstrap_bearer_token.ok_or_else(err)?,
+                terminal_id: qwikcilver.terminal_id.ok_or_else(err)?,
+                username: qwikcilver.username.ok_or_else(err)?,
+                password: qwikcilver.password.ok_or_else(err)?,
+                base_url: qwikcilver.base_url,
             }),
         }
     }
@@ -3142,6 +3187,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Payconex => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
+                        api_key: api_key.clone(),
+                        account_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
@@ -3181,6 +3234,12 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                // Qwikcilver requires 4 secrets that don't fit the generic
+                // ConnectorAuthType variants. The runtime path that builds
+                // ConnectorSpecificConfig from per-connector legacy creds
+                // is not used for Qwikcilver — configure via the proto
+                // QwikcilverConfig path instead.
+                ConnectorEnum::Qwikcilver => Err(err().into()),
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {

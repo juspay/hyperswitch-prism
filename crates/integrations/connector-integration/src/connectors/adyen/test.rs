@@ -95,6 +95,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -294,6 +295,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,

@@ -303,7 +303,9 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             WalletData::BillDeskRedirect(_) => Ok(Self::BillDesk),
             WalletData::CashfreeRedirect(_) => Ok(Self::Cashfree),
             WalletData::PayURedirect(_) => Ok(Self::PayU),
-            WalletData::EaseBuzzRedirect(_) => Ok(Self::EaseBuzz),
+            WalletData::EaseBuzzRedirect(_) | WalletData::QwikcilverWalletDirect(_) => {
+                Ok(Self::EaseBuzz)
+            }
             WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
@@ -924,6 +926,7 @@ impl<F, Req>
                     })),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: data.resource_common_data.reference_id.clone(),
                     incremental_authorization_allowed: None,
                     mandate_reference: None,
@@ -963,6 +966,7 @@ impl<F, Req>
                     redirection_data: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: data.resource_common_data.reference_id.clone(),
                     incremental_authorization_allowed: None,
                     mandate_reference: None,
@@ -1535,6 +1539,7 @@ impl<F, Req> ForeignTryFrom<(RazorpayCaptureResponse, Self, u16)>
                 redirection_data: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.order_id),
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
@@ -2120,6 +2125,7 @@ impl<F, Req>
             connector_metadata,
             mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: data.resource_common_data.reference_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,

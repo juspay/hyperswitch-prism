@@ -478,12 +478,6 @@
         "error": "client_authentication_token flow not supported by tamara connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by tamara connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -500,6 +494,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by tamara connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by tamara connector"
       }
     },
     "dispute_accept": {

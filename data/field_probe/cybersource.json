@@ -836,12 +836,6 @@
         "error": "Stuck on field: return_url. Cybersource Flex Microform requires a return_url to set target_origins for the session — Missing required field: return_url. Cybersource Flex Microform requires a return_url to set target_origins for the session"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for cybersource"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -858,6 +852,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for cybersource"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for cybersource"
       }
     },
     "dispute_accept": {

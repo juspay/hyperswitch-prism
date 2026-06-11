@@ -1197,6 +1197,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
@@ -1270,6 +1271,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
@@ -1323,6 +1325,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
@@ -1376,6 +1379,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
@@ -1456,6 +1460,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()

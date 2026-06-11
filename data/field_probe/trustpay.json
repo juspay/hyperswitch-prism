@@ -871,12 +871,6 @@
         "error": "client_authentication_token flow not supported by trustpay connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by trustpay connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "supported",
@@ -926,6 +920,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by trustpay connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by trustpay connector"
       }
     },
     "dispute_accept": {

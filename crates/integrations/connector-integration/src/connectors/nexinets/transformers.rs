@@ -445,6 +445,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.order_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -574,6 +575,7 @@ impl<F, T> TryFrom<ResponseRouterData<NexinetsPaymentResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.order.order_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -889,7 +891,8 @@ fn get_wallet_details<
         | WalletData::BillDeskRedirect(_)
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
-        | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+        | WalletData::EaseBuzzRedirect(_)
+        | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
             Default::default(),
         ))?,
@@ -1257,6 +1260,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.order_id),
                 incremental_authorization_allowed: None,
                 status_code: http_code,
@@ -1458,6 +1462,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.order_id),
                 incremental_authorization_allowed: None,
                 status_code: http_code,

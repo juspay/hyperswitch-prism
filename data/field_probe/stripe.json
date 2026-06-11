@@ -1254,7 +1254,25 @@
         }
       }
     },
-    "create_customer": {
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by stripe connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by stripe connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for stripe"
+      }
+    },
+    "customer_create": {
       "default": {
         "status": "supported",
         "proto_request": {
@@ -1274,24 +1292,6 @@
           },
           "body": "email=test%40example.com&name=John+Doe"
         }
-      }
-    },
-    "create_order": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_order flow not supported by stripe connector"
-      }
-    },
-    "create_server_authentication_token": {
-      "default": {
-        "status": "not_supported",
-        "error": "server_authentication_token flow not supported by stripe connector"
-      }
-    },
-    "create_server_session_authentication_token": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: server_session_authentication_token flow for stripe"
       }
     },
     "dispute_accept": {
