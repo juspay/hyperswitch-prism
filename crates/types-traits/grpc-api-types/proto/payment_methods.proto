@@ -178,6 +178,7 @@ message PaymentMethod {
     Affirm affirm = 110;                                       // Affirm - US BNPL service
     AfterpayClearpay afterpay_clearpay = 111;                  // Afterpay/Clearpay - BNPL service
     Klarna klarna = 112;                                       // Klarna - Swedish BNPL service
+    Alma alma = 113;                                           // Alma - French BNPL service
     
     // NETWORK TRANSACTION METHODS (120-129) - For recurring payments with network transaction IDs
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
@@ -1054,12 +1055,12 @@ message Klarna {
   // Fields will be added as needed for Klarna integration
 }
 
-/*
-
 // Alma - French BNPL service
 message Alma {
   // Fields will be added as needed for Alma integration
 }
+
+/*
 
 // Atome - Asian BNPL service
 message Atome {
@@ -1117,6 +1118,10 @@ message Alfamart {
 message Boleto {
   // The shopper's social security number
   optional string social_security_number = 1;
+
+  // Merchant-controlled boleto due date (ISO 8601)
+  // use this when provided and otherwise fall back to a connector default.
+  optional string expiration_date = 2;
 }
 
 // Efecty - Colombian cash payment network
@@ -1470,6 +1475,41 @@ enum BankNames {
   IndianOverseasBank = 160;
   CentralBankOfIndia = 161;
   Absa = 162;
+  AccessBank = 163;
+  Albaraka = 164;
+  ChinaConstructionBank = 165;
+  Discovery = 166;
+  EnlBank = 167;
+  FirstNationalBank = 168;
+  GotymeBank = 169;
+  HabibOverseas = 170;
+  HbzBank = 171;
+  Investec = 172;
+  JpMorganChase = 173;
+  MtnBanking = 174;
+  Olympus = 175;
+  OldMutual = 176;
+  PermanentBank = 177;
+  SocieteGenerale = 178;
+  StandardBank = 179;
+  StateBankOfIndia = 180;
+  Ubank = 181;
+  VbsMutualBank = 182;
+  BankZero = 183;
+  BidvestBank = 184;
+  BidvestBankAlliances = 185;
+  FbcFidelityBank = 186;
+  FinbondEpe = 187;
+  FinbondMutualBank = 188;
+  Ithala = 189;
+  PeoplesBankPepBank = 190;
+  PeoplesBank = 191;
+  PostBank = 192;
+  Nedbank = 193;
+  Capitec = 194;
+  CapitecBusiness = 195;
+  AfricanBank = 196;
+  AfricanBankBusiness = 197;
 }
 
 // ============================================================================

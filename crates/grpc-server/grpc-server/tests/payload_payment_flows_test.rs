@@ -145,12 +145,16 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
         return_url: Some("https://example.com/return".to_string()),
         webhook_url: Some("https://example.com/webhook".to_string()),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: None,
             connector_customer_id: None,
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
         }),
         address: Some(address),
         auth_type: i32::from(AuthenticationType::NoThreeDs),
@@ -182,6 +186,7 @@ fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServ
         payment_experience: None,
 
         merchant_request_id: None,
+        payment_method_type: None,
     }
 }
 
@@ -318,12 +323,16 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
             payment_method: Some(payment_method::PaymentMethod::Card(card_details)),
         }),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(unique_email.clone().into()),
             name: Some(format!("{unique_first_name} Doe")),
             id: None,
             connector_customer_id: None,
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
         }),
         customer_acceptance: Some(CustomerAcceptance {
             acceptance_type: i32::from(AcceptanceType::Offline),
@@ -400,8 +409,7 @@ async fn test_authorize_psync_void() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let auth_response = client
-            .authorize(grpc_request)
+        let auth_response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -463,8 +471,7 @@ async fn test_authorize_capture_refund_rsync() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let auth_response = client
-            .authorize(grpc_request)
+        let auth_response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -531,6 +538,7 @@ async fn test_authorize_capture_refund_rsync() {
             payment_experience: None,
 
             merchant_request_id: None,
+            payment_method_type: None,
         };
         let mut rsync_grpc_request = Request::new(rsync_request);
         add_payload_metadata(&mut rsync_grpc_request);

@@ -309,6 +309,8 @@ pub enum AdyenPaymentMethod<
     Kakaopay(Box<KakaoPayData>),
     #[serde(rename = "mbway")]
     Mbway(Box<MbwayData>),
+    #[serde(rename = "mobilepay")]
+    MobilePay,
     #[serde(rename = "momo_wallet")]
     Momo(Box<MomoData>),
     #[serde(rename = "touchngo")]
@@ -911,6 +913,8 @@ pub struct AdditionalData {
     #[serde(rename = "recurring.shopperReference")]
     recurring_shopper_reference: Option<String>,
     network_tx_reference: Option<Secret<String>>,
+    /// Network-issued link id chaining related transactions (`transactionLinkId`).
+    transaction_link_id: Option<String>,
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
     refusal_code_raw: Option<String>,
@@ -1559,6 +1563,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::MbWayRedirect(_) => Ok(Self::Mbway(Box::new(MbwayData {
                 telephone_number: item.resource_common_data.get_billing_phone_number()?,
             }))),
+            WalletData::MobilePayRedirect(_) => Ok(Self::MobilePay),
             WalletData::MomoRedirect(_) => Ok(Self::Momo(Box::new(MomoData {}))),
             WalletData::TouchNGoRedirect(_) => Ok(Self::TouchNGo(Box::new(TouchNGoData {}))),
             WalletData::WeChatPayRedirect(_) => Ok(Self::WeChatPayWeb),
@@ -1569,7 +1574,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             WalletData::AmazonPayRedirect(_)
             | WalletData::Paze(_)
             | WalletData::RevolutPay(_)
-            | WalletData::MobilePayRedirect(_)
             | WalletData::SamsungPay(_)
             | WalletData::AliPayQr(_)
             | WalletData::ApplePayRedirect(_)
@@ -4464,6 +4468,7 @@ impl TryFrom<ResponseRouterData<AdyenVoidResponse, Self>>
             redirection_data: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.reference),
             incremental_authorization_allowed: None,
             mandate_reference: None,
@@ -4671,11 +4676,17 @@ pub fn get_adyen_response(
                 .map(|network_tx_id| network_tx_id.clone().expose())
         });
 
+    let network_txn_link_id = response
+        .additional_data
+        .as_ref()
+        .and_then(|additional_data| additional_data.transaction_link_id.clone());
+
     let payments_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::ConnectorTransactionId(response.psp_reference),
         redirection_data: None,
         connector_metadata: None,
         network_txn_id,
+        network_txn_link_id,
         connector_response_reference_id: Some(response.merchant_reference),
         incremental_authorization_allowed: None,
         mandate_reference: mandate_reference.map(Box::new),
@@ -4762,6 +4773,7 @@ pub fn get_present_to_shopper_response(
         redirection_data: None,
         connector_metadata,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: response
             .merchant_reference
             .clone()
@@ -4836,6 +4848,7 @@ pub fn get_redirection_error_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: response
             .merchant_reference
             .clone()
@@ -4896,6 +4909,7 @@ pub fn get_qr_code_response(
         redirection_data: None,
         connector_metadata,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: response
             .merchant_reference
             .clone()
@@ -5039,6 +5053,7 @@ pub fn get_webhook_response(
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.merchant_reference_id),
             incremental_authorization_allowed: None,
             status_code,
@@ -5187,6 +5202,7 @@ pub fn get_redirection_response(
         mandate_reference: None,
         connector_metadata,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: response
             .merchant_reference
             .clone()
@@ -6071,6 +6087,7 @@ impl<F> TryFrom<ResponseRouterData<AdyenCaptureResponse, Self>>
                 redirection_data: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.reference),
                 incremental_authorization_allowed: None,
                 mandate_reference: None,

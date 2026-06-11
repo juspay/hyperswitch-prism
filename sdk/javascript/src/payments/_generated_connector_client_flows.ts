@@ -7,11 +7,11 @@ import { types } from "./generated/proto";
 
 export class CustomerClient extends _ConnectorClientBase {
   /** CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information. */
-  async create(
+  async customerCreate(
     requestMsg: types.ICustomerServiceCreateRequest,
     options?: types.IRequestConfig | null
   ): Promise<types.CustomerServiceCreateResponse> {
-    return this._executeFlow('create', requestMsg, options, 'CustomerServiceCreateRequest', 'CustomerServiceCreateResponse') as Promise<types.CustomerServiceCreateResponse>;
+    return this._executeFlow('customer_create', requestMsg, options, 'CustomerServiceCreateRequest', 'CustomerServiceCreateResponse') as Promise<types.CustomerServiceCreateResponse>;
   }
 
 }

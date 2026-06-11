@@ -1,4 +1,10 @@
 {
+  "Payconex": [
+    "https://developers.bluefin.com/payconex/docs/qsapi-transaction",
+    "https://developers.bluefin.com/payconex/docs/process-transactions-ach-updates",
+    "https://developers.bluefin.com/payconex/docs/tsapi-request-response-formats",
+    "https://developers.bluefin.com/payconex/docs/introduction"
+  ],
   "Barclaycard": [
     "https://developer.smartpayfuse.barclaycard/docs/barclays/en-us/payments/developer/all/rest/payments/MITs.html",
     "https://developer.smartpayfuse.barclaycard/api-reference-assets/index.html",
@@ -72,5 +78,25 @@
     "https://docs.worldpay.com/apis/wpg/manage/modificationrequests",
     "https://documentation.ixopay.com/docs/tokenex/worldpaywpg",
     "https://github.com/activemerchant/active_merchant/blob/master/lib/active_merchant/billing/gateways/worldpay.rb"
+  ],
+  "Tamara": [
+    "https://docs.tamara.co/",
+    "https://docs.tamara.co/reference/tamara-api-reference-documentation",
+    "https://docs.tamara.co/docs/direct-online-checkout",
+    "https://docs.tamara.co/docs/direct-quick-start-guide",
+    "https://docs.tamara.co/reference/createcheckoutsession",
+    "https://docs.tamara.co/reference/authoriseorder",
+    "https://docs.tamara.co/reference/captureorder",
+    "https://docs.tamara.co/reference/cancelorder",
+    "https://docs.tamara.co/reference/simplifiedrefund",
+    "https://docs.tamara.co/reference/getorderdetails",
+    "https://docs.tamara.co/reference/paymenttypes",
+    "https://docs.tamara.co/reference/registerwebhookurl",
+    "https://docs.tamara.co/reference/getting-started-with-webhooks",
+    "https://docs.tamara.co/docs/testing-scenarios",
+    "https://docs.tamara.co/docs/online-order-status-flow",
+    "https://docs.tamara.co/docs/postman-collection",
+    "https://docs.tamara.co/docs/testing-checklist",
+    "https://docs.tamara.co/docs/online-go-live-testing-checklist"
   ]
 }

@@ -5,9 +5,9 @@
 // Stax — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx stax.ts checkout_autocapture
 
-import { PaymentClient, CustomerClient, RecurringPaymentClient, RefundClient, PaymentMethodClient, types } from 'hyperswitch-prism';
+import { PaymentClient, CustomerClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, CaptureMethod, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["capture", "create_customer", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "tokenize", "void"];
+export const SUPPORTED_FLOWS = ["capture", "customer_create", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -33,7 +33,7 @@ function _buildCaptureRequest(connectorTransactionId: string): types.IPaymentSer
     };
 }
 
-function _buildCreateCustomerRequest(): types.ICustomerServiceCreateRequest {
+function _buildCustomerCreateRequest(): types.ICustomerServiceCreateRequest {
     return {
         "merchantCustomerId": "cust_probe_123",  // Identification.
         "customerName": "John Doe",  // Name of the customer.
@@ -143,31 +143,6 @@ function _buildTokenSetupRecurringRequest(): types.IPaymentServiceTokenSetupRecu
     };
 }
 
-function _buildTokenizeRequest(): types.IPaymentMethodServiceTokenizeRequest {
-    return {
-        "amount": {  // Payment Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "paymentMethod": {
-            "card": {  // Generic card payment.
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
-            }
-        },
-        "customer": {  // Customer Information.
-            "id": "cust_probe_123"  // Internal customer ID.
-        },
-        "address": {  // Address Information.
-            "billingAddress": {
-            }
-        }
-    };
-}
-
 function _buildVoidRequest(connectorTransactionId: string): types.IPaymentServiceVoidRequest {
     return {
         "merchantVoidId": "probe_void_001",  // Identification.
@@ -187,12 +162,12 @@ async function capture(merchantTransactionId: string, config: types.IConnectorCo
 }
 
 // Flow: CustomerService.Create
-async function createCustomer(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+async function customerCreate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const customerClient = new CustomerClient(config);
 
-    const createResponse = await customerClient.create(_buildCreateCustomerRequest());
+    const customerResponse = await customerClient.customerCreate(_buildCustomerCreateRequest());
 
-    return createResponse;
+    return customerResponse;
 }
 
 // Flow: PaymentService.Get
@@ -249,15 +224,6 @@ async function tokenSetupRecurring(merchantTransactionId: string, config: types.
     return tokenResponse;
 }
 
-// Flow: PaymentMethodService.Tokenize
-async function tokenize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentMethodClient = new PaymentMethodClient(config);
-
-    const tokenizeResponse = await paymentMethodClient.tokenize(_buildTokenizeRequest());
-
-    return tokenizeResponse;
-}
-
 // Flow: PaymentService.Void
 async function voidPayment(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -270,7 +236,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    capture, createCustomer, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, tokenize, voidPayment, _buildCaptureRequest, _buildCreateCustomerRequest, _buildGetRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest, _buildTokenizeRequest, _buildVoidRequest
+    capture, customerCreate, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, voidPayment, _buildCaptureRequest, _buildCustomerCreateRequest, _buildGetRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildTokenAuthorizeRequest, _buildTokenSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

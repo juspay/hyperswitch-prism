@@ -4,9 +4,9 @@ use external_services::shared_metrics as metrics;
 use grpc_api_types::{
     health_check::health_server,
     payments::{
-        composite_event_service_server, composite_payment_service_server,
-        composite_refund_service_server, customer_service_server, dispute_service_server,
-        event_service_server, merchant_authentication_service_server,
+        composite_event_service_server, composite_payment_method_service_server,
+        composite_payment_service_server, composite_refund_service_server, customer_service_server,
+        dispute_service_server, event_service_server, merchant_authentication_service_server,
         payment_method_authentication_service_server, payment_method_service_server,
         payment_service_server, recurring_payment_service_server, refund_service_server,
     },
@@ -111,6 +111,10 @@ pub struct Service {
     >,
     pub composite_event_service:
         composite_service::events::CompositeEvents<crate::server::events::EventServiceImpl>,
+    pub composite_payment_method_service: composite_service::payment_methods::PaymentMethods<
+        crate::server::payments::PaymentMethod,
+        crate::server::payments::MerchantAuthentication,
+    >,
     pub payments_service: crate::server::payments::Payments,
     pub refunds_service: crate::server::refunds::Refunds,
     pub disputes_service: crate::server::disputes::Disputes,
@@ -170,16 +174,24 @@ impl Service {
         let composite_event_service =
             composite_service::events::CompositeEvents::new(event_service.clone());
 
+        let payment_method_service = crate::server::payments::PaymentMethod;
+        let composite_payment_method_service =
+            composite_service::payment_methods::PaymentMethods::new(
+                payment_method_service.clone(),
+                merchant_authentication_service.clone(),
+            );
+
         Self {
             health_check_service: crate::server::health_check::HealthCheck,
             composite_payments_service,
             composite_event_service,
+            composite_payment_method_service,
             payments_service,
             refunds_service,
             disputes_service: crate::server::disputes::Disputes,
             recurring_payment_service: crate::server::payments::RecurringPayments,
             event_service,
-            payment_method_service: crate::server::payments::PaymentMethod,
+            payment_method_service,
             merchant_authentication_service,
             customer_service,
             payment_method_authentication_service:
@@ -222,6 +234,7 @@ impl Service {
         let app_state = crate::http::AppState::new(
             self.composite_payments_service,
             self.composite_event_service,
+            self.composite_payment_method_service,
             self.payments_service,
             self.refunds_service,
             self.disputes_service,
@@ -317,6 +330,11 @@ impl Service {
             .add_service(
                 composite_refund_service_server::CompositeRefundServiceServer::new(
                     self.composite_payments_service,
+                ),
+            )
+            .add_service(
+                composite_payment_method_service_server::CompositePaymentMethodServiceServer::new(
+                    self.composite_payment_method_service,
                 ),
             )
             .add_service(customer_service_server::CustomerServiceServer::new(

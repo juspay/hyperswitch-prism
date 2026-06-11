@@ -778,6 +778,7 @@ pub enum StripePaymentMethodType {
     Affirm,
     AfterpayClearpay,
     Alipay,
+    Alma,
     #[serde(rename = "amazon_pay")]
     AmazonPay,
     #[serde(rename = "au_becs_debit")]
@@ -824,6 +825,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             common_enums::PaymentMethodType::Klarna => Ok(Self::Klarna),
             common_enums::PaymentMethodType::Affirm => Ok(Self::Affirm),
             common_enums::PaymentMethodType::AfterpayClearpay => Ok(Self::AfterpayClearpay),
+            common_enums::PaymentMethodType::Alma => Ok(Self::Alma),
             common_enums::PaymentMethodType::Eps => Ok(Self::Eps),
             common_enums::PaymentMethodType::Giropay => Ok(Self::Giropay),
             common_enums::PaymentMethodType::Ideal => Ok(Self::Ideal),
@@ -863,7 +865,6 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             common_enums::PaymentMethodType::AliPayHk
             | common_enums::PaymentMethodType::Atome
             | common_enums::PaymentMethodType::Bizum
-            | common_enums::PaymentMethodType::Alma
             | common_enums::PaymentMethodType::ClassicReward
             | common_enums::PaymentMethodType::Dana
             | common_enums::PaymentMethodType::DirectCarrierBilling
@@ -1150,11 +1151,11 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
             PayLaterData::KlarnaRedirect { .. } => Ok(Self::Klarna),
             PayLaterData::AffirmRedirect {} => Ok(Self::Affirm),
             PayLaterData::AfterpayClearpayRedirect { .. } => Ok(Self::AfterpayClearpay),
+            PayLaterData::AlmaRedirect {} => Ok(Self::Alma),
 
             PayLaterData::KlarnaSdk { .. }
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
-            | PayLaterData::AlmaRedirect {}
             | PayLaterData::AtomeRedirect {} => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
@@ -2487,6 +2488,7 @@ pub enum StripePaymentMethodDetailsResponse {
     Klarna,
     Affirm,
     AfterpayClearpay,
+    Alma,
     AmazonPay,
     ApplePay,
     #[serde(rename = "us_bank_account")]
@@ -2542,6 +2544,7 @@ impl StripePaymentMethodDetailsResponse {
             | Self::Klarna
             | Self::Affirm
             | Self::AfterpayClearpay
+            | Self::Alma
             | Self::AmazonPay
             | Self::ApplePay
             | Self::Ach
@@ -2761,6 +2764,7 @@ where
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: item
                     .router_data
@@ -2957,6 +2961,7 @@ pub fn get_payment_method_id(
             | Some(StripePaymentMethodDetailsResponse::Klarna)
             | Some(StripePaymentMethodDetailsResponse::Affirm)
             | Some(StripePaymentMethodDetailsResponse::AfterpayClearpay)
+            | Some(StripePaymentMethodDetailsResponse::Alma)
             | Some(StripePaymentMethodDetailsResponse::AmazonPay)
             | Some(StripePaymentMethodDetailsResponse::ApplePay)
             | Some(StripePaymentMethodDetailsResponse::Ach)
@@ -3048,6 +3053,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata,
                 network_txn_id: network_transaction_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -3164,6 +3170,7 @@ impl<F, T> TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: None,
                 network_txn_id: network_transaction_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -3543,6 +3550,7 @@ pub enum StripePaymentMethodOptions {
     Klarna {},
     Affirm {},
     AfterpayClearpay {},
+    Alma {},
     AmazonPay {},
     Eps {},
     Giropay {},
@@ -4717,6 +4725,7 @@ impl<F, T> TryFrom<ResponseRouterData<CreateConnectorCustomerResponse, Self>>
         Ok(Self {
             response: Ok(ConnectorCustomerResponse {
                 connector_customer_id: item.response.id,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })

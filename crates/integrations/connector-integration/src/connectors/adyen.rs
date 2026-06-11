@@ -1027,13 +1027,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _request: RequestDetails,
         _error_kind: Option<connector_types::IncomingWebhookFlowError>,
-    ) -> Result<
-        interfaces::api::ApplicationResponse<serde_json::Value>,
-        error_stack::Report<WebhookError>,
-    > {
-        Ok(interfaces::api::ApplicationResponse::TextPlain(
-            "[accepted]".to_string(),
-        ))
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<interfaces::api::EventAckResponse, error_stack::Report<WebhookError>> {
+        Ok(interfaces::api::EventAckResponse {
+            status_code: 200,
+            headers: vec![],
+            body: Some(b"[accepted]".to_vec()),
+        })
     }
 }
 
@@ -1303,6 +1303,54 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
         PaymentMethodType::Bacs,
         PaymentMethodDetails {
             mandates: FeatureStatus::Supported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: adyen_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Wallet - AliPayHk (Redirect)
+    adyen_supported_payment_methods.add(
+        PaymentMethod::Wallet,
+        PaymentMethodType::AliPayHk,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: adyen_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Wallet - WeChatPay (Redirect)
+    adyen_supported_payment_methods.add(
+        PaymentMethod::Wallet,
+        PaymentMethodType::WeChatPay,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: adyen_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Wallet - MobilePay (Redirect)
+    adyen_supported_payment_methods.add(
+        PaymentMethod::Wallet,
+        PaymentMethodType::MobilePay,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: adyen_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    // Wallet - MbWay (Redirect)
+    adyen_supported_payment_methods.add(
+        PaymentMethod::Wallet,
+        PaymentMethodType::MbWay,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: adyen_supported_capture_methods.clone(),
             specific_features: None,

@@ -12,7 +12,7 @@ use common_utils::{
 };
 use domain_types::{
     connector_types::ConnectorEnum,
-    types::{Connectors, ConnectorsPatch, Proxy, ProxyPatch},
+    types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
 };
 
 use crate::{
@@ -26,7 +26,7 @@ pub struct Config {
     pub server: Server,
     pub metrics: MetricsServer,
     pub log: Log,
-    pub proxy: Proxy,
+    pub proxy: ProxyConfig,
     pub connectors: Connectors,
     #[serde(default)]
     pub events: EventConfig,
@@ -312,7 +312,7 @@ impl Config {
                     .try_parsing(true)
                     .separator("__")
                     .list_separator(",")
-                    .with_list_parse_key("proxy.bypass_proxy_urls")
+                    .with_list_parse_key("proxy.bypass_urls")
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("database.tenants")
                     .with_list_parse_key("log.kafka.brokers")

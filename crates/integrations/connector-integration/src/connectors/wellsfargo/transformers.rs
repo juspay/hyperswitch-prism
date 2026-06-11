@@ -12,7 +12,9 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse, FlowStatus,
+    },
     router_data_v2::RouterDataV2,
     utils::{get_card_issuer, CardIssuer},
 };
@@ -547,7 +549,7 @@ fn build_error_response(
         message: error_message.clone(),
         reason: Some(error_message),
         status_code: http_code,
-        attempt_status: status,
+        attempt_status: status.map(FlowStatus::Payment),
         connector_transaction_id: Some(response.id.clone()),
         network_decline_code: response
             .processor_information
@@ -1195,6 +1197,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
@@ -1268,6 +1271,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
@@ -1321,6 +1325,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
@@ -1374,6 +1379,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
@@ -1454,6 +1460,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()

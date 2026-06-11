@@ -21,7 +21,9 @@ use crate::{
     errors::{IntegrationError, IntegrationErrorContext, WebhookError},
     mandates::{CustomerAcceptance, MandateData},
     payment_address::{self, Address, AddressDetails, PhoneDetails},
-    payment_method_data::{self, Card, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        self, Card, CustomerDocumentDetails, PaymentMethodData, PaymentMethodDataTypes,
+    },
     router_data::{self, ConnectorResponseData},
     router_request_types::{
         self, AcceptDisputeIntegrityObject, AuthoriseIntegrityObject, BrowserInformation,
@@ -144,6 +146,9 @@ pub enum ConnectorEnum {
     Easebuzz,
     Axisbank,
     TwocTwopPaco,
+    Juspay,
+    Payconex,
+    Tamara,
 }
 
 // snake case for enum variants
@@ -198,6 +203,50 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
                 field_name: "connector",
                 context: IntegrationErrorContext::default(),
             }),
+        }
+    }
+}
+
+impl ForeignTryFrom<AuthType> for SurchargeConnectorEnum {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
+        match config {
+            AuthType::Interpayments(_) => Ok(Self::Interpayments),
+            _ => Err(error_stack::Report::new(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Connector is not supported for surcharge flows".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )),
+        }
+    }
+}
+
+impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
+        match config {
+            AuthType::Paypal(_) => Ok(Self::Paypal),
+            AuthType::Loonio(_) => Ok(Self::Loonio),
+            AuthType::Itaubank(_) => Ok(Self::Itaubank),
+            _ => Err(error_stack::Report::new(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Connector is not supported for payout flows".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )),
         }
     }
 }
@@ -334,6 +383,9 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
+            grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
+            grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
+            grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -843,6 +895,60 @@ impl PaymentFlowData {
             ))
     }
 
+    pub fn get_billing_line2(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.line2)
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.line2",
+            ))
+    }
+
+    pub fn get_billing_line3(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.line3)
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.line3",
+            ))
+    }
+
+    pub fn get_billing_state(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.state)
+            })
+            .ok_or_else(missing_field_err(
+                "payment_method_data.billing.address.state",
+            ))
+    }
+
+    pub fn get_billing_zip(&self) -> Result<Secret<String>, Error> {
+        self.address
+            .get_payment_method_billing()
+            .and_then(|billing_address| {
+                billing_address
+                    .clone()
+                    .address
+                    .and_then(|billing_details| billing_details.zip)
+            })
+            .ok_or_else(missing_field_err("payment_method_data.billing.address.zip"))
+    }
+
     pub fn get_billing_email(&self) -> Result<Email, Error> {
         self.address
             .get_payment_method_billing()
@@ -974,6 +1080,93 @@ impl PaymentFlowData {
             .get_payment_method_billing()
             .and_then(|billing_address| billing_address.clone().email)
     }
+
+    // ── Shipping-with-billing-fallback helpers ──────────────────────────────
+    // `get_optional_shipping_or_billing_*` → Option  (chain further fallbacks as needed)
+    // `get_shipping_or_billing_*`          → Result  (error is owned here; callers just use `?`)
+
+    pub fn get_optional_shipping_or_billing_country(&self) -> Option<common_enums::CountryAlpha2> {
+        self.get_optional_shipping_country()
+            .or_else(|| self.get_optional_billing_country())
+    }
+
+    pub fn get_shipping_or_billing_country(&self) -> Result<common_enums::CountryAlpha2, Error> {
+        self.get_optional_shipping_or_billing_country()
+            .ok_or_else(missing_field_err("shipping_or_billing.address.country"))
+    }
+
+    pub fn get_optional_shipping_or_billing_first_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_first_name()
+            .or_else(|| self.get_optional_billing_first_name())
+    }
+
+    pub fn get_shipping_or_billing_first_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_or_billing_first_name()
+            .ok_or_else(missing_field_err("shipping_or_billing.address.first_name"))
+    }
+
+    pub fn get_optional_shipping_or_billing_last_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_last_name()
+            .or_else(|| self.get_optional_billing_last_name())
+    }
+
+    pub fn get_shipping_or_billing_last_name(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_or_billing_last_name()
+            .ok_or_else(missing_field_err("shipping_or_billing.address.last_name"))
+    }
+
+    // Same as `get_shipping_or_billing_phone_number` but doesn't require country code.
+    // Uses `phone.number` directly instead of `get_number_with_country_code()`.
+    pub fn get_optional_shipping_phone_number_plain(&self) -> Option<Secret<String>> {
+        self.address
+            .get_shipping()
+            .and_then(|shipping_address| shipping_address.clone().phone)
+            .and_then(|phone_details| phone_details.number)
+    }
+
+    pub fn get_optional_shipping_or_billing_phone_number_plain(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_phone_number_plain()
+            .or_else(|| self.get_optional_billing_phone_number())
+    }
+
+    pub fn get_shipping_or_billing_phone_number_plain(&self) -> Result<Secret<String>, Error> {
+        self.get_optional_shipping_or_billing_phone_number_plain()
+            .ok_or_else(missing_field_err("shipping_or_billing.phone"))
+    }
+
+    pub fn get_optional_shipping_or_billing_line1(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_line1()
+            .or_else(|| self.get_optional_billing_line1())
+    }
+
+    pub fn get_optional_shipping_or_billing_city(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping_city()
+            .or_else(|| self.get_optional_billing_city())
+    }
+
+    // ── String-converting helpers ───────────────────────────────────────────
+    // For connector structs that store address fields as plain `String`
+    // (not `Secret<String>`), these hide the `.peek().to_string()` /
+    // `.to_string()` + `.unwrap_or_default()` at every call site.
+
+    pub fn get_optional_shipping_or_billing_line1_string(&self) -> String {
+        self.get_optional_shipping_or_billing_line1()
+            .map(|l| l.expose())
+            .unwrap_or_default()
+    }
+
+    pub fn get_optional_shipping_or_billing_city_string(&self) -> String {
+        self.get_optional_shipping_or_billing_city()
+            .map(|c| c.expose())
+            .unwrap_or_default()
+    }
+
+    pub fn get_optional_shipping_or_billing_country_string(&self) -> String {
+        self.get_optional_shipping_or_billing_country()
+            .map(|c| c.to_string())
+            .unwrap_or_default()
+    }
+
     pub fn to_connector_meta<T>(&self) -> Result<T, Error>
     where
         T: serde::de::DeserializeOwned,
@@ -1204,6 +1397,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub amount: MinorUnit,
     pub order_tax_amount: Option<MinorUnit>,
     pub email: Option<Email>,
+    pub customer_document_details: Option<CustomerDocumentDetails>,
     pub customer_name: Option<String>,
     pub currency: Currency,
     pub confirm: bool,
@@ -1277,6 +1471,14 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
     }
     pub fn get_optional_email(&self) -> Option<Email> {
         self.email.clone()
+    }
+    pub fn get_optional_customer_document_details(&self) -> Option<CustomerDocumentDetails> {
+        self.customer_document_details.clone()
+    }
+    pub fn get_customer_document_details(&self) -> Result<CustomerDocumentDetails, Error> {
+        self.customer_document_details
+            .clone()
+            .ok_or_else(missing_field_err("customer_document_details"))
     }
     pub fn get_browser_info(&self) -> Result<BrowserInformation, Error> {
         self.browser_info
@@ -1503,6 +1705,9 @@ pub enum PaymentsResponseData {
         connector_metadata: Option<serde_json::Value>,
         mandate_reference: Option<Box<MandateReference>>,
         network_txn_id: Option<String>,
+        /// Network-issued link/reference id (Adyen `transactionLinkId`, etc.) that
+        /// chains related network transactions. Distinct from `network_txn_id`.
+        network_txn_link_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
         status_code: u16,
@@ -1512,6 +1717,7 @@ pub enum PaymentsResponseData {
         status_code: u16,
     },
     PreAuthenticateResponse {
+        resource_id: Option<ResponseId>,
         authentication_data: Option<router_request_types::AuthenticationData>,
         /// For Device Data Collection
         redirection_data: Option<Box<RedirectForm>>,
@@ -1625,6 +1831,70 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenResponse {
     pub token: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct RechargeRequestData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub merchant_request_id: Option<String>,
+    pub merchant_recharge_id: Option<String>,
+    pub product_id: String,
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    pub description: Option<String>,
+    pub payment_method_type: PaymentMethodType,
+}
+
+#[derive(Debug, Clone)]
+pub struct RechargeResponseData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub merchant_recharge_id: Option<String>,
+    pub connector_recharge_id: Option<String>,
+    pub status: common_enums::RechargeStatus,
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
+    pub status_code: u16,
+}
+
+/// Slimmed-down customer info used by the payment-method-management flows
+/// (Create / Get). Fields are picked from the proto `Customer` message — only
+/// the ones a connector actually needs to provision or look up a payment
+/// method.
+#[derive(Debug, Clone)]
+pub struct CreatePaymentMethodData {
+    pub merchant_payment_method_id: Option<String>,
+    pub customer: Option<CustomerInfo>,
+    pub description: Option<String>,
+    pub payment_method_type: PaymentMethodType,
+    pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct CreatePaymentMethodResponseData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
+    pub customer: Option<CustomerInfo>,
+    pub status_code: u16,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetPaymentMethodData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub customer: Option<CustomerInfo>,
+    pub payment_method_type: PaymentMethodType,
+    pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GetPaymentMethodResponseData {
+    pub merchant_payment_method_id: Option<String>,
+    pub connector_payment_method_id: Option<String>,
+    pub customer: Option<CustomerInfo>,
+    pub payment_method_details: Option<payment_method_data::PaymentMethodDetails>,
+    pub status_code: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -1859,6 +2129,7 @@ impl ConnectorCustomerData {
 #[derive(Debug, Clone)]
 pub struct ConnectorCustomerResponse {
     pub connector_customer_id: String,
+    pub status_code: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -2724,6 +2995,7 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub webhook_url: Option<String>,
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
+    pub customer_document_details: Option<CustomerDocumentDetails>,
     pub customer_name: Option<String>,
     pub return_url: Option<String>,
     pub payment_method_type: Option<PaymentMethodType>,
@@ -2754,6 +3026,14 @@ impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
     }
     pub fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    pub fn get_optional_customer_document_details(&self) -> Option<CustomerDocumentDetails> {
+        self.customer_document_details.clone()
+    }
+    pub fn get_customer_document_details(&self) -> Result<CustomerDocumentDetails, Error> {
+        self.customer_document_details
+            .clone()
+            .ok_or_else(missing_field_err("customer_document_details"))
     }
     pub fn is_card(&self) -> bool {
         matches!(self.payment_method_data, PaymentMethodData::Card(_))
@@ -2800,6 +3080,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<Email>,
+    pub customer_document_details: Option<CustomerDocumentDetails>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub off_session: Option<bool>,
@@ -2859,6 +3140,14 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
     }
     pub fn get_email(&self) -> Result<Email, Error> {
         self.email.clone().ok_or_else(missing_field_err("email"))
+    }
+    pub fn get_optional_customer_document_details(&self) -> Option<CustomerDocumentDetails> {
+        self.customer_document_details.clone()
+    }
+    pub fn get_customer_document_details(&self) -> Result<CustomerDocumentDetails, Error> {
+        self.customer_document_details
+            .clone()
+            .ok_or_else(missing_field_err("customer_document_details"))
     }
     pub fn get_recurring_mandate_payment_data(
         &self,
@@ -3496,8 +3785,11 @@ pub struct CustomerInfo {
     pub customer_id: Option<CustomerId>,
     pub customer_email: Option<common_utils::pii::Email>,
     pub customer_name: Option<Secret<String>>,
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
     pub customer_phone_number: Option<Secret<String>>,
     pub customer_phone_country_code: Option<String>,
+    pub salutation: Option<String>,
 }
 
 impl L2L3Data {
@@ -4402,6 +4694,8 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Ppro(_) => Ok(Self::Payment(ConnectorEnum::Ppro)),
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
+            AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
+            AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {
@@ -4410,6 +4704,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Bamboraapac(_) => Ok(Self::Payment(ConnectorEnum::Bamboraapac)),
             AuthType::Placetopay(_) => Ok(Self::Payment(ConnectorEnum::Placetopay)),
             AuthType::Finix(_) => Ok(Self::Payment(ConnectorEnum::Finix)),
+            AuthType::Tamara(_) => Ok(Self::Payment(ConnectorEnum::Tamara)),
         }
     }
 }
