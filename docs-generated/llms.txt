@@ -694,6 +694,14 @@ payment_methods: none
 flows: capture, get, refund, refund_get, void
 examples_python: none
 
+## Tsystransit
+connector_id: tsystransit
+doc: docs/connectors/tsystransit.md
+scenarios: none
+payment_methods: none
+flows: capture, get, refund, refund_get, void
+examples_python: none
+
 ## Twoc Twop Paco
 connector_id: twoc_twop_paco
 doc: docs/connectors/twoc_twop_paco.md

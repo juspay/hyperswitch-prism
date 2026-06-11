@@ -1,9 +1,9 @@
-# Tsys Transit
+# Tsystransit
 
 <!--
 This file is auto-generated. Do not edit by hand.
-Source: data/field_probe/tsys_transit.json
-Regenerate: python3 scripts/generators/docs/generate.py tsys_transit
+Source: data/field_probe/tsystransit.json
+Regenerate: python3 scripts/generators/docs/generate.py tsystransit
 -->
 
 ## SDK Configuration
@@ -22,14 +22,9 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    connector_config=payment_pb2.ConnectorSpecificConfig(
-        tsys_transit=payment_pb2.TsysTransitConfig(
-            device_id=payment_methods_pb2.SecretString(value="YOUR_DEVICE_ID"),
-            transaction_key=payment_methods_pb2.SecretString(value="YOUR_TRANSACTION_KEY"),
-            developer_id=payment_methods_pb2.SecretString(value="YOUR_DEVELOPER_ID"),
-            base_url="YOUR_BASE_URL",
-        ),
-    ),
+    # connector_config=payment_pb2.ConnectorSpecificConfig(
+    #     tsystransit=payment_pb2.TsystransitConfig(api_key=...),
+    # ),
 )
 
 ```
@@ -46,16 +41,9 @@ const { PaymentClient } = require('hyperswitch-prism');
 const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
 const config = ConnectorConfig.create({
-    connector: Connector.TSYS_TRANSIT,
+    connector: Connector.TSYSTRANSIT,
     environment: Environment.SANDBOX,
-    auth: {
-        tsysTransit: {
-            deviceId: { value: 'YOUR_DEVICE_ID' },
-            transactionKey: { value: 'YOUR_TRANSACTION_KEY' },
-            developerId: { value: 'YOUR_DEVELOPER_ID' },
-            baseUrl: 'YOUR_BASE_URL',
-        }
-    },
+    // auth: { tsystransit: { apiKey: { value: 'YOUR_API_KEY' } } },
 });
 ```
 
@@ -69,16 +57,7 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setTsysTransit(TsysTransitConfig.newBuilder()
-                .setDeviceId(SecretString.newBuilder().setValue("YOUR_DEVICE_ID").build())
-                .setTransactionKey(SecretString.newBuilder().setValue("YOUR_TRANSACTION_KEY").build())
-                .setDeveloperId(SecretString.newBuilder().setValue("YOUR_DEVELOPER_ID").build())
-                .setBaseUrl("YOUR_BASE_URL")
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Tsystransit credentials here
     .build()
 ```
 
@@ -128,7 +107,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L80) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L83) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
+**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L73) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L72) · [Rust](../../examples/tsystransit/tsystransit.rs)
 
 #### PaymentService.Get
 
@@ -139,7 +118,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L89) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L93) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
+**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L82) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L82) · [Rust](../../examples/tsystransit/tsystransit.rs)
 
 #### PaymentService.Refund
 
@@ -150,7 +129,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L98) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L101) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
+**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L91) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L90) · [Rust](../../examples/tsystransit/tsystransit.rs)
 
 #### PaymentService.Void
 
@@ -161,7 +140,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L123) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
+**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L112) · [Rust](../../examples/tsystransit/tsystransit.rs)
 
 ### Refunds
 
@@ -174,4 +153,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/tsys_transit/tsys_transit.py) · [TypeScript](../../examples/tsys_transit/tsys_transit.ts#L107) · [Kotlin](../../examples/tsys_transit/tsys_transit.kt#L111) · [Rust](../../examples/tsys_transit/tsys_transit.rs)
+**Examples:** [Python](../../examples/tsystransit/tsystransit.py) · [TypeScript](../../examples/tsystransit/tsystransit.ts#L100) · [Kotlin](../../examples/tsystransit/tsystransit.kt#L100) · [Rust](../../examples/tsystransit/tsystransit.rs)

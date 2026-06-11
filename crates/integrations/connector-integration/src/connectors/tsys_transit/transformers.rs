@@ -2271,12 +2271,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 None,
                 None,
             ),
-            (MandateDispatch::None, _, _) if is_cit_setup => (
-                visa_card_on_file(),
-                None,
-                None,
-                None,
-            ),
+            (MandateDispatch::None, _, _) if is_cit_setup => {
+                (visa_card_on_file(), None, None, None)
+            }
             (MandateDispatch::None, _, _) => (None, None, None, None),
         };
         let original_recurring_amount = match (
@@ -2433,7 +2430,9 @@ enum MandateDispatch {
         customer_code: String,
         wallet_id: String,
     },
-    Ntid { ntid: String },
+    Ntid {
+        ntid: String,
+    },
     None,
 }
 fn decode_mandate_dispatch(mandate_id: Option<&MandateIds>) -> MandateDispatch {

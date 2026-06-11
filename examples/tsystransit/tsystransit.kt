@@ -1,11 +1,11 @@
 // This file is auto-generated. Do not edit manually.
 // Replace YOUR_API_KEY and placeholder values with real data.
-// Regenerate: python3 scripts/generate-connector-docs.py tsys_transit
+// Regenerate: python3 scripts/generate-connector-docs.py tsystransit
 //
-// Tsys_Transit — all scenarios and flows in one file.
-// Run a scenario:  ./gradlew run --args="tsys_transit processCheckoutCard"
+// Tsystransit — all scenarios and flows in one file.
+// Run a scenario:  ./gradlew run --args="tsystransit processCheckoutCard"
 
-package examples.tsys_transit
+package examples.tsystransit
 
 import types.Payment.*
 import types.PaymentMethods.*
@@ -15,24 +15,13 @@ import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
-import payments.ConnectorSpecificConfig
-import types.Payment.TsysTransitConfig
-import payments.SecretString
+
 
 val SUPPORTED_FLOWS = listOf<String>("capture", "get", "refund", "refund_get", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    .setConnectorConfig(
-        ConnectorSpecificConfig.newBuilder()
-            .setTsysTransit(TsysTransitConfig.newBuilder()
-                .setDeviceId(SecretString.newBuilder().setValue("YOUR_DEVICE_ID").build())
-                .setTransactionKey(SecretString.newBuilder().setValue("YOUR_TRANSACTION_KEY").build())
-                .setDeveloperId(SecretString.newBuilder().setValue("YOUR_DEVELOPER_ID").build())
-                .setBaseUrl("YOUR_BASE_URL")
-                .build())
-            .build()
-    )
+    // .setConnectorConfig(...) — set your Tsystransit credentials here
     .build()
 
 
