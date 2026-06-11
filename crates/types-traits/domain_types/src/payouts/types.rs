@@ -1524,8 +1524,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
                     customer_id,
                     customer_email,
                     customer_name: cust.name.map(hyperswitch_masking::Secret::new),
+                    first_name: cust.first_name.clone().map(Into::into),
+                    last_name: cust.last_name.clone().map(Into::into),
                     customer_phone_number: cust.phone_number.map(hyperswitch_masking::Secret::new),
                     customer_phone_country_code: cust.phone_country_code.clone(),
+                    salutation: cust.salutation.clone(),
                 })
             })
             .transpose()?;
@@ -1647,8 +1650,11 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountR
                     customer_id,
                     customer_email,
                     customer_name: cust.name.map(hyperswitch_masking::Secret::new),
+                    first_name: cust.first_name.clone().map(Into::into),
+                    last_name: cust.last_name.clone().map(Into::into),
                     customer_phone_number: cust.phone_number.map(hyperswitch_masking::Secret::new),
                     customer_phone_country_code: cust.phone_country_code.clone(),
+                    salutation: cust.salutation.clone(),
                 })
             })
             .transpose()?;

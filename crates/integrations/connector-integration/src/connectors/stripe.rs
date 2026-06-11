@@ -13,9 +13,8 @@ use common_utils::{
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        IncrementalAuthorization, PSync, PaymentMethodToken, PayoutCreate, PayoutCreateRecipient,
-        PayoutEnrollDisburseAccount, PayoutGet, PayoutTransfer, PayoutVoid, RSync, Refund,
-        RepeatPayment, SetupMandate, Void,
+        IncrementalAuthorization, PSync, PaymentMethodToken, RSync, Refund, RepeatPayment,
+        SetupMandate, Void,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
@@ -27,12 +26,6 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
-    payouts::payouts_types::{
-        PayoutCreateRecipientRequest, PayoutCreateRecipientResponse, PayoutCreateRequest,
-        PayoutCreateResponse, PayoutEnrollDisburseAccountRequest,
-        PayoutEnrollDisburseAccountResponse, PayoutFlowData, PayoutGetRequest, PayoutGetResponse,
-        PayoutTransferRequest, PayoutTransferResponse, PayoutVoidRequest, PayoutVoidResponse,
-    },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
@@ -54,13 +47,8 @@ use transformers::{
     PaymentsAuthorizeResponse, PaymentsAuthorizeResponse as RepeatPaymentResponse,
     PaymentsCaptureResponse, PaymentsVoidResponse, RefundResponse,
     RefundResponse as RefundSyncResponse, SetupMandateRequest, SetupMandateResponse,
-    StripeClientAuthRequest, StripeClientAuthResponse, StripeConnectPayoutCreateRequest,
-    StripeConnectPayoutCreateResponse, StripeConnectPayoutFulfillRequest,
-    StripeConnectPayoutFulfillResponse, StripeConnectPayoutRetrieveResponse,
-    StripeConnectRecipientAccountCreateRequest, StripeConnectRecipientAccountCreateResponse,
-    StripeConnectRecipientCreateRequest, StripeConnectRecipientCreateResponse,
-    StripeConnectReversalRequest, StripeConnectReversalResponse, StripeRefundRequest,
-    StripeTokenResponse, TokenRequest,
+    StripeClientAuthRequest, StripeClientAuthResponse, StripeRefundRequest, StripeTokenResponse,
+    TokenRequest,
 };
 
 use super::macros;
@@ -77,13 +65,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ClientAuthentication for Stripe<T>
 {
 }
-
-macros::macro_connector_payout_implementation!(
-    connector: Stripe,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    payout_flows: [PayoutStage, PayoutCreateLink]
-);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Stripe<T>
@@ -248,42 +229,6 @@ macros::create_all_prerequisites!(
             request_body: StripeClientAuthRequest,
             response_body: StripeClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
-        ),
-        // Payout flows
-        (
-            flow: PayoutCreate,
-            request_body: StripeConnectPayoutCreateRequest,
-            response_body: StripeConnectPayoutCreateResponse,
-            router_data: RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
-        ),
-        (
-            flow: PayoutTransfer,
-            request_body: StripeConnectPayoutFulfillRequest,
-            response_body: StripeConnectPayoutFulfillResponse,
-            router_data: RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
-        ),
-        (
-            flow: PayoutGet,
-            response_body: StripeConnectPayoutRetrieveResponse,
-            router_data: RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        ),
-        (
-            flow: PayoutVoid,
-            request_body: StripeConnectReversalRequest,
-            response_body: StripeConnectReversalResponse,
-            router_data: RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-        ),
-        (
-            flow: PayoutCreateRecipient,
-            request_body: StripeConnectRecipientCreateRequest,
-            response_body: StripeConnectRecipientCreateResponse,
-            router_data: RouterDataV2<PayoutCreateRecipient, PayoutFlowData, PayoutCreateRecipientRequest, PayoutCreateRecipientResponse>,
-        ),
-        (
-            flow: PayoutEnrollDisburseAccount,
-            request_body: StripeConnectRecipientAccountCreateRequest,
-            response_body: StripeConnectRecipientAccountCreateResponse,
-            router_data: RouterDataV2<PayoutEnrollDisburseAccount, PayoutFlowData, PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse>,
         )
     ],
     amount_converters: [],
@@ -311,13 +256,6 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.stripe.base_url
-        }
-
-        pub fn connector_base_url_payouts<'a, F, Req, Res>(
-            &self,
-            req: &'a RouterDataV2<F, PayoutFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.stripe.base_url
         }
@@ -1025,234 +963,5 @@ macros::macro_connector_flow_status_impls!(
     ],
 );
 
-// =============================================================================
-// PAYOUT FLOW IMPLEMENTATIONS
-// =============================================================================
-
-// PayoutCreate
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Stripe,
-    curl_request: FormUrlEncoded(StripeConnectPayoutCreateRequest),
-    curl_response: StripeConnectPayoutCreateResponse,
-    flow_name: PayoutCreate,
-    resource_common_data: PayoutFlowData,
-    flow_request: PayoutCreateRequest,
-    flow_response: PayoutCreateResponse,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}v1/transfers", self.connector_base_url_payouts(req)))
-        }
-    }
-);
-
-// PayoutTransfer
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Stripe,
-    curl_request: FormUrlEncoded(StripeConnectPayoutFulfillRequest),
-    curl_response: StripeConnectPayoutFulfillResponse,
-    flow_name: PayoutTransfer,
-    resource_common_data: PayoutFlowData,
-    flow_request: PayoutTransferRequest,
-    flow_response: PayoutTransferResponse,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let mut headers = self.build_headers(req)?;
-
-            if let Some(ref account_id) = req.request.connector_payout_method_id {
-                headers.push((
-                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                    Secret::new(account_id.clone()).into_masked(),
-                ));
-            }
-            Ok(headers)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}v1/payouts", self.connector_base_url_payouts(req)))
-        }
-    }
-);
-
-// PayoutGet
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Stripe,
-    curl_response: StripeConnectPayoutRetrieveResponse,
-    flow_name: PayoutGet,
-    resource_common_data: PayoutFlowData,
-    flow_request: PayoutGetRequest,
-    flow_response: PayoutGetResponse,
-    http_method: Get,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            let mut headers = self.build_headers(req)?;
-
-            if let Some(ref account_id) = req.request.connector_payout_method_id {
-                headers.push((
-                    headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
-                    Secret::new(account_id.clone()).into_masked(),
-                ));
-            }
-            Ok(headers)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-        ) -> CustomResult<String, IntegrationError> {
-            let payout_id = req.request.connector_payout_id.clone()
-                .ok_or_else(|| IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
-            Ok(format!("{}v1/payouts/{}", self.connector_base_url_payouts(req), payout_id))
-        }
-    }
-);
-
-// PayoutVoid
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Stripe,
-    curl_request: FormUrlEncoded(StripeConnectReversalRequest),
-    curl_response: StripeConnectReversalResponse,
-    flow_name: PayoutVoid,
-    resource_common_data: PayoutFlowData,
-    flow_request: PayoutVoidRequest,
-    flow_response: PayoutVoidResponse,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-        ) -> CustomResult<String, IntegrationError> {
-            let transfer_id = req.request.connector_payout_id.clone()
-                .ok_or_else(|| IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
-            Ok(format!("{}v1/transfers/{}/reversals", self.connector_base_url_payouts(req), transfer_id))
-        }
-    }
-);
-
-// PayoutCreateRecipient
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Stripe,
-    curl_request: FormUrlEncoded(StripeConnectRecipientCreateRequest),
-    curl_response: StripeConnectRecipientCreateResponse,
-    flow_name: PayoutCreateRecipient,
-    resource_common_data: PayoutFlowData,
-    flow_request: PayoutCreateRecipientRequest,
-    flow_response: PayoutCreateRecipientResponse,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<PayoutCreateRecipient, PayoutFlowData, PayoutCreateRecipientRequest, PayoutCreateRecipientResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<PayoutCreateRecipient, PayoutFlowData, PayoutCreateRecipientRequest, PayoutCreateRecipientResponse>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}v1/accounts", self.connector_base_url_payouts(req)))
-        }
-    }
-);
-
-// PayoutEnrollDisburseAccount
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Stripe,
-    curl_request: FormUrlEncoded(StripeConnectRecipientAccountCreateRequest),
-    curl_response: StripeConnectRecipientAccountCreateResponse,
-    flow_name: PayoutEnrollDisburseAccount,
-    resource_common_data: PayoutFlowData,
-    flow_request: PayoutEnrollDisburseAccountRequest,
-    flow_response: PayoutEnrollDisburseAccountResponse,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<PayoutEnrollDisburseAccount, PayoutFlowData, PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<PayoutEnrollDisburseAccount, PayoutFlowData, PayoutEnrollDisburseAccountRequest, PayoutEnrollDisburseAccountResponse>,
-        ) -> CustomResult<String, IntegrationError> {
-
-            let account_id = req.request.connector_payout_id.clone()
-                .ok_or_else(|| IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
-            Ok(format!("{}v1/accounts/{}/external_accounts", self.connector_base_url_payouts(req), account_id))
-        }
-    }
-);
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PayoutCreateV2 for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PayoutTransferV2 for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PayoutGetV2 for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PayoutVoidV2 for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PayoutCreateRecipientV2 for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PayoutEnrollDisburseAccountV2 for Stripe<T>
-{
-}
 
 // SourceVerification implementations for all flows

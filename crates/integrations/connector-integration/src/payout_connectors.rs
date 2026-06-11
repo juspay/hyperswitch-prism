@@ -6,3 +6,6 @@ pub use self::loonio::LoonioPayouts;
 
 pub mod paypal;
 pub use self::paypal::PaypalPayouts;
+
+pub mod stripe;
+pub use self::stripe::StripePayouts;
