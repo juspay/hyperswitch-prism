@@ -822,6 +822,7 @@ impl ForeignFrom<(&CompositeVerifyRedirectResponseRequest, &ConnectorEnum)>
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            merchant_request_id: item.merchant_request_id.clone(),
         }
     }
 }
@@ -838,6 +839,8 @@ impl ForeignFrom<(&CompositeVerifyRedirectResponseRequest, &ConnectorEnum)>
                     amount: Some(amount),
                     metadata: item.metadata.clone(),
                     browser_info: item.browser_info.clone(),
+                    customer: item.customer.clone(),
+                    address: item.address.clone(),
                 });
 
         Self {
