@@ -56,7 +56,9 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
             "PaymentServiceRefundRequest",
         ],
         ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
-        ignore_composite_only_fields: IGNORE_COMPOSITE_ONLY_FIELDS,
+        // `payment_method` is on both granular (PaymentServiceRefundRequest)
+        // and composite (CompositeRefundRequest), so no ignore needed here.
+        ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
     },
     CompositeFlowSpec {
         name: "refund_get",
