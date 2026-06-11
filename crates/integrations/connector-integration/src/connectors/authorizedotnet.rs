@@ -20,6 +20,7 @@ use domain_types::{
         WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -478,7 +479,7 @@ macros::create_all_prerequisites!(
             flow: ServerSessionAuthenticationToken,
             request_body: AuthorizedotnetSdkSessionTokenRequest,
             response_body: AuthorizedotnetSdkSessionTokenResponse,
-            router_data: RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         )
     ],
     amount_converters: [
@@ -526,6 +527,14 @@ macros::create_all_prerequisites!(
             req: &RouterDataV2<F, RefundFlowData, Req, Res>,
         ) -> String {
             req.resource_common_data.connectors.authorizedotnet.base_url.to_string()
+        }
+
+        pub fn connector_base_url_merchant_auth<F, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
+        ) -> String {
+            let base_url = &req.resource_common_data.connectors.authorizedotnet.base_url;
+            base_url.to_string()
         }
     }
 );
@@ -846,7 +855,7 @@ macros::macro_connector_implementation!(
     curl_request: Json(AuthorizedotnetSdkSessionTokenRequest),
     curl_response: AuthorizedotnetSdkSessionTokenResponse,
     flow_name: ServerSessionAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerSessionAuthenticationTokenRequestData,
     flow_response: ServerSessionAuthenticationTokenResponseData,
     http_method: Post,
@@ -856,16 +865,16 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
 
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(self.connector_base_url_payments(req).to_string())
+            Ok(self.connector_base_url_merchant_auth(req).to_string())
         }
     }
 );

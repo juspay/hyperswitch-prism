@@ -1,5 +1,6 @@
 use domain_types::{
     connector_flow::*, connector_types::*, errors::IntegrationError,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     router_data::ConnectorSpecificConfig, router_data_v2::RouterDataV2,
 };
 
@@ -74,7 +75,7 @@ impl
     TryFrom<
         &RouterDataV2<
             ServerAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         >,
@@ -85,7 +86,7 @@ impl
     fn try_from(
         req: &RouterDataV2<
             ServerAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         >,

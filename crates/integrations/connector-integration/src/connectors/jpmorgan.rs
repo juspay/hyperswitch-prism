@@ -26,6 +26,7 @@ use domain_types::{
         RefundsResponseData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
@@ -220,7 +221,7 @@ macros::create_all_prerequisites!(
             flow: ServerAuthenticationToken,
             request_body: JpmorganTokenRequest,
             response_body: JpmorganAuthUpdateResponse,
-            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         (
             flow: Authorize,
@@ -260,7 +261,7 @@ macros::create_all_prerequisites!(
             flow: ClientAuthenticationToken,
             request_body: JpmorganClientAuthRequest,
             response_body: JpmorganClientAuthResponse,
-            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            router_data: RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ),
         (
             flow: SetupMandate,
@@ -429,7 +430,7 @@ macros::macro_connector_implementation!(
     curl_request: FormUrlEncoded(JpmorganClientAuthRequest),
     curl_response: JpmorganClientAuthResponse,
     flow_name: ClientAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ClientAuthenticationTokenRequestData,
     flow_response: PaymentsResponseData,
     http_method: Post,
@@ -441,7 +442,7 @@ macros::macro_connector_implementation!(
         }
         fn get_headers(
             &self,
-            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             // ClientAuthenticationToken flow uses Basic auth with client_id:client_secret
             // to obtain an OAuth2 access token for client-side SDK initialization
@@ -463,7 +464,7 @@ macros::macro_connector_implementation!(
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             use domain_types::errors::IntegrationErrorContext;
             Ok(format!(
@@ -498,7 +499,7 @@ macros::macro_connector_implementation!(
     curl_request: FormUrlEncoded(JpmorganTokenRequest),
     curl_response: JpmorganAuthUpdateResponse,
     flow_name: ServerAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerAuthenticationTokenRequestData,
     flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
@@ -510,7 +511,7 @@ macros::macro_connector_implementation!(
         }
         fn get_headers(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = jpmorgan::JpmorganAuthType::try_from(&req.connector_config)?;
             let creds = format!("{}:{}", auth.client_id.peek(), auth.client_secret.peek());
@@ -530,7 +531,7 @@ macros::macro_connector_implementation!(
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}/am/oauth2/alpha/access_token",
