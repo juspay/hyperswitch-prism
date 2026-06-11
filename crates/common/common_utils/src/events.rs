@@ -230,6 +230,13 @@ pub struct Event {
     #[serde(serialize_with = "serialize_method")]
     pub method: Option<String>,
     pub stage: EventStage,
+    /// Service that produced this event (always `ucs`).
+    pub source: &'static str,
+    /// Which leg this event records: the payment-connector call, or a UCS-service request.
+    /// Derived from `stage` (see `CallType: From<&EventStage>`).
+    pub call_type: CallType,
+    /// Whether this leg was the primary execution or a shadow mirror.
+    pub execution_mode: ExecutionMode,
     pub latency_ms: Option<u64>,
     pub status_code: Option<i32>,
     pub request_data: Option<MaskedSerdeValue>,
@@ -419,6 +426,51 @@ impl EventStage {
         match self {
             Self::ConnectorCall => "CONNECTOR_CALL",
             Self::GrpcRequest => "GRPC_REQUEST",
+        }
+    }
+}
+
+/// `source` value for events emitted by the connector-service (UCS).
+/// `source` identifies the emitter (`ucs`), never the caller — UCS is caller-agnostic.
+pub const EVENT_SOURCE: &str = "ucs";
+
+/// Which leg of the call chain an event records.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum CallType {
+    /// The outbound call to the payment connector (the external processor).
+    Connector,
+    /// A request at the UCS service interface (the inbound gRPC/HTTP request UCS serves).
+    /// Caller- and transport-agnostic.
+    Service,
+}
+
+impl From<&EventStage> for CallType {
+    fn from(stage: &EventStage) -> Self {
+        match stage {
+            EventStage::ConnectorCall => Self::Connector,
+            EventStage::GrpcRequest => Self::Service,
+        }
+    }
+}
+
+/// Whether a leg was the primary execution or a shadow mirror.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionMode {
+    /// Real execution whose result is used.
+    Primary,
+    /// Shadow mirror whose result is discarded (validation only).
+    Shadow,
+}
+
+impl ExecutionMode {
+    /// Map the boolean shadow flag (from the `x-shadow-mode` metadata) to an execution mode.
+    pub fn from_shadow_flag(shadow_mode: bool) -> Self {
+        if shadow_mode {
+            Self::Shadow
+        } else {
+            Self::Primary
         }
     }
 }
