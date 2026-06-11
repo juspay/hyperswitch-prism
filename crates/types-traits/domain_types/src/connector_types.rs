@@ -1735,6 +1735,8 @@ pub enum PaymentsResponseData {
         redirection_data: Option<Box<RedirectForm>>,
         /// For frictionles flow
         authentication_data: Option<router_request_types::AuthenticationData>,
+        /// Connector specific feature data (e.g. cybersource 3DS data) surfaced to HS RouterData
+        connector_feature_data: Option<serde_json::Value>,
         connector_response_reference_id: Option<String>,
         status_code: u16,
     },
@@ -2950,6 +2952,7 @@ pub struct PaymentsCaptureData {
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<SecretSerdeValue>,
     pub merchant_order_id: Option<String>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 impl PaymentsCaptureData {

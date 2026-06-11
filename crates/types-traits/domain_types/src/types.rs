@@ -8583,6 +8583,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "connector metadata")))
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
+            order_tax_amount: value
+                .order_tax_amount
+                .map(|amount| common_utils::types::MinorUnit::new(amount.minor_amount)),
         })
     }
 }
@@ -13977,6 +13980,7 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                 resource_id,
                 redirection_data,
                 authentication_data,
+                connector_feature_data,
                 connector_response_reference_id,
                 status_code,
             } => PaymentMethodAuthenticationServiceAuthenticateResponse {
@@ -14068,7 +14072,9 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                         })),
                     })
                     .transpose()?,
-                connector_feature_data: None,
+                connector_feature_data: convert_connector_metadata_to_secret_string(
+                    connector_feature_data,
+                ),
                 authentication_data: authentication_data.map(ForeignFrom::foreign_from),
                 status: grpc_status.into(),
                 error: None,

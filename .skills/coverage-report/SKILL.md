@@ -30,6 +30,27 @@ when the probe's status taxonomy shifts between two snapshots (a status bucket a
 combos reclassified to `not_supported` which is excluded), the share moves for non-work reasons. Always
 run the taxonomy-shift check and state its caveats before presenting any percentage.
 
+## Two coverage data sources — capability vs test-pass
+
+This skill reports **two complementary kinds** of coverage. Be explicit about which one a number is:
+
+| | **Capability coverage** (default) | **Test-pass coverage** |
+|---|---|---|
+| Question | "Can the connector *build* a valid request?" | "Does it actually *pass* end-to-end against the sandbox?" |
+| Source | `data/field_probe/*.json` (static, git-tracked) | grpc CI reports (`report_latest.json` / dated `report_YYYYMMDD_HHMM.json`); base from `REPORT_BASE_URL` env |
+| Status | `supported` / `not_implemented` / `not_supported` | `PASS` / `FAIL` / `SKIP` (assertion_result) |
+| Modes | Diff / PR activity / Snapshot / Drilldown (§1–§4) | Test coverage (§5) |
+
+Capability is the broader number (code exists) and is the default for "what did we ship". Test-pass is the
+stricter, live number (it works against the real sandbox, creds permitting) — use it when the question is about
+*real working coverage* or pass-rate growth. They will not match; capability ≥ test-pass by construction.
+
+**Unit consistency (HARD):** in BOTH sources, **API coverage = `connector × flow` cells** and **PMT coverage =
+`connector × payment-method` cells** — the full cross-product, so denominators are in the 100s. Do NOT report
+test-pass API/PMT as "N of 25 flows" or "N of 18 methods" (distinct-dimension counting) — that silently changes
+the unit and is not comparable to the capability numbers or to the production rows. `§5` already uses the
+cross-product unit; keep it that way.
+
 ## When to use
 
 - A manager/stakeholder asks for coverage data, "what changed", or a month-over-month / since-release delta.
@@ -48,6 +69,7 @@ inline). For metric definitions and the caveat rules, read `references/methodolo
 | **PR activity** | "What did we ship in the window?" merged PRs bucketed by type/label | §2 PR activity | yes |
 | **Snapshot** | "Where do we stand now?" current PM/API supported + shares | §3 Snapshot | no |
 | **Drilldown** | "Which connectors/flows moved / are new?" top movers | §4 Drilldown | no |
+| **Test coverage** | "How much actually PASSES end-to-end?" pass-based growth table from two grpc CI reports | §5 Test coverage | no |
 
 For a full "meeting packet", run Diff + PR activity together (the diff gives the numbers, PR activity gives
 the "why").
@@ -97,6 +119,10 @@ bullets and the **Overall** line (§1 prints these too). **Always keep the one-l
 `%` is denominator-sensitive (its base shrinks as flows are reclassified to `not_supported`), so the
 trustworthy growth signal is the **counts / Change**, not the `%`. Only write a markdown file, Slack blurb, or
 CSV if the user explicitly asks.
+
+For **Test coverage** (§5), present the **Test Coverage Summary** table the script prints (`Metric | Base |
+Current | Change | Growth`). Label it clearly as *test-pass* (not capability) so it is not confused with the
+§1 numbers, and keep the unit footnote the script emits. Quote the **counts / Change** as growth.
 
 ## Common mistakes
 
