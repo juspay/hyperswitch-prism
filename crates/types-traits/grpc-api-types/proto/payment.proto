@@ -2546,6 +2546,9 @@ message PaymentServiceCaptureResponse {
 
   optional SecretString connector_feature_data =
       12; // Connector-specific metadata for the transaction
+
+  // Additional connector response details (e.g. AVS / CVV checks, auth code)
+  optional ConnectorResponseData connector_response = 13;
 }
 
 // Request message for creating an order
