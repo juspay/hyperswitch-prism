@@ -596,7 +596,9 @@ pub struct FinixPaymentsResponse {
     pub links: Option<FinixLinks>,
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
+    pub messages: Option<Vec<String>>,
     pub transfer: Option<String>,
+    pub is_void: Option<bool>,
     // Stored Payment Instrument backing this transaction (PI...). Hyperswitch maps this
     // into `mandate_reference.connector_mandate_id` so the sync response stays in parity.
     pub source: Option<Secret<String>>,
@@ -750,22 +752,86 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
 
     fn try_from(item: ResponseRouterData<FinixCaptureResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
-        let status = AttemptStatus::from(&response.state);
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
+        // A SUCCEEDED capture only confirms the authorization update; the funds
+        // movement (transfer) settles asynchronously, so the attempt stays Pending
+        // until a PSync on the transfer id confirms the charge.
+        let status = if response.is_void == Some(true) {
+            match response.state {
+                FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => {
+                    AttemptStatus::Voided
+                }
+                FinixPaymentStatus::Failed
+                | FinixPaymentStatus::Canceled
+                | FinixPaymentStatus::Unknown => AttemptStatus::VoidFailed,
+            }
+        } else {
+            match response.state {
+                FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => {
+                    AttemptStatus::Pending
+                }
+                FinixPaymentStatus::Failed
+                | FinixPaymentStatus::Canceled
+                | FinixPaymentStatus::Unknown => AttemptStatus::Failure,
+            }
+        };
+
+        let connector_response = build_finix_connector_response(&response);
+
+        let is_failure = matches!(
+            response.state,
+            FinixPaymentStatus::Failed | FinixPaymentStatus::Canceled | FinixPaymentStatus::Unknown
+        );
+
+        let flow_response = if is_failure {
+            Err(ErrorResponse {
+                code: response
+                    .failure_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: response
+                    .failure_message
+                    .clone()
+                    .or_else(|| response.messages.clone().map(|msg| msg.join(",")))
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: Some(response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                // The transfer id (TR*) tracks the actual funds movement; fall back
+                // to the authorization id when Finix has not created a transfer yet.
+                resource_id: ResponseId::ConnectorTransactionId(
+                    response
+                        .transfer
+                        .clone()
+                        .unwrap_or_else(|| response.id.clone()),
+                ),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Some(Box::new(MandateReference {
+                    connector_mandate_id: response.source.clone().map(|id| id.expose()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                })),
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response: flow_response,
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..item.router_data.resource_common_data.clone()
             },
             ..item.router_data
