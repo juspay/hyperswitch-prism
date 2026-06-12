@@ -166,6 +166,12 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
             PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
             PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),
+            PayoutConnectorEnum::Worldpayxml => {
+                Box::new(payout_connectors::WorldpayxmlPayouts::new())
+            }
+            PayoutConnectorEnum::Cybersource => {
+                Box::new(payout_connectors::CybersourcePayouts::new())
+            }
         }
     }
 }

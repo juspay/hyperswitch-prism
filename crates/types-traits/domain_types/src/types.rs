@@ -482,6 +482,12 @@ impl HasConnectors for DisputeFlowData {
     }
 }
 
+impl HasConnectors for crate::payouts::payouts_types::PayoutFlowData {
+    fn connectors(&self) -> &Connectors {
+        &self.connectors
+    }
+}
+
 impl Connectors {
     /// Patch the specified connector's URL configuration with resolved URLs from superposition.
     ///

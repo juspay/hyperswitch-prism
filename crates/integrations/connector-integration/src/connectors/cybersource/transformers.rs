@@ -49,6 +49,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 pub const REFUND_VOIDED: &str = "Refund request has been voided.";
+const CYBERSOURCE_STATE_MAX_LENGTH: usize = 20;
 
 fn card_issuer_to_string(card_issuer: CardIssuer) -> String {
     let card_type = match card_issuer {
@@ -1288,12 +1289,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-fn truncate_string(state: &Secret<String>, max_len: usize) -> Secret<String> {
-    let exposed = state.clone().expose();
-    let truncated = exposed.get(..max_len).unwrap_or(&exposed);
-    Secret::new(truncated.to_string())
-}
-
 fn build_bill_to(
     address_details: Option<&Address>,
     email: pii::Email,
@@ -1308,25 +1303,49 @@ fn build_bill_to(
         country: None,
         email: email.clone(),
     };
-    Ok(address_details
-        .and_then(|addr| {
-            addr.address.as_ref().map(|addr| BillTo {
+    match address_details.and_then(|addr| addr.address.as_ref()) {
+        Some(addr) => {
+            let administrative_area = match addr.to_state_code_as_optional() {
+                Ok(state) => state,
+                Err(_) => addr
+                    .state
+                    .remove_new_line()
+                    .map(|state| {
+                        let received_length = state.peek().len();
+                        if received_length > CYBERSOURCE_STATE_MAX_LENGTH {
+                            Err(error_stack::Report::from(
+                                IntegrationError::MaxFieldLengthViolated {
+                                    field_name: "billing.address.state".to_string(),
+                                    connector: "Cybersource".to_string(),
+                                    max_length: CYBERSOURCE_STATE_MAX_LENGTH,
+                                    received_length,
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some(format!(
+                                            "Billing state must be at most {CYBERSOURCE_STATE_MAX_LENGTH} characters, got {received_length}."
+                                        )),
+                                        ..Default::default()
+                                    },
+                                },
+                            ))
+                        } else {
+                            Ok(state)
+                        }
+                    })
+                    .transpose()?,
+            };
+            Ok(BillTo {
                 first_name: addr.first_name.remove_new_line(),
                 last_name: addr.last_name.remove_new_line(),
                 address1: addr.line1.remove_new_line(),
                 locality: addr.city.remove_new_line(),
-                administrative_area: addr.to_state_code_as_optional().unwrap_or_else(|_| {
-                    addr.state
-                        .remove_new_line()
-                        .as_ref()
-                        .map(|state| truncate_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
-                }),
+                administrative_area,
                 postal_code: addr.zip.remove_new_line(),
                 country: addr.country,
                 email,
             })
-        })
-        .unwrap_or(default_address))
+        }
+        None => Ok(default_address),
+    }
 }
 
 impl From<&common_enums::DecoupledAuthenticationType> for EffectiveAuthenticationType {

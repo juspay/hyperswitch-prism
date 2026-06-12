@@ -190,6 +190,8 @@ pub enum PayoutConnectorEnum {
     Loonio,
     Paypal,
     Itaubank,
+    Worldpayxml,
+    Cybersource,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -200,6 +202,8 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
             ConnectorEnum::Loonio => Ok(Self::Loonio),
             ConnectorEnum::Paypal => Ok(Self::Paypal),
             ConnectorEnum::Itaubank => Ok(Self::Itaubank),
+            ConnectorEnum::Worldpayxml => Ok(Self::Worldpayxml),
+            ConnectorEnum::Cybersource => Ok(Self::Cybersource),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "connector",
                 context: IntegrationErrorContext::default(),
@@ -237,6 +241,8 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Paypal(_) => Ok(Self::Paypal),
             AuthType::Loonio(_) => Ok(Self::Loonio),
             AuthType::Itaubank(_) => Ok(Self::Itaubank),
+            AuthType::Worldpayxml(_) => Ok(Self::Worldpayxml),
+            AuthType::Cybersource(_) => Ok(Self::Cybersource),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
