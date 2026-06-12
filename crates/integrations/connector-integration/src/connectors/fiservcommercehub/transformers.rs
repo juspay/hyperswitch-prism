@@ -37,6 +37,9 @@ const FISERV_PAYMENT_METHOD_ENCRYPTION_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Payment-Methods.mdx";
 const FISERV_PAYMENT_AUTHENTICATION_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Developer-Resources/Authentication/Authentication.mdx";
+const FISERV_PSYNC_API_VERSION_URL: &str ="https://developer.fiserv.com/product/CommerceHub/api/post/payments/v1/transaction-inquiry?branch=active&version=1.26.0602";
+const FISERV_CHARGES_API_VERSION_URL: &str = "https://developer.fiserv.com/product/CommerceHub/api/post/payments/v1/charges?branch=active&version=1.26.0602";
+const FISERV_TOKEN_API_VERSION_URL: &str = "https://developer.fiserv.com/product/CommerceHub/api/post/payments-vas/v1/tokens?branch=active&version=1.26.0602";
 #[derive(Debug)]
 pub struct EncryptedCardData {
     pub key_id: String,
@@ -828,6 +831,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(
                         "connector_transaction_id is required for PSync".to_string(),
                     ),
+                    doc_url: Some(FISERV_PSYNC_API_VERSION_URL.to_string()),
                     ..Default::default()
                 },
             })?;
@@ -1359,6 +1363,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     additional_context: Some(
                         "connector_transaction_id is required for Capture".to_string(),
                     ),
+                    doc_url: Some(FISERV_CHARGES_API_VERSION_URL.to_string()),
                     ..Default::default()
                 },
             })?;
@@ -1500,6 +1505,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     "connector_mandate_id is required for repeat payments"
                                         .to_string(),
                                 ),
+                                doc_url: Some(FISERV_CHARGES_API_VERSION_URL.to_string()),
                                 ..Default::default()
                             },
                         },
@@ -1517,6 +1523,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     "expected MandateReferenceId::ConnectorMandateId for repeat payments"
                                         .to_string(),
                                 ),
+                                doc_url: Some(FISERV_CHARGES_API_VERSION_URL.to_string()),
                                 ..Default::default()
                             },
                         }
@@ -1689,6 +1696,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         additional_context: Some(
                             "SetupMandate is for tokenization only; amount must be 0".to_string(),
                         ),
+                        doc_url: Some(FISERV_TOKEN_API_VERSION_URL.to_string()),
                         ..Default::default()
                     },
                 }
