@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.12.0
+
+### Bug Fixes
+
+- **connector:** Fix qwikcilver superposition url patch ([#1504](https://github.com/juspay/connector-service/pull/1504)) ([`10815eb`](https://github.com/juspay/connector-service/commit/10815eb4cc8633d442d70133c285ca182135801e))
+
+**Full Changelog:** [`2026.06.11.1...2026.06.12.0`](https://github.com/juspay/connector-service/compare/2026.06.11.1...2026.06.12.0)
+
+- - -
+
 ## 2026.06.11.1
 
 ### Features
