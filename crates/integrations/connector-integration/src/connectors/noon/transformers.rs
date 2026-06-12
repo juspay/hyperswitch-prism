@@ -362,7 +362,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => {
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: utils::get_unimplemented_payment_method_error_message("Noon"),
                         connector: "Noon",
@@ -1260,7 +1261,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::BillDeskRedirect(_)
                         | WalletData::CashfreeRedirect(_)
                         | WalletData::PayURedirect(_)
-                        | WalletData::EaseBuzzRedirect(_) => {
+                        | WalletData::EaseBuzzRedirect(_)
+                        | WalletData::QwikcilverWalletDirect(_) => {
                             Err(error_stack::report!(IntegrationError::NotSupported {
                                 message: utils::get_unimplemented_payment_method_error_message(
                                     "Noon"

@@ -29,6 +29,7 @@ use domain_types::{
         SetupMandateRequestData, ThirdPartySdkSessionResponse,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankRedirectData, BankTransferData, Card, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber,
@@ -1048,7 +1049,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         TrustpayRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -1062,7 +1063,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _item: TrustpayRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -1087,7 +1088,7 @@ pub struct TrustpayAuthUpdateResponse {
 impl TryFrom<ResponseRouterData<TrustpayAuthUpdateResponse, Self>>
     for RouterDataV2<
         ServerAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
     >

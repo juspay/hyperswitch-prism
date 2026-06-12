@@ -474,3 +474,4 @@ grace/grace-workspace/packages/dashboard/playwright-report/
 /automode*.png
 /past_runs*.png
 /create_modal.png
+docs/qwikcilver.postman_collection.json

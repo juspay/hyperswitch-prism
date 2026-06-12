@@ -150,6 +150,7 @@ pub enum ConnectorEnum {
     Juspay,
     Payconex,
     Tamara,
+    Qwikcilver,
 }
 
 // snake case for enum variants
@@ -391,6 +392,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
             grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
             grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
+            grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -1735,6 +1737,8 @@ pub enum PaymentsResponseData {
         redirection_data: Option<Box<RedirectForm>>,
         /// For frictionles flow
         authentication_data: Option<router_request_types::AuthenticationData>,
+        /// Connector specific feature data (e.g. cybersource 3DS data) surfaced to HS RouterData
+        connector_feature_data: Option<serde_json::Value>,
         connector_response_reference_id: Option<String>,
         status_code: u16,
     },
@@ -1872,6 +1876,7 @@ pub struct CreatePaymentMethodData {
     pub customer: Option<CustomerInfo>,
     pub description: Option<String>,
     pub payment_method_type: PaymentMethodType,
+    pub product_id: Option<String>,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
 }
 
@@ -1999,6 +2004,7 @@ pub struct ClientAuthenticationTokenRequestData {
     pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
     pub email: Option<Email>,
     pub customer_name: Option<Secret<String>>,
+    pub customer_id: Option<CustomerId>,
     pub order_tax_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     /// The specific payment method type for which the session token is being generated
@@ -2080,6 +2086,8 @@ pub struct ServerSessionAuthenticationTokenRequestData {
     pub amount: MinorUnit,
     pub currency: Currency,
     pub browser_info: Option<BrowserInformation>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub address: Option<payment_address::PaymentAddress>,
 }
 
 impl ServerSessionAuthenticationTokenRequestData {
@@ -2087,6 +2095,140 @@ impl ServerSessionAuthenticationTokenRequestData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+
+    pub fn get_customer_id(&self) -> Result<common_utils::id_type::CustomerId, Error> {
+        self.customer_id
+            .clone()
+            .ok_or_else(missing_field_err("customer_id"))
+    }
+
+    pub fn get_optional_billing(&self) -> Option<&payment_address::Address> {
+        self.address
+            .as_ref()
+            .and_then(|addr| addr.get_payment_method_billing())
+    }
+
+    pub fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
+        self.get_optional_billing().and_then(|billing_address| {
+            billing_address
+                .clone()
+                .address
+                .and_then(|billing_details| billing_details.first_name)
+        })
+    }
+
+    pub fn get_optional_billing_last_name(&self) -> Option<Secret<String>> {
+        self.get_optional_billing().and_then(|billing_address| {
+            billing_address
+                .clone()
+                .address
+                .and_then(|billing_details| billing_details.last_name)
+        })
+    }
+
+    pub fn get_optional_billing_phone_number(&self) -> Option<Secret<String>> {
+        self.get_optional_billing().and_then(|billing_address| {
+            billing_address
+                .clone()
+                .phone
+                .and_then(|phone_data| phone_data.number)
+        })
+    }
+
+    pub fn get_optional_billing_email(&self) -> Option<Email> {
+        self.get_optional_billing()
+            .and_then(|billing_address| billing_address.clone().email)
+    }
+
+    pub fn get_optional_shipping(&self) -> Option<&payment_address::Address> {
+        self.address.as_ref().and_then(|addr| addr.get_shipping())
+    }
+
+    pub fn get_optional_shipping_first_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.first_name)
+        })
+    }
+
+    pub fn get_optional_shipping_last_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.last_name)
+        })
+    }
+
+    pub fn get_optional_shipping_line1(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.line1)
+        })
+    }
+
+    pub fn get_optional_shipping_line2(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.line2)
+        })
+    }
+
+    pub fn get_optional_shipping_city(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.city)
+        })
+    }
+
+    pub fn get_optional_shipping_state(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.state)
+        })
+    }
+
+    pub fn get_optional_shipping_country(&self) -> Option<common_enums::CountryAlpha2> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.country)
+        })
+    }
+
+    pub fn get_optional_shipping_zip(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.zip)
+        })
+    }
+
+    pub fn get_optional_shipping_phone_number(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .phone
+                .and_then(|phone_data| phone_data.number)
+        })
+    }
+
+    pub fn get_optional_shipping_email(&self) -> Option<Email> {
+        self.get_optional_shipping()
+            .and_then(|shipping_address| shipping_address.clone().email)
     }
 }
 
@@ -2881,6 +3023,8 @@ pub struct RefundsData {
     pub split_refunds: Option<SplitRefundsRequest>,
     /// Connector-side identifier for the original payment that this refund targets.
     pub connector_order_id: Option<String>,
+    pub payment_method_data:
+        Option<payment_method_data::PaymentMethodData<payment_method_data::DefaultPCIHolder>>,
 }
 
 impl RefundsData {
@@ -2947,6 +3091,7 @@ pub struct PaymentsCaptureData {
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<SecretSerdeValue>,
     pub merchant_order_id: Option<String>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 impl PaymentsCaptureData {
@@ -3455,6 +3600,9 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::CashfreeRedirect(_) => Self::CashfreeRedirect,
                 payment_method_data::WalletData::PayURedirect(_) => Self::PayURedirect,
                 payment_method_data::WalletData::EaseBuzzRedirect(_) => Self::EaseBuzzRedirect,
+                payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
+                    Self::QwikcilverWalletDirect
+                }
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -3795,6 +3943,32 @@ pub struct CustomerInfo {
     pub customer_phone_number: Option<Secret<String>>,
     pub customer_phone_country_code: Option<String>,
     pub salutation: Option<String>,
+}
+
+impl CustomerInfo {
+    pub fn get_phone_number(&self) -> Result<Secret<String>, Error> {
+        self.customer_phone_number
+            .clone()
+            .ok_or_else(missing_field_err("customer.phone_number"))
+    }
+
+    pub fn get_first_name(&self) -> Result<Secret<String>, Error> {
+        self.first_name
+            .clone()
+            .ok_or_else(missing_field_err("customer.first_name"))
+    }
+
+    pub fn get_last_name(&self) -> Result<Secret<String>, Error> {
+        self.last_name
+            .clone()
+            .ok_or_else(missing_field_err("customer.last_name"))
+    }
+
+    pub fn get_email(&self) -> Result<common_utils::pii::Email, Error> {
+        self.customer_email
+            .clone()
+            .ok_or_else(missing_field_err("customer.email"))
+    }
 }
 
 impl L2L3Data {
@@ -4700,6 +4874,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
+            AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),

@@ -36,6 +36,7 @@ use domain_types::{
         RequestDetails, ResponseId, SetupMandateRequestData, SubmitEvidenceData,
         SupportedPaymentMethodsExt, WebhookDetailsResponse, WebhookResourceReference,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -230,7 +231,7 @@ macros::create_all_prerequisites!(
             flow: ClientAuthenticationToken,
             request_body: AdyenClientAuthRequest,
             response_body: AdyenClientAuthResponse,
-            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            router_data: RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ),
         (
             flow: CreateOrder,
@@ -289,6 +290,13 @@ macros::create_all_prerequisites!(
             req: &'a RouterDataV2<F, DisputeFlowData, Req, Res>,
         ) -> Option<&'a str> {
             req.resource_common_data.connectors.adyen.dispute_base_url.as_deref()
+        }
+
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.adyen.base_url
         }
     }
 );
@@ -1208,7 +1216,7 @@ macros::macro_connector_implementation!(
     curl_request: Json(AdyenClientAuthRequest),
     curl_response: AdyenClientAuthResponse,
     flow_name: ClientAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ClientAuthenticationTokenRequestData,
     flow_response: PaymentsResponseData,
     http_method: Post,
@@ -1217,16 +1225,16 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let endpoint = build_env_specific_endpoint(
-                self.connector_base_url_payments(req),
+                self.connector_base_url_merchant_auth(req),
                 req.resource_common_data.test_mode,
                 &req.connector_config,
             )?;

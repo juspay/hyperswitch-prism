@@ -15,6 +15,7 @@ use domain_types::{
         ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
     errors,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -966,7 +967,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         super::FiservcommercehubRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -980,7 +981,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: super::FiservcommercehubRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -1018,7 +1019,7 @@ pub struct FiservcommercehubAccessTokenResponse {
 }
 
 impl<F, T> TryFrom<ResponseRouterData<FiservcommercehubAccessTokenResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
+    for RouterDataV2<F, MerchantAuthenticationFlowData, T, ServerAuthenticationTokenResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 

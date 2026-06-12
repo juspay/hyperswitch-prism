@@ -558,6 +558,14 @@ payment_methods: AliPayRedirect, BancontactCard, Blik, Ideal, MbWay, Satispay, U
 flows: authorize, capture, get, handle_event, parse_event, recurring_charge, refund, refund_get, verify_redirect, void
 examples_python: none
 
+## Qwikcilver
+connector_id: qwikcilver
+doc: docs/connectors/qwikcilver.md
+scenarios: none
+payment_methods: none
+flows: create_server_authentication_token
+examples_python: none
+
 ## Rapyd
 connector_id: rapyd
 doc: docs/connectors/rapyd.md
