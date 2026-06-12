@@ -98,7 +98,7 @@
       },
       "Card": {
         "status": "error",
-        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption failed"
+        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
       },
       "CashappQr": {
         "status": "not_implemented",
@@ -623,13 +623,13 @@
     "proxy_authorize": {
       "default": {
         "status": "error",
-        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption failed"
+        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
       }
     },
     "proxy_setup_recurring": {
       "default": {
         "status": "error",
-        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption failed"
+        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
       }
     },
     "recurring_charge": {
@@ -765,7 +765,7 @@
     "setup_recurring": {
       "default": {
         "status": "error",
-        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption failed"
+        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
       }
     },
     "token_authorize": {
