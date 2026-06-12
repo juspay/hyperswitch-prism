@@ -76,8 +76,10 @@ fn encrypt_card_data<T: PaymentMethodDataTypes>(
     let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
         .change_context(errors::IntegrationError::RequestEncodingFailed {
             context: errors::IntegrationErrorContext {
-                additional_context: Some("RSA OAEP-SHA256 encryption failed".to_string()),
-                ..Default::default()
+               
+                doc_url: Some("https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Payment-Methods.mdx".to_string()),
+                suggested_action: Some("Ensure the RSA public key is correctly configured and valid".to_string()),
+                 additional_context: Some("RSA OAEP-SHA256 encryption failed".to_string()),
             },
         })
         .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
