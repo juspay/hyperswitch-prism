@@ -2441,6 +2441,17 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)
             }
+            grpc_api_types::payments::PaymentMethodType::Ideal => Ok(PaymentMethodType::Ideal),
+            grpc_api_types::payments::PaymentMethodType::BancontactCard => {
+                Ok(PaymentMethodType::BancontactCard)
+            }
+            grpc_api_types::payments::PaymentMethodType::Sofort => Ok(PaymentMethodType::Sofort),
+            grpc_api_types::payments::PaymentMethodType::Blik => Ok(PaymentMethodType::Blik),
+            grpc_api_types::payments::PaymentMethodType::Giropay => Ok(PaymentMethodType::Giropay),
+            grpc_api_types::payments::PaymentMethodType::Eps => Ok(PaymentMethodType::Eps),
+            grpc_api_types::payments::PaymentMethodType::Przelewy24 => {
+                Ok(PaymentMethodType::Przelewy24)
+            }
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "payment_method_type",
                 context: IntegrationErrorContext {
