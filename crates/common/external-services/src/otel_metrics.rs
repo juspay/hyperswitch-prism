@@ -156,14 +156,18 @@ pub fn record_payment_status(connector: &str, flow: &str, mode: &str, payment_st
 /// `success` for OK(0); `client_error` for codes attributable to the caller
 /// (analogous to HTTP 4xx); `server_error` for everything else (analogous to
 /// HTTP 5xx). See <https://grpc.io/docs/guides/status-codes/>.
-pub fn classify_grpc_status(code: i32) -> &'static str {
+pub fn classify_grpc_status(code: tonic::Code) -> &'static str {
+    use tonic::Code;
     match code {
-        0 => "success",
-        // CANCELLED, INVALID_ARGUMENT, NOT_FOUND, ALREADY_EXISTS, PERMISSION_DENIED,
-        // FAILED_PRECONDITION, OUT_OF_RANGE, UNAUTHENTICATED
-        1 | 3 | 5 | 6 | 7 | 9 | 11 | 16 => "client_error",
-        // UNKNOWN, DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED, ABORTED, UNIMPLEMENTED,
-        // INTERNAL, UNAVAILABLE, DATA_LOSS
+        Code::Ok => "success",
+        Code::Cancelled
+        | Code::InvalidArgument
+        | Code::NotFound
+        | Code::AlreadyExists
+        | Code::PermissionDenied
+        | Code::FailedPrecondition
+        | Code::OutOfRange
+        | Code::Unauthenticated => "client_error",
         _ => "server_error",
     }
 }
@@ -171,21 +175,21 @@ pub fn classify_grpc_status(code: i32) -> &'static str {
 /// Record one completed gRPC request against the OTLP-exported instruments.
 ///
 /// `method` is the RPC/flow name (e.g. `Authorize`), `service` the gRPC service,
-/// `connector` the target connector, and `grpc_status` the numeric gRPC status code.
+/// `connector` the target connector, and `grpc_status` the gRPC status code.
 pub fn record_grpc_request(
     method: &str,
     service: &str,
     connector: &str,
     mode: &str,
-    grpc_status: i32,
+    grpc_status: tonic::Code,
     duration_secs: f64,
 ) {
     let status_class = classify_grpc_status(grpc_status);
+    // Human-readable gRPC code name (e.g. "Ok", "Internal", "Unavailable") for a
+    // legible dashboard label. Bounded cardinality (gRPC defines <= 17 codes);
+    // kept alongside the coarse `status_class`.
+    let grpc_status_name = format!("{grpc_status:?}");
 
-    // `grpc_status` is the raw numeric gRPC code. Its cardinality is bounded —
-    // gRPC defines a fixed set of <= 17 status codes — so it does not cause
-    // unbounded time-series growth; it is kept alongside the coarse
-    // `status_class` because the exact code is valuable when debugging failures.
     // `mode` is "primary"/"shadow" (bounded) for rollout observability.
     GRPC_SERVER_REQUESTS_TOTAL.add(
         1,
@@ -195,7 +199,7 @@ pub fn record_grpc_request(
             KeyValue::new("service", service.to_string()),
             KeyValue::new("connector", connector.to_string()),
             KeyValue::new("mode", mode.to_string()),
-            KeyValue::new("grpc_status", i64::from(grpc_status)),
+            KeyValue::new("grpc_status", grpc_status_name),
             KeyValue::new("status_class", status_class),
         ],
     );

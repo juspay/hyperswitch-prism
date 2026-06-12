@@ -134,14 +134,15 @@ where
         Box::pin(async move {
             let result = inner.call(req).await;
 
-            // Determine the gRPC status code for this request: 0 (OK) for a
-            // successful response, UNKNOWN (2) for a transport-level failure.
+            // Determine the gRPC status code for this request: OK for a successful
+            // response, UNAVAILABLE for a transport-level failure (no gRPC status
+            // was produced).
             let grpc_status = match &result {
                 Ok(response) => extract_grpc_status_code(response),
-                Err(_) => 2, // UNKNOWN — network/transport level error
+                Err(_) => tonic::Code::Unavailable,
             };
 
-            if grpc_status == 0 {
+            if grpc_status == tonic::Code::Ok {
                 GRPC_SERVER_REQUESTS_SUCCESSFUL
                     .with_label_values(&[&method_name, &service_name, &connector])
                     .inc();
@@ -221,16 +222,16 @@ fn extract_mode_from_request<B>(req: &hyper::Request<B>) -> &'static str {
     }
 }
 
-// Extract the gRPC status code from a response. gRPC status lives in the
-// `grpc-status` header/trailer, not the HTTP status. A successful response with
-// no `grpc-status` header is treated as OK (0), matching gRPC semantics.
-fn extract_grpc_status_code<B>(response: &hyper::Response<B>) -> i32 {
+// Read the gRPC status code from the `grpc-status` response field, defaulting
+// to OK when absent, matching gRPC semantics.
+fn extract_grpc_status_code<B>(response: &hyper::Response<B>) -> tonic::Code {
     response
         .headers()
         .get("grpc-status")
         .and_then(|value| value.to_str().ok())
         .and_then(|status| status.parse::<i32>().ok())
-        .unwrap_or(0)
+        .map(tonic::Code::from)
+        .unwrap_or(tonic::Code::Ok)
 }
 
 // Metrics handler
