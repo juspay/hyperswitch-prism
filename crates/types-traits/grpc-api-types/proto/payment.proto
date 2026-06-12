@@ -2166,6 +2166,7 @@ message PaymentServiceAuthorizeResponse {
   optional ConnectorResponseData connector_response = 17;
   optional SecretString connector_feature_data =
       18; // Connector-specific metadata for the transaction
+  optional string network_transaction_link_id = 19;
 }
 
 // Request message for synchronizing payment status
@@ -4048,6 +4049,13 @@ message CashfreeConfig {
   optional string base_url = 50;
 }
 
+message CheckoutConfig {
+  SecretString api_key = 1;
+  SecretString api_secret = 2;
+  SecretString processing_channel_id = 3;
+  optional string base_url = 50;
+}
+
 message CryptopayConfig {
   SecretString api_key = 1;
   SecretString api_secret = 2;
@@ -4870,6 +4878,9 @@ message ConnectorSpecificConfig {
     PayconexConfig payconex = 129;
     // QWIKCILVER = 125
     QwikcilverConfig qwikcilver = 130;
+
+    // CHECKOUT = 126
+    CheckoutConfig checkout = 131;
   }
 }
 
