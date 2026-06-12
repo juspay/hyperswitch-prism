@@ -35,6 +35,8 @@ pub(crate) const ACCESS_TOKEN_SEPARATOR: &str = "|||";
 pub(crate) const TOKEN_SOURCE_TRANSARMOR: &str = "TRANSARMOR";
 const FISERV_PAYMENT_METHOD_ENCRYPTION_URL: &str =
     "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Payment-Methods.mdx";
+const FISERV_PAYMENT_AUTHENTICATION_URL: &str =
+    "https://developer.fiserv.com/product/CommerceHub/docs/Developer-Resources/Authentication/Authentication.mdx";
 #[derive(Debug)]
 pub struct EncryptedCardData {
     pub key_id: String,
@@ -119,7 +121,10 @@ impl FiservcommercehubAuthType {
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some("HMAC-SHA256 signature generation failed".to_string()),
-                    ..Default::default()
+                    doc_url: Some(FISERV_PAYMENT_AUTHENTICATION_URL.to_string()),
+                    suggested_action: Some(
+                        "Verify the API secret is correct and properly configured".to_string(),
+                    ),
                 },
             })?;
         Ok(general_purpose::STANDARD.encode(signature))
