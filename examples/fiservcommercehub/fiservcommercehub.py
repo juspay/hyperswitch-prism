@@ -7,12 +7,13 @@
 
 import asyncio
 import sys
-from payments import MerchantAuthenticationClient
 from payments import PaymentClient
+from payments import MerchantAuthenticationClient
+from payments import RecurringPaymentClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["create_server_authentication_token", "get", "refund", "refund_get", "void"]
+SUPPORTED_FLOWS = ["capture", "create_server_authentication_token", "get", "recurring_charge", "refund", "refund_get", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -30,6 +31,23 @@ _default_config = sdk_config_pb2.ConnectorConfig(
 
 
 
+def _build_capture_request(connector_transaction_id: str):
+    return payment_pb2.PaymentServiceCaptureRequest(
+        merchant_capture_id="probe_capture_001",  # Identification.
+        connector_transaction_id=connector_transaction_id,
+        amount_to_capture=payment_pb2.Money(  # Capture Details.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
+
 def _build_create_server_authentication_token_request():
     return payment_pb2.MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest(
     )
@@ -42,6 +60,35 @@ def _build_get_request(connector_transaction_id: str):
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
+        state=payment_pb2.ConnectorState(  # State Information.
+            access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
+                token=payment_methods_pb2.SecretString(value="probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"),  # The token string.
+                expires_in_seconds=3600,  # Expiration timestamp (seconds since epoch).
+                token_type="Bearer",  # Token type (e.g., "Bearer", "Basic").
+            ),
+        ),
+    )
+
+def _build_recurring_charge_request():
+    return payment_pb2.RecurringPaymentServiceChargeRequest(
+        connector_recurring_payment_id=payment_pb2.MandateReference(  # Reference to existing mandate.
+            connector_mandate_id=payment_pb2.ConnectorMandateReferenceId(  # mandate_id sent by the connector.
+                connector_mandate_id="probe-mandate-123",
+            ),
+        ),
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Optional payment Method Information (for network transaction flows).
+            token=payment_methods_pb2.TokenPaymentMethodType(
+                token=payment_methods_pb2.SecretString(value="probe_pm_token"),  # The token string representing a payment method.
+            ),
+        ),
+        return_url="https://example.com/recurring-return",
+        connector_customer_id="cust_probe_123",
+        payment_method_type=payment_pb2.PaymentMethodType.Value("PAY_PAL"),
+        off_session=True,  # Behavioral Flags and Preferences.
         state=payment_pb2.ConnectorState(  # State Information.
             access_token=payment_pb2.AccessToken(  # Access token obtained from connector.
                 token=payment_methods_pb2.SecretString(value="probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA"),  # The token string.
@@ -96,6 +143,15 @@ def _build_void_request(connector_transaction_id: str):
             ),
         ),
     )
+async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentService.Capture"""
+    payment_client = PaymentClient(config)
+
+    capture_response = await payment_client.capture(_build_capture_request("probe_connector_txn_001"))
+
+    return {"status": capture_response.status}
+
+
 async def process_create_server_authentication_token(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: MerchantAuthenticationService.CreateServerAuthenticationToken"""
     merchantauthentication_client = MerchantAuthenticationClient(config)
@@ -112,6 +168,15 @@ async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.Conne
     get_response = await payment_client.get(_build_get_request("probe_connector_txn_001"))
 
     return {"status": get_response.status}
+
+
+async def process_recurring_charge(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: RecurringPaymentService.Charge"""
+    recurringpayment_client = RecurringPaymentClient(config)
+
+    recurring_response = await recurringpayment_client.charge(_build_recurring_charge_request())
+
+    return {"status": recurring_response.status}
 
 
 async def process_refund(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
@@ -141,7 +206,7 @@ async def process_void(merchant_transaction_id: str, config: sdk_config_pb2.Conn
     return {"status": void_response.status}
 
 if __name__ == "__main__":
-    scenario = sys.argv[1] if len(sys.argv) > 1 else "create_server_authentication_token"
+    scenario = sys.argv[1] if len(sys.argv) > 1 else "capture"
     fn = globals().get(f"process_{scenario}")
     if not fn:
         available = [k[8:] for k in globals() if k.startswith("process_")]

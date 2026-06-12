@@ -19,6 +19,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.12.2
+
+### Features
+
+- **connector:** [Fiservcommercehub] [CARDS] Setup mandate & manual capture ([#1144](https://github.com/juspay/connector-service/pull/1144)) ([`445100a`](https://github.com/juspay/connector-service/commit/445100a12006e00b9333230158af99b74d0d2794))
+
+**Full Changelog:** [`2026.06.12.1...2026.06.12.2`](https://github.com/juspay/connector-service/compare/2026.06.12.1...2026.06.12.2)
+
+- - -
+
+## 2026.06.12.1
+
+### Features
+
+- **connector:** Add payout flows for worldpay wpg and cybersource ([#1357](https://github.com/juspay/connector-service/pull/1357)) ([`821234b`](https://github.com/juspay/connector-service/commit/821234b158ca4746aa67ad90e874842136f62ccd))
+
+### Bug Fixes
+
+- **finix:** Capture RouterData diffs vs hyperswitch (shadow validation) ([#1499](https://github.com/juspay/connector-service/pull/1499)) ([`4cf2bce`](https://github.com/juspay/connector-service/commit/4cf2bce1e8ec414ad3ed46d011d9530bbdffd5f1))
+
+**Full Changelog:** [`2026.06.12.0...2026.06.12.1`](https://github.com/juspay/connector-service/compare/2026.06.12.0...2026.06.12.1)
+
+- - -
+
 ## 2026.06.12.0
 
 ### Bug Fixes
