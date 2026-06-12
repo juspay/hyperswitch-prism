@@ -33,7 +33,8 @@ use serde::{Deserialize, Serialize};
 pub(crate) const ENCRYPTION_TYPE_RSA: &str = "RSA";
 pub(crate) const ACCESS_TOKEN_SEPARATOR: &str = "|||";
 pub(crate) const TOKEN_SOURCE_TRANSARMOR: &str = "TRANSARMOR";
-
+const FISERV_PAYMENT_METHOD_ENCRYPTION_URL: &str =
+    "https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Payment-Methods.mdx";
 #[derive(Debug)]
 pub struct EncryptedCardData {
     pub key_id: String,
@@ -76,9 +77,13 @@ fn encrypt_card_data<T: PaymentMethodDataTypes>(
     let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
         .change_context(errors::IntegrationError::RequestEncodingFailed {
             context: errors::IntegrationErrorContext {
-                doc_url: Some("https://developer.fiserv.com/product/CommerceHub/docs/Payment-Methods/Payment-Methods.mdx".to_string()),
-                suggested_action: Some("Ensure the RSA public key is correctly configured and valid".to_string()),
-                additional_context: Some("RSA OAEP-SHA256 encryption for card data failed".to_string()),
+                doc_url: Some(FISERV_PAYMENT_METHOD_ENCRYPTION_URL.to_string()),
+                suggested_action: Some(
+                    "Ensure the RSA public key is correctly configured and valid".to_string(),
+                ),
+                additional_context: Some(
+                    "RSA OAEP-SHA256 encryption for card data failed".to_string(),
+                ),
             },
         })
         .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
