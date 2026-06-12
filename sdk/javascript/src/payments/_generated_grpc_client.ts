@@ -657,11 +657,6 @@ export class GrpcPaymentMethodClient {
     return callGrpc(this.ffi, this.config, "payment_method/payment_method_get",
       req, types.PaymentMethodServiceGetRequest, types.PaymentMethodServiceGetResponse);
   }
-  /** PaymentMethodService.Eligibility — Check if the payout method is eligible for the transaction */
-  async eligibility(req: unknown): Promise<unknown> {
-    return callGrpc(this.ffi, this.config, "payment_method/eligibility",
-      req, types.PayoutMethodEligibilityRequest, types.PayoutMethodEligibilityResponse);
-  }
   /** PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds. */
   async recharge(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "payment_method/recharge",
@@ -788,6 +783,11 @@ export class GrpcPayoutClient {
   async enrollDisburseAccount(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "payout/enroll_disburse_account",
       req, types.PayoutServiceEnrollDisburseAccountRequest, types.PayoutServiceEnrollDisburseAccountResponse);
+  }
+  /** PayoutService.Eligibility — Check if the payout method is eligible for the transaction */
+  async eligibility(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payout/eligibility",
+      req, types.PayoutMethodEligibilityRequest, types.PayoutMethodEligibilityResponse);
   }
 }
 

@@ -21,7 +21,8 @@ use domain_types::{
     utils::ForeignTryFrom,
 };
 use grpc_api_types::payouts::{
-    payout_service_server::PayoutService, PayoutServiceCreateLinkRequest,
+    payout_service_server::PayoutService, PayoutMethodEligibilityRequest,
+    PayoutMethodEligibilityResponse, PayoutServiceCreateLinkRequest,
     PayoutServiceCreateLinkResponse, PayoutServiceCreateRecipientRequest,
     PayoutServiceCreateRecipientResponse, PayoutServiceCreateRequest, PayoutServiceCreateResponse,
     PayoutServiceEnrollDisburseAccountRequest, PayoutServiceEnrollDisburseAccountResponse,
@@ -178,6 +179,15 @@ impl PayoutService for Payouts {
             |request_data| self.internal_payout_enroll_disburse_account(request_data),
         )
         .await
+    }
+
+    async fn eligibility(
+        &self,
+        _request: tonic::Request<PayoutMethodEligibilityRequest>,
+    ) -> Result<tonic::Response<PayoutMethodEligibilityResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented(
+            "Eligibility check not implemented yet",
+        ))
     }
 }
 
