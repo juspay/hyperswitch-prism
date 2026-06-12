@@ -8,14 +8,14 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment,
-        SetupMandate, Void,
+        Authorize, CancelPostRefund, Capture, CreateConnectorCustomer, PSync, RSync, Refund,
+        RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SetupMandateRequestData,
+        RefundCancelPostRefundData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -33,12 +33,13 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as tsys_transit, TsysTransitAddCustomerRequest, TsysTransitAddCustomerResponse,
-    TsysTransitAuthorizeRequest, TsysTransitAuthorizeResponse, TsysTransitCaptureRequest,
-    TsysTransitCaptureResponse, TsysTransitCardAuthenticationRequest,
-    TsysTransitCardAuthenticationResponse, TsysTransitRSyncRequest, TsysTransitRSyncResponse,
-    TsysTransitRepeatPaymentRequest, TsysTransitRepeatPaymentResponse, TsysTransitReturnRequest,
-    TsysTransitReturnResponse, TsysTransitTransactionInquiryRequest,
-    TsysTransitTransactionInquiryResponse, TsysTransitVoidRequest, TsysTransitVoidResponse,
+    TsysTransitAuthorizeRequest, TsysTransitAuthorizeResponse, TsysTransitCancelPostRefundRequest,
+    TsysTransitCancelPostRefundResponse, TsysTransitCaptureRequest, TsysTransitCaptureResponse,
+    TsysTransitCardAuthenticationRequest, TsysTransitCardAuthenticationResponse,
+    TsysTransitRSyncRequest, TsysTransitRSyncResponse, TsysTransitRepeatPaymentRequest,
+    TsysTransitRepeatPaymentResponse, TsysTransitReturnRequest, TsysTransitReturnResponse,
+    TsysTransitTransactionInquiryRequest, TsysTransitTransactionInquiryResponse,
+    TsysTransitVoidRequest, TsysTransitVoidResponse,
 };
 
 use super::macros::{self, GetSoapXml};
@@ -97,6 +98,13 @@ macros::create_all_prerequisites!(
             response_body: TsysTransitRSyncResponse,
             response_format: xml,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: CancelPostRefund,
+            request_body: TsysTransitCancelPostRefundRequest,
+            response_body: TsysTransitCancelPostRefundResponse,
+            response_format: xml,
+            router_data: RouterDataV2<CancelPostRefund, RefundFlowData, RefundCancelPostRefundData, RefundsResponseData>,
         ),
         (
             flow: Void,
@@ -293,6 +301,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for TsysTransit<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundCancelPostRefundV2 for TsysTransit<T>
 {
 }
 
@@ -509,6 +522,41 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             // TransIT exposes a single POST `/` endpoint that dispatches on the
             // XML root element (tech spec § Sequence Diagrams).
+            Ok(self.connector_base_url_refunds(req).to_string())
+        }
+    }
+);
+
+// =============================================================================
+// REFUND REVERSE FLOW
+// =============================================================================
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: TsysTransit,
+    curl_request: SoapXml(TsysTransitCancelPostRefundRequest),
+    curl_response: TsysTransitCancelPostRefundResponse,
+    flow_name: CancelPostRefund,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundCancelPostRefundData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<CancelPostRefund, RefundFlowData, RefundCancelPostRefundData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![
+                (headers::CONTENT_TYPE.to_string(), CONTENT_TYPE_XML.to_string().into()),
+            ])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CancelPostRefund, RefundFlowData, RefundCancelPostRefundData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
             Ok(self.connector_base_url_refunds(req).to_string())
         }
     }

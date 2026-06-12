@@ -2311,6 +2311,19 @@ pub struct RefundSyncData {
     pub connector_order_id: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct RefundCancelPostRefundData {
+    pub connector_refund_id: String,
+    pub cancellation_reason: Option<String>,
+    pub refund_connector_metadata: Option<SecretSerdeValue>,
+    pub refund_status: common_enums::RefundStatus,
+    pub integrity_object: Option<RefundSyncIntegrityObject>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_feature_data: Option<SecretSerdeValue>,
+    pub refund_money: Option<common_utils::types::Money>,
+    pub connector_order_id: Option<String>,
+}
+
 impl RefundSyncData {
     pub fn get_connector_order_id(&self) -> Result<String, Error> {
         self.connector_order_id

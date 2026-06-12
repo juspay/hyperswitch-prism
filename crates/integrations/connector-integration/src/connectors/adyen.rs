@@ -870,7 +870,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             WebhookEventCode::Refund
             | WebhookEventCode::CancelOrRefund
             | WebhookEventCode::RefundFailed
-            | WebhookEventCode::RefundReversed => {
+            | WebhookEventCode::CancelPostRefundd => {
                 WebhookResourceReference::Refund(RefundWebhookReference {
                     connector_refund_id: Some(notif.psp_reference),
                     merchant_refund_id: Some(notif.merchant_reference),
@@ -1431,6 +1431,7 @@ macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
+        CancelPostRefund,
         RSync,
         PreAuthenticate,
         Authenticate,

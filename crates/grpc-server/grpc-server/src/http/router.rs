@@ -117,6 +117,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/events/handle", post(handlers::payments::handle_event))
         // RefundService routes
         .route("/refunds/get", post(handlers::refunds::get_refund))
+        .route("/refunds/reverse", post(handlers::refunds::reverse_refund))
         .route(
             "/refunds/transform",
             post(handlers::refunds::transform_refund),

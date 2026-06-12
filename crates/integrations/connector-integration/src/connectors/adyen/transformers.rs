@@ -5332,7 +5332,7 @@ pub enum WebhookEventCode {
     CaptureFailed,
     Refund,
     RefundFailed,
-    RefundReversed,
+    CancelPostRefundd,
     CancelOrRefund,
     NotificationOfChargeback,
     Chargeback,
@@ -5521,7 +5521,7 @@ pub(crate) fn get_adyen_refund_webhook_event(
                 Ok(RefundStatus::Failure)
             }
         }
-        WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {
+        WebhookEventCode::RefundFailed | WebhookEventCode::CancelPostRefundd => {
             Ok(RefundStatus::Failure)
         }
         _ => Err(WebhookError::WebhookProcessingFailed),
@@ -5543,7 +5543,7 @@ pub(crate) fn get_adyen_webhook_event_type(
         WebhookEventCode::CaptureFailed => Ok(EventType::PaymentIntentCaptureFailure),
         WebhookEventCode::OfferClosed => Ok(EventType::PaymentIntentExpired),
         WebhookEventCode::Refund | WebhookEventCode::CancelOrRefund => Ok(EventType::RefundSuccess),
-        WebhookEventCode::RefundFailed | WebhookEventCode::RefundReversed => {
+        WebhookEventCode::RefundFailed | WebhookEventCode::CancelPostRefundd => {
             Ok(EventType::RefundFailure)
         }
         WebhookEventCode::NotificationOfChargeback | WebhookEventCode::Chargeback => {

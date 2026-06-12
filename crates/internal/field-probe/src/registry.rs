@@ -305,6 +305,7 @@ pub(crate) fn mock_connector_state(
             expires_in_seconds: Some(config.access_token.expires_in_seconds),
         }),
         connector_customer_id: None,
+        state_metadata: None,
     }
 }
 

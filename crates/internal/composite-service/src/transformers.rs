@@ -142,6 +142,7 @@ impl
         let resolved_state = Some(ConnectorState {
             access_token,
             connector_customer_id,
+            state_metadata: None,
         });
 
         // Prefer authentication_data from post-auth, then from authenticate, then from request
@@ -248,6 +249,7 @@ impl
         let resolved_state = Some(ConnectorState {
             access_token,
             connector_customer_id,
+            state_metadata: None,
         });
 
         Self {
@@ -313,6 +315,7 @@ impl
         let resolved_state = Some(ConnectorState {
             access_token,
             connector_customer_id,
+            state_metadata: None,
         });
 
         Self {
@@ -381,6 +384,7 @@ impl
         let resolved_state = Some(ConnectorState {
             access_token,
             connector_customer_id,
+            state_metadata: None,
         });
 
         Self {
@@ -444,6 +448,7 @@ impl
         let resolved_state = Some(ConnectorState {
             access_token,
             connector_customer_id,
+            state_metadata: None,
         });
 
         Self {
@@ -613,6 +618,7 @@ impl
         let resolved_state = Some(ConnectorState {
             access_token,
             connector_customer_id,
+            state_metadata: None,
         });
 
         Self {
@@ -710,6 +716,7 @@ impl
         let resolved_state = Some(ConnectorState {
             access_token,
             connector_customer_id,
+            state_metadata: None,
         });
 
         Self {
@@ -753,6 +760,7 @@ impl
         let resolved_state = Some(ConnectorState {
             access_token,
             connector_customer_id,
+            state_metadata: None,
         });
 
         Self {
@@ -793,6 +801,7 @@ impl
         let resolved_state = Some(ConnectorState {
             access_token,
             connector_customer_id,
+            state_metadata: None,
         });
 
         Self {
