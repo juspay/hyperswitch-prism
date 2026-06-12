@@ -72,6 +72,13 @@
     "https://developer.peachpayments.com/docs/reference-webhooks",
     "https://peachpayments.docs.oppwa.com/reference/parameters"
   ],
+  "TsysTransit": [
+    "https://developerportal.transit-pass.com/developerportal/resources/dist/assets/build/api/API3.0/UseCases/Moto/index.html",
+    "https://developerportal.transit-pass.com/developerportal/resources/dist/assets/build/api/API3.0/UseCases/Ecommerce/index.html",
+    "https://developerportal.transit-pass.com/developerportal/resources/dist/assets/build/api/API3.0/UseCases/Recurring/index.html",
+    "https://developerportal.transit-pass.com/developerportal/resources/dist/assets/build/api/API3.0/UseCases/Retail/index.html",
+    "https://developerportal.transit-pass.com/developerportal/resources/dist/assets/build/api/API3.0/index.html"
+  ],
   "WORLDPAYXML": [
     "http://dtd.worldpay.com/v1/ElemList.html",
     "http://dtd.worldpay.com/v1/paymentService_v1.dtd.html",

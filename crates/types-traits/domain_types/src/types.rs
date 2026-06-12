@@ -399,6 +399,7 @@ pub struct Connectors {
     pub easebuzz: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
     pub axisbank: ConnectorParams,
+    pub tsys_transit: ConnectorParams,
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
     pub juspay: ConnectorParams,
@@ -2932,6 +2933,7 @@ pub struct AuthorizationRequest {
     pub tokenization_strategy: Option<grpc_payment_types::Tokenization>,
     pub test_mode: Option<bool>,
     pub payment_method_token: Option<Secret<String>>,
+    pub mit_category: Option<common_enums::MitCategory>,
     pub merchant_request_id: Option<String>,
     /// Connector-side order identifier when a `CreateOrder` has already been
     /// performed (e.g. Juspay's merchant `order_id`). Propagated to
@@ -2974,6 +2976,7 @@ pub struct SetupRecurringRequest {
     pub merchant_order_id: Option<String>,
     pub connector_testing_data: Option<Secret<String>>,
     pub l2_l3_data: Option<grpc_payment_types::L2l3Data>,
+    pub mit_category: Option<common_enums::MitCategory>,
 }
 
 /// ============================================================================
@@ -2984,6 +2987,10 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
         let tokenization_strategy = req
             .tokenization_strategy
             .map(|_| req.tokenization_strategy());
+        let mit_category = Some(
+            common_enums::MitCategory::foreign_try_from(req.mit_category())
+                .expect("gRPC MIT category must map to domain MIT category"),
+        );
         Self {
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
@@ -3028,6 +3035,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             order_details: Some(req.order_details),
             test_mode: req.test_mode,
             payment_method_token: None,
+            mit_category,
             merchant_request_id: req.merchant_request_id,
             connector_order_id: req.connector_order_id,
         }
@@ -3092,6 +3100,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             tokenization_strategy: None,
             test_mode: req.test_mode,
             payment_method_token: None,
+            mit_category: None,
             merchant_request_id: None,
             connector_order_id: None,
         }
@@ -3100,6 +3109,10 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
 
 impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecurringRequest {
     fn from(req: grpc_payment_types::PaymentServiceSetupRecurringRequest) -> Self {
+        let mit_category = Some(
+            common_enums::MitCategory::foreign_try_from(req.mit_category())
+                .expect("gRPC MIT category must map to domain MIT category"),
+        );
         Self {
             auth_type: req.auth_type(),
             setup_future_usage: req.setup_future_usage(),
@@ -3134,6 +3147,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             merchant_order_id: req.merchant_order_id,
             connector_testing_data: req.connector_testing_data,
             l2_l3_data: req.l2_l3_data,
+            mit_category,
         }
     }
 }
@@ -3182,6 +3196,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             merchant_order_id: None,
             connector_testing_data: None,
             l2_l3_data: None,
+            mit_category: None,
         }
     }
 }
@@ -3721,6 +3736,7 @@ impl<
                 connector_types::ThreeDsCompletionIndicator::foreign_try_from(i).ok()
             }),
             tokenization,
+            mit_category: value.mit_category,
         })
     }
 }
@@ -3863,6 +3879,7 @@ impl<
             payment_channel,
             enable_partial_authorization: value.enable_partial_authorization,
             locale: value.locale.clone(),
+            mit_category: value.mit_category,
             connector_testing_data,
         })
     }
@@ -4293,10 +4310,12 @@ impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderD
                     common_enums::ProductType::foreign_from(grpc_product_type)
                 }),
             product_tax_code: item.product_tax_code,
-            commodity_code: None,
-            sku: None,
-            upc: None,
-            unit_discount_amount: None,
+            commodity_code: item.commodity_code,
+            sku: item.sku,
+            upc: item.upc,
+            unit_discount_amount: item
+                .unit_discount_amount
+                .map(common_utils::types::MinorUnit::new),
             total_amount: None,
         })
     }
@@ -9230,13 +9249,6 @@ impl<
 
         let setup_future_usage = value.setup_future_usage();
 
-        let payment_channel = match value.payment_channel() {
-            grpc_payment_types::PaymentChannel::Unspecified => None,
-            _ => Some(common_enums::PaymentChannel::foreign_try_from(
-                value.payment_channel(),
-            )?),
-        };
-
         let setup_mandate_details = MandateData {
             update_mandate_id: None,
             customer_acceptance: Some(mandates::CustomerAcceptance::foreign_try_from(
@@ -9257,6 +9269,20 @@ impl<
                     statement_descriptor_suffix: descriptor.statement_descriptor_suffix.clone(),
                     reference: descriptor.reference.clone(),
                 });
+
+        let payment_channel = match value.payment_channel() {
+            grpc_payment_types::PaymentChannel::Unspecified => None,
+            _ => Some(common_enums::PaymentChannel::foreign_try_from(
+                value.payment_channel(),
+            )?),
+        };
+
+        let mit_category = match value.mit_category() {
+            grpc_payment_types::MitCategory::Unspecified => None,
+            _ => Some(common_enums::MitCategory::foreign_try_from(
+                value.mit_category(),
+            )?),
+        };
 
         Ok(Self {
             currency: amount.currency,
@@ -9325,6 +9351,7 @@ impl<
                     .ok()
                     .map(common_utils::pii::SecretSerdeValue::new)
             }),
+            mit_category,
         })
     }
 }
@@ -9838,14 +9865,7 @@ impl ForeignTryFrom<grpc_api_types::payments::MitCategory> for common_enums::Mit
                 Ok(common_enums::MitCategory::Resubmission)
             }
             grpc_api_types::payments::MitCategory::Unspecified => {
-                Err(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Mit category must be specified".to_string()),
-                        ..Default::default()
-                    },
-                }
-                .into())
+                Ok(common_enums::MitCategory::Unscheduled)
             }
         }
     }
@@ -14284,6 +14304,7 @@ pub fn tokenized_authorize_to_base(
         statement_descriptor_suffix: None,
         threeds_completion_indicator: None,
         tokenization_strategy: None,
+        mit_category: None,
         merchant_request_id: None,
     }
 }
@@ -14361,6 +14382,7 @@ pub fn tokenized_setup_recurring_to_base(
         request_incremental_authorization: false,
         session_token: None,
         shipping_cost: None,
+        mit_category: None,
     }
 }
 
@@ -14455,6 +14477,7 @@ pub fn proxied_authorize_to_base(
         statement_descriptor_name: None,
         statement_descriptor_suffix: None,
         tokenization_strategy: None,
+        mit_category: None,
         merchant_request_id: None,
     })
 }
@@ -14569,6 +14592,7 @@ pub fn proxied_setup_recurring_to_base(
         request_incremental_authorization: false,
         session_token: None,
         shipping_cost: None,
+        mit_category: None,
     })
 }
 

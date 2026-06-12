@@ -108,6 +108,11 @@ message CompositeAuthorizeRequest {
 
   // Server Session Token Information
   optional string merchant_server_session_id = 51; // Server session identifier for tracking
+
+  // MIT Category — mirrors PaymentServiceAuthorizeRequest.mit_category. For
+  // CIT this signals the future intended MIT type; for Authorize-as-MIT it
+  // signals the actual category being processed.
+  optional MitCategory mit_category = 52;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
