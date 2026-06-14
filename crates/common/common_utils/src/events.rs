@@ -355,7 +355,7 @@ pub enum FlowName {
     PayoutCreateLink,
     PayoutCreateRecipient,
     PayoutEnrollDisburseAccount,
-        NotifyConnector,
+    NotifyConnector,
     Recharge,
     CreatePaymentMethod,
     GetPaymentMethod,

@@ -15,11 +15,13 @@
 use crate::connectors::*;
 use common_utils::{request::Request, CustomResult};
 use domain_types::{
-    connector_flow::{CreatePaymentMethod, Eligibility, GetPaymentMethod, Recharge, VerifyWebhookSource},
+    connector_flow::{
+        CreatePaymentMethod, Eligibility, GetPaymentMethod, Recharge, VerifyWebhookSource,
+    },
     connector_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, GetPaymentMethodData,
-        GetPaymentMethodResponseData, PaymentFlowData, RechargeRequestData, RechargeResponseData,
-        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
+        GetPaymentMethodResponseData, PaymentFlowData, PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse, RechargeRequestData, RechargeResponseData,
         VerifyWebhookSourceFlowData,
     },
     errors::IntegrationError,
@@ -30,7 +32,8 @@ use domain_types::{
 };
 use interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use interfaces::connector_types::{
-    CreatePaymentMethodV2, GetPaymentMethodV2, PaymentEligibilityV2, RechargeV2, VerifyWebhookSourceV2,
+    CreatePaymentMethodV2, GetPaymentMethodV2, PaymentEligibilityV2, RechargeV2,
+    VerifyWebhookSourceV2,
 };
 
 /// Inner helper: emit the `VerifyWebhookSourceV2` + `ConnectorIntegrationV2` default impls
