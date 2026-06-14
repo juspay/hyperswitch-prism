@@ -2037,6 +2037,19 @@ macro_rules! expand_flow_status_impl {
         );
     };
 
+    // ---- Eligibility ----
+    (connector: $c:ident, flow: Eligibility, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::PaymentEligibilityV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::Eligibility,
+            flow_name: "eligibility",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::PaymentMethodEligibilityData,
+            response: ::domain_types::connector_types::PaymentMethodEligibilityResponse,
+        );
+    };
+
     // ---- Refund family ----
     (connector: $c:ident, flow: Refund, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
         impl<$g: $($b)*> ::interfaces::connector_types::RefundV2 for $c<$g> {}

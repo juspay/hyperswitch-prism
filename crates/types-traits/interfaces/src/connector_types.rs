@@ -15,7 +15,8 @@ use domain_types::{
         MandateRevokeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
         PaymentsSyncData, RechargeRequestData, RechargeResponseData, RedirectDetailsResponse,
         RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
@@ -114,6 +115,7 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + MandateRevokeV2
     + VerifyWebhookSourceV2
     + VerifyRedirectResponse
+    + PaymentEligibilityV2
 {
 }
 
@@ -146,6 +148,16 @@ pub trait PaymentVoidPostCaptureV2:
     PaymentFlowData,
     PaymentsCancelPostCaptureData,
     PaymentsResponseData,
+>
+{
+}
+
+pub trait PaymentEligibilityV2:
+    ConnectorIntegrationV2<
+    connector_flow::Eligibility,
+    PaymentFlowData,
+    PaymentMethodEligibilityData,
+    PaymentMethodEligibilityResponse,
 >
 {
 }

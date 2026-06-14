@@ -292,6 +292,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentServiceTokenSetupRecurringRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceProxyAuthorizeRequest: ["metadata", "connectorFeatureData"],
   PaymentServiceProxySetupRecurringRequest: ["metadata"],
+  PaymentMethodServiceEligibilityRequest: ["metadata"],
   CardPayout: ["cardNumber", "cardExpMonth", "cardExpYear", "cardHolderName"],
   AchBankTransferPayout: ["bankAccountNumber", "bankRoutingNumber"],
   BacsBankTransferPayout: ["bankAccountNumber", "bankSortCode"],
@@ -451,6 +452,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentServiceTokenSetupRecurringRequest: { "amount": "Money", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "customerAcceptance": "CustomerAcceptance", "setupMandateDetails": "SetupMandateDetails", "billingDescriptor": "BillingDescriptor" },
   PaymentServiceProxyAuthorizeRequest: { "amount": "Money", "cardProxy": "ProxyCardDetails", "customer": "Customer", "address": "PaymentAddress", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation", "state": "ConnectorState", "setupMandateDetails": "SetupMandateDetails", "billingDescriptor": "BillingDescriptor", "redirectionResponse": "RedirectionResponse", "l2L3Data": "L2L3Data", "customerAcceptance": "CustomerAcceptance" },
   PaymentServiceProxySetupRecurringRequest: { "amount": "Money", "cardProxy": "ProxyCardDetails", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "setupMandateDetails": "SetupMandateDetails", "customerAcceptance": "CustomerAcceptance", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation" },
+  PaymentMethodServiceEligibilityRequest: { "amount": "Money", "customer": "Customer" },
   PayoutAddress: { "shippingAddress": "Address", "billingAddress": "Address" },
   PayoutMethod: { "card": "CardPayout", "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "applePayDecrypt": "ApplePayDecrypt", "paypal": "Paypal", "venmo": "Venmo", "interac": "InteracPayout", "openBankingUk": "OpenBankingUkPayout", "passthrough": "Passthrough", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout" },
   SourceBankData: { "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout" },
@@ -662,6 +664,11 @@ export class GrpcPaymentMethodClient {
     return callGrpc(this.ffi, this.config, "payment_method/recharge",
       req, types.PaymentMethodServiceRechargeRequest, types.PaymentMethodServiceRechargeResponse);
   }
+  /** PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check) */
+  async paymentMethodEligibility(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payment_method/payment_method_eligibility",
+      req, types.PaymentMethodServiceEligibilityRequest, types.PaymentMethodServiceEligibilityResponse);
+  }
 }
 
 // PaymentService
@@ -738,6 +745,11 @@ export class GrpcPaymentClient {
     return callGrpc(this.ffi, this.config, "payment/proxy_setup_recurring",
       req, types.PaymentServiceProxySetupRecurringRequest, types.PaymentServiceSetupRecurringResponse);
   }
+  /** PaymentService.Eligibility — ============================================================================ ELIGIBILITY — Pre-checkout eligibility checks for buy-now-pay-later and other payment methods that require customer info upfront. ============================================================================ Check payment method eligibility for the given customer and order details. Supports connectors like Tamara, Tabby, etc. */
+  async eligibility(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payment/eligibility",
+      req, types.PaymentMethodServiceEligibilityRequest, types.PaymentMethodServiceEligibilityResponse);
+  }
 }
 
 // PayoutService
@@ -785,8 +797,8 @@ export class GrpcPayoutClient {
       req, types.PayoutServiceEnrollDisburseAccountRequest, types.PayoutServiceEnrollDisburseAccountResponse);
   }
   /** PayoutService.Eligibility — Check if the payout method is eligible for the transaction */
-  async eligibility(req: unknown): Promise<unknown> {
-    return callGrpc(this.ffi, this.config, "payout/eligibility",
+  async payoutEligibility(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payout/payout_eligibility",
       req, types.PayoutMethodEligibilityRequest, types.PayoutMethodEligibilityResponse);
   }
 }

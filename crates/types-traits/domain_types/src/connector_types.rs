@@ -1369,6 +1369,45 @@ impl PaymentVoidData {
 }
 
 #[derive(Debug, Clone)]
+pub struct PaymentMethodEligibilityData {
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    /// Customer details (phone, email, name, etc.) for eligibility check.
+    pub customer: Option<CustomerInfo>,
+    /// Market/country the eligibility check is for. BNPL eligibility is
+    /// country-gated, so connectors operating per-market rely on this.
+    /// (Billing/shipping address and order line items are carried on the
+    /// flow-level `PaymentFlowData`, consistent with the Authorize flow.)
+    pub country: Option<common_enums::CountryAlpha2>,
+    /// The specific payment method (e.g. a BNPL variant) eligibility is being
+    /// checked for, when the caller wants to scope the check.
+    pub payment_method_type: Option<PaymentMethodType>,
+    /// Locale/language hint for connector-rendered eligibility messaging.
+    pub locale: Option<String>,
+    /// Connector-specific extras that don't have a first-class field.
+    pub metadata: Option<SecretSerdeValue>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EligibilityStatus {
+    Unspecified,
+    Eligible,
+    Ineligible,
+}
+
+impl Default for EligibilityStatus {
+    fn default() -> Self {
+        Self::Unspecified
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentMethodEligibilityResponse {
+    pub eligibility: EligibilityStatus,
+    pub status_code: u32,
+}
+
+#[derive(Debug, Clone)]
 pub struct PaymentsCancelPostCaptureData {
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,

@@ -2760,6 +2760,28 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
+            "PaymentMethodService/Eligibility" => {
+                let payload: grpc_api_types::payments::PaymentMethodServiceEligibilityRequest =
+                    parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
+                let mut request = tonic::Request::new(payload);
+                add_connector_metadata(
+                    &mut request,
+                    &config,
+                    &merchant_id,
+                    &tenant_id,
+                    &request_id,
+                    &connector_request_reference_id,
+                );
+                let mut client = grpc_api_types::payments::payment_method_service_client::PaymentMethodServiceClient::new(channel.clone());
+                let response = client.eligibility(request).await.map_err(|error| {
+                    ScenarioError::GrpcurlExecution {
+                        message: format!(
+                            "tonic execution failed for '{suite}/{scenario}': {error}"
+                        ),
+                    }
+                })?;
+                serialize_tonic_response(&response.into_inner())
+            }
             "SurchargeService/Calculate" => {
                 let payload: grpc_api_types::surcharge::SurchargeServiceCalculateRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
@@ -4932,7 +4954,7 @@ mod tests {
                 payments::PaymentServiceProxySetupRecurringRequest,
             >(connector, suite, scenario, grpc_req),
             "PaymentMethodService/Eligibility" => validate_tonic_payload_shape::<
-                payments::PayoutMethodEligibilityRequest,
+                payments::PaymentMethodServiceEligibilityRequest,
             >(connector, suite, scenario, grpc_req),
             _ => Err(format!(
                 "{connector}/{suite}/{scenario}: suite '{effective_suite}' is not mapped to a tonic request type"

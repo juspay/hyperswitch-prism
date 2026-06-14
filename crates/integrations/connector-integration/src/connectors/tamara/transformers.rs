@@ -5,11 +5,12 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::{types::MinorUnit, Email};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, Eligibility, PSync, RSync, Refund, Void},
     connector_types::{
-        EventType, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        EligibilityStatus, EventType, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -747,6 +748,123 @@ impl From<TamaraWebhookEvent> for EventType {
             TamaraWebhookEvent::OrderUpdated => Self::PaymentIntentProcessing,
             TamaraWebhookEvent::Unknown => Self::IncomingWebhookEventUnspecified,
         }
+    }
+}
+
+// ===== ELIGIBILITY =====
+
+#[derive(Debug, Serialize)]
+pub struct TamaraEligibilityRequest {
+    pub order: TamaraEligibilityOrder,
+    pub customer: TamaraEligibilityCustomer,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TamaraEligibilityOrder {
+    pub total_amount: TamaraAmount,
+    pub country_code: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TamaraEligibilityCustomer {
+    pub phone_number: Secret<String>,
+    pub email: Email,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        TamaraRouterData<
+            RouterDataV2<Eligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
+            T,
+        >,
+    > for TamaraEligibilityRequest
+{
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(
+        item: TamaraRouterData<
+            RouterDataV2<Eligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let data = &item.router_data.request;
+        let customer = data.customer.as_ref().ok_or(error_stack::report!(
+            errors::IntegrationError::MissingRequiredField {
+                field_name: "customer",
+                context: errors::IntegrationErrorContext::default(),
+            }
+        ))?;
+        let email = customer
+            .customer_email
+            .clone()
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "customer.email",
+                    context: errors::IntegrationErrorContext::default(),
+                }
+            ))?;
+        let phone_number = customer
+            .customer_phone_number
+            .clone()
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "customer.phone_number",
+                    context: errors::IntegrationErrorContext::default(),
+                }
+            ))?;
+        // Prefer the explicit country on the request, otherwise derive it from
+        // the billing/shipping address carried on the flow data.
+        let country_code = data.country.map(|country| country.to_string()).or_else(|| {
+            let from_address = item
+                .router_data
+                .resource_common_data
+                .get_optional_shipping_or_billing_country_string();
+            (!from_address.is_empty()).then_some(from_address)
+        });
+        Ok(Self {
+            order: TamaraEligibilityOrder {
+                total_amount: TamaraAmount {
+                    amount: data.amount,
+                    currency: data.currency,
+                },
+                country_code,
+            },
+            customer: TamaraEligibilityCustomer {
+                phone_number,
+                email,
+            },
+        })
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct TamaraEligibilityResponse {
+    #[serde(alias = "is_eligible")]
+    pub eligible: Option<bool>,
+    #[serde(alias = "description")]
+    pub message: Option<String>,
+}
+
+impl TryFrom<ResponseRouterData<TamaraEligibilityResponse, Self>>
+    for RouterDataV2<Eligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<TamaraEligibilityResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let eligibility = if item.response.eligible.unwrap_or(false) {
+            EligibilityStatus::Eligible
+        } else {
+            EligibilityStatus::Ineligible
+        };
+        Ok(Self {
+            response: Ok(PaymentMethodEligibilityResponse {
+                eligibility,
+                status_code: u32::from(item.http_code),
+            }),
+            ..item.router_data.clone()
+        })
     }
 }
 

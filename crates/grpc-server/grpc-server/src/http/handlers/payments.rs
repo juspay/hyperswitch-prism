@@ -23,7 +23,9 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
-    PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
+    PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse,
+    PaymentServiceGetRequest,
     PaymentServiceGetResponse, PaymentServiceRefundRequest, PaymentServiceReverseRequest,
     PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
     PaymentServiceSetupRecurringResponse, PaymentServiceVerifyRedirectResponseRequest,
@@ -39,7 +41,6 @@ use crate::http::{
     transfer_config_to_grpc_request, utils::ValidatedJson,
 };
 use ucs_env::configs::Config;
-
 http_handler!(
     authorize,
     PaymentServiceAuthorizeRequest,
@@ -80,6 +81,13 @@ http_handler!(
     PaymentServiceGetRequest,
     PaymentServiceGetResponse,
     get,
+    payments_service
+);
+http_handler!(
+    eligibility,
+    PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceEligibilityResponse,
+    eligibility,
     payments_service
 );
 http_handler!(

@@ -5026,3 +5026,66 @@ message PaymentServiceProxySetupRecurringRequest {
   optional string order_category = 16; // Category of the order/service
   optional string description = 17; // Description of the mandate setup
 }
+
+// ============================================================================
+// ELIGIBILITY — Pre-checkout eligibility for payment methods requiring
+//                customer/order details before authorization (e.g. BNPL).
+// ============================================================================
+
+// Eligibility status reason codes returned by the connector.
+enum EligibilityStatus {
+  ELIGIBILITY_STATUS_UNSPECIFIED = 0; // Default, status not specified
+  ELIGIBILITY_STATUS_ELIGIBLE = 1;    // Customer is eligible
+  ELIGIBILITY_STATUS_INELIGIBLE = 2;  // Customer is ineligible
+}
+
+// Request to check pre-checkout eligibility for a payment method.
+// Used by PaymentMethodService.Eligibility (e.g. BNPL connectors like Tamara).
+message PaymentMethodServiceEligibilityRequest {
+  // Order amount and currency using the shared Money message.
+  Money amount = 1;
+
+  // Customer details (phone, email, name, etc.).
+  // At a minimum the connector requires phone_number and/or email.
+  optional Customer customer = 2;
+
+  // Billing and shipping address. Many BNPL connectors gate eligibility on
+  // the billing country and use the address for risk scoring.
+  optional PaymentAddress address = 3;
+
+  // Order line items. BNPL eligibility frequently depends on the cart
+  // contents (category, quantity, per-item amount).
+  repeated OrderDetailsWithAmount order_details = 4;
+
+  // Market/country the eligibility check is for. BNPL availability is
+  // country-gated; set this when it cannot be derived from the address.
+  optional CountryAlpha2 country = 5;
+
+  // The specific payment method (e.g. a BNPL variant) eligibility is being
+  // checked for, when the caller wants to scope the check.
+  optional PaymentMethodType payment_method_type = 6;
+
+  // Locale/language hint for connector-rendered eligibility messaging.
+  optional string locale = 7;
+
+  // Additional connector-specific metadata (JSON blob).
+  optional SecretString metadata = 8;
+}
+
+// Response from a pre-checkout eligibility check.
+message PaymentMethodServiceEligibilityResponse {
+  EligibilityStatus eligibility = 1;
+
+  // HTTP status code returned by the upstream connector.
+  uint32 status_code = 2;
+}
+
+// ---------------------------------------------------------------------------
+// Legacy alias kept for backward compatibility with PaymentService.Eligibility
+// (still used by the existing PaymentService gRPC route).
+// ---------------------------------------------------------------------------
+message PaymentServiceEligibilityResponse {
+  bool eligible = 1;
+  optional string message = 2;  // Human-readable reason or message
+  uint32 status_code = 3;
+}
