@@ -21,7 +21,7 @@ use domain_types::{
         PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        ResponseId, SetupMandateRequestData, SplitPaymentsRequest,
         StripeClientAuthenticationResponse as StripeClientAuthenticationResponseDomain,
     },
     errors::{ConnectorError, IntegrationError},
@@ -2087,23 +2087,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         let charges = match &item.request.split_payments {
-            Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(
-                stripe_split_payment,
-            )) => match &stripe_split_payment.charge_type {
-                common_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
-                    common_enums::StripeChargeType::Direct => Some(IntentCharges {
-                        application_fee_amount: stripe_split_payment.application_fees,
-                        destination_account_id: None,
-                    }),
-                    common_enums::StripeChargeType::Destination => Some(IntentCharges {
-                        application_fee_amount: stripe_split_payment.application_fees,
-                        destination_account_id: Some(Secret::new(
-                            stripe_split_payment.transfer_account_id.clone(),
-                        )),
-                    }),
-                },
-            },
-            None => None,
+            Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) => {
+                match &stripe_split_payment.charge_type {
+                    common_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
+                        common_enums::StripeChargeType::Direct => Some(IntentCharges {
+                            application_fee_amount: stripe_split_payment.application_fees,
+                            destination_account_id: None,
+                        }),
+                        common_enums::StripeChargeType::Destination => Some(IntentCharges {
+                            application_fee_amount: stripe_split_payment.application_fees,
+                            destination_account_id: Some(Secret::new(
+                                stripe_split_payment.transfer_account_id.clone(),
+                            )),
+                        }),
+                    },
+                }
+            }
+            Some(SplitPaymentsRequest::AdyenSplitPayment(_)) | None => None,
         };
 
         let charges_in = if charges.is_none() {
@@ -2707,7 +2707,7 @@ where
             let _mandate_metadata: Option<Secret<Value>> =
                 match item.router_data.request.get_split_payment_data() {
                     Some(
-                        domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(
+                        SplitPaymentsRequest::StripeSplitPayment(
                             stripe_split_data,
                         ),
                     ) => Some(Secret::new(serde_json::json!({
@@ -3972,10 +3972,7 @@ where
     T: SplitPaymentData,
 {
     let charge_request = request.get_split_payment_data();
-    if let Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(
-        stripe_split_payment,
-    )) = charge_request
-    {
+    if let Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) = charge_request {
         let stripe_charge_response = domain_types::connector_types::StripeChargeResponseData {
             charge_id: Some(charge_id),
             charge_type: stripe_split_payment.charge_type,
@@ -4347,6 +4344,10 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
                         },
                     })
                 }
+                _ => Err(IntegrationError::MissingRequiredField {
+                    field_name: "stripe_split_refund",
+                    context: Default::default(),
+                })?,
             },
         }
     }
@@ -4805,9 +4806,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
             let mut mit_charge_type = None;
             let mut mit_application_fees = None;
             let mut mit_transfer_account_id = None;
-            if let Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(
-                stripe_split_payment,
-            )) = item.request.split_payments.as_ref()
+            if let Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) =
+                item.request.split_payments.as_ref()
             {
                 mit_charge_type = Some(stripe_split_payment.charge_type.clone());
                 mit_application_fees = stripe_split_payment.application_fees;
@@ -5111,23 +5111,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         let charges = match &item.request.split_payments {
-            Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(
-                stripe_split_payment,
-            )) => match &stripe_split_payment.charge_type {
-                common_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
-                    common_enums::StripeChargeType::Direct => Some(IntentCharges {
-                        application_fee_amount: stripe_split_payment.application_fees,
-                        destination_account_id: None,
-                    }),
-                    common_enums::StripeChargeType::Destination => Some(IntentCharges {
-                        application_fee_amount: stripe_split_payment.application_fees,
-                        destination_account_id: Some(Secret::new(
-                            stripe_split_payment.transfer_account_id.clone(),
-                        )),
-                    }),
-                },
-            },
-            None => None,
+            Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) => {
+                match &stripe_split_payment.charge_type {
+                    common_enums::PaymentChargeType::Stripe(charge_type) => match charge_type {
+                        common_enums::StripeChargeType::Direct => Some(IntentCharges {
+                            application_fee_amount: stripe_split_payment.application_fees,
+                            destination_account_id: None,
+                        }),
+                        common_enums::StripeChargeType::Destination => Some(IntentCharges {
+                            application_fee_amount: stripe_split_payment.application_fees,
+                            destination_account_id: Some(Secret::new(
+                                stripe_split_payment.transfer_account_id.clone(),
+                            )),
+                        }),
+                    },
+                }
+            }
+            Some(SplitPaymentsRequest::AdyenSplitPayment(_)) | None => None,
         };
 
         let charges_in = if charges.is_none() {

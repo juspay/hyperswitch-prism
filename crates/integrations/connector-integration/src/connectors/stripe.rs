@@ -462,10 +462,14 @@ macros::macro_connector_implementation!(
                 .request
                 .split_payments
                 .as_ref()
-                .map(|split_payments| {
-                    let domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) =
-                        split_payments;
-                    stripe_split_payment
+                .and_then(|split_payments| {
+                    if let domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) =
+                        split_payments
+                    {
+                        Some(stripe_split_payment)
+                    } else {
+                        None
+                    }
                 })
                 .filter(|stripe_split_payment| {
                     matches!(stripe_split_payment.charge_type, common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct))
@@ -521,10 +525,14 @@ macros::macro_connector_implementation!(
                 .request
                 .split_payments
                 .as_ref()
-                .map(|split_payments| {
-                    let domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) =
-                        split_payments;
-                    stripe_split_payment
+                .and_then(|split_payments| {
+                    if let domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) =
+                        split_payments
+                    {
+                        Some(stripe_split_payment)
+                    } else {
+                        None
+                    }
                 })
                 .filter(|stripe_split_payment| {
                     matches!(stripe_split_payment.charge_type, common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct))
@@ -621,10 +629,14 @@ macros::macro_connector_implementation!(
                 .request
                 .split_payments
                 .as_ref()
-                .map(|split_payments| {
-                    let domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) =
-                        split_payments;
-                    stripe_split_payment
+                .and_then(|split_payments| {
+                    if let domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) =
+                        split_payments
+                    {
+                        Some(stripe_split_payment)
+                    } else {
+                        None
+                    }
                 })
                 .filter(|stripe_split_payment| {
                     matches!(stripe_split_payment.charge_type, common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct))
