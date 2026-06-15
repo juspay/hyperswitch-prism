@@ -446,6 +446,7 @@ crates/internal/integration-tests/report.json
 crates/internal/integration-tests/test_report/
 testing/integration-tests/report.json
 testing/integration-tests/test_report/
+testing/integration-tests/COVERAGE_REPORT.md
 *.test.log
 /tmp/*test*.log
 .grpc-server.pid
