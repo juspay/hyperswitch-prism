@@ -200,7 +200,7 @@ jobs:
         id: check-npm-auth
         continue-on-error: true
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TEST_TOKEN }}
         run: |
           echo "Checking npm authentication..."
           npm whoami
@@ -226,7 +226,7 @@ jobs:
         id: check-dryrun
         continue-on-error: true
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TEST_TOKEN }}
         run: |
           echo "Running npm publish --dry-run..."
           npm publish *.tgz --dry-run
@@ -294,7 +294,7 @@ jobs:
 
       - name: Publish to npm
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TEST_TOKEN }}
         run: |
           echo "Publishing package..."
           npm publish *.tgz --access public
