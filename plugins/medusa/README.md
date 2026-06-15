@@ -4,14 +4,14 @@ Hyperswitch Prism payment integration for Medusa v2. This monorepo contains two 
 
 | Package | Description |
 |---------|-------------|
-| [`@juspay/medusa-unified-payment`](./medusa-unified-payment) | Medusa v2 backend payment provider plugin |
-| [`@juspay/medusa-unified-payment-react`](./medusa-unified-payment-react) | React UI components for storefront checkout |
+| [`@juspay-tech/medusa-unified-payment`](./medusa-unified-payment) | Medusa v2 backend payment provider plugin |
+| [`@juspay-tech/medusa-unified-payment-react`](./medusa-unified-payment-react) | React UI components for storefront checkout |
 
 ## Supported Connectors
 
 > **Powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism)** — a unified payment orchestration layer that routes transactions across processors through a single API.
 >
-> | Connector | `@juspay/medusa-unified-payment` | `@juspay/medusa-unified-payment-react` |
+> | Connector | `@juspay-tech/medusa-unified-payment` | `@juspay-tech/medusa-unified-payment-react` |
 > |-----------|:---------------------------------:|:--------------------------------------:|
 > | [![Stripe](https://img.shields.io/badge/Stripe-626CD9?style=for-the-badge&logo=stripe&logoColor=white)](https://stripe.com) | ✅ | ✅ |
 > | [![Adyen](https://img.shields.io/badge/Adyen-0ABF53?style=for-the-badge&logo=adyen&logoColor=white)](https://adyen.com) | ✅ | ✅ |
@@ -27,7 +27,7 @@ Hyperswitch Prism payment integration for Medusa v2. This monorepo contains two 
 ### Backend
 
 ```bash
-npm install @juspay/medusa-unified-payment
+npm install @juspay-tech/medusa-unified-payment
 ```
 
 See [`medusa-unified-payment/README.md`](./medusa-unified-payment/README.md) for full setup.
@@ -35,7 +35,7 @@ See [`medusa-unified-payment/README.md`](./medusa-unified-payment/README.md) for
 ### Storefront
 
 ```bash
-npm install @juspay/medusa-unified-payment-react
+npm install @juspay-tech/medusa-unified-payment-react
 ```
 
 See [`medusa-unified-payment-react/README.md`](./medusa-unified-payment-react/README.md) for full setup.
@@ -45,7 +45,7 @@ See [`medusa-unified-payment-react/README.md`](./medusa-unified-payment-react/RE
 ```bash
 # Install dependencies and build both packages
 npm install
-npm run build                          # builds @juspay/medusa-unified-payment
+npm run build                          # builds @juspay-tech/medusa-unified-payment
 cd medusa-unified-payment-react && npm install && npm run build
 ```
 
