@@ -25,7 +25,7 @@ use domain_types::{
         GooglePayWalletData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         RealTimePaymentData, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils,
@@ -665,7 +665,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )
@@ -1031,7 +1032,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )
@@ -1370,6 +1372,7 @@ where
                     mandate_reference: None,
                     connector_metadata: get_qr_metadata(response)?,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
@@ -1416,6 +1419,7 @@ where
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
@@ -1475,6 +1479,7 @@ where
                             mandate_reference: mandate_reference.map(Box::new),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
@@ -1527,6 +1532,7 @@ where
                                 mandate_reference: None,
                                 connector_metadata: None,
                                 network_txn_id: None,
+                                network_txn_link_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 status_code: item.http_code,
@@ -1549,6 +1555,7 @@ where
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
@@ -1944,7 +1951,9 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                         code: error_details.code,
                         message: error_details.message,
                         reason: error_details.reason,
-                        attempt_status: Some(common_enums::AttemptStatus::Failure),
+                        attempt_status: Some(FlowStatus::Payment(
+                            common_enums::AttemptStatus::Failure,
+                        )),
                         connector_transaction_id: Some(txn_id.clone()),
                         network_advice_code: None,
                         network_decline_code: None,
@@ -1962,6 +1971,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                         .scheme_transaction_id
                         .as_ref()
                         .map(|id| id.clone().expose()),
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: http_code,
@@ -2004,7 +2014,9 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                         code: error_details.code,
                         message: error_details.message,
                         reason: error_details.reason,
-                        attempt_status: Some(common_enums::AttemptStatus::Failure),
+                        attempt_status: Some(FlowStatus::Payment(
+                            common_enums::AttemptStatus::Failure,
+                        )),
                         connector_transaction_id: Some(txn_id.clone()),
                         network_advice_code: None,
                         network_decline_code: None,
@@ -2019,6 +2031,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                     mandate_reference: mandate_reference.map(Box::new),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: http_code,
@@ -2233,6 +2246,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -2367,6 +2381,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentCancelResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,

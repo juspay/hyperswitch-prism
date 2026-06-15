@@ -2184,12 +2184,6 @@
         }
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by adyen connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "supported",
@@ -2222,6 +2216,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by adyen connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by adyen connector"
       }
     },
     "dispute_accept": {

@@ -217,12 +217,16 @@ fn create_payment_authorize_request(
         }),
         return_url: Some("https://duck.com".to_string()),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: None,
             connector_customer_id: None,
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
         }),
         address: Some(grpc_api_types::payments::PaymentAddress {
             billing_address: Some(grpc_api_types::payments::Address {
@@ -276,6 +280,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         payment_experience: None,
 
         merchant_request_id: None,
+        payment_method_type: None,
     }
 }
 
@@ -287,6 +292,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
             minor_amount: TEST_AMOUNT,
             currency: i32::from(Currency::Usd),
         }),
+        order_tax_amount: None,
         multiple_capture_data: None,
         merchant_capture_id: Some(format!(
             "paysafe_capture_{}_{}",
@@ -394,8 +400,7 @@ async fn test_payment_authorization_auto_capture() {
             "Failed to add credentials"
         );
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 
@@ -428,8 +433,7 @@ async fn test_payment_authorization_manual_capture() {
             "Failed to add credentials"
         );
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 
@@ -494,8 +498,7 @@ async fn test_payment_sync() {
             "Failed to add credentials"
         );
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 
@@ -537,8 +540,7 @@ async fn test_refund() {
         let mut grpc_request = Request::new(request);
         add_paysafe_metadata(&mut grpc_request);
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 
@@ -581,8 +583,7 @@ async fn test_refund_sync() {
             let mut grpc_request = Request::new(request);
             add_paysafe_metadata(&mut grpc_request);
 
-            let response = payment_client
-                .authorize(grpc_request)
+            let response = Box::pin(payment_client.authorize(grpc_request))
                 .await
                 .expect("Payment authorization failed");
 
@@ -644,8 +645,7 @@ async fn test_payment_void() {
             "Failed to add credentials"
         );
 
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("Payment authorization failed");
 

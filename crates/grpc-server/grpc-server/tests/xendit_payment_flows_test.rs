@@ -138,12 +138,16 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
         enrolled_for_3ds: Some(true),
         request_incremental_authorization: Some(false),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: Some(CONNECTOR_CUSTOMER_ID.to_string()),
             connector_customer_id: Some(CONNECTOR_CUSTOMER_ID.to_string()),
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
         }),
         // browser_info: TODO - BrowserInfo type not available in grpc_api_types
         capture_method: Some(i32::from(capture_method)),
@@ -173,6 +177,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         payment_experience: None,
 
         merchant_request_id: None,
+        payment_method_type: None,
     }
 }
 
@@ -184,6 +189,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
             minor_amount: TEST_AMOUNT,
             currency: i32::from(Currency::Idr),
         }),
+        order_tax_amount: None,
         multiple_capture_data: None,
         merchant_capture_id: None,
         ..Default::default()
@@ -261,8 +267,7 @@ async fn test_payment_authorization_auto_capture() {
         add_xendit_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -289,8 +294,7 @@ async fn test_payment_authorization_manual_capture() {
         add_xendit_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -347,8 +351,7 @@ async fn test_payment_sync_auto_capture() {
         add_xendit_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -394,8 +397,7 @@ async fn test_refund() {
         add_xendit_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -449,8 +451,7 @@ async fn test_refund_sync() {
             add_xendit_metadata(&mut grpc_request);
 
             // Send the request
-            let response = client
-                .authorize(grpc_request)
+            let response = Box::pin(client.authorize(grpc_request))
                 .await
                 .expect("gRPC authorize call failed")
                 .into_inner();

@@ -55,6 +55,8 @@ pub const X_CONNECTOR_SERVICE: &str = "connector-service";
 pub const X_FLOW_NAME: &str = "x-flow";
 /// Header key for shadow mode
 pub const X_SHADOW_MODE: &str = "x-shadow-mode";
+/// Header key for named proxy selection — value must match a key in [proxy.proxies.*] config
+pub const X_PROXY_NAME: &str = "x-proxy-name";
 /// Header key for environment (superposition dimension)
 pub const X_ENVIRONMENT: &str = "x-environment";
 
@@ -169,6 +171,7 @@ pub const LOG_TIME: &str = "time";
 pub const NAME: &str = "UCS";
 /// Constant variable for payment service name
 pub const PAYMENT_SERVICE_NAME: &str = "payment_service";
+pub const PAYMENT_METHOD_SERVICE_NAME: &str = "payment_method_service";
 
 pub const CONST_DEVELOPMENT: &str = "development";
 pub const CONST_PRODUCTION: &str = "production";

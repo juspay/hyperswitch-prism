@@ -238,11 +238,14 @@ service PaymentMethodService {
   // with secure token for one-click payments and recurring billing.
   rpc Tokenize(PaymentMethodServiceTokenizeRequest) returns (PaymentMethodServiceTokenizeResponse);
 
-  // // Retrieves payment method details from the payment processor or vault.
-  // rpc Get(PaymentMethodServiceGetRequest) returns (PaymentMethodServiceGetResponse);
+  // Create payment method at connector. Establishes a new payment method and returns connector-specific details.
+  rpc Create(PaymentMethodServiceCreateRequest) returns (PaymentMethodServiceCreateResponse);
 
-  // Check if the payout method is eligible for the transaction
-  rpc Eligibility(PayoutMethodEligibilityRequest) returns (PayoutMethodEligibilityResponse);
+  // Retrieve payment method details from the payment processor.
+  rpc Get(PaymentMethodServiceGetRequest) returns (PaymentMethodServiceGetResponse);
+
+  // Recharge a payment method (wallet, gift card, prepaid card) with funds.
+  rpc Recharge(PaymentMethodServiceRechargeRequest) returns (PaymentMethodServiceRechargeResponse);
 }
 
 // ============================================================================
@@ -332,6 +335,9 @@ service PayoutService {
 
   // Enroll disburse account.
   rpc EnrollDisburseAccount(PayoutServiceEnrollDisburseAccountRequest) returns (PayoutServiceEnrollDisburseAccountResponse);
+
+  // Check if the payout method is eligible for the transaction
+  rpc Eligibility(PayoutMethodEligibilityRequest) returns (PayoutMethodEligibilityResponse);
 }
 
 // ============================================================================

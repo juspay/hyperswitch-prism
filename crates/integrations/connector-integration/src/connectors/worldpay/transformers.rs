@@ -15,7 +15,7 @@ use domain_types::{
         PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         WalletData as WalletDataPaymentMethod,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils,
@@ -232,7 +232,8 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::BillDeskRedirect(_)
             | WalletDataPaymentMethod::CashfreeRedirect(_)
             | WalletDataPaymentMethod::PayURedirect(_)
-            | WalletDataPaymentMethod::EaseBuzzRedirect(_) => {
+            | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+            | WalletDataPaymentMethod::QwikcilverWalletDirect(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("worldpay"),
                     connector: "Worldpay",
@@ -965,6 +966,7 @@ impl<F, T>
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata,
                 network_txn_id: network_txn_id.map(|id| id.expose()),
+                network_txn_link_id: None,
                 connector_response_reference_id: optional_correlation_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: router_data.http_code,
@@ -974,7 +976,7 @@ impl<F, T>
                 message: reason.clone(),
                 reason: Some(reason),
                 status_code: router_data.http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: optional_correlation_id,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -985,7 +987,7 @@ impl<F, T>
                 message: message.clone(),
                 reason: Some(message.clone()),
                 status_code: router_data.http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: optional_correlation_id,
                 network_advice_code: advice_code,
                 // Access Worldpay returns a raw response code in the refusalCode field (if enabled) containing the unmodified response code received either directly from the card scheme for Worldpay-acquired transactions, or from third party acquirers.
@@ -1059,6 +1061,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -1129,6 +1132,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayEventResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -1260,6 +1264,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -1413,6 +1418,7 @@ where
         let _connector_metadata = extract_three_ds_metadata(&item.response);
 
         let response = Ok(PaymentsResponseData::PreAuthenticateResponse {
+            resource_id: None,
             redirection_data: redirection_data.map(Box::new),
             connector_response_reference_id,
             status_code: item.http_code,

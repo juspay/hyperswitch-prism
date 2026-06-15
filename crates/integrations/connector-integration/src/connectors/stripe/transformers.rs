@@ -26,6 +26,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError},
     mandates::AcceptanceType,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         self, AchTransfer, BankRedirectData, BankTransferInstructions, BankTransferNextStepsData,
         Card, CardRedirectData, GiftCardData, GooglePayWalletData, MultibancoTransferInstructions,
@@ -934,11 +935,14 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::EaseBuzz
             | common_enums::PaymentMethodType::Skrill
             | common_enums::PaymentMethodType::Paysera
-            | common_enums::PaymentMethodType::Netbanking => Err(IntegrationError::NotImplemented(
-                get_unimplemented_payment_method_error_message("stripe"),
-                Default::default(),
-            )
-            .into()),
+            | common_enums::PaymentMethodType::Netbanking
+            | common_enums::PaymentMethodType::QwikcilverWallet => {
+                Err(IntegrationError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("stripe"),
+                    Default::default(),
+                )
+                .into())
+            }
         }
     }
 }
@@ -1236,7 +1240,8 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::BillDeskRedirect(_)
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
-        | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+        | WalletData::EaseBuzzRedirect(_)
+        | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
             get_unimplemented_payment_method_error_message("stripe"),
             Default::default(),
         )),
@@ -1723,7 +1728,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             | WalletData::BillDeskRedirect(_)
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
-            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
@@ -2755,6 +2761,7 @@ where
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: item
                     .router_data
@@ -3043,6 +3050,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata,
                 network_txn_id: network_transaction_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -3159,6 +3167,7 @@ impl<F, T> TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: None,
                 network_txn_id: network_transaction_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -4713,6 +4722,7 @@ impl<F, T> TryFrom<ResponseRouterData<CreateConnectorCustomerResponse, Self>>
         Ok(Self {
             response: Ok(ConnectorCustomerResponse {
                 connector_customer_id: item.response.id,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })
@@ -5347,7 +5357,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         StripeRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -5360,7 +5370,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         item: StripeRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -5399,7 +5409,7 @@ pub struct StripeClientAuthResponse(PaymentIntentResponse);
 impl TryFrom<ResponseRouterData<StripeClientAuthResponse, Self>>
     for RouterDataV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     >

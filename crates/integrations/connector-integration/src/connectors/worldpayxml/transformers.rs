@@ -9,11 +9,11 @@ use domain_types::{
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::Serialize;
 
 use super::{
@@ -59,7 +59,6 @@ impl TryFrom<&ConnectorSpecificConfig> for WorldpayxmlAuthType {
 
 // Helper function to get currency exponent
 
-const DEFAULT_CARD_HOLDER_NAME: &str = "Card Holder";
 const DEFAULT_PAYMENT_DESCRIPTION: &str = "Payment";
 
 // Helper function to get payment method XML element
@@ -73,40 +72,13 @@ where
 {
     match payment_method_data {
         PaymentMethodData::Card(_) => {
-            // Convert 2-digit year to 4-digit year (e.g., "30" -> "2030")
-            let year_str = card.card_exp_year.peek();
-            let formatted_year = if year_str.len() == 2 {
-                Secret::new(format!("20{}", year_str))
-            } else {
-                card.card_exp_year.clone()
-            };
+            let formatted_year = crate::utils::pad_expiry_year_to_four_digits(&card.card_exp_year);
 
-            // Use card_holder_name from card data, or construct from billing address, or use a default
-            let card_holder_name = if let Some(ref holder_name) = card.card_holder_name {
-                holder_name.clone()
-            } else if let Some(billing_addr) = billing_address {
-                // Construct from billing address first_name and last_name
-                let first_name = billing_addr
-                    .address
-                    .first_name
-                    .as_ref()
-                    .map(|n| n.peek().clone())
-                    .unwrap_or_default();
-                let last_name = billing_addr
-                    .address
-                    .last_name
-                    .as_ref()
-                    .map(|n| n.peek().clone())
-                    .unwrap_or_default();
-
-                if !first_name.is_empty() || !last_name.is_empty() {
-                    Secret::new(format!("{} {}", first_name, last_name).trim().to_string())
-                } else {
-                    Secret::new(DEFAULT_CARD_HOLDER_NAME.to_string())
-                }
-            } else {
-                Secret::new(DEFAULT_CARD_HOLDER_NAME.to_string())
-            };
+            let card_holder_name = crate::utils::build_card_holder_name(
+                &card.card_holder_name,
+                billing_address.and_then(|b| b.address.first_name.clone()),
+                billing_address.and_then(|b| b.address.last_name.clone()),
+            );
 
             let card_data = requests::WorldpayxmlCard {
                 card_number: Secret::new(card.card_number.peek().to_string()),
@@ -116,11 +88,10 @@ where
                         year: formatted_year,
                     },
                 },
-                card_holder_name: Some(card_holder_name),
+                card_holder_name,
                 cvc: card.card_cvc.clone(),
             };
 
-            // Map card network to specific payment method type
             match card.card_network.as_ref() {
                 Some(network) => match network {
                     common_enums::CardNetwork::Visa => {
@@ -540,6 +511,12 @@ fn map_worldpayxml_authorize_status(
         WorldpayxmlLastEvent::RefundFailed => AttemptStatus::Failure,
         WorldpayxmlLastEvent::Expired => AttemptStatus::Failure,
         WorldpayxmlLastEvent::Error => AttemptStatus::Failure,
+
+        WorldpayxmlLastEvent::PushRequested
+        | WorldpayxmlLastEvent::PushPending
+        | WorldpayxmlLastEvent::PushApproved
+        | WorldpayxmlLastEvent::PushRefused
+        | WorldpayxmlLastEvent::SettledByMerchant => AttemptStatus::Failure,
     }
 }
 
@@ -594,7 +571,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     message: error.message.clone(),
                     reason: Some(error.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -621,7 +598,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     message: error.message.clone(),
                     reason: Some(error.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(order_status.order_code.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -657,6 +634,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .authorisation_id
                 .as_ref()
                 .map(|auth_id| auth_id.id.clone()),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(order_status.order_code.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -697,7 +675,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>>
                     message: error.message.clone(),
                     reason: Some(error.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::CaptureFailed),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::CaptureFailed)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -724,6 +702,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(capture_received.order_code.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -764,7 +743,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>>
                     message: error.message.clone(),
                     reason: Some(error.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::VoidFailed),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -791,6 +770,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlVoidResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(cancel_received.order_code.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -836,7 +816,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                             message: error.message.clone(),
                             reason: Some(error.message.clone()),
                             status_code: item.http_code,
-                            attempt_status: Some(AttemptStatus::Failure),
+                            attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                             connector_transaction_id: None,
                             network_decline_code: None,
                             network_advice_code: None,
@@ -865,6 +845,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(order_status.order_code.clone()),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
@@ -891,7 +872,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                             message: error.message.clone(),
                             reason: Some(error.message.clone()),
                             status_code: item.http_code,
-                            attempt_status: Some(AttemptStatus::Failure),
+                            attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                             connector_transaction_id: Some(order_status.order_code.clone()),
                             network_decline_code: None,
                             network_advice_code: None,
@@ -932,6 +913,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                         .authorisation_id
                         .as_ref()
                         .map(|auth_id| auth_id.id.clone()),
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(order_status.order_code.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
@@ -985,6 +967,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlTransactionResponse, Self>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(order_code),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
@@ -1077,17 +1060,12 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
                 // Check for top-level error first
                 if let Some(error) = &response.reply.error {
                     return Ok(Self {
-                        response: Err(ErrorResponse {
-                            code: error.code.clone(),
-                            message: error.message.clone(),
-                            reason: Some(error.message.clone()),
-                            status_code: item.http_code,
-                            attempt_status: None,
-                            connector_transaction_id: None,
-                            network_decline_code: None,
-                            network_advice_code: None,
-                            network_error_message: None,
-                        }),
+                        response: Err(crate::utils::build_error_response(
+                            error.code.clone(),
+                            error.message.clone(),
+                            item.http_code,
+                            None,
+                        )),
                         ..router_data.clone()
                     });
                 }
@@ -1197,7 +1175,7 @@ impl TryFrom<ResponseRouterData<responses::WorldpayxmlRsyncResponse, Self>>
     }
 }
 
-// VoidPostCapture (Reverse) flow transformers
+// ===== VOID POST CAPTURE TRANSFORMERS =====
 // Uses <cancelOrRefund/> element which acts as cancel if pre-settlement, refund if post-settlement
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<

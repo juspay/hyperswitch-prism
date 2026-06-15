@@ -15,7 +15,7 @@ use domain_types::{
     payment_method_data::{
         GooglePayWalletData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -362,7 +362,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => {
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: utils::get_unimplemented_payment_method_error_message("Noon"),
                         connector: "Noon",
@@ -650,7 +651,7 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(order.id.to_string()),
                     network_advice_code: None,
                     network_decline_code: None,
@@ -665,6 +666,7 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
@@ -1259,7 +1261,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::BillDeskRedirect(_)
                         | WalletData::CashfreeRedirect(_)
                         | WalletData::PayURedirect(_)
-                        | WalletData::EaseBuzzRedirect(_) => {
+                        | WalletData::EaseBuzzRedirect(_)
+                        | WalletData::QwikcilverWalletDirect(_) => {
                             Err(error_stack::report!(IntegrationError::NotSupported {
                                 message: utils::get_unimplemented_payment_method_error_message(
                                     "Noon"
@@ -1457,7 +1460,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(order.id.to_string()),
                     network_advice_code: None,
                     network_decline_code: None,
@@ -1472,6 +1475,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
@@ -1678,7 +1682,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(order.id.to_string()),
                     network_advice_code: None,
                     network_decline_code: None,
@@ -1693,6 +1697,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id,
                         incremental_authorization_allowed: None,
                         status_code: http_code,

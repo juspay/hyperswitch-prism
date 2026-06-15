@@ -124,6 +124,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -318,6 +319,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -463,6 +465,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -630,6 +633,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -805,7 +809,7 @@ mod tests {
                 "message": "The id provided does not exist",
                 "reason": "input_validation_failed",
                 "status_code": 400,
-                "attempt_status": "failure",
+                "attempt_status": { "Payment": "failure" },
                 "connector_transaction_id": null,
                 "network_advice_code": null,
                 "network_decline_code": null,
@@ -995,6 +999,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                customer_document_details: None,
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
@@ -1196,6 +1201,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                customer_document_details: None,
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
@@ -1644,6 +1650,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -2151,7 +2158,7 @@ mod tests {
             "message": "Order receipt should be unique.",
             "reason": "input_validation_failed",
             "status_code": 400,
-            "attempt_status": "failure",
+            "attempt_status": {"Payment": "failure"},
             "connector_transaction_id": null,
             "network_advice_code": null,
             "network_decline_code": null,
@@ -2228,7 +2235,7 @@ mod tests {
             "message": "Some generic message",
             "reason": "Some generic message",
             "status_code": 400,
-            "attempt_status": "failure",
+            "attempt_status": {"Payment": "failure"},
             "connector_transaction_id": null,
             "network_advice_code": null,
             "network_decline_code": null,

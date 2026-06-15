@@ -13,6 +13,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -230,7 +231,7 @@ macros::create_all_prerequisites!(
             flow: ClientAuthenticationToken,
             request_body: RapydClientAuthRequest,
             response_body: RapydClientAuthResponse,
-            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            router_data: RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ),
         (
             flow: CreateOrder,
@@ -298,6 +299,13 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.rapyd.base_url
+        }
+
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.rapyd.base_url
         }
@@ -692,7 +700,7 @@ macros::macro_connector_implementation!(
     curl_request: Json(RapydClientAuthRequest),
     curl_response: RapydClientAuthResponse,
     flow_name: ClientAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ClientAuthenticationTokenRequestData,
     flow_response: PaymentsResponseData,
     http_method: Post,
@@ -701,10 +709,10 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let url = self.get_url(req)?;
-            let url_path = url.strip_prefix(self.connector_base_url_payments(req))
+            let url_path = url.strip_prefix(self.connector_base_url_merchant_auth(req))
                 .unwrap_or(&url);
             let body = self.get_request_body(req)?
                 .map(|content| content.get_inner_value().expose())
@@ -713,9 +721,9 @@ macros::macro_connector_implementation!(
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/v1/checkout", self.connector_base_url_payments(req)))
+            Ok(format!("{}/v1/checkout", self.connector_base_url_merchant_auth(req)))
         }
     }
 );

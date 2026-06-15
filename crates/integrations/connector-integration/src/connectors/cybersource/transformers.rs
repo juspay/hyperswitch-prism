@@ -28,6 +28,7 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_address::Address,
     payment_method_data::{
         self, ApplePayDecryptedData, ApplePayWalletData, CardDetailsForNetworkTransactionId,
@@ -36,7 +37,7 @@ use domain_types::{
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorSpecificConfig, ErrorResponse,
-        PazeDecryptedData,
+        FlowStatus, PazeDecryptedData,
     },
     router_data_v2::RouterDataV2,
     router_request_types,
@@ -48,6 +49,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 pub const REFUND_VOIDED: &str = "Refund request has been voided.";
+const CYBERSOURCE_STATE_MAX_LENGTH: usize = 20;
 
 fn card_issuer_to_string(card_issuer: CardIssuer) -> String {
     let card_type = match card_issuer {
@@ -177,11 +179,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .and_then(get_cybersource_card_type)
                     {
                         Some(card_network) => Some(card_network.to_string()),
-                        None => domain_types::utils::get_card_issuer(
-                            &(format!("{:?}", ccard.card_number.0)),
-                        )
-                        .ok()
-                        .map(card_issuer_to_string),
+                        None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                            .ok()
+                            .map(card_issuer_to_string),
                     };
 
                     (
@@ -309,7 +309,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::BillDeskRedirect(_)
                     | WalletData::CashfreeRedirect(_)
                     | WalletData::PayURedirect(_)
-                    | WalletData::EaseBuzzRedirect(_) => {
+                    | WalletData::EaseBuzzRedirect(_)
+                    | WalletData::QwikcilverWalletDirect(_) => {
                         Err(error_stack::report!(IntegrationError::NotSupported {
                             message:
                                 domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -459,39 +460,6 @@ impl From<common_enums::TransactionStatus> for CybersourceParesStatus {
     }
 }
 
-fn get_authentication_data_for_check_enrollment_response(
-    response: CybersourceConsumerAuthInformationEnrollmentResponse,
-) -> router_request_types::AuthenticationData {
-    let trans_status = response
-        .validate_response
-        .pares_status
-        .map(common_enums::TransactionStatus::from);
-    // CAVV is populated from UCAF data if available(for mastercard), else from CAVV field
-    let cavv = response
-        .validate_response
-        .ucaf_authentication_data
-        .or(response.validate_response.cavv);
-    let eci = response.validate_response.ecommerce_indicator;
-    let ucaf_collection_indicator = response.validate_response.ucaf_collection_indicator.clone();
-    let ds_trans_id = response
-        .validate_response
-        .directory_server_transaction_id
-        .map(|id| id.expose());
-    router_request_types::AuthenticationData {
-        ucaf_collection_indicator,
-        eci,
-        cavv,
-        threeds_server_transaction_id: response.validate_response.three_d_s_server_transaction_id,
-        message_version: response.validate_response.specification_version,
-        trans_status,
-        ds_trans_id,
-        acs_transaction_id: response.validate_response.acs_transaction_id,
-        transaction_id: response.validate_response.xid,
-        exemption_indicator: None,
-        network_params: None,
-    }
-}
-
 fn get_authentication_data_for_validation_response(
     response: CybersourceConsumerAuthInformationEnrollmentResponse,
 ) -> router_request_types::AuthenticationData {
@@ -520,6 +488,51 @@ fn get_authentication_data_for_validation_response(
         ds_trans_id,
         acs_transaction_id: response.validate_response.acs_transaction_id,
         transaction_id: response.validate_response.xid,
+        exemption_indicator: None,
+        network_params: None,
+    }
+}
+
+/// Builds the `three_ds_data` JSON surfaced in `connector_feature_data` for the Authenticate flow.
+///
+/// Matches Hyperswitch, which serializes only the slim `CybersourceConsumerAuthValidateResponse`
+/// subset (`ucafCollectionIndicator`, `cavv`, `ucafAuthenticationData`, `xid`,
+/// `specificationVersion`, `directoryServerTransactionId`, `indicator`) into `three_ds_data`.
+fn get_three_ds_data_for_authenticate_response(
+    validate_response: &CybersourceConsumerAuthValidateResponse,
+) -> serde_json::Value {
+    serde_json::json!({
+        "ucafCollectionIndicator": validate_response.ucaf_collection_indicator,
+        "cavv": validate_response.cavv,
+        "ucafAuthenticationData": validate_response.ucaf_authentication_data,
+        "xid": validate_response.xid,
+        "specificationVersion": validate_response.specification_version,
+        "directoryServerTransactionId": validate_response.directory_server_transaction_id,
+        "indicator": validate_response.indicator,
+    })
+}
+
+/// Builds the `AuthenticationData` for the Authenticate flow.
+///
+/// Matches Hyperswitch's `UcsAuthenticationData` mapping for cybersource: `eci` comes from
+/// `indicator`, while `threeds_server_transaction_id`, `acs_transaction_id` and `trans_status`
+/// are intentionally left empty (the richer values are carried in `connector_feature_data`).
+fn get_authentication_data_for_authenticate_response(
+    validate_response: &CybersourceConsumerAuthValidateResponse,
+) -> router_request_types::AuthenticationData {
+    router_request_types::AuthenticationData {
+        eci: validate_response.indicator.clone(),
+        cavv: validate_response.cavv.clone(),
+        threeds_server_transaction_id: None,
+        message_version: validate_response.specification_version.clone(),
+        ds_trans_id: validate_response
+            .directory_server_transaction_id
+            .as_ref()
+            .map(|id| id.clone().expose()),
+        acs_transaction_id: None,
+        trans_status: None,
+        transaction_id: validate_response.xid.clone(),
+        ucaf_collection_indicator: validate_response.ucaf_collection_indicator.clone(),
         exemption_indicator: None,
         network_params: None,
     }
@@ -1276,12 +1289,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-fn truncate_string(state: &Secret<String>, max_len: usize) -> Secret<String> {
-    let exposed = state.clone().expose();
-    let truncated = exposed.get(..max_len).unwrap_or(&exposed);
-    Secret::new(truncated.to_string())
-}
-
 fn build_bill_to(
     address_details: Option<&Address>,
     email: pii::Email,
@@ -1296,25 +1303,49 @@ fn build_bill_to(
         country: None,
         email: email.clone(),
     };
-    Ok(address_details
-        .and_then(|addr| {
-            addr.address.as_ref().map(|addr| BillTo {
+    match address_details.and_then(|addr| addr.address.as_ref()) {
+        Some(addr) => {
+            let administrative_area = match addr.to_state_code_as_optional() {
+                Ok(state) => state,
+                Err(_) => addr
+                    .state
+                    .remove_new_line()
+                    .map(|state| {
+                        let received_length = state.peek().len();
+                        if received_length > CYBERSOURCE_STATE_MAX_LENGTH {
+                            Err(error_stack::Report::from(
+                                IntegrationError::MaxFieldLengthViolated {
+                                    field_name: "billing.address.state".to_string(),
+                                    connector: "Cybersource".to_string(),
+                                    max_length: CYBERSOURCE_STATE_MAX_LENGTH,
+                                    received_length,
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some(format!(
+                                            "Billing state must be at most {CYBERSOURCE_STATE_MAX_LENGTH} characters, got {received_length}."
+                                        )),
+                                        ..Default::default()
+                                    },
+                                },
+                            ))
+                        } else {
+                            Ok(state)
+                        }
+                    })
+                    .transpose()?,
+            };
+            Ok(BillTo {
                 first_name: addr.first_name.remove_new_line(),
                 last_name: addr.last_name.remove_new_line(),
                 address1: addr.line1.remove_new_line(),
                 locality: addr.city.remove_new_line(),
-                administrative_area: addr.to_state_code_as_optional().unwrap_or_else(|_| {
-                    addr.state
-                        .remove_new_line()
-                        .as_ref()
-                        .map(|state| truncate_string(state, 20)) //NOTE: Cybersource connector throws error if billing state exceeds 20 characters, so truncation is done to avoid payment failure
-                }),
+                administrative_area,
                 postal_code: addr.zip.remove_new_line(),
                 country: addr.country,
                 email,
             })
-        })
-        .unwrap_or(default_address))
+        }
+        None => Ok(default_address),
+    }
 }
 
 impl From<&common_enums::DecoupledAuthenticationType> for EffectiveAuthenticationType {
@@ -1370,7 +1401,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
-            None => domain_types::utils::get_card_issuer(&(format!("{:?}", ccard.card_number.0)))
+            None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
                 .ok()
                 .map(card_issuer_to_string),
         };
@@ -2397,7 +2428,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => {
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message:
                             domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -2529,11 +2561,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 let payment_information =
@@ -3342,6 +3372,7 @@ fn get_payment_response(
                 network_txn_id: info_response.processor_information.as_ref().and_then(
                     |processor_information| processor_information.network_transaction_id.clone(),
                 ),
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     info_response
                         .client_reference_information
@@ -3406,6 +3437,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     ..item.router_data.resource_common_data
                 },
                 response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                    resource_id: None,
                     redirection_data: Some(Box::new(RedirectForm::CybersourceAuthSetup {
                         access_token: info_response
                             .consumer_authentication_information
@@ -3559,11 +3591,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 Ok(PaymentInformation::Cards(Box::new(
@@ -3726,6 +3756,17 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         _ => None,
                     };
 
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let connector_feature_data = Some(serde_json::json!({
+                        "three_ds_data":
+                            get_three_ds_data_for_authenticate_response(validate_response)
+                    }));
+                    let authentication_data = Some(
+                        get_authentication_data_for_authenticate_response(validate_response),
+                    );
+
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
@@ -3735,11 +3776,8 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             resource_id: None,
                             redirection_data: redirection_data.map(Box::new),
                             connector_response_reference_id,
-                            authentication_data: Some(
-                                get_authentication_data_for_check_enrollment_response(
-                                    info_response.consumer_authentication_information,
-                                ),
-                            ),
+                            authentication_data,
+                            connector_feature_data,
                             status_code: item.http_code,
                         }),
                         ..item.router_data
@@ -3837,11 +3875,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .and_then(get_cybersource_card_type)
                 {
                     Some(card_network) => Some(card_network.to_string()),
-                    None => domain_types::utils::get_card_issuer(
-                        &(format!("{:?}", ccard.card_number.0)),
-                    )
-                    .ok()
-                    .map(card_issuer_to_string),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .map(card_issuer_to_string),
                 };
 
                 Ok(PaymentInformation::Cards(Box::new(
@@ -4009,9 +4045,19 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             .unwrap_or(info_response.id.clone()),
                     );
 
+                    let validate_response = &info_response
+                        .consumer_authentication_information
+                        .validate_response;
+                    let three_ds_data = serde_json::to_value(validate_response)
+                        .change_context(ConnectorError::response_handling_failed(item.http_code))?;
+                    let connector_feature_data = Some(Secret::new(serde_json::json!({
+                        "three_ds_data": three_ds_data
+                    })));
+
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
                             status,
+                            connector_feature_data,
                             ..item.router_data.resource_common_data
                         },
                         response: Ok(PaymentsResponseData::PostAuthenticateResponse {
@@ -4308,6 +4354,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                             processor_information.network_transaction_id.clone()
                         },
                     ),
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         item.response
                             .client_reference_information
@@ -4389,6 +4436,7 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: item
                                 .response
                                 .client_reference_information
@@ -4412,6 +4460,7 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
@@ -4743,7 +4792,7 @@ pub fn get_error_response(
         message: error_message.unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
         reason,
         status_code,
-        attempt_status,
+        attempt_status: attempt_status.map(FlowStatus::Payment),
         connector_transaction_id: Some(transaction_id),
         network_advice_code,
         network_decline_code,
@@ -5602,7 +5651,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         CybersourceRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -5615,7 +5664,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: CybersourceRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -5741,7 +5790,7 @@ impl<'de> Deserialize<'de> for CybersourceClientAuthResponse {
 impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
     for RouterDataV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     >
@@ -5773,5 +5822,22 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Regression: when card_network is absent, the fallback path must pass the
+    // raw card number to get_card_issuer. Previously the code used
+    // format!("{:?}", card_number) which triggered Debug masking
+    // ("424242**********") and broke the BIN regex match, producing card.type = null.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn card_type_fallback_returns_visa_001_for_test_card() {
+        let issuer = domain_types::utils::get_card_issuer("4242424242424242")
+            .expect("Visa BIN should be recognized");
+        assert_eq!(card_issuer_to_string(issuer), "001");
     }
 }

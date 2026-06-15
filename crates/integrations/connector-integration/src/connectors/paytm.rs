@@ -12,8 +12,9 @@ use domain_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -44,7 +45,7 @@ macros::create_all_prerequisites!(
             flow: ServerSessionAuthenticationToken,
             request_body: PaytmInitiateTxnRequest,
             response_body: PaytmInitiateTxnResponse,
-            router_data: RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ),
         (
             flow: Authorize,
@@ -64,6 +65,13 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url<F, Req, Res>(
             &self,
             req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
+        ) -> String {
+            req.resource_common_data.connectors.paytm.base_url.to_string()
+        }
+
+        pub fn connector_base_url_merchant_auth<F, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> String {
             req.resource_common_data.connectors.paytm.base_url.to_string()
         }
@@ -95,7 +103,7 @@ macros::create_all_prerequisites!(
                     message: session_error_response.body.result_info.result_msg,
                     reason: None,
                     status_code: res.status_code,
-                    attempt_status: Some(Self::get_attempt_status_from_http_code(res.status_code)),
+                    attempt_status: Some(FlowStatus::Payment(Self::get_attempt_status_from_http_code(res.status_code))),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -125,7 +133,7 @@ macros::create_all_prerequisites!(
                         .unwrap_or(callback_response.body.result_info.result_msg),
                     reason: None,
                     status_code: res.status_code,
-                    attempt_status: Some(Self::get_attempt_status_from_http_code(res.status_code)),
+                    attempt_status: Some(FlowStatus::Payment(Self::get_attempt_status_from_http_code(res.status_code))),
                     connector_transaction_id: callback_response.body.txn_info.order_id,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -147,7 +155,7 @@ macros::create_all_prerequisites!(
                     message: response.error_message.unwrap_or_default(),
                     reason: response.error_description,
                     status_code: res.status_code,
-                    attempt_status: Some(Self::get_attempt_status_from_http_code(res.status_code)),
+                    attempt_status: Some(FlowStatus::Payment(Self::get_attempt_status_from_http_code(res.status_code))),
                     connector_transaction_id: response.transaction_id,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -174,7 +182,7 @@ macros::create_all_prerequisites!(
                     raw_response.chars().take(200).collect::<String>()
                 )),
                 status_code: res.status_code,
-                attempt_status: Some(Self::get_attempt_status_from_http_code(res.status_code)),
+                attempt_status: Some(FlowStatus::Payment(Self::get_attempt_status_from_http_code(res.status_code))),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -281,7 +289,7 @@ macros::macro_connector_implementation!(
     curl_request: Json(PaytmInitiateTxnRequest),
     curl_response: PaytmInitiateTxnResponse,
     flow_name: ServerSessionAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerSessionAuthenticationTokenRequestData,
     flow_response: ServerSessionAuthenticationTokenResponseData,
     http_method: Post,
@@ -290,7 +298,7 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let headers = self.get_auth_header(&req.connector_config)?;
             Ok(headers)
@@ -298,9 +306,9 @@ macros::macro_connector_implementation!(
 
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let base_url = self.connector_base_url(req);
+            let base_url = self.connector_base_url_merchant_auth(req);
             let auth = paytm::PaytmAuthType::try_from(&req.connector_config)?;
             let merchant_id = auth.merchant_id.peek();
             let order_id = &req.resource_common_data.connector_request_reference_id;

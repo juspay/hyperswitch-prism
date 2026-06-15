@@ -384,3 +384,25 @@ gh pr label add "grace" --repo juspay/hyperswitch-prism
 - **NEVER touch framework core** — only connector_specs/
 - Test credentials must exist in `creds.json` or connector will be skipped
 - Use `UCS_DEBUG_EFFECTIVE_REQ=1` to debug request payloads
+
+---
+
+## Generic Investigation Tips
+
+- **When unsure about a flow** for a specific connector, check the connector implementation under `crates/integrations/connector-integration/src/connectors/{CONNECTOR}/` and the connector's integration docs. If needed, pull up the original integration PR for that connector — the PR description usually has reference cURLs / grpcurls and expected request/response shapes you can diff against what the harness is producing.
+
+- **Confirm the creds file the harness actually reads.** `.env.connector-tests` at the repo root can override `UCS_CREDS_PATH`. Read it before editing `creds.json` — otherwise your edits land in the wrong file.
+
+- **Creds must use the flat proto-native shape.** The harness rejects any creds block containing `connector_account_details` with `LegacyFormat`. Fields map directly to the proto config message — read `crates/types-traits/grpc-api-types/proto/payment.proto` for the connector's `*Config` message to know the expected keys.
+
+- **If outbound request bodies are masked in logs** (e.g. `*** alloc::string::String ***`) and you need to compare against a known-good payload, add a temporary `tracing::error!` at the encoding boundary inside the connector's transformer to dump the unmasked string. Revert before committing.
+
+- **Short reference-ID constraints** — when the connector caps the order/reference id length, declare it in the connector's `specs.json` via `request_id_source_field` + `request_id_prefix` + `request_id_length`. The harness will generate a unique short id and write it into the proto body's source field (only when that field exists in the suite's `scenario.json`).
+
+- **Card detail combinations matter to the test issuer.** Some sandboxes reject specific expiry / cvc / holder-name combinations even when the card number is on the documented list. Always check the connector's integration PR for the exact triples that were verified to work — and use those in the override rather than base-spec defaults.
+
+- **Capture/Void cascade is by design.** Those suites depend on `no3ds_manual_capture_credit_card` (you can't capture/void an auto-captured payment). If Capture is failing but Refund passes, look at the upstream `manual_capture` authorize first — that is what the cascade needs.
+
+- **Connectors that need upstream context** (e.g. a 3DS pre-step before Authorize) — `ConnectorSuiteSpec` supports an optional `additional_dependencies` map in `specs.json` that gets prepended to the global suite_spec's `depends_on` for that connector. Caveat: it applies suite-wide; do not set it if your no_3ds and 3DS scenarios share the same suite and the upstream context would pollute the no_3ds path.
+
+- **Browser-driven 3DS testing** — refer to `connector_specs/stripe/browser_automation_spec.json` for the reference shape. Some connectors expose an SCA-exemption path that lets you skip the Device Data Collection iframe and drive only the ACS challenge UI — check the connector implementation and integration PR before assuming full DDC automation is required.

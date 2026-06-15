@@ -18,12 +18,14 @@ host = "0.0.0.0"
 port = 8080
 
 [proxy]
-idle_pool_connection_timeout = 90               # Timeout for idle pool connections (defaults to 90s)
-bypass_proxy_urls = ["localhost", "local"]
-mitm_proxy_enabled = false
+idle_pool_connection_timeout = 90
+bypass_urls = ["localhost", "local"]
 
 [connectors]
+payconex.base_url = "https://cert.payconex.net"
+tamara.base_url = "https://api-sandbox.tamara.co"
 juspay.base_url = "https://sandbox.juspay.in/"
+qwikcilver.base_url = "https://qc3.qwikcilver.com/"
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
@@ -81,7 +83,7 @@ fiuu.secondary_base_url = "https://sandbox.merchant.razer.com/"
 fiuu.third_base_url = "https://api.merchant.razer.com/"
 payload.base_url = "https://api.payload.com"
 forte.base_url = "https://sandbox.forte.net/api/v3"
-payu.base_url = "https://test.payu.in/"
+payu.base_url = "https://secure.snd.payu.com/"
 paytm.base_url = "https://securestage.paytmpayments.com/"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 novalnet.base_url = "https://payport.novalnet.de/v2"
@@ -148,7 +150,7 @@ enqueue_timeout_ms = 5000
 # sasl_password = ""
 
 [unmasked_headers]
-keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode"]
+keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name"]
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
