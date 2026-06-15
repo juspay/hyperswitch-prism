@@ -2,12 +2,12 @@ use core::result::Result;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, str::FromStr};
 
 use crate::{
-    connector_flow::{CreatePaymentMethod, GetPaymentMethod, MandateRevoke, Recharge, Eligibility},
+    connector_flow::{CreatePaymentMethod, Eligibility, GetPaymentMethod, MandateRevoke, Recharge},
     connector_types::{
         self, CaptureSyncResponse, ConnectorEnum, CreatePaymentMethodData,
-        CreatePaymentMethodResponseData, GetPaymentMethodData, GetPaymentMethodResponseData,
-        RechargeRequestData, RechargeResponseData, EligibilityStatus,
-        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
+        CreatePaymentMethodResponseData, EligibilityStatus, GetPaymentMethodData,
+        GetPaymentMethodResponseData, PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse, RechargeRequestData, RechargeResponseData,
     },
     payment_method_data::SamsungPayWalletCredentials,
     utils::extract_connector_request_reference_id,
@@ -36,8 +36,8 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateResponse,
-    PaymentMethodServiceGetResponse, PaymentMethodServiceRechargeResponse,
     PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceGetResponse, PaymentMethodServiceRechargeResponse,
     PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderResponse, PaymentServiceGetResponse,
     PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
@@ -4930,11 +4930,21 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
     }
 }
 
-impl ForeignTryFrom<(PaymentMethodServiceEligibilityRequest, Connectors, &MaskedMetadata)> for PaymentFlowData {
+impl
+    ForeignTryFrom<(
+        PaymentMethodServiceEligibilityRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for PaymentFlowData
+{
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        (value, connectors, metadata): (PaymentMethodServiceEligibilityRequest, Connectors, &MaskedMetadata),
+        (value, connectors, metadata): (
+            PaymentMethodServiceEligibilityRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         // Billing/shipping address drive the country gating and risk scoring
         // many BNPL connectors apply during eligibility.

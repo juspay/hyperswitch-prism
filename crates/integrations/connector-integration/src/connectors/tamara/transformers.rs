@@ -7,9 +7,9 @@ use common_utils::{types::MinorUnit, Email};
 use domain_types::{
     connector_flow::{Authorize, Capture, Eligibility, PSync, RSync, Refund, Void},
     connector_types::{
-        EligibilityStatus, EventType, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentMethodEligibilityData,
-        PaymentMethodEligibilityResponse, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        EligibilityStatus, EventType, PaymentFlowData, PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors,
@@ -774,7 +774,12 @@ pub struct TamaraEligibilityCustomer {
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         TamaraRouterData<
-            RouterDataV2<Eligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
+            RouterDataV2<
+                Eligibility,
+                PaymentFlowData,
+                PaymentMethodEligibilityData,
+                PaymentMethodEligibilityResponse,
+            >,
             T,
         >,
     > for TamaraEligibilityRequest
@@ -783,7 +788,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn try_from(
         item: TamaraRouterData<
-            RouterDataV2<Eligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
+            RouterDataV2<
+                Eligibility,
+                PaymentFlowData,
+                PaymentMethodEligibilityData,
+                PaymentMethodEligibilityResponse,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -794,15 +804,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 context: errors::IntegrationErrorContext::default(),
             }
         ))?;
-        let email = customer
-            .customer_email
-            .clone()
-            .ok_or(error_stack::report!(
-                errors::IntegrationError::MissingRequiredField {
-                    field_name: "customer.email",
-                    context: errors::IntegrationErrorContext::default(),
-                }
-            ))?;
+        let email = customer.customer_email.clone().ok_or(error_stack::report!(
+            errors::IntegrationError::MissingRequiredField {
+                field_name: "customer.email",
+                context: errors::IntegrationErrorContext::default(),
+            }
+        ))?;
         let phone_number = customer
             .customer_phone_number
             .clone()
@@ -846,7 +853,12 @@ pub struct TamaraEligibilityResponse {
 }
 
 impl TryFrom<ResponseRouterData<TamaraEligibilityResponse, Self>>
-    for RouterDataV2<Eligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>
+    for RouterDataV2<
+        Eligibility,
+        PaymentFlowData,
+        PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse,
+    >
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 

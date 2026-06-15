@@ -15,11 +15,11 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, Eligibility, PSync, RSync, Refund, Void},
     connector_types::{
-        EventType, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentMethodEligibilityData,
-        PaymentMethodEligibilityResponse, PaymentsResponseData, PaymentsSyncData,
-        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RequestDetails, ResponseId, WebhookResourceReference,
+        EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
+        WebhookResourceReference,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
