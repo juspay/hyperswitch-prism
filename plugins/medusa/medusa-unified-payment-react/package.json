@@ -1,6 +1,6 @@
 {
   "name": "medusa-unified-payment-react-test",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Generic payment UI components for Medusa v2 storefronts",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
