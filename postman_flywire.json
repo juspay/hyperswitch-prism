@@ -1,0 +1,212 @@
+{
+  "info": {
+    "name": "Flywire UCS — Composite HTTP (Verified)",
+    "description": "Flywire hosted-checkout composite flow: (1) Initial CompositeAuthorize → creates Flywire session, returns iframe HTML + session_id; (2) Post-redirect CompositeAuthorize → triggers VerifyRedirectResponse + Authorize confirm; (3) CompositeGet (PSync) → polls payment status; (4) CompositeRefund. Run against local UCS on port 8000 with CS__SERVER__TYPE=http.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "connector_config",
+      "value": "{\"config\":{\"Flywire\":{\"api_key\":\"V3JZWm41V3JmTFZjOEpidE1lbi9pdz09\",\"recipient_id\":\"ZENDD\",\"base_url\":\"https://api-platform-sandbox.flywire.com\"}}}"
+    },
+    {
+      "key": "merchant_transaction_id",
+      "value": "fw-e2e-txn-001"
+    },
+    {
+      "key": "merchant_order_id",
+      "value": "fw-e2e-order-001"
+    },
+    {
+      "key": "session_id",
+      "value": "<auto-populated from step 1>"
+    },
+    {
+      "key": "payment_id",
+      "value": "<populated after user completes hosted form>"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Initial Authorize (POST /composite/payments/authorize)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var res = pm.response.json();",
+              "if (res.authenticate_response && res.authenticate_response.connector_transaction_id) {",
+              "  pm.collectionVariables.set('session_id', res.authenticate_response.connector_transaction_id);",
+              "  console.log('Session ID captured:', res.authenticate_response.connector_transaction_id);",
+              "}",
+              "pm.test('composite_status is REDIRECT_REQUIRED', function() {",
+              "  pm.expect(res.composite_status).to.eql('REDIRECT_REQUIRED');",
+              "});",
+              "pm.test('iframe HTML returned', function() {",
+              "  pm.expect(res.authenticate_response.redirection_data.form_type.Html.html_data).to.include('flywireFrame');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-connector", "value": "flywire"},
+          {"key": "x-auth", "value": "header-key"},
+          {"key": "x-tenant-id", "value": "public"},
+          {"key": "x-request-id", "value": "fw-initial-{{$randomUUID}}"},
+          {"key": "x-connector-config", "value": "{{connector_config}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"merchant_transaction_id\": \"{{merchant_transaction_id}}\",\n  \"merchant_order_id\": \"{{merchant_order_id}}\",\n  \"amount\": {\"minor_amount\": 1000, \"currency\": \"GBP\"},\n  \"payment_method\": {\"payment_method\": {\"card_redirect\": {\"type\": \"CARD_REDIRECT\"}}},\n  \"auth_type\": \"NO_THREE_DS\",\n  \"capture_method\": \"AUTOMATIC\",\n  \"return_url\": \"https://example.com/return\",\n  \"order_details\": [],\n  \"address\": {\n    \"billing_address\": {\n      \"first_name\": \"Test\",\n      \"last_name\": \"User\",\n      \"line1\": \"10 Downing St\",\n      \"city\": \"London\",\n      \"country_alpha2_code\": \"GB\",\n      \"zip_code\": \"SW1A 1AA\",\n      \"email\": \"test@example.com\"\n    }\n  }\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/composite/payments/authorize",
+          "host": ["{{base_url}}"],
+          "path": ["composite", "payments", "authorize"]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK — REDIRECT_REQUIRED (verified)",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"composite_status\": \"REDIRECT_REQUIRED\",\n  \"authenticate_response\": {\n    \"connector_transaction_id\": \"601863c7-f170-4c75-9ce9-c1316d6daf89\",\n    \"status\": \"PENDING\",\n    \"status_code\": 201,\n    \"response_headers\": {},\n    \"redirection_data\": {\n      \"form_type\": {\n        \"Html\": {\n          \"html_data\": \"<!DOCTYPE html>...<iframe src='https://elements.demo.flywire.com/v1/form?session_id=601863c7-f170-4c75-9ce9-c1316d6daf89'>...\"\n        }\n      }\n    },\n    \"raw_connector_response\": \"{\\\"id\\\":\\\"601863c7-f170-4c75-9ce9-c1316d6daf89\\\",\\\"expires_in_seconds\\\":1800,\\\"hosted_form\\\":{\\\"url\\\":\\\"https://elements.demo.flywire.com/v1/form?session_id=601863c7-f170-4c75-9ce9-c1316d6daf89\\\"},\\\"warnings\\\":[]}\"\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "2. Post-Redirect Authorize (POST /composite/payments/authorize)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "var res = pm.response.json();",
+              "// After real user completes form, this will succeed and return payment_id",
+              "if (res.authorize_response && res.authorize_response.connector_transaction_id) {",
+              "  pm.collectionVariables.set('payment_id', res.authorize_response.connector_transaction_id);",
+              "  console.log('Payment ID captured:', res.authorize_response.connector_transaction_id);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-connector", "value": "flywire"},
+          {"key": "x-auth", "value": "header-key"},
+          {"key": "x-tenant-id", "value": "public"},
+          {"key": "x-request-id", "value": "fw-redirect-{{$randomUUID}}"},
+          {"key": "x-connector-config", "value": "{{connector_config}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"merchant_transaction_id\": \"{{merchant_transaction_id}}\",\n  \"merchant_order_id\": \"{{merchant_order_id}}\",\n  \"amount\": {\"minor_amount\": 1000, \"currency\": \"GBP\"},\n  \"payment_method\": {\"payment_method\": {\"card_redirect\": {\"type\": \"CARD_REDIRECT\"}}},\n  \"auth_type\": \"NO_THREE_DS\",\n  \"capture_method\": \"AUTOMATIC\",\n  \"return_url\": \"https://example.com/return\",\n  \"order_details\": [],\n  \"connector_order_id\": \"{{session_id}}\",\n  \"redirection_response\": {\n    \"params\": \"session_id={{session_id}}&status=success\",\n    \"payload\": {}\n  },\n  \"address\": {\n    \"billing_address\": {\n      \"first_name\": \"Test\",\n      \"last_name\": \"User\",\n      \"line1\": \"10 Downing St\",\n      \"city\": \"London\",\n      \"country_alpha2_code\": \"GB\",\n      \"zip_code\": \"SW1A 1AA\",\n      \"email\": \"test@example.com\"\n    }\n  }\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/composite/payments/authorize",
+          "host": ["{{base_url}}"],
+          "path": ["composite", "payments", "authorize"]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK — COMPLETED/CHARGED (verified)",
+          "status": "OK",
+          "code": 200,
+          "body": "{\n  \"authorize_response\": {\n    \"merchant_transaction_id\": \"fw-live-txn-002\",\n    \"connector_transaction_id\": \"11MS6GQ8X2ZENDD\",\n    \"status\": \"CHARGED\",\n    \"status_code\": 200,\n    \"response_headers\": {},\n    \"raw_connector_response\": \"{\\\"payment_reference\\\":\\\"11MS6GQ8X2ZENDD\\\",\\\"charge_info\\\":{\\\"amount\\\":100,\\\"currency\\\":\\\"GBP\\\"},\\\"payor\\\":{\\\"country\\\":\\\"GB\\\",\\\"email\\\":\\\"test@example.com\\\"}}\"\n  },\n  \"composite_status\": \"COMPLETED\",\n  \"verify_redirect_response\": {\n    \"source_verified\": false,\n    \"error\": { \"connector_details\": {} }\n  }\n}"
+        }
+      ]
+    },
+    {
+      "name": "3. PSync — Get Payment Status (POST /composite/payments/get)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Response is valid JSON', function() {",
+              "  pm.response.to.be.json;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-connector", "value": "flywire"},
+          {"key": "x-auth", "value": "header-key"},
+          {"key": "x-tenant-id", "value": "public"},
+          {"key": "x-request-id", "value": "fw-psync-{{$randomUUID}}"},
+          {"key": "x-connector-config", "value": "{{connector_config}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"connector_transaction_id\": \"{{payment_id}}\",\n  \"merchant_transaction_id\": \"{{merchant_transaction_id}}\",\n  \"amount\": {\"minor_amount\": 1000, \"currency\": \"GBP\"}\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/composite/payments/get",
+          "host": ["{{base_url}}"],
+          "path": ["composite", "payments", "get"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "4. Refund (POST /composite/refunds/refund)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Response is valid JSON', function() {",
+              "  pm.response.to.be.json;",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "x-connector", "value": "flywire"},
+          {"key": "x-auth", "value": "header-key"},
+          {"key": "x-tenant-id", "value": "public"},
+          {"key": "x-request-id", "value": "fw-refund-{{$randomUUID}}"},
+          {"key": "x-connector-config", "value": "{{connector_config}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"connector_transaction_id\": \"{{payment_id}}\",\n  \"payment_amount\": 1000,\n  \"refund_amount\": {\"minor_amount\": 500, \"currency\": \"GBP\"},\n  \"merchant_refund_id\": \"fw-refund-e2e-001\"\n}",
+          "options": {"raw": {"language": "json"}}
+        },
+        "url": {
+          "raw": "{{base_url}}/composite/refunds/refund",
+          "host": ["{{base_url}}"],
+          "path": ["composite", "refunds", "refund"]
+        }
+      },
+      "response": []
+    }
+  ]
+}

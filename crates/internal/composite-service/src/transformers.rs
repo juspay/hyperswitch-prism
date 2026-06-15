@@ -75,14 +75,13 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for PaymentServiceCreateOrderReques
     fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
         Self {
             merchant_order_id: item.merchant_order_id.clone(),
-            amount: item.amount.clone(),
+            amount: item.amount,
             webhook_url: item.webhook_url.clone(),
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             state: item.state.clone(),
             test_mode: item.test_mode,
             payment_method_type: None,
-            return_url: item.return_url.clone(),
         }
     }
 }

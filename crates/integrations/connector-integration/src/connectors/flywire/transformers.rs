@@ -3,11 +3,11 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::types::MinorUnit;
 use domain_types::{
-    connector_flow::{Authorize, CreateOrder, PSync, Refund},
+    connector_flow::{Authenticate, Authorize, PSync, Refund},
     connector_types::{
-        EventType, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, ResponseId,
+        EventType, PaymentFlowData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, ResponseId,
         WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError},
@@ -174,12 +174,7 @@ pub struct FlywireHostedForm {
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         FlywireRouterData<
-            RouterDataV2<
-                CreateOrder,
-                PaymentFlowData,
-                PaymentCreateOrderData,
-                PaymentCreateOrderResponse,
-            >,
+            RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
             T,
         >,
     > for FlywireCheckoutSessionRequest
@@ -188,12 +183,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn try_from(
         item: FlywireRouterData<
-            RouterDataV2<
-                CreateOrder,
-                PaymentFlowData,
-                PaymentCreateOrderData,
-                PaymentCreateOrderResponse,
-            >,
+            RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -206,10 +196,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone();
         let payor_id = format!("ucs_{}", ucs_payment_id);
 
-        // Recipient fields (institutional): pulled from the request metadata blob
+        // Recipient fields: pulled from resource_common_data.connector_feature_data
         // if the caller provided `flywire_recipient_fields`, otherwise placeholders.
-        let recipient_fields = build_recipient_fields(&router_data.request.metadata)
-            .unwrap_or_else(default_recipient_fields);
+        let recipient_fields =
+            build_recipient_fields(&router_data.resource_common_data.connector_feature_data)
+                .unwrap_or_else(default_recipient_fields);
 
         // Payor (name, address, email): from billing address on resource_common_data.
         let payor = build_payor_from_billing(&router_data.resource_common_data);
@@ -228,7 +219,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }],
             payor_id,
             external_reference: ucs_payment_id,
-            notifications_url: router_data.request.webhook_url.clone(),
+            notifications_url: router_data.resource_common_data.connector_feature_data
+                .as_ref()
+                .and_then(|v| {
+                    use hyperswitch_masking::PeekInterface;
+                    v.peek().get("webhook_url").and_then(|u| u.as_str()).map(String::from)
+                }),
             payor,
             enable_email_notifications: false,
         })
@@ -289,13 +285,9 @@ fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {
     })
 }
 
-impl TryFrom<ResponseRouterData<FlywireCheckoutSessionResponse, Self>>
-    for RouterDataV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    >
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<FlywireCheckoutSessionResponse, Self>>
+    for RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -306,12 +298,10 @@ impl TryFrom<ResponseRouterData<FlywireCheckoutSessionResponse, Self>>
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
         let session_id = response.id.clone();
 
-        // Wrap the hosted form URL in our iframe + postMessage template so the
-        // caller can render the result directly. The session UUID also flows
-        // through as `connector_order_id` for the subsequent Authorize
-        // (/checkout/sessions/{id}/confirm) call. The merchant's return_url
-        // (from the request) is substituted into the postMessage success/failure
-        // handlers; empty string fallback if absent.
+        // Wrap the hosted form URL in the iframe + postMessage template.
+        // The session UUID flows as connector_transaction_id so the caller can
+        // pass it back as connector_order_id in the subsequent CompositeAuthorize
+        // call (which triggers the Authorize/confirm step).
         let return_url = item
             .router_data
             .resource_common_data
@@ -324,10 +314,13 @@ impl TryFrom<ResponseRouterData<FlywireCheckoutSessionResponse, Self>>
         let redirection_data = Some(Box::new(RedirectForm::Html { html_data }));
 
         Ok(Self {
-            response: Ok(PaymentCreateOrderResponse {
-                connector_order_id: session_id.clone(),
-                session_data: None,
+            response: Ok(PaymentsResponseData::AuthenticateResponse {
+                resource_id: Some(ResponseId::ConnectorTransactionId(session_id.clone())),
                 redirection_data,
+                connector_response_reference_id: None,
+                authentication_data: None,
+                connector_feature_data: None,
+                status_code: item.http_code,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Pending,

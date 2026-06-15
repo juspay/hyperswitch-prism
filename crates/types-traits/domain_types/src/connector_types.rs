@@ -1859,7 +1859,6 @@ pub struct PaymentCreateOrderData {
     pub metadata: Option<SecretSerdeValue>,
     pub webhook_url: Option<String>,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
-    pub return_url: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -1867,9 +1866,6 @@ pub struct PaymentCreateOrderResponse {
     pub connector_order_id: String,
     /// Optional SDK session data for wallet flows (Apple Pay, Google Pay) and other SDK types
     pub session_data: Option<ClientAuthenticationTokenData>,
-    /// Optional client-rendered redirect produced during order creation
-    /// (hosted-checkout connectors like Flywire return their iframe HTML here).
-    pub redirection_data: Option<Box<RedirectForm>>,
 }
 
 #[derive(Debug, Clone)]

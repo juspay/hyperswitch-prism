@@ -2444,7 +2444,6 @@ pub(crate) fn get_apple_pay_session(
         response: Ok(PaymentCreateOrderResponse {
             connector_order_id: instance_id,
             session_data: Some(session_token),
-            redirection_data: None,
         }),
         ..item.router_data.clone()
     })
@@ -2500,7 +2499,6 @@ pub(crate) fn get_google_pay_session(
         response: Ok(PaymentCreateOrderResponse {
             connector_order_id: instance_id,
             session_data: Some(session_token),
-            redirection_data: None,
         }),
         ..item.router_data.clone()
     })

@@ -231,6 +231,12 @@ pub trait ValidationTrait: ConnectorCommon {
     fn requires_authorize_post_redirect(&self) -> bool {
         false
     }
+
+    /// Returns whether this connector requires VerifyRedirectResponse to be called
+    /// as part of the composite authorize flow when returning from a redirect.
+    fn requires_verify_redirect_response(&self) -> bool {
+        false
+    }
 }
 
 pub trait PaymentOrderCreate:

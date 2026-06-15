@@ -31,7 +31,7 @@ message CompositeAuthorizeRequest {
   optional int64 shipping_cost = 9; // Cost of shipping for the order
 
   // Payment Method and Capture Settings
-  optional PaymentMethod payment_method = 10; // Payment method to be used
+  PaymentMethod payment_method = 10; // Payment method to be used
   optional CaptureMethod capture_method = 11; // Method for capturing the payment
 
   // Authentication Details
@@ -146,6 +146,7 @@ message CompositeAuthorizeResponse {
   optional PaymentMethodAuthenticationServiceAuthenticateResponse authenticate_response = 7; // Authenticate flow response
   optional PaymentMethodAuthenticationServicePostAuthenticateResponse post_authenticate_response = 8; // PostAuthenticate flow response
   optional MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse session_token_response = 9; // Server session token flow response
+  optional PaymentServiceVerifyRedirectResponseResponse verify_redirect_response = 10; // VerifyRedirectResponse flow response (for redirect-based connectors)
 }
 
 // Request message for composite get flow.

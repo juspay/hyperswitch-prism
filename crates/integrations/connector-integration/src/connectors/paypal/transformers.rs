@@ -1021,7 +1021,6 @@ impl TryFrom<PaypalOrderCreateResponse> for PaymentCreateOrderResponse {
         Ok(Self {
             connector_order_id: response.id,
             session_data: None,
-            redirection_data: None,
         })
     }
 }

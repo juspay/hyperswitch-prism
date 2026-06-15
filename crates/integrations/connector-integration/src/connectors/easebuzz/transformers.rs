@@ -299,7 +299,6 @@ impl ForeignTryFrom<(EasebuzzInitiateLinkResponse, Self, u16, bool)>
         let order_response = PaymentCreateOrderResponse {
             connector_order_id: access_key.clone(),
             session_data: None,
-            redirection_data: None,
         };
 
         Ok(Self {

@@ -2,13 +2,12 @@ mod transformers;
 use super::macros;
 
 use domain_types::{
-    connector_flow::{Authorize, CreateOrder, PSync, RSync, Refund},
+    connector_flow::{Authenticate, Authorize, PSync, RSync, Refund},
     connector_types::{
-        ConnectorWebhookSecrets, EventContext, EventType, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
-        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RequestDetails,
-        WebhookDetailsResponse,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
+        RefundsResponseData, RequestDetails, WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -46,6 +45,7 @@ use transformers::{
     FlywireConfirmResponse, FlywirePayment as FlywirePSyncResponse,
     FlywirePayment as FlywireRSyncResponse, FlywireRefundRequest, FlywireRefundResponse,
 };
+use interfaces::connector_types::{AuthenticationStep, RedirectState};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -79,9 +79,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Flywire<T>
+    connector_types::PaymentAuthenticateV2<T> for Flywire<T>
 {
 }
+
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Flywire<T>
@@ -258,14 +259,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Flywire<T>
 {
-    /// Flywire's checkout flow is: CreateOrder (POST /checkout/sessions) →
-    /// hosted form submission → Authorize (POST /checkout/sessions/{id}/confirm).
-    ///
-    /// If the caller already has a Flywire `session_id` (passed as
-    /// `connector_order_id`), they've done CreateOrder previously and we should
-    /// skip it. Otherwise the framework should invoke CreateOrder before Authorize.
-    fn should_do_order_create(&self, connector_order_id: Option<&str>) -> bool {
-        connector_order_id.is_none()
+    /// Flywire's flow: Authenticate (POST /checkout/sessions → iframe) on the
+    /// initial request; Authorize (POST /checkout/sessions/{id}/confirm) after
+    /// the customer completes payment and the caller redirects back.
+    fn next_authentication_step(
+        &self,
+        _auth_type: common_enums::AuthenticationType,
+        _payment_method: common_enums::PaymentMethod,
+        redirect_state: RedirectState,
+        _completed_step: Option<AuthenticationStep>,
+    ) -> AuthenticationStep {
+        match redirect_state {
+            RedirectState::InitialRequest => AuthenticationStep::Authenticate,
+            RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams => {
+                AuthenticationStep::Authorize
+            }
+        }
+    }
+
+    fn requires_verify_redirect_response(&self) -> bool {
+        true
     }
 }
 
@@ -363,10 +376,10 @@ macros::create_all_prerequisites!(
     generic_type: T,
     api: [
         (
-            flow: CreateOrder,
+            flow: Authenticate,
             request_body: FlywireCheckoutSessionRequest,
             response_body: FlywireCheckoutSessionResponse,
-            router_data: RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+            router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ),
         (
             flow: Authorize,
@@ -437,38 +450,35 @@ macros::create_all_prerequisites!(
     }
 );
 
-// CreateOrder — creates the hosted-checkout session on Flywire.
+// Authenticate — creates the hosted-checkout session on Flywire.
 // POST {base}/payments/v1/checkout/sessions
 //
-// Returns the session UUID as `connector_order_id` (also surfaced in the
-// `connectorOrderId` gRPC field). The hosted form URL is available verbatim
-// in the response's `rawConnectorResponse` (`hosted_form.url`).
-//
-// The caller passes Flywire-specific recipient fields via the request's
-// `metadata` blob (`{"flywire_recipient_fields":[{"id":"student_id","value":"..."},...]}`);
-// otherwise placeholder values are used. Payor info comes from billing address.
+// Returns the session UUID as `connector_transaction_id` and the iframe HTML
+// as `redirection_data`. The caller renders the iframe; after the customer pays
+// they are redirected back and a second CompositeAuthorize call (with
+// connector_order_id = session_id) triggers the Authorize (confirm) step.
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Flywire,
     curl_request: Json(FlywireCheckoutSessionRequest),
     curl_response: FlywireCheckoutSessionResponse,
-    flow_name: CreateOrder,
+    flow_name: Authenticate,
     resource_common_data: PaymentFlowData,
-    flow_request: PaymentCreateOrderData,
-    flow_response: PaymentCreateOrderResponse,
+    flow_request: PaymentsAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
     http_method: Post,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url(req);
             Ok(format!("{base_url}/payments/v1/checkout/sessions"))
@@ -631,7 +641,6 @@ macros::macro_connector_flow_status_impls!(
         ServerAuthenticationToken,
         ClientAuthenticationToken,
         PreAuthenticate,
-        Authenticate,
         PostAuthenticate,
         DefendDispute,
         Accept,
@@ -645,5 +654,6 @@ macros::macro_connector_flow_status_impls!(
     not_supported: [
         VoidPC,
         PaymentMethodToken,
+        CreateOrder,
     ],
 );
