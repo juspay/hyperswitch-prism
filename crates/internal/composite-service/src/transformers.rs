@@ -3,8 +3,8 @@ use grpc_api_types::payments::{
     CompositeAuthorizeRequest, CompositeCaptureRequest, CompositeGetRequest,
     CompositePaymentMethodCreateRequest, CompositePaymentMethodGetRequest,
     CompositePaymentMethodRechargeRequest, CompositeRefundGetRequest, CompositeRefundRequest,
-    CompositeVoidRequest, ConnectorState, CustomerServiceCreateRequest,
-    CustomerServiceCreateResponse,
+    CompositeVerifyRedirectResponseRequest, CompositeVoidRequest, ConnectorState,
+    CustomerServiceCreateRequest, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -17,7 +17,8 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateRequest,
     PaymentMethodServiceGetRequest, PaymentMethodServiceRechargeRequest,
     PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceGetRequest,
-    PaymentServiceRefundRequest, PaymentServiceVoidRequest, RefundServiceGetRequest,
+    PaymentServiceRefundRequest, PaymentServiceVerifyRedirectResponseResponse,
+    PaymentServiceVoidRequest, RefundServiceGetRequest,
 };
 
 use crate::utils::{
@@ -804,6 +805,136 @@ impl
             connector_feature_data: item.connector_feature_data.clone(),
             metadata: item.metadata.clone(),
             test_mode: item.test_mode,
+        }
+    }
+}
+
+// Transformers for CompositeVerifyRedirectResponse
+
+impl ForeignFrom<(&CompositeVerifyRedirectResponseRequest, &ConnectorEnum)>
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+{
+    fn foreign_from(
+        (item, connector): (&CompositeVerifyRedirectResponseRequest, &ConnectorEnum),
+    ) -> Self {
+        Self {
+            merchant_access_token_id: item.merchant_access_token_id.clone(),
+            connector: grpc_connector_from_connector_enum(connector),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+            merchant_request_id: item.merchant_request_id.clone(),
+        }
+    }
+}
+
+impl ForeignFrom<(&CompositeVerifyRedirectResponseRequest, &ConnectorEnum)>
+    for MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest
+{
+    fn foreign_from(
+        (item, _connector): (&CompositeVerifyRedirectResponseRequest, &ConnectorEnum),
+    ) -> Self {
+        let payment_context =
+            item.amount
+                .map(|amount| grpc_api_types::payments::PaymentSessionContext {
+                    amount: Some(amount),
+                    metadata: item.metadata.clone(),
+                    browser_info: item.browser_info.clone(),
+                    customer: item.customer.clone(),
+                    address: item.address.clone(),
+                });
+
+        Self {
+            merchant_server_session_id: item.merchant_server_session_id.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            state: item.state.clone(),
+            test_mode: item.test_mode,
+            domain_context: payment_context.map(|ctx| {
+                grpc_api_types::payments::merchant_authentication_service_create_server_session_authentication_token_request::DomainContext::Payment(ctx)
+            }),
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &CompositeVerifyRedirectResponseRequest,
+        &PaymentServiceVerifyRedirectResponseResponse,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
+    )> for PaymentServiceAuthorizeRequest
+{
+    fn foreign_from(
+        (request, _verify_response, access_token_response, session_token_response): (
+            &CompositeVerifyRedirectResponseRequest,
+            &PaymentServiceVerifyRedirectResponseResponse,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+            Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
+        ),
+    ) -> Self {
+        // Build access token from response or request state
+        let access_token_from_req = request
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.clone());
+        let access_token = get_access_token(access_token_from_req, access_token_response);
+
+        // Build connector customer id from state
+        let connector_customer_id = request
+            .state
+            .as_ref()
+            .and_then(|state| state.connector_customer_id.clone());
+
+        let resolved_state = Some(ConnectorState {
+            access_token,
+            connector_customer_id,
+        });
+
+        Self {
+            merchant_transaction_id: request.merchant_transaction_id.clone(),
+            merchant_order_id: request.merchant_order_id.clone(),
+            amount: request.amount,
+            order_tax_amount: request.order_tax_amount,
+            shipping_cost: request.shipping_cost,
+            payment_method: request.payment_method.clone(),
+            capture_method: request.capture_method,
+            customer: request.customer.clone(),
+            address: request.address.clone(),
+            auth_type: request.auth_type.unwrap_or_default(),
+            enrolled_for_3ds: request.enrolled_for_3ds,
+            authentication_data: request.authentication_data.clone(),
+            metadata: request.metadata.clone(),
+            connector_feature_data: request.connector_feature_data.clone(),
+            return_url: request.return_url.clone(),
+            webhook_url: request.webhook_url.clone(),
+            complete_authorize_url: request.complete_authorize_url.clone(),
+            session_token: get_session_token(request.session_token.clone(), session_token_response),
+            order_category: request.order_category.clone(),
+            setup_future_usage: request.setup_future_usage,
+            off_session: request.off_session,
+            request_incremental_authorization: request.request_incremental_authorization,
+            request_extended_authorization: request.request_extended_authorization,
+            enable_partial_authorization: request.enable_partial_authorization,
+            customer_acceptance: request.customer_acceptance.clone(),
+            browser_info: request.browser_info.clone(),
+            payment_experience: request.payment_experience,
+            description: request.description.clone(),
+            payment_channel: request.payment_channel,
+            test_mode: request.test_mode,
+            setup_mandate_details: request.setup_mandate_details.clone(),
+            statement_descriptor_name: request.statement_descriptor_name.clone(),
+            statement_descriptor_suffix: request.statement_descriptor_suffix.clone(),
+            billing_descriptor: request.billing_descriptor.clone(),
+            state: resolved_state,
+            order_details: request.order_details.clone(),
+            locale: request.locale.clone(),
+            tokenization_strategy: request.tokenization_strategy,
+            threeds_completion_indicator: request.threeds_completion_indicator,
+            redirection_response: request.redirection_response.clone(),
+            continue_redirection_url: request.continue_redirection_url.clone(),
+            l2_l3_data: request.l2_l3_data.clone(),
+            connector_order_id: request.connector_order_id.clone(),
+            merchant_request_id: request.merchant_request_id.clone(),
         }
     }
 }

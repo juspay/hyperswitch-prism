@@ -33,6 +33,10 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::composite::payments::capture),
         )
         .route(
+            "/composite/payments/verify_redirect_response",
+            post(handlers::composite::payments::verify_redirect_response),
+        )
+        .route(
             "/composite/events/handle",
             post(handlers::composite::events::handle_event),
         )
