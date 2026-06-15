@@ -271,7 +271,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         match &item.router_data.request.payment_method_data {
-            PaymentMethodData::BankRedirect(BankRedirectData::Trustly { .. }) => {
+            PaymentMethodData::BankRedirect(BankRedirectData::OpenBanking { .. }) => {
                 let auth_details = TrustlyAuthType::try_from(&item.router_data.connector_config)?;
 
                 let return_url = item

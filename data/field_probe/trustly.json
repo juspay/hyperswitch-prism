@@ -293,8 +293,8 @@
         "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "OpenBanking": {
-        "status": "not_supported",
-        "error": "Selected payment method through Trustly is not supported by Trustly"
+        "status": "error",
+        "error": "Stuck on field: country — Missing required field: country"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -417,8 +417,8 @@
         "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Trustly": {
-        "status": "error",
-        "error": "Stuck on field: country — Missing required field: country"
+        "status": "not_supported",
+        "error": "Selected payment method through Trustly is not supported by Trustly"
       },
       "Twint": {
         "status": "not_supported",
