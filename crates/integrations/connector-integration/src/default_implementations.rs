@@ -765,7 +765,7 @@ default_impl_payment_eligibility_v2!(
         Payload,
         Phonepe,
         Ppro,
-        Revolut,        
+        Revolut,
         AbsaSanlam,
         Trustly,
         Trustpay,

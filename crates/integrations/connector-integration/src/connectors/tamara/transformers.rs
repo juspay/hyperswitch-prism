@@ -814,13 +814,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let phone_number = customer.get_phone_number()?;
         // Prefer the explicit country on the request, otherwise derive it from
         // the billing/shipping address carried on the flow data.
-        let country_code = data.country_code.map(|country| country.to_string()).or_else(|| {
-            let from_address = item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_or_billing_country_string();
-            (!from_address.is_empty()).then_some(from_address)
-        });
+        let country_code = data
+            .country_code
+            .map(|country| country.to_string())
+            .or_else(|| {
+                let from_address = item
+                    .router_data
+                    .resource_common_data
+                    .get_optional_shipping_or_billing_country_string();
+                (!from_address.is_empty()).then_some(from_address)
+            });
         Ok(Self {
             order: TamaraEligibilityOrder {
                 total_amount: TamaraAmount {
