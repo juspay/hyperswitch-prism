@@ -765,8 +765,7 @@ default_impl_payment_eligibility_v2!(
         Payload,
         Phonepe,
         Ppro,
-        Revolut,
-        // Tamara implements eligibility natively, so it is excluded here.
+        Revolut,        
         AbsaSanlam,
         Trustly,
         Trustpay,

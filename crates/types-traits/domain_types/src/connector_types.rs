@@ -1378,7 +1378,7 @@ pub struct PaymentMethodEligibilityData {
     /// country-gated, so connectors operating per-market rely on this.
     /// (Billing/shipping address and order line items are carried on the
     /// flow-level `PaymentFlowData`, consistent with the Authorize flow.)
-    pub country: Option<common_enums::CountryAlpha2>,
+    pub country_code: Option<common_enums::CountryAlpha2>,
     /// The specific payment method (e.g. a BNPL variant) eligibility is being
     /// checked for, when the caller wants to scope the check.
     pub payment_method_type: Option<PaymentMethodType>,
@@ -1395,9 +1395,8 @@ pub struct PaymentMethodEligibilityData {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EligibilityStatus {
     #[default]
-    Unspecified,
-    Eligible,
     Ineligible,
+    Eligible,
 }
 
 #[derive(Debug, Clone)]

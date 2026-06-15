@@ -5368,7 +5368,6 @@ pub fn generate_create_order_response(
 impl ForeignFrom<EligibilityStatus> for grpc_api_types::payments::EligibilityStatus {
     fn foreign_from(value: EligibilityStatus) -> Self {
         match value {
-            EligibilityStatus::Unspecified => Self::Unspecified,
             EligibilityStatus::Eligible => Self::Eligible,
             EligibilityStatus::Ineligible => Self::Ineligible,
         }
@@ -5427,19 +5426,6 @@ pub fn generate_payment_method_eligibility_response(
             response_headers,
         }),
     }
-}
-
-/// Generates an eligibility response (kept for any callers that still use the old name).
-/// Delegates to generate_payment_method_eligibility_response.
-pub fn generate_eligibility_response(
-    router_data_v2: RouterDataV2<
-        PaymentMethodEligibility,
-        PaymentFlowData,
-        PaymentMethodEligibilityData,
-        PaymentMethodEligibilityResponse,
-    >,
-) -> Result<PaymentMethodServiceEligibilityResponse, error_stack::Report<ConnectorError>> {
-    generate_payment_method_eligibility_response(router_data_v2)
 }
 
 /// Helper function to convert connector_metadata from serde_json::Value to Option<Secret<String>>
@@ -7966,9 +7952,9 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
             amount,
             currency,
             customer,
-            country,
+            country_code: country,
             payment_method_type,
-            locale: value.locale,
+            locale: value.description,
             metadata,
             connector_feature_data,
             test_mode: value.test_mode,

@@ -5035,8 +5035,8 @@ message PaymentServiceProxySetupRecurringRequest {
 // Eligibility status reason codes returned by the connector.
 enum EligibilityStatus {
   ELIGIBILITY_STATUS_UNSPECIFIED = 0; // Default, status not specified
-  ELIGIBILITY_STATUS_ELIGIBLE = 1;    // Customer is eligible
-  ELIGIBILITY_STATUS_INELIGIBLE = 2;  // Customer is ineligible
+  INELIGIBLE = 1;                     // Customer is ineligible
+  ELIGIBLE = 2;                       // Customer is eligible
 }
 
 // Request to check pre-checkout eligibility for a payment method.
@@ -5065,8 +5065,8 @@ message PaymentMethodServiceEligibilityRequest {
   // checked for, when the caller wants to scope the check.
   optional PaymentMethodType payment_method_type = 6;
 
-  // Locale/language hint for connector-rendered eligibility messaging.
-  optional string locale = 7;
+  // Description for connector-rendered eligibility messaging.
+  optional string description = 7;
 
   // Additional connector-specific metadata (JSON blob).
   optional SecretString metadata = 8;

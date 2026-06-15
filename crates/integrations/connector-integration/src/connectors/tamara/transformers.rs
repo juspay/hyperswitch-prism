@@ -7,8 +7,8 @@ use common_utils::{types::MinorUnit, Email};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
-        EligibilityStatus, EventType, PaymentFlowData, PaymentMethodEligibilityData,
-        PaymentMethodEligibilityResponse, PaymentVoidData, PaymentsAuthorizeData,
+        EligibilityStatus, EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PaymentVoidData,
+        PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
@@ -798,7 +798,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let data = &item.router_data.request;
-        data.customer.as_ref().ok_or(error_stack::report!(
+        let customer = data.customer.as_ref().ok_or(error_stack::report!(
             errors::IntegrationError::MissingRequiredField {
                 field_name: "customer",
                 context: errors::IntegrationErrorContext {
@@ -809,24 +809,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             }
         ))?;
-        let l2_l3_data = item.router_data.resource_common_data.l2_l3_data.as_ref();
-        let email =
-            l2_l3_data
-                .and_then(|l2| l2.get_customer_email())
-                .ok_or(error_stack::report!(
-                    errors::IntegrationError::MissingRequiredField {
-                        field_name: "customer.email",
-                        context: errors::IntegrationErrorContext {
-                            additional_context: Some(
-                                "Customer email is required for Tamara eligibility check"
-                                    .to_string()
-                            ),
-                            ..Default::default()
-                        },
-                    }
-                ))?;
-        let phone_number = l2_l3_data
-            .and_then(|l2| l2.get_customer_phone_number())
+        let email = customer
+            .customer_email
+            .clone()
+            .ok_or(error_stack::report!(
+                errors::IntegrationError::MissingRequiredField {
+                    field_name: "customer.email",
+                    context: errors::IntegrationErrorContext {
+                        additional_context: Some(
+                            "Customer email is required for Tamara eligibility check".to_string()
+                        ),
+                        ..Default::default()
+                    },
+                }
+            ))?;
+        let phone_number = customer
+            .customer_phone_number
+            .clone()
             .ok_or(error_stack::report!(
                 errors::IntegrationError::MissingRequiredField {
                     field_name: "customer.phone_number",
@@ -841,7 +840,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             ))?;
         // Prefer the explicit country on the request, otherwise derive it from
         // the billing/shipping address carried on the flow data.
-        let country_code = data.country.map(|country| country.to_string()).or_else(|| {
+        let country_code = data.country_code.map(|country| country.to_string()).or_else(|| {
             let from_address = item
                 .router_data
                 .resource_common_data
