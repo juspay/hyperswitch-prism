@@ -1,0 +1,52 @@
+{
+  "_comment": "Copy to creds.json (default path ~/Workspace/creds.json, or set CREDS_PATH). Snake_case per-connector keys. Connectors omitted here are skipped by the harness and the E2E specs. See app/helpers/creds.ts.",
+
+  "stripe": {
+    "api_key": "sk_test_...",
+    "publishable_key": "pk_test_..."
+  },
+
+  "adyen": {
+    "api_key": "AQE...",
+    "merchant_account": "YourMerchantAccount",
+    "client_key": "test_...",
+    "hmac_key": "HEX_HMAC_KEY_FROM_CUSTOMER_AREA"
+  },
+
+  "paypal": {
+    "client_id": "sb_...",
+    "client_secret": "...",
+    "webhook_id": "WH-...",
+    "sandbox_buyer": {
+      "email": "buyer@personal.example.com",
+      "password": "sandbox-buyer-password"
+    }
+  },
+
+  "globalpay": {
+    "app_id": "...",
+    "app_key": "...",
+    "return_url": "http://localhost:3000/return"
+  },
+
+  "braintree": {
+    "public_key": "...",
+    "private_key": "...",
+    "paypal_client_id": "...",
+    "metadata": {
+      "merchant_account_id": "...",
+      "merchant_config_currency": "USD"
+    }
+  },
+
+  "cybersource": {
+    "api_key": "...",
+    "api_secret": "...",
+    "merchant_account": "..."
+  },
+
+  "mollie": {
+    "api_key": "test_...",
+    "profile_token": "..."
+  }
+}

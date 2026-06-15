@@ -1,0 +1,27 @@
+{
+  "name": "medusa-hyperswitch-prism-repo",
+  "version": "0.0.1",
+  "private": true,
+  "workspaces": [
+    "medusa-unified-payment",
+    "medusa-unified-payment-react",
+    "app/client"
+  ],
+  "scripts": {
+    "server:dev": "tsx app/run.ts",
+    "client:dev": "cd app/client && npm run dev",
+    "client:build": "npm run build --workspace=app/client",
+    "build": "npm run build --workspace=medusa-unified-payment",
+    "test": "npm run test --workspace=medusa-unified-payment",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --project=chromium-ui",
+    "test:e2e:api": "playwright test --project=api"
+  },
+  "dependencies": {
+    "@juspay/medusa-unified-payment": "file:./medusa-unified-payment"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "tsx": "^4.19.2"
+  }
+}

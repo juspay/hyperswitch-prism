@@ -318,7 +318,7 @@ where
             invoice_number,
             amount,
             notes: None,
-            bill_amount: None,
+            bill_amount: Some(amount),
         })
     }
 }
