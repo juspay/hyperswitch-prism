@@ -1,0 +1,64 @@
+# Build outputs
+dist/
+build/
+medusa-hyperswitch-prism/dist/
+medusa-hyperswitch-prism-react/dist/
+
+# Dependencies
+node_modules/
+
+# Environment & credentials
+.env
+.env.*
+.env.local
+.env.*.local
+!.env.example
+!.env.template
+creds.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Logs
+yarn-error.log
+npm-debug.log*
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test coverage
+coverage/
+
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Database
+medusa-db.sql
+
+# Cache
+.cache/
+.medusa/
+*.tmp
+
+# Yarn
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
