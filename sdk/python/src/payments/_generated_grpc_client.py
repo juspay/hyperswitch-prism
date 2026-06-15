@@ -274,11 +274,11 @@ class GrpcPaymentMethodClient:
             "payment_method/recharge",
             req, payment_pb2.PaymentMethodServiceRechargeResponse,
         )
-    def payment_method_eligibility(self, req: payment_pb2.PaymentMethodServiceEligibilityRequest) -> payment_pb2.PaymentMethodServiceEligibilityResponse:
+    def eligibility(self, req: payment_pb2.PaymentMethodServiceEligibilityRequest) -> payment_pb2.PaymentMethodServiceEligibilityResponse:
         """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
         return _call_grpc(
             self._ffi, self._config,
-            "payment_method/payment_method_eligibility",
+            "payment_method/eligibility",
             req, payment_pb2.PaymentMethodServiceEligibilityResponse,
         )
 
@@ -386,13 +386,6 @@ class GrpcPaymentClient:
             self._ffi, self._config,
             "payment/proxy_setup_recurring",
             req, payment_pb2.PaymentServiceSetupRecurringResponse,
-        )
-    def eligibility(self, req: payment_pb2.PaymentMethodServiceEligibilityRequest) -> payment_pb2.PaymentMethodServiceEligibilityResponse:
-        """PaymentService.Eligibility — ============================================================================ ELIGIBILITY — Pre-checkout eligibility checks for buy-now-pay-later and other payment methods that require customer info upfront. ============================================================================ Check payment method eligibility for the given customer and order details. Supports connectors like Tamara, Tabby, etc."""
-        return _call_grpc(
-            self._ffi, self._config,
-            "payment/eligibility",
-            req, payment_pb2.PaymentMethodServiceEligibilityResponse,
         )
 
 class GrpcPayoutClient:

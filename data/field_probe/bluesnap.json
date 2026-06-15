@@ -795,11 +795,6 @@
         "error": "submit_evidence flow not supported by bluesnap connector"
       }
     },
-    "eligibility": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "get": {
       "default": {
         "status": "supported",
@@ -866,6 +861,11 @@
           "headers": {},
           "body": "transactionType=CHARGE&referenceNumber=probe_ref_001&merchantTransactionId=probe_txn_001&invoiceId=probe_invoice_001&cardLastFourDigits=1111&amount=10.00&currency=USD"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

@@ -564,11 +564,6 @@
         "error": "submit_evidence flow not supported by fiserv connector"
       }
     },
-    "eligibility": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "get": {
       "default": {
         "status": "supported",
@@ -608,6 +603,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

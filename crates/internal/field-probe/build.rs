@@ -238,7 +238,12 @@ fn generate_flow_runners(flows: &[FlowInfo]) {
 
     // Generate not_implemented probes
     generate_not_implemented_probe(&mut f, "dispute_get", "DisputeService", "Get");
-    generate_not_implemented_probe(&mut f, "payment_method_eligibility", "PaymentMethodService", "PaymentMethodEligibility");
+    generate_not_implemented_probe(
+        &mut f,
+        "payment_method_eligibility",
+        "PaymentMethodService",
+        "PaymentMethodEligibility",
+    );
 
     // Generate FLOW_DEFINITIONS
     generate_flow_definitions(&mut f, flows);

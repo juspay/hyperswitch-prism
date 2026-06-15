@@ -2297,11 +2297,6 @@
         }
       }
     },
-    "eligibility": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "get": {
       "default": {
         "status": "not_implemented"
@@ -2368,6 +2363,11 @@
           "headers": {},
           "body": "{\"notificationItems\":[{\"NotificationRequestItem\":{\"pspReference\":\"probe_ref_001\",\"merchantReference\":\"probe_order_001\",\"merchantAccountCode\":\"ProbeAccount\",\"eventCode\":\"AUTHORISATION\",\"success\":\"true\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"additionalData\":{}}}]}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

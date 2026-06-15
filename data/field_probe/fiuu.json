@@ -658,11 +658,6 @@
         "error": "submit_evidence flow not supported by fiuu connector"
       }
     },
-    "eligibility": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "get": {
       "default": {
         "status": "supported",
@@ -727,6 +722,11 @@
           "headers": {},
           "body": "tranID=probe_txn_001&orderid=probe_order_001&status=00&domain=probe_domain&amount=10.00&currency=USD&channel=Credit&skey=probe_skey&appcode=probe_appcode&error_code=&error_desc="
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

@@ -508,11 +508,6 @@
         "error": "submit_evidence flow not supported by cashtocode connector"
       }
     },
-    "eligibility": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "get": {
       "default": {
         "status": "not_implemented",
@@ -562,6 +557,11 @@
           "headers": {},
           "body": "{\"amount\":10.0,\"currency\":\"EUR\",\"foreignTransactionId\":\"probe_foreign_001\",\"type\":\"payment\",\"transactionId\":\"probe_txn_001\"}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

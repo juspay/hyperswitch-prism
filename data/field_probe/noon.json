@@ -670,11 +670,6 @@
         "error": "submit_evidence flow not supported by noon connector"
       }
     },
-    "eligibility": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "get": {
       "default": {
         "status": "supported",
@@ -741,6 +736,11 @@
           "headers": {},
           "body": "{\"orderId\":12345,\"orderStatus\":\"CAPTURED\",\"eventType\":\"SALE\",\"eventId\":\"probe-event-001\",\"timeStamp\":\"2024-01-01T00:00:00Z\"}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

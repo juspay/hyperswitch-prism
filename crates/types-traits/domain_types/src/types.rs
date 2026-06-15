@@ -2,7 +2,9 @@ use core::result::Result;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, str::FromStr};
 
 use crate::{
-    connector_flow::{CreatePaymentMethod, PaymentMethodEligibility, GetPaymentMethod, MandateRevoke, Recharge},
+    connector_flow::{
+        CreatePaymentMethod, GetPaymentMethod, MandateRevoke, PaymentMethodEligibility, Recharge,
+    },
     connector_types::{
         self, CaptureSyncResponse, ConnectorEnum, CreatePaymentMethodData,
         CreatePaymentMethodResponseData, EligibilityStatus, GetPaymentMethodData,
@@ -4984,15 +4986,18 @@ impl
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
-            l2_l3_data: customer_info.map(|ci| Box::new(L2L3Data {
-                customer_info: Some(ci),
-                ..Default::default()
-            })),
+            l2_l3_data: customer_info.map(|ci| {
+                Box::new(L2L3Data {
+                    customer_info: Some(ci),
+                    ..Default::default()
+                })
+            }),
             description: None,
             return_url: None,
-            connector_feature_data: value.connector_feature_data.map(|d|
-                ForeignTryFrom::foreign_try_from((d, "connector_feature_data"))
-            ).transpose()?,
+            connector_feature_data: value
+                .connector_feature_data
+                .map(|d| ForeignTryFrom::foreign_try_from((d, "connector_feature_data")))
+                .transpose()?,
             amount_captured: None,
             minor_amount_captured: None,
             minor_amount_capturable: None,
@@ -5392,7 +5397,9 @@ pub fn generate_payment_method_eligibility_response(
         .get_raw_connector_request();
     match router_data_v2.response {
         Ok(response) => Ok(PaymentMethodServiceEligibilityResponse {
-            eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(response.eligibility) as i32,
+            eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(
+                response.eligibility,
+            ) as i32,
             status_code: response.status_code,
             error_info: None,
             raw_connector_request,
@@ -5400,7 +5407,9 @@ pub fn generate_payment_method_eligibility_response(
             response_headers,
         }),
         Err(err) => Ok(PaymentMethodServiceEligibilityResponse {
-            eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(EligibilityStatus::Ineligible) as i32,
+            eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(
+                EligibilityStatus::Ineligible,
+            ) as i32,
             status_code: err.status_code as u32,
             error_info: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,

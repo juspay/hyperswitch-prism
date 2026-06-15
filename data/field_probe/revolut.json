@@ -3302,11 +3302,6 @@
         "error": "This feature is not implemented: submit_evidence flow for revolut"
       }
     },
-    "eligibility": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "get": {
       "default": {
         "status": "supported",
@@ -3374,6 +3369,11 @@
           "headers": {},
           "body": "{\"event\":\"ORDER_COMPLETED\",\"order_id\":\"probe_order_001\"}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

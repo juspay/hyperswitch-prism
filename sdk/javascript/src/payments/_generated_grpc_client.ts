@@ -292,7 +292,8 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentServiceTokenSetupRecurringRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceProxyAuthorizeRequest: ["metadata", "connectorFeatureData"],
   PaymentServiceProxySetupRecurringRequest: ["metadata"],
-  PaymentMethodServiceEligibilityRequest: ["metadata"],
+  PaymentMethodServiceEligibilityRequest: ["metadata", "connectorFeatureData"],
+  PaymentMethodServiceEligibilityResponse: ["rawConnectorRequest", "rawConnectorResponse"],
   CardPayout: ["cardNumber", "cardExpMonth", "cardExpYear", "cardHolderName"],
   AchBankTransferPayout: ["bankAccountNumber", "bankRoutingNumber"],
   BacsBankTransferPayout: ["bankAccountNumber", "bankSortCode"],
@@ -453,6 +454,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentServiceProxyAuthorizeRequest: { "amount": "Money", "cardProxy": "ProxyCardDetails", "customer": "Customer", "address": "PaymentAddress", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation", "state": "ConnectorState", "setupMandateDetails": "SetupMandateDetails", "billingDescriptor": "BillingDescriptor", "redirectionResponse": "RedirectionResponse", "l2L3Data": "L2L3Data", "customerAcceptance": "CustomerAcceptance" },
   PaymentServiceProxySetupRecurringRequest: { "amount": "Money", "cardProxy": "ProxyCardDetails", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "setupMandateDetails": "SetupMandateDetails", "customerAcceptance": "CustomerAcceptance", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation" },
   PaymentMethodServiceEligibilityRequest: { "amount": "Money", "customer": "Customer", "address": "PaymentAddress", "orderDetails": "OrderDetailsWithAmount" },
+  PaymentMethodServiceEligibilityResponse: { "errorInfo": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   PayoutAddress: { "shippingAddress": "Address", "billingAddress": "Address" },
   PayoutMethod: { "card": "CardPayout", "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "applePayDecrypt": "ApplePayDecrypt", "paypal": "Paypal", "venmo": "Venmo", "interac": "InteracPayout", "openBankingUk": "OpenBankingUkPayout", "passthrough": "Passthrough", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout" },
   SourceBankData: { "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout" },
@@ -665,8 +667,8 @@ export class GrpcPaymentMethodClient {
       req, types.PaymentMethodServiceRechargeRequest, types.PaymentMethodServiceRechargeResponse);
   }
   /** PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check) */
-  async paymentMethodEligibility(req: unknown): Promise<unknown> {
-    return callGrpc(this.ffi, this.config, "payment_method/payment_method_eligibility",
+  async eligibility(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payment_method/eligibility",
       req, types.PaymentMethodServiceEligibilityRequest, types.PaymentMethodServiceEligibilityResponse);
   }
 }
@@ -744,11 +746,6 @@ export class GrpcPaymentClient {
   async proxySetupRecurring(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "payment/proxy_setup_recurring",
       req, types.PaymentServiceProxySetupRecurringRequest, types.PaymentServiceSetupRecurringResponse);
-  }
-  /** PaymentService.Eligibility — ============================================================================ ELIGIBILITY — Pre-checkout eligibility checks for buy-now-pay-later and other payment methods that require customer info upfront. ============================================================================ Check payment method eligibility for the given customer and order details. Supports connectors like Tamara, Tabby, etc. */
-  async eligibility(req: unknown): Promise<unknown> {
-    return callGrpc(this.ffi, this.config, "payment/eligibility",
-      req, types.PaymentMethodServiceEligibilityRequest, types.PaymentMethodServiceEligibilityResponse);
   }
 }
 

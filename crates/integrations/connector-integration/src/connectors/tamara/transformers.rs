@@ -5,7 +5,7 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::{types::MinorUnit, Email};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PaymentMethodEligibility, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
         EligibilityStatus, EventType, PaymentFlowData, PaymentMethodEligibilityData,
         PaymentMethodEligibilityResponse, PaymentVoidData, PaymentsAuthorizeData,
@@ -802,34 +802,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             errors::IntegrationError::MissingRequiredField {
                 field_name: "customer",
                 context: errors::IntegrationErrorContext {
-                    additional_context: Some("Customer details are required for Tamara eligibility check".to_string()),
+                    additional_context: Some(
+                        "Customer details are required for Tamara eligibility check".to_string()
+                    ),
                     ..Default::default()
                 },
             }
         ))?;
-        let l2_l3_data = item
-            .router_data
-            .resource_common_data
-            .l2_l3_data
-            .as_ref();
-        let email = l2_l3_data
-            .and_then(|l2| l2.get_customer_email())
-            .ok_or(error_stack::report!(
-                errors::IntegrationError::MissingRequiredField {
-                    field_name: "customer.email",
-                    context: errors::IntegrationErrorContext {
-                        additional_context: Some("Customer email is required for Tamara eligibility check".to_string()),
-                        ..Default::default()
-                    },
-                }
-            ))?;
+        let l2_l3_data = item.router_data.resource_common_data.l2_l3_data.as_ref();
+        let email =
+            l2_l3_data
+                .and_then(|l2| l2.get_customer_email())
+                .ok_or(error_stack::report!(
+                    errors::IntegrationError::MissingRequiredField {
+                        field_name: "customer.email",
+                        context: errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "Customer email is required for Tamara eligibility check"
+                                    .to_string()
+                            ),
+                            ..Default::default()
+                        },
+                    }
+                ))?;
         let phone_number = l2_l3_data
             .and_then(|l2| l2.get_customer_phone_number())
             .ok_or(error_stack::report!(
                 errors::IntegrationError::MissingRequiredField {
                     field_name: "customer.phone_number",
                     context: errors::IntegrationErrorContext {
-                        additional_context: Some("Customer phone number is required for Tamara eligibility check".to_string()),
+                        additional_context: Some(
+                            "Customer phone number is required for Tamara eligibility check"
+                                .to_string()
+                        ),
                         ..Default::default()
                     },
                 }

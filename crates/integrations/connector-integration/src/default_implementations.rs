@@ -16,7 +16,8 @@ use crate::connectors::*;
 use common_utils::{request::Request, CustomResult};
 use domain_types::{
     connector_flow::{
-        CreatePaymentMethod, PaymentMethodEligibility, GetPaymentMethod, Recharge, VerifyWebhookSource,
+        CreatePaymentMethod, GetPaymentMethod, PaymentMethodEligibility, Recharge,
+        VerifyWebhookSource,
     },
     connector_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, GetPaymentMethodData,

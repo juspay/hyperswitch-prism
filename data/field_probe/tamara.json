@@ -525,11 +525,6 @@
         "error": "submit_evidence flow not supported by tamara connector"
       }
     },
-    "eligibility": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "get": {
       "default": {
         "status": "supported",
@@ -596,6 +591,11 @@
           "headers": {},
           "body": "{}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

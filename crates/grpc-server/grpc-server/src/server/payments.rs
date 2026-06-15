@@ -12,10 +12,10 @@ use domain_types::payment_method_data;
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        CreateOrder, CreatePaymentMethod, PaymentMethodEligibility, GetPaymentMethod, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, Recharge,
-        Refund, RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken,
-        SetupMandate, Void, VoidPC,
+        CreateOrder, CreatePaymentMethod, GetPaymentMethod, IncrementalAuthorization,
+        MandateRevoke, PSync, PaymentMethodEligibility, PaymentMethodToken, PostAuthenticate,
+        PreAuthenticate, Recharge, Refund, RepeatPayment, ServerAuthenticationToken,
+        ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
@@ -225,7 +225,6 @@ trait PaymentOperationsInternal {
         &self,
         request: RequestData<PaymentServiceCreateOrderRequest>,
     ) -> Result<tonic::Response<PaymentServiceCreateOrderResponse>, tonic::Status>;
-
 }
 
 trait PaymentMethodAuthOperational {
@@ -801,7 +800,6 @@ impl PaymentOperationsInternal for Payments {
         connector_data_type: ConnectorData<DefaultPCIHolder>,
         all_keys_required: None
     );
-
 }
 
 #[tonic::async_trait]
@@ -2266,7 +2264,6 @@ impl PaymentMethodService for PaymentMethod {
         )
         .await
     }
-
 }
 
 impl PaymentMethod {

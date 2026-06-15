@@ -739,11 +739,6 @@
         "error": "submit_evidence flow not supported by novalnet connector"
       }
     },
-    "eligibility": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "get": {
       "default": {
         "status": "supported",
@@ -828,6 +823,11 @@
           "headers": {},
           "body": "{\"event\":{\"checksum\":\"probe_checksum\",\"tid\":12345678901234,\"type\":\"PAYMENT\"},\"result\":{\"status\":\"SUCCESS\",\"status_code\":100,\"status_text\":\"Success\"},\"transaction\":{\"tid\":12345678901234,\"payment_type\":\"CREDITCARD\",\"status\":\"CONFIRMED\",\"status_code\":100,\"order_no\":\"probe_order_001\",\"amount\":1000,\"currency\":\"EUR\"}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

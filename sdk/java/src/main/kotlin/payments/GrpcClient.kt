@@ -261,8 +261,8 @@ class GrpcPaymentMethodClient internal constructor(
     /**
      * PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
      */
-    suspend fun payment_method_eligibility(req: PaymentMethodServiceEligibilityRequest): PaymentMethodServiceEligibilityResponse =
-        callGrpc(config, "payment_method/payment_method_eligibility", req, PaymentMethodServiceEligibilityResponse.parser())
+    suspend fun eligibility(req: PaymentMethodServiceEligibilityRequest): PaymentMethodServiceEligibilityResponse =
+        callGrpc(config, "payment_method/eligibility", req, PaymentMethodServiceEligibilityResponse.parser())
 }
 
 /**
@@ -341,11 +341,6 @@ class GrpcPaymentClient internal constructor(
      */
     suspend fun proxy_setup_recurring(req: PaymentServiceProxySetupRecurringRequest): PaymentServiceSetupRecurringResponse =
         callGrpc(config, "payment/proxy_setup_recurring", req, PaymentServiceSetupRecurringResponse.parser())
-    /**
-     * PaymentService.Eligibility — ============================================================================ ELIGIBILITY — Pre-checkout eligibility checks for buy-now-pay-later and other payment methods that require customer info upfront. ============================================================================ Check payment method eligibility for the given customer and order details. Supports connectors like Tamara, Tabby, etc.
-     */
-    suspend fun eligibility(req: PaymentMethodServiceEligibilityRequest): PaymentMethodServiceEligibilityResponse =
-        callGrpc(config, "payment/eligibility", req, PaymentMethodServiceEligibilityResponse.parser())
 }
 
 /**

@@ -614,11 +614,6 @@
         "error": "submit_evidence flow not supported by authorizedotnet connector"
       }
     },
-    "eligibility": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "get": {
       "default": {
         "status": "supported",
@@ -684,6 +679,11 @@
           "headers": {},
           "body": "{\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

@@ -560,11 +560,6 @@
         "error": "submit_evidence flow not supported by peachpayments connector"
       }
     },
-    "eligibility": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "get": {
       "default": {
         "status": "supported",
@@ -633,6 +628,11 @@
           "headers": {},
           "body": "{\"webhookId\":\"probe_wh_001\",\"webhookType\":\"PAYMENT\",\"transaction\":{\"transactionId\":\"probe_txn_001\",\"referenceId\":\"probe_ref_001\",\"transactionResult\":\"ACK\",\"transactionType\":\"DEBIT\",\"paymentMethod\":\"probe_pm\"}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

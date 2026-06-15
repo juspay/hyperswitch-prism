@@ -13,7 +13,7 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PaymentMethodEligibility, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
         EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
         PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
