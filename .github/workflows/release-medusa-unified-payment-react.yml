@@ -59,7 +59,7 @@ jobs:
           NEW_VERSION=$(node -p "require('./package.json').version")
           echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-          cd ..
+          cd ../..
           git add plugins/medusa/medusa-unified-payment-react/package.json
           git commit -m "medusa-unified-payment-react-v${NEW_VERSION}"
           git tag "medusa-unified-payment-react-v${NEW_VERSION}"
