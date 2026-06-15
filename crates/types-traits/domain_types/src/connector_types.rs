@@ -1388,17 +1388,12 @@ pub struct PaymentMethodEligibilityData {
     pub metadata: Option<SecretSerdeValue>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum EligibilityStatus {
+    #[default]
     Unspecified,
     Eligible,
     Ineligible,
-}
-
-impl Default for EligibilityStatus {
-    fn default() -> Self {
-        Self::Unspecified
-    }
 }
 
 #[derive(Debug, Clone)]
