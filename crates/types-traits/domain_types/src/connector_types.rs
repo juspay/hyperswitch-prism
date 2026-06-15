@@ -1386,6 +1386,10 @@ pub struct PaymentMethodEligibilityData {
     pub locale: Option<String>,
     /// Connector-specific extras that don't have a first-class field.
     pub metadata: Option<SecretSerdeValue>,
+    /// Connector-specific feature data (JSON blob) for the transaction.
+    pub connector_feature_data: Option<SecretSerdeValue>,
+    /// Sandbox/test mode flag (true for test environment).
+    pub test_mode: Option<bool>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

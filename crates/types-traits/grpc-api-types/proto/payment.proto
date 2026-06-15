@@ -5070,6 +5070,12 @@ message PaymentMethodServiceEligibilityRequest {
 
   // Additional connector-specific metadata (JSON blob).
   optional SecretString metadata = 8;
+
+  // Connector-specific feature data (JSON blob) for the transaction.
+  optional SecretString connector_feature_data = 9;
+
+  // Sandbox/test mode flag (true for test environment).
+  optional bool test_mode = 10;
 }
 
 // Response from a pre-checkout eligibility check.
@@ -5078,14 +5084,16 @@ message PaymentMethodServiceEligibilityResponse {
 
   // HTTP status code returned by the upstream connector.
   uint32 status_code = 2;
-}
 
-// ---------------------------------------------------------------------------
-// Legacy alias kept for backward compatibility with PaymentService.Eligibility
-// (still used by the existing PaymentService gRPC route).
-// ---------------------------------------------------------------------------
-message PaymentServiceEligibilityResponse {
-  bool eligible = 1;
-  optional string message = 2;  // Human-readable reason or message
-  uint32 status_code = 3;
+  // Structured error details (only present on failure).
+  optional ErrorInfo error_info = 3;
+
+  // Raw request sent to the connector (for debugging).
+  optional SecretString raw_connector_request = 4;
+
+  // Raw response received from the connector (for debugging).
+  optional SecretString raw_connector_response = 5;
+
+  // Response headers from the connector.
+  map<string, string> response_headers = 6;
 }

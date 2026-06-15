@@ -114,7 +114,7 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + MandateRevokeV2
     + VerifyWebhookSourceV2
     + VerifyRedirectResponse
-    + PaymentEligibilityV2
+    + PaymentMethodEligibilityV2
 {
 }
 
@@ -151,9 +151,9 @@ pub trait PaymentVoidPostCaptureV2:
 {
 }
 
-pub trait PaymentEligibilityV2:
+pub trait PaymentMethodEligibilityV2:
     ConnectorIntegrationV2<
-    connector_flow::Eligibility,
+    connector_flow::PaymentMethodEligibility,
     PaymentFlowData,
     PaymentMethodEligibilityData,
     PaymentMethodEligibilityResponse,

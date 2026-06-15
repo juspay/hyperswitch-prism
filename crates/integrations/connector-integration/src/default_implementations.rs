@@ -16,7 +16,7 @@ use crate::connectors::*;
 use common_utils::{request::Request, CustomResult};
 use domain_types::{
     connector_flow::{
-        CreatePaymentMethod, Eligibility, GetPaymentMethod, Recharge, VerifyWebhookSource,
+        CreatePaymentMethod, PaymentMethodEligibility, GetPaymentMethod, Recharge, VerifyWebhookSource,
     },
     connector_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, GetPaymentMethodData,
@@ -32,7 +32,7 @@ use domain_types::{
 };
 use interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use interfaces::connector_types::{
-    CreatePaymentMethodV2, GetPaymentMethodV2, PaymentEligibilityV2, RechargeV2,
+    CreatePaymentMethodV2, GetPaymentMethodV2, PaymentMethodEligibilityV2, RechargeV2,
     VerifyWebhookSourceV2,
 };
 
@@ -105,13 +105,13 @@ macro_rules! default_impl_verify_webhook_source_v2_single {
 macro_rules! default_impl_payment_eligibility_v2_single {
     ($connector:ident, $err_helper:ident) => {
         impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
-            PaymentEligibilityV2 for $connector<T>
+            PaymentMethodEligibilityV2 for $connector<T>
         {
         }
 
         impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
             ConnectorIntegrationV2<
-                Eligibility,
+                PaymentMethodEligibility,
                 PaymentFlowData,
                 PaymentMethodEligibilityData,
                 PaymentMethodEligibilityResponse,
@@ -120,7 +120,7 @@ macro_rules! default_impl_payment_eligibility_v2_single {
             fn get_url(
                 &self,
                 _req: &RouterDataV2<
-                    Eligibility,
+                    PaymentMethodEligibility,
                     PaymentFlowData,
                     PaymentMethodEligibilityData,
                     PaymentMethodEligibilityResponse,

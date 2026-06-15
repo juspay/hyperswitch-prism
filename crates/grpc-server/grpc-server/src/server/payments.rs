@@ -12,7 +12,7 @@ use domain_types::payment_method_data;
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        CreateOrder, CreatePaymentMethod, Eligibility, GetPaymentMethod, IncrementalAuthorization,
+        CreateOrder, CreatePaymentMethod, PaymentMethodEligibility, GetPaymentMethod, IncrementalAuthorization,
         MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, Recharge,
         Refund, RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken,
         SetupMandate, Void, VoidPC,
@@ -226,10 +226,6 @@ trait PaymentOperationsInternal {
         request: RequestData<PaymentServiceCreateOrderRequest>,
     ) -> Result<tonic::Response<PaymentServiceCreateOrderResponse>, tonic::Status>;
 
-    async fn internal_eligibility(
-        &self,
-        request: RequestData<PaymentMethodServiceEligibilityRequest>,
-    ) -> Result<tonic::Response<PaymentMethodServiceEligibilityResponse>, tonic::Status>;
 }
 
 trait PaymentMethodAuthOperational {
@@ -806,21 +802,6 @@ impl PaymentOperationsInternal for Payments {
         all_keys_required: None
     );
 
-    implement_connector_operation!(
-        fn_name: internal_eligibility,
-        log_prefix: "ELIGIBILITY",
-        request_type: PaymentMethodServiceEligibilityRequest,
-        response_type: PaymentMethodServiceEligibilityResponse,
-        flow_marker: Eligibility,
-        resource_common_data_type: PaymentFlowData,
-        request_data_type: PaymentMethodEligibilityData,
-        response_data_type: PaymentMethodEligibilityResponse,
-        request_data_constructor: PaymentMethodEligibilityData::foreign_try_from,
-        common_flow_data_constructor: PaymentFlowData::foreign_try_from,
-        generate_response_fn: generate_payment_method_eligibility_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
-    );
 }
 
 #[tonic::async_trait]
@@ -1157,26 +1138,6 @@ impl PaymentService for Payments {
             config.clone(),
             FlowName::CreateOrder,
             |request_data| async move { self.internal_create_order(request_data).await },
-        )
-        .await
-    }
-
-    async fn eligibility(
-        &self,
-        request: tonic::Request<PaymentMethodServiceEligibilityRequest>,
-    ) -> Result<tonic::Response<PaymentMethodServiceEligibilityResponse>, tonic::Status> {
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PaymentService".to_string());
-        let config = get_config_from_request(&request)?;
-        grpc_logging_wrapper(
-            request,
-            &service_name,
-            config.clone(),
-            FlowName::Eligibility,
-            |request_data| async move { self.internal_eligibility(request_data).await },
         )
         .await
     }
@@ -2268,7 +2229,7 @@ impl PaymentMethodService for PaymentMethod {
         fields(
             name = common_utils::consts::NAME,
             service_name = common_utils::consts::PAYMENT_METHOD_SERVICE_NAME,
-            service_method = "Eligibility",
+            service_method = "PaymentMethodEligibility",
             request_body = tracing::field::Empty,
             response_body = tracing::field::Empty,
             error_message = tracing::field::Empty,
@@ -2279,7 +2240,7 @@ impl PaymentMethodService for PaymentMethod {
             message_ = "Golden Log Line (incoming)",
             response_time = tracing::field::Empty,
             tenant_id = tracing::field::Empty,
-            flow = FlowName::Eligibility.as_str(),
+            flow = FlowName::PaymentMethodEligibility.as_str(),
             flow_specific_fields.status = tracing::field::Empty,
         ),
         skip(self, request)
@@ -2300,11 +2261,12 @@ impl PaymentMethodService for PaymentMethod {
             request,
             &service_name,
             config.clone(),
-            FlowName::Eligibility,
+            FlowName::PaymentMethodEligibility,
             |request_data| Box::pin(self.internal_pm_eligibility(request_data)),
         )
         .await
     }
+
 }
 
 impl PaymentMethod {
@@ -2366,10 +2328,10 @@ impl PaymentMethod {
 
     implement_connector_operation!(
         fn_name: internal_pm_eligibility,
-        log_prefix: "PM_ELIGIBILITY",
+        log_prefix: "PAYMENT_METHOD_ELIGIBILITY",
         request_type: PaymentMethodServiceEligibilityRequest,
         response_type: PaymentMethodServiceEligibilityResponse,
-        flow_marker: Eligibility,
+        flow_marker: PaymentMethodEligibility,
         resource_common_data_type: PaymentFlowData,
         request_data_type: PaymentMethodEligibilityData,
         response_data_type: PaymentMethodEligibilityResponse,

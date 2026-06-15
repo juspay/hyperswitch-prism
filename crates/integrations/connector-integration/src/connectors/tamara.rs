@@ -13,7 +13,7 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, Eligibility, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PaymentMethodEligibility, PSync, RSync, Refund, Void},
     connector_types::{
         EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
         PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
@@ -93,10 +93,10 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ),
         (
-            flow: Eligibility,
+            flow: PaymentMethodEligibility,
             request_body: TamaraEligibilityRequest,
             response_body: TamaraEligibilityResponse,
-            router_data: RouterDataV2<Eligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
+            router_data: RouterDataV2<PaymentMethodEligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
         )
     ],
     amount_converters: [
@@ -173,7 +173,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentEligibilityV2 for Tamara<T>
+    connector_types::PaymentMethodEligibilityV2 for Tamara<T>
 {
 }
 
@@ -617,7 +617,7 @@ macros::macro_connector_implementation!(
     connector: Tamara,
     curl_request: Json(TamaraEligibilityRequest),
     curl_response: TamaraEligibilityResponse,
-    flow_name: Eligibility,
+    flow_name: PaymentMethodEligibility,
     resource_common_data: PaymentFlowData,
     flow_request: PaymentMethodEligibilityData,
     flow_response: PaymentMethodEligibilityResponse,
@@ -627,7 +627,7 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_url(
             &self,
-            req: &RouterDataV2<Eligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
+            req: &RouterDataV2<PaymentMethodEligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/pre-checkout/v1/eligibility", self.connector_base_url_payments(req)))
         }

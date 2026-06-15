@@ -87,7 +87,7 @@ http_handler!(
     PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceEligibilityResponse,
     eligibility,
-    payments_service
+    payment_method_service
 );
 http_handler!(
     create_order,

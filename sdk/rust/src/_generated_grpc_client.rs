@@ -387,12 +387,6 @@ impl_grpc_client!(
         PaymentServiceProxySetupRecurringRequest,
         PaymentServiceSetupRecurringResponse
     ),
-    (
-        eligibility,
-        eligibility,
-        PaymentMethodServiceEligibilityRequest,
-        PaymentMethodServiceEligibilityResponse
-    ),
 );
 
 // PayoutService

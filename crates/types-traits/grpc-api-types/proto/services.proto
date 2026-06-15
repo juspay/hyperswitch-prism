@@ -178,13 +178,6 @@ service PaymentService {
   // Setup recurring mandate using vault-aliased card data.
   rpc ProxySetupRecurring(PaymentServiceProxySetupRecurringRequest) returns (PaymentServiceSetupRecurringResponse);
 
-  // ============================================================================
-  // ELIGIBILITY — Pre-checkout eligibility checks for buy-now-pay-later and
-  // other payment methods that require customer info upfront.
-  // ============================================================================
-  // Check payment method eligibility for the given customer and order details.
-  // Supports connectors like Tamara, Tabby, etc.
-  rpc Eligibility(PaymentMethodServiceEligibilityRequest) returns (PaymentMethodServiceEligibilityResponse);
 }
 
 // ======================================================================================

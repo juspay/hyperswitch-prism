@@ -2,7 +2,7 @@ use core::result::Result;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, str::FromStr};
 
 use crate::{
-    connector_flow::{CreatePaymentMethod, Eligibility, GetPaymentMethod, MandateRevoke, Recharge},
+    connector_flow::{CreatePaymentMethod, PaymentMethodEligibility, GetPaymentMethod, MandateRevoke, Recharge},
     connector_types::{
         self, CaptureSyncResponse, ConnectorEnum, CreatePaymentMethodData,
         CreatePaymentMethodResponseData, EligibilityStatus, GetPaymentMethodData,
@@ -4954,19 +4954,22 @@ impl
         };
 
         // Cart line items, when supplied.
-        let order_details = if value.order_details.is_empty() {
-            None
-        } else {
-            Some(
+        let order_details = (!value.order_details.is_empty())
+            .then(|| {
                 value
                     .order_details
                     .into_iter()
                     .map(OrderDetailsWithAmount::foreign_try_from)
-                    .collect::<Result<Vec<_>, _>>()?,
-            )
-        };
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+        let customer_info = value
+            .customer
+            .as_ref()
+            .map(CustomerInfo::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             merchant_id: merchant_id_from_header,
@@ -4981,9 +4984,15 @@ impl
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
+            l2_l3_data: customer_info.map(|ci| Box::new(L2L3Data {
+                customer_info: Some(ci),
+                ..Default::default()
+            })),
             description: None,
             return_url: None,
-            connector_feature_data: None,
+            connector_feature_data: value.connector_feature_data.map(|d|
+                ForeignTryFrom::foreign_try_from((d, "connector_feature_data"))
+            ).transpose()?,
             amount_captured: None,
             minor_amount_captured: None,
             minor_amount_capturable: None,
@@ -4994,7 +5003,7 @@ impl
             connector_order_id: None,
             preprocessing_id: None,
             connector_api_version: None,
-            test_mode: None,
+            test_mode: value.test_mode,
             connector_http_status_code: None,
             external_latency: None,
             connectors,
@@ -5007,7 +5016,6 @@ impl
             order_details,
             minor_amount_authorized: None,
             merchant_request_id: None,
-            l2_l3_data: None,
             sender_payment_instrument_id: None,
         })
     }
@@ -5352,15 +5360,13 @@ pub fn generate_create_order_response(
     Ok(response)
 }
 
-/// Maps the domain EligibilityStatus enum to the proto EligibilityStatus enum.
-fn map_eligibility_status(
-    status: EligibilityStatus,
-) -> grpc_api_types::payments::EligibilityStatus {
-    use grpc_api_types::payments::EligibilityStatus as ProtoStatus;
-    match status {
-        EligibilityStatus::Unspecified => ProtoStatus::Unspecified,
-        EligibilityStatus::Eligible => ProtoStatus::Eligible,
-        EligibilityStatus::Ineligible => ProtoStatus::Ineligible,
+impl ForeignFrom<EligibilityStatus> for grpc_api_types::payments::EligibilityStatus {
+    fn foreign_from(value: EligibilityStatus) -> Self {
+        match value {
+            EligibilityStatus::Unspecified => Self::Unspecified,
+            EligibilityStatus::Eligible => Self::Eligible,
+            EligibilityStatus::Ineligible => Self::Ineligible,
+        }
     }
 }
 
@@ -5368,20 +5374,48 @@ fn map_eligibility_status(
 /// Used by PaymentMethodService.Eligibility (new route).
 pub fn generate_payment_method_eligibility_response(
     router_data_v2: RouterDataV2<
-        Eligibility,
+        PaymentMethodEligibility,
         PaymentFlowData,
         PaymentMethodEligibilityData,
         PaymentMethodEligibilityResponse,
     >,
 ) -> Result<PaymentMethodServiceEligibilityResponse, error_stack::Report<ConnectorError>> {
+    use crate::connector_types::RawConnectorRequestResponse;
+    let response_headers = router_data_v2
+        .resource_common_data
+        .get_connector_response_headers_as_map();
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
     match router_data_v2.response {
         Ok(response) => Ok(PaymentMethodServiceEligibilityResponse {
-            eligibility: map_eligibility_status(response.eligibility) as i32,
+            eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(response.eligibility) as i32,
             status_code: response.status_code,
+            error_info: None,
+            raw_connector_request,
+            raw_connector_response,
+            response_headers,
         }),
         Err(err) => Ok(PaymentMethodServiceEligibilityResponse {
-            eligibility: map_eligibility_status(EligibilityStatus::Ineligible) as i32,
+            eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(EligibilityStatus::Ineligible) as i32,
             status_code: err.status_code as u32,
+            error_info: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(err.code.clone()),
+                    reason: err.reason.clone(),
+                    connector_transaction_id: err.connector_transaction_id.clone(),
+                    message: Some(err.message.clone()),
+                    status: None,
+                }),
+                issuer_details: None,
+            }),
+            raw_connector_request,
+            raw_connector_response,
+            response_headers,
         }),
     }
 }
@@ -5390,7 +5424,7 @@ pub fn generate_payment_method_eligibility_response(
 /// Delegates to generate_payment_method_eligibility_response.
 pub fn generate_eligibility_response(
     router_data_v2: RouterDataV2<
-        Eligibility,
+        PaymentMethodEligibility,
         PaymentFlowData,
         PaymentMethodEligibilityData,
         PaymentMethodEligibilityResponse,
@@ -7914,6 +7948,11 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
             .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
             .transpose()?;
 
+        let connector_feature_data = value
+            .connector_feature_data
+            .map(|d| ForeignTryFrom::foreign_try_from((d, "connector_feature_data")))
+            .transpose()?;
+
         Ok(Self {
             amount,
             currency,
@@ -7922,6 +7961,8 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
             payment_method_type,
             locale: value.locale,
             metadata,
+            connector_feature_data,
+            test_mode: value.test_mode,
         })
     }
 }
