@@ -7,9 +7,9 @@ use crate::{
     },
     connector_types::{
         self, CaptureSyncResponse, ConnectorEnum, CreatePaymentMethodData,
-        CreatePaymentMethodResponseData, GetPaymentMethodData,
-        GetPaymentMethodResponseData, PaymentMethodEligibilityData,
-        PaymentMethodEligibilityResponse, RechargeRequestData, RechargeResponseData,
+        CreatePaymentMethodResponseData, GetPaymentMethodData, GetPaymentMethodResponseData,
+        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, RechargeRequestData,
+        RechargeResponseData,
     },
     payment_method_data::SamsungPayWalletCredentials,
     utils::extract_connector_request_reference_id,
