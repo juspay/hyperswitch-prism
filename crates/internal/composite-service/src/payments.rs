@@ -231,7 +231,8 @@ struct AuthorizeCompositeState {
     authn_response_opt: Option<PaymentMethodAuthenticationServiceAuthenticateResponse>,
     post_authn_response_opt: Option<PaymentMethodAuthenticationServicePostAuthenticateResponse>,
     authorize_response_opt: Option<PaymentServiceAuthorizeResponse>,
-    verify_redirect_response_opt: Option<grpc_api_types::payments::PaymentServiceVerifyRedirectResponseResponse>,
+    verify_redirect_response_opt:
+        Option<grpc_api_types::payments::PaymentServiceVerifyRedirectResponseResponse>,
     completed_step: Option<AuthenticationStep>,
 }
 
@@ -737,10 +738,10 @@ where
 
         // Response construction - check if redirect occurred
         let has_redirection = state
-                .pre_auth_response_opt
-                .as_ref()
-                .map(|r| r.redirection_data.is_some())
-                .unwrap_or(false)
+            .pre_auth_response_opt
+            .as_ref()
+            .map(|r| r.redirection_data.is_some())
+            .unwrap_or(false)
             || state
                 .authn_response_opt
                 .as_ref()
@@ -1108,17 +1109,18 @@ where
             .as_ref()
             .and_then(|r| r.params.clone());
 
-        let verify_payload = grpc_api_types::payments::PaymentServiceVerifyRedirectResponseRequest {
-            merchant_order_id: payload.merchant_order_id.clone(),
-            request_details: Some(grpc_api_types::payments::RequestDetails {
-                method: grpc_api_types::payments::HttpMethod::Get.into(),
-                uri: None,
-                headers: Default::default(),
-                body: Default::default(),
-                query_params,
-            }),
-            redirect_response_secrets: None,
-        };
+        let verify_payload =
+            grpc_api_types::payments::PaymentServiceVerifyRedirectResponseRequest {
+                merchant_order_id: payload.merchant_order_id.clone(),
+                request_details: Some(grpc_api_types::payments::RequestDetails {
+                    method: grpc_api_types::payments::HttpMethod::Get.into(),
+                    uri: None,
+                    headers: Default::default(),
+                    body: Default::default(),
+                    query_params,
+                }),
+                redirect_response_secrets: None,
+            };
 
         let mut verify_request = tonic::Request::new(verify_payload);
         *verify_request.metadata_mut() = metadata.clone();

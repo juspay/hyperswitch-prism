@@ -4,10 +4,10 @@ use super::macros;
 use domain_types::{
     connector_flow::{Authenticate, Authorize, PSync, RSync, Refund},
     connector_types::{
-        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse,
-        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
-        RefundsResponseData, RequestDetails, WebhookDetailsResponse,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundsData, RefundsResponseData, RequestDetails, WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -31,6 +31,7 @@ use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 use error_stack::{report, ResultExt};
 use hyperswitch_masking::{Maskable, PeekInterface};
+use interfaces::connector_types::{AuthenticationStep, RedirectState};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -45,7 +46,6 @@ use transformers::{
     FlywireConfirmResponse, FlywirePayment as FlywirePSyncResponse,
     FlywirePayment as FlywireRSyncResponse, FlywireRefundRequest, FlywireRefundResponse,
 };
-use interfaces::connector_types::{AuthenticationStep, RedirectState};
 
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -82,7 +82,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthenticateV2<T> for Flywire<T>
 {
 }
-
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Flywire<T>

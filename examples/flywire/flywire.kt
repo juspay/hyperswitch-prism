@@ -10,6 +10,7 @@ package examples.flywire
 import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.PaymentMethodAuthenticationClient
 import payments.EventClient
 import payments.RefundClient
 import payments.AuthenticationType
@@ -24,7 +25,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.FlywireConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "create_order", "get", "parse_event", "proxy_authorize", "refund", "refund_get", "token_authorize")
+val SUPPORTED_FLOWS = listOf<String>("authenticate", "authorize", "get", "parse_event", "proxy_authorize", "refund", "refund_get", "token_authorize")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -150,6 +151,33 @@ fun processGetPayment(txnId: String, config: ConnectorConfig = _defaultConfig): 
     return mapOf("status" to getResponse.status.name, "transactionId" to getResponse.connectorTransactionId, "error" to getResponse.error)
 }
 
+// Flow: PaymentMethodAuthenticationService.Authenticate
+fun authenticate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentMethodAuthenticationClient(config)
+    val request = PaymentMethodAuthenticationServiceAuthenticateRequest.newBuilder().apply {
+        amountBuilder.apply {  // Amount Information.
+            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
+            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+        }
+        paymentMethodBuilder.apply {  // Payment Method.
+            cardBuilder.apply {  // Generic card payment.
+                cardNumberBuilder.value = "4111111111111111"  // Card Identification.
+                cardExpMonthBuilder.value = "03"
+                cardExpYearBuilder.value = "2030"
+                cardCvcBuilder.value = "737"
+                cardHolderNameBuilder.value = "John Doe"  // Cardholder Information.
+            }
+        }
+        addressBuilder.apply {  // Address Information.
+            billingAddressBuilder.apply {
+            }
+        }
+        returnUrl = "https://example.com/3ds-return"  // URLs for Redirection.
+    }.build()
+    val response = client.authenticate(request)
+    println("Status: ${response.status.name}")
+}
+
 // Flow: PaymentService.Authorize (Card)
 fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -160,20 +188,6 @@ fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
         "PENDING" -> println("Pending — await webhook before proceeding")
         else      -> println("Authorized: ${response.connectorTransactionId}")
     }
-}
-
-// Flow: PaymentService.CreateOrder
-fun createOrder(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = PaymentClient(config)
-    val request = PaymentServiceCreateOrderRequest.newBuilder().apply {
-        merchantOrderId = "probe_order_001"  // Identification.
-        amountBuilder.apply {  // Amount Information.
-            minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
-            currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    }.build()
-    val response = client.create_order(request)
-    println("Order: ${response.connectorOrderId}")
 }
 
 // Flow: PaymentService.Get
@@ -307,8 +321,8 @@ fun main(args: Array<String>) {
         "processCheckoutAutocapture" -> processCheckoutAutocapture(txnId)
         "processRefund" -> processRefund(txnId)
         "processGetPayment" -> processGetPayment(txnId)
+        "authenticate" -> authenticate(txnId)
         "authorize" -> authorize(txnId)
-        "createOrder" -> createOrder(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
         "parseEvent" -> parseEvent(txnId)
@@ -317,6 +331,6 @@ fun main(args: Array<String>) {
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "verifyRedirect" -> verifyRedirect(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processGetPayment, authorize, createOrder, get, handleEvent, parseEvent, proxyAuthorize, refund, refundGet, tokenAuthorize, verifyRedirect")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processGetPayment, authenticate, authorize, get, handleEvent, parseEvent, proxyAuthorize, refund, refundGet, tokenAuthorize, verifyRedirect")
     }
 }

@@ -8,11 +8,12 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import PaymentMethodAuthenticationClient
 from payments import EventClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "create_order", "get", "parse_event", "proxy_authorize", "refund", "refund_get", "token_authorize"]
+SUPPORTED_FLOWS = ["authenticate", "authorize", "get", "parse_event", "proxy_authorize", "refund", "refund_get", "token_authorize"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -28,6 +29,27 @@ _default_config = sdk_config_pb2.ConnectorConfig(
 
 
 
+
+def _build_authenticate_request():
+    return payment_pb2.PaymentMethodAuthenticationServiceAuthenticateRequest(
+        amount=payment_pb2.Money(  # Amount Information.
+            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
+            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+        ),
+        payment_method=payment_methods_pb2.PaymentMethod(  # Payment Method.
+            card=payment_methods_pb2.CardDetails(
+                card_number=payment_methods_pb2.CardNumberType(value="4111111111111111"),  # Card Identification.
+                card_exp_month=payment_methods_pb2.SecretString(value="03"),
+                card_exp_year=payment_methods_pb2.SecretString(value="2030"),
+                card_cvc=payment_methods_pb2.SecretString(value="737"),
+                card_holder_name=payment_methods_pb2.SecretString(value="John Doe"),  # Cardholder Information.
+            ),
+        ),
+        address=payment_pb2.PaymentAddress(  # Address Information.
+            billing_address=payment_pb2.Address(),
+        ),
+        return_url="https://example.com/3ds-return",  # URLs for Redirection.
+    )
 
 def _build_authorize_request(capture_method: str):
     return payment_pb2.PaymentServiceAuthorizeRequest(
@@ -52,15 +74,6 @@ def _build_authorize_request(capture_method: str):
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
         return_url="https://example.com/return",  # URLs for Redirection and Webhooks.
         connector_order_id="connector_order_id",  # Send the connector order identifier here if an order was created before authorize.
-    )
-
-def _build_create_order_request():
-    return payment_pb2.PaymentServiceCreateOrderRequest(
-        merchant_order_id="probe_order_001",  # Identification.
-        amount=payment_pb2.Money(  # Amount Information.
-            minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
-            currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
-        ),
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -207,6 +220,15 @@ async def process_get_payment(merchant_transaction_id: str, config: sdk_config_p
     return {"status": getattr(get_response, "status", ""), "transaction_id": getattr(get_response, "connector_transaction_id", ""), "error": getattr(get_response, "error", None)}
 
 
+async def process_authenticate(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: PaymentMethodAuthenticationService.Authenticate"""
+    paymentmethodauthentication_client = PaymentMethodAuthenticationClient(config)
+
+    authenticate_response = await paymentmethodauthentication_client.authenticate(_build_authenticate_request())
+
+    return {"status": authenticate_response.status}
+
+
 async def process_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
     """Flow: PaymentService.Authorize (Card)"""
     payment_client = PaymentClient(config)
@@ -214,15 +236,6 @@ async def process_authorize(merchant_transaction_id: str, config: sdk_config_pb2
     authorize_response = await payment_client.authorize(_build_authorize_request("AUTOMATIC"))
 
     return {"status": authorize_response.status, "transaction_id": authorize_response.connector_transaction_id}
-
-
-async def process_create_order(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
-    """Flow: PaymentService.CreateOrder"""
-    payment_client = PaymentClient(config)
-
-    create_response = await payment_client.create_order(_build_create_order_request())
-
-    return {"status": create_response.status}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

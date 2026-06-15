@@ -174,7 +174,12 @@ pub struct FlywireHostedForm {
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         FlywireRouterData<
-            RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authenticate,
+                PaymentFlowData,
+                PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for FlywireCheckoutSessionRequest
@@ -183,7 +188,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn try_from(
         item: FlywireRouterData<
-            RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authenticate,
+                PaymentFlowData,
+                PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -219,11 +229,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }],
             payor_id,
             external_reference: ucs_payment_id,
-            notifications_url: router_data.resource_common_data.connector_feature_data
+            notifications_url: router_data
+                .resource_common_data
+                .connector_feature_data
                 .as_ref()
                 .and_then(|v| {
                     use hyperswitch_masking::PeekInterface;
-                    v.peek().get("webhook_url").and_then(|u| u.as_str()).map(String::from)
+                    v.peek()
+                        .get("webhook_url")
+                        .and_then(|u| u.as_str())
+                        .map(String::from)
                 }),
             payor,
             enable_email_notifications: false,
@@ -287,7 +302,12 @@ fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<FlywireCheckoutSessionResponse, Self>>
-    for RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        Authenticate,
+        PaymentFlowData,
+        PaymentsAuthenticateData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 

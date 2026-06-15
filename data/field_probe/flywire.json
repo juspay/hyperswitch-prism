@@ -3,8 +3,36 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: authenticate flow for flywire"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "return_url": "https://example.com/3ds-return"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{\"type\":\"one_off\",\"schema\":\"cards\",\"charge_intent\":{\"mode\":\"one_off\"},\"recipient_id\":\"ZENDD\",\"recipient\":{\"fields\":[{\"id\":\"student_id\",\"value\":\"UCS_TEST\"},{\"id\":\"student_first_name\",\"value\":\"UCS\"},{\"id\":\"student_last_name\",\"value\":\"Test\"},{\"id\":\"student_email\",\"value\":\"ucs-test@example.com\"}]},\"items\":[{\"id\":\"default\",\"amount\":1000}],\"payor_id\":\"ucs_\",\"external_reference\":\"\",\"payor\":{},\"enable_email_notifications\":false}"
+        }
       }
     },
     "authorize": {
@@ -3218,24 +3246,8 @@
     },
     "create_order": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_order_id": "probe_order_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          }
-        },
-        "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-authentication-key": "probe_secret"
-          },
-          "body": "{\"type\":\"one_off\",\"schema\":\"cards\",\"charge_intent\":{\"mode\":\"one_off\"},\"recipient_id\":\"ZENDD\",\"recipient\":{\"fields\":[{\"id\":\"student_id\",\"value\":\"UCS_TEST\"},{\"id\":\"student_first_name\",\"value\":\"UCS\"},{\"id\":\"student_last_name\",\"value\":\"Test\"},{\"id\":\"student_email\",\"value\":\"ucs-test@example.com\"}]},\"items\":[{\"id\":\"default\",\"amount\":1000}],\"payor_id\":\"ucs_probe_order_001\",\"external_reference\":\"probe_order_001\",\"enable_email_notifications\":false}"
-        }
+        "status": "not_supported",
+        "error": "create_order flow not supported by flywire connector"
       }
     },
     "create_server_authentication_token": {
