@@ -18,8 +18,8 @@ use grpc_api_types::payments::{
     PaymentMethodServiceGetRequest, PaymentMethodServiceRechargeRequest,
     PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
     PaymentServiceCreateOrderResponse, PaymentServiceGetRequest, PaymentServiceRefundRequest,
-    PaymentServiceVerifyRedirectResponseResponse,
-    PaymentServiceVoidRequest, RefundServiceGetRequest,
+    PaymentServiceVerifyRedirectResponseResponse, PaymentServiceVoidRequest,
+    RefundServiceGetRequest,
 };
 
 use crate::utils::{
