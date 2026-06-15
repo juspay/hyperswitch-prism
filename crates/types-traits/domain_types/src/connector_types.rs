@@ -1392,16 +1392,9 @@ pub struct PaymentMethodEligibilityData {
     pub test_mode: Option<bool>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum EligibilityStatus {
-    #[default]
-    Ineligible,
-    Eligible,
-}
-
 #[derive(Debug, Clone)]
 pub struct PaymentMethodEligibilityResponse {
-    pub eligibility: EligibilityStatus,
+    pub eligibility: common_enums::EligibilityStatus,
     pub status_code: u32,
 }
 

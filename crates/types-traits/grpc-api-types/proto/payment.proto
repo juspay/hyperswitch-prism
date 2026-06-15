@@ -5068,10 +5068,10 @@ message PaymentMethodServiceEligibilityRequest {
   // Description for connector-rendered eligibility messaging.
   optional string description = 7;
 
-  // Additional connector-specific metadata (JSON blob).
+  // Additional metadata for the connector
   optional SecretString metadata = 8;
 
-  // Connector-specific feature data (JSON blob) for the transaction.
+  // Connector-specific feature data for the transaction.
   optional SecretString connector_feature_data = 9;
 
   // Sandbox/test mode flag (true for test environment).

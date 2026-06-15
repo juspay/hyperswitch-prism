@@ -4,11 +4,12 @@ use crate::connectors::tamara::TamaraRouterData;
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::{types::MinorUnit, Email};
+use common_enums::EligibilityStatus;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
-        EligibilityStatus, EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PaymentVoidData,
-        PaymentsAuthorizeData,
+        EventType, PaymentFlowData, PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse, PaymentVoidData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
@@ -809,35 +810,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             }
         ))?;
-        let email = customer
-            .customer_email
-            .clone()
-            .ok_or(error_stack::report!(
-                errors::IntegrationError::MissingRequiredField {
-                    field_name: "customer.email",
-                    context: errors::IntegrationErrorContext {
-                        additional_context: Some(
-                            "Customer email is required for Tamara eligibility check".to_string()
-                        ),
-                        ..Default::default()
-                    },
-                }
-            ))?;
-        let phone_number = customer
-            .customer_phone_number
-            .clone()
-            .ok_or(error_stack::report!(
-                errors::IntegrationError::MissingRequiredField {
-                    field_name: "customer.phone_number",
-                    context: errors::IntegrationErrorContext {
-                        additional_context: Some(
-                            "Customer phone number is required for Tamara eligibility check"
-                                .to_string()
-                        ),
-                        ..Default::default()
-                    },
-                }
-            ))?;
+        let email = customer.get_email()?;
+        let phone_number = customer.get_phone_number()?;
         // Prefer the explicit country on the request, otherwise derive it from
         // the billing/shipping address carried on the flow data.
         let country_code = data.country_code.map(|country| country.to_string()).or_else(|| {

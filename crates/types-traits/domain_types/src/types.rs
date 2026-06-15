@@ -7,7 +7,7 @@ use crate::{
     },
     connector_types::{
         self, CaptureSyncResponse, ConnectorEnum, CreatePaymentMethodData,
-        CreatePaymentMethodResponseData, EligibilityStatus, GetPaymentMethodData,
+        CreatePaymentMethodResponseData, GetPaymentMethodData,
         GetPaymentMethodResponseData, PaymentMethodEligibilityData,
         PaymentMethodEligibilityResponse, RechargeRequestData, RechargeResponseData,
     },
@@ -15,8 +15,8 @@ use crate::{
     utils::extract_connector_request_reference_id,
 };
 use common_enums::{
-    CaptureMethod, CardNetwork, CountryAlpha2, FutureUsage, PaymentMethod, PaymentMethodType,
-    SamsungPayCardBrand,
+    CaptureMethod, CardNetwork, CountryAlpha2, EligibilityStatus, FutureUsage, PaymentMethod,
+    PaymentMethodType, SamsungPayCardBrand,
 };
 use common_utils::config_patch::Patch;
 use common_utils::{
@@ -7914,15 +7914,7 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
 
         // Resolve fields read via prost accessors (which borrow all of `value`)
         // before moving any owned fields out of `value`.
-        let country_code = value.country();
-        let country = if matches!(
-            country_code,
-            grpc_api_types::payments::CountryAlpha2::Unspecified
-        ) {
-            None
-        } else {
-            Some(common_enums::CountryAlpha2::foreign_try_from(country_code)?)
-        };
+        let country = convert_optional_country_alpha2(value.country())?;
 
         let payment_method_type =
             <Option<PaymentMethodType>>::foreign_try_from(value.payment_method_type())?;
