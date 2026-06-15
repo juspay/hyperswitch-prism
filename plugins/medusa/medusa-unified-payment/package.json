@@ -1,5 +1,5 @@
 {
-  "name": "@juspay-tech/medusa-unified-payment",
+  "name": "medusa-unified-payment-test",
   "version": "0.0.1",
   "description": "Unified payment provider for Medusa v2",
   "main": "dist/index.js",
