@@ -2646,6 +2646,9 @@ message PaymentServiceRefundRequest {
 
   // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
   optional PaymentMethod payment_method = 19;
+
+  // Split refund data for platform fee reversals and transfers
+  optional SplitRefundsRequest split_refunds = 20;
 }
 
 // Response message for a refund operation (unified for both Create and Get)
@@ -4986,4 +4989,81 @@ message PaymentServiceProxySetupRecurringRequest {
   // Order Details
   optional string order_category = 16; // Category of the order/service
   optional string description = 17; // Description of the mandate setup
+}
+
+// ============================================================================
+// SPLIT REFUND TYPES
+// ============================================================================
+
+// Request for split refunds (platform fee reversals, transfers, etc.)
+message SplitRefundsRequest {
+  oneof split_refund_type {
+    StripeSplitRefund stripe_split_refund = 1;
+    AdyenSplitData adyen_split_refund = 2;
+  }
+}
+
+// Stripe-specific split refund data
+message StripeSplitRefund {
+  string charge_id = 1;
+  string transfer_account_id = 2;
+  PaymentChargeType charge_type = 3;
+  ChargeRefundsOptions options = 4;
+}
+
+// Type of charge for Stripe split refunds
+enum PaymentChargeType {
+  PAYMENT_CHARGE_TYPE_UNSPECIFIED = 0;
+  STRIPE_DIRECT = 1;
+  STRIPE_DESTINATION = 2;
+}
+
+// Options for charge refunds (destination vs direct)
+message ChargeRefundsOptions {
+  oneof option {
+    DestinationChargeRefund destination = 1;
+    DirectChargeRefund direct = 2;
+  }
+}
+
+// Destination charge refund options
+message DestinationChargeRefund {
+  bool revert_platform_fee = 1;
+  bool revert_transfer = 2;
+}
+
+// Direct charge refund options
+message DirectChargeRefund {
+  bool revert_platform_fee = 1;
+}
+
+// Adyen-specific split refund data
+message AdyenSplitData {
+  optional string store = 1;
+  repeated AdyenSplitItem split_items = 2;
+}
+
+// Individual split item for Adyen
+message AdyenSplitItem {
+  optional int64 amount = 1;
+  AdyenSplitType split_type = 2;
+  optional string account = 3;
+  string reference = 4;
+  optional string description = 5;
+}
+
+// Adyen split type enumeration
+enum AdyenSplitType {
+  ADYEN_SPLIT_TYPE_UNSPECIFIED = 0;
+  BALANCE_ACCOUNT = 1;
+  ACQUIRING_FEES = 2;
+  PAYMENT_FEE = 3;
+  ADYEN_FEES = 4;
+  ADYEN_COMMISSION = 5;
+  ADYEN_MARKUP = 6;
+  INTERCHANGE = 7;
+  SCHEME_FEE = 8;
+  COMMISSION = 9;
+  TOP_UP = 10;
+  VAT = 11;
 }

@@ -492,7 +492,7 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
         state: None,
         payment_method_type: None,
         customer_id: Some("TEST_CONNECTOR".to_string()),
-
+        split_refunds: None,
         merchant_request_id: None,
         connector_order_id: None,
         payment_method: None,
