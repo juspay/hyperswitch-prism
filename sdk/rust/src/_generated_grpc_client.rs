@@ -289,12 +289,6 @@ impl_grpc_client!(
         PaymentMethodServiceGetResponse
     ),
     (
-        eligibility,
-        eligibility,
-        PayoutMethodEligibilityRequest,
-        PayoutMethodEligibilityResponse
-    ),
-    (
         recharge,
         recharge,
         PaymentMethodServiceRechargeRequest,
@@ -438,6 +432,12 @@ impl_grpc_client!(
         enroll_disburse_account,
         PayoutServiceEnrollDisburseAccountRequest,
         PayoutServiceEnrollDisburseAccountResponse
+    ),
+    (
+        eligibility,
+        eligibility,
+        PayoutMethodEligibilityRequest,
+        PayoutMethodEligibilityResponse
     ),
 );
 

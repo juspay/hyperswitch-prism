@@ -35,8 +35,8 @@ use crate::{
     },
     router_response_types::RedirectForm,
     types::{
-        ConnectorInfo, Connectors, PaymentMethodDataType, PaymentMethodDetails,
-        PaymentMethodTypeMetadata, SupportedPaymentMethods,
+        AdditionalPaymentData, ConnectorInfo, Connectors, PaymentMethodDataType,
+        PaymentMethodDetails, PaymentMethodTypeMetadata, SupportedPaymentMethods,
     },
     utils::{missing_field_err, Error, ForeignTryFrom},
 };
@@ -190,6 +190,8 @@ pub enum PayoutConnectorEnum {
     Loonio,
     Paypal,
     Itaubank,
+    Worldpayxml,
+    Cybersource,
 }
 
 impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
@@ -200,6 +202,8 @@ impl TryFrom<ConnectorEnum> for PayoutConnectorEnum {
             ConnectorEnum::Loonio => Ok(Self::Loonio),
             ConnectorEnum::Paypal => Ok(Self::Paypal),
             ConnectorEnum::Itaubank => Ok(Self::Itaubank),
+            ConnectorEnum::Worldpayxml => Ok(Self::Worldpayxml),
+            ConnectorEnum::Cybersource => Ok(Self::Cybersource),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "connector",
                 context: IntegrationErrorContext::default(),
@@ -237,6 +241,8 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
             AuthType::Paypal(_) => Ok(Self::Paypal),
             AuthType::Loonio(_) => Ok(Self::Loonio),
             AuthType::Itaubank(_) => Ok(Self::Itaubank),
+            AuthType::Worldpayxml(_) => Ok(Self::Worldpayxml),
+            AuthType::Cybersource(_) => Ok(Self::Cybersource),
             _ => Err(error_stack::Report::new(
                 IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -1732,6 +1738,8 @@ pub enum PaymentsResponseData {
         redirection_data: Option<Box<RedirectForm>>,
         /// For frictionles flow
         authentication_data: Option<router_request_types::AuthenticationData>,
+        /// Connector specific feature data (e.g. cybersource 3DS data) surfaced to HS RouterData
+        connector_feature_data: Option<serde_json::Value>,
         connector_response_reference_id: Option<String>,
         status_code: u16,
     },
@@ -1997,6 +2005,7 @@ pub struct ClientAuthenticationTokenRequestData {
     pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
     pub email: Option<Email>,
     pub customer_name: Option<Secret<String>>,
+    pub customer_id: Option<CustomerId>,
     pub order_tax_amount: Option<MinorUnit>,
     pub shipping_cost: Option<MinorUnit>,
     /// The specific payment method type for which the session token is being generated
@@ -2078,6 +2087,8 @@ pub struct ServerSessionAuthenticationTokenRequestData {
     pub amount: MinorUnit,
     pub currency: Currency,
     pub browser_info: Option<BrowserInformation>,
+    pub customer_id: Option<common_utils::id_type::CustomerId>,
+    pub address: Option<payment_address::PaymentAddress>,
 }
 
 impl ServerSessionAuthenticationTokenRequestData {
@@ -2085,6 +2096,140 @@ impl ServerSessionAuthenticationTokenRequestData {
         self.browser_info
             .clone()
             .ok_or_else(missing_field_err("browser_info"))
+    }
+
+    pub fn get_customer_id(&self) -> Result<common_utils::id_type::CustomerId, Error> {
+        self.customer_id
+            .clone()
+            .ok_or_else(missing_field_err("customer_id"))
+    }
+
+    pub fn get_optional_billing(&self) -> Option<&payment_address::Address> {
+        self.address
+            .as_ref()
+            .and_then(|addr| addr.get_payment_method_billing())
+    }
+
+    pub fn get_optional_billing_first_name(&self) -> Option<Secret<String>> {
+        self.get_optional_billing().and_then(|billing_address| {
+            billing_address
+                .clone()
+                .address
+                .and_then(|billing_details| billing_details.first_name)
+        })
+    }
+
+    pub fn get_optional_billing_last_name(&self) -> Option<Secret<String>> {
+        self.get_optional_billing().and_then(|billing_address| {
+            billing_address
+                .clone()
+                .address
+                .and_then(|billing_details| billing_details.last_name)
+        })
+    }
+
+    pub fn get_optional_billing_phone_number(&self) -> Option<Secret<String>> {
+        self.get_optional_billing().and_then(|billing_address| {
+            billing_address
+                .clone()
+                .phone
+                .and_then(|phone_data| phone_data.number)
+        })
+    }
+
+    pub fn get_optional_billing_email(&self) -> Option<Email> {
+        self.get_optional_billing()
+            .and_then(|billing_address| billing_address.clone().email)
+    }
+
+    pub fn get_optional_shipping(&self) -> Option<&payment_address::Address> {
+        self.address.as_ref().and_then(|addr| addr.get_shipping())
+    }
+
+    pub fn get_optional_shipping_first_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.first_name)
+        })
+    }
+
+    pub fn get_optional_shipping_last_name(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.last_name)
+        })
+    }
+
+    pub fn get_optional_shipping_line1(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.line1)
+        })
+    }
+
+    pub fn get_optional_shipping_line2(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.line2)
+        })
+    }
+
+    pub fn get_optional_shipping_city(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.city)
+        })
+    }
+
+    pub fn get_optional_shipping_state(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.state)
+        })
+    }
+
+    pub fn get_optional_shipping_country(&self) -> Option<common_enums::CountryAlpha2> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.country)
+        })
+    }
+
+    pub fn get_optional_shipping_zip(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .address
+                .and_then(|shipping_details| shipping_details.zip)
+        })
+    }
+
+    pub fn get_optional_shipping_phone_number(&self) -> Option<Secret<String>> {
+        self.get_optional_shipping().and_then(|shipping_address| {
+            shipping_address
+                .clone()
+                .phone
+                .and_then(|phone_data| phone_data.number)
+        })
+    }
+
+    pub fn get_optional_shipping_email(&self) -> Option<Email> {
+        self.get_optional_shipping()
+            .and_then(|shipping_address| shipping_address.clone().email)
     }
 }
 
@@ -2947,6 +3092,7 @@ pub struct PaymentsCaptureData {
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<SecretSerdeValue>,
     pub merchant_order_id: Option<String>,
+    pub order_tax_amount: Option<MinorUnit>,
 }
 
 impl PaymentsCaptureData {
@@ -3102,6 +3248,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub connector_testing_data: Option<SecretSerdeValue>,
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_configured_currency: Option<Currency>,
+    pub additional_payment_data: Option<AdditionalPaymentData>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {

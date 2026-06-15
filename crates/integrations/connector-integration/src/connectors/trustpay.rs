@@ -20,6 +20,7 @@ use domain_types::{
         RequestDetails, ResponseId, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData, SetupMandateRequestData, WebhookDetailsResponse,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -379,7 +380,7 @@ macros::create_all_prerequisites!(
             flow: ServerAuthenticationToken,
             request_body: TrustpayAuthUpdateRequest,
             response_body: TrustpayAuthUpdateResponse,
-            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         (
             flow: CreateOrder,
@@ -538,6 +539,13 @@ macros::create_all_prerequisites!(
             headers::X_API_KEY.to_string(),
             auth.api_key.into_masked(),
         )])
+        }
+
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.trustpay.base_url_bank_redirects
         }
     }
 );
@@ -749,7 +757,7 @@ macros::macro_connector_implementation!(
     curl_request: FormUrlEncoded(TrustpayAuthUpdateRequest),
     curl_response: TrustpayAuthUpdateResponse,
     flow_name: ServerAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerAuthenticationTokenRequestData,
     flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
@@ -758,7 +766,7 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = trustpay::TrustpayAuthType::try_from(&req.connector_config)
             .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -782,11 +790,11 @@ macros::macro_connector_implementation!(
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
             "{}{}",
-            self.connector_base_url_bank_redirects_payments(req), "api/oauth2/token"
+            self.connector_base_url_merchant_auth(req), "api/oauth2/token"
         ))
         }
     }

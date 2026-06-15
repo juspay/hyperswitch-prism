@@ -18,6 +18,7 @@ use domain_types::{
         RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         ApplePayWalletData, BankRedirectData, Card, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, WalletData,
@@ -957,7 +958,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         NexinetsRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -970,7 +971,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: NexinetsRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -1006,7 +1007,7 @@ pub struct NexinetsClientAuthResponse {
 impl TryFrom<ResponseRouterData<NexinetsClientAuthResponse, Self>>
     for RouterDataV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     >

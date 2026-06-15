@@ -19,6 +19,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.15.0
+
+### Features
+
+- **composite:** Add verify redirect response flow ([#1498](https://github.com/juspay/connector-service/pull/1498)) ([`1ce96f1`](https://github.com/juspay/connector-service/commit/1ce96f15870a13f7d5d50163758bc30b3eebfe0f))
+- **framework:** Moved eligibility flow in payout service ([#1506](https://github.com/juspay/connector-service/pull/1506)) ([`10c4a9a`](https://github.com/juspay/connector-service/commit/10c4a9ab64d81a913999f2e5ff60d3199e4d6704))
+
+**Full Changelog:** [`2026.06.12.2...2026.06.15.0`](https://github.com/juspay/connector-service/compare/2026.06.12.2...2026.06.15.0)
+
+- - -
+
+## 2026.06.12.2
+
+### Features
+
+- **connector:** [Fiservcommercehub] [CARDS] Setup mandate & manual capture ([#1144](https://github.com/juspay/connector-service/pull/1144)) ([`445100a`](https://github.com/juspay/connector-service/commit/445100a12006e00b9333230158af99b74d0d2794))
+
+**Full Changelog:** [`2026.06.12.1...2026.06.12.2`](https://github.com/juspay/connector-service/compare/2026.06.12.1...2026.06.12.2)
+
+- - -
+
+## 2026.06.12.1
+
+### Features
+
+- **connector:** Add payout flows for worldpay wpg and cybersource ([#1357](https://github.com/juspay/connector-service/pull/1357)) ([`821234b`](https://github.com/juspay/connector-service/commit/821234b158ca4746aa67ad90e874842136f62ccd))
+
+### Bug Fixes
+
+- **finix:** Capture RouterData diffs vs hyperswitch (shadow validation) ([#1499](https://github.com/juspay/connector-service/pull/1499)) ([`4cf2bce`](https://github.com/juspay/connector-service/commit/4cf2bce1e8ec414ad3ed46d011d9530bbdffd5f1))
+
+**Full Changelog:** [`2026.06.12.0...2026.06.12.1`](https://github.com/juspay/connector-service/compare/2026.06.12.0...2026.06.12.1)
+
+- - -
+
+## 2026.06.12.0
+
+### Bug Fixes
+
+- **connector:** Fix qwikcilver superposition url patch ([#1504](https://github.com/juspay/connector-service/pull/1504)) ([`10815eb`](https://github.com/juspay/connector-service/commit/10815eb4cc8633d442d70133c285ca182135801e))
+
+**Full Changelog:** [`2026.06.11.1...2026.06.12.0`](https://github.com/juspay/connector-service/compare/2026.06.11.1...2026.06.12.0)
+
+- - -
+
+## 2026.06.11.1
+
+### Features
+
+- **connector:** Adds new connector Qwikcilver(PineLabs) ([#1474](https://github.com/juspay/connector-service/pull/1474)) ([`6ff0923`](https://github.com/juspay/connector-service/commit/6ff0923542b413744c509bf9afb42244540e54e7))
+- **coverage-report:** Add test-pass coverage mode from grpc CI reports ([#1489](https://github.com/juspay/connector-service/pull/1489)) ([`549ae03`](https://github.com/juspay/connector-service/commit/549ae03585208b5ffa8ba139069c08e79a2fd98b))
+- **framework:** Introduced merchant authentication flow data ([#1460](https://github.com/juspay/connector-service/pull/1460)) ([`919cecc`](https://github.com/juspay/connector-service/commit/919cecc41937ac358f99a8a6ca1b7e6bf7effd2c))
+- **ucs:** Expose capture order tax amount ([#1490](https://github.com/juspay/connector-service/pull/1490)) ([`640fba7`](https://github.com/juspay/connector-service/commit/640fba7ef58ccd320f5b72c050ca4795b353a3e3))
+
+### Bug Fixes
+
+- **connector:** Shadow-validation parity batch (nmi, finix, cybersource) ([#1479](https://github.com/juspay/connector-service/pull/1479)) ([`d2a6057`](https://github.com/juspay/connector-service/commit/d2a6057af3c45a40f4b19b7c9188f02f809905c3))
+
+**Full Changelog:** [`2026.06.11.0...2026.06.11.1`](https://github.com/juspay/connector-service/compare/2026.06.11.0...2026.06.11.1)
+
+- - -
+
 ## 2026.06.11.0
 
 ### Features

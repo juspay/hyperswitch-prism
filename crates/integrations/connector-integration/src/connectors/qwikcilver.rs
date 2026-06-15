@@ -23,6 +23,7 @@ use domain_types::{
         ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -123,7 +124,7 @@ macros::create_all_prerequisites!(
             flow: ServerAuthenticationToken,
             request_body: QwikcilverAuthorizeRequest,
             response_body: QwikcilverAuthorizeResponse,
-            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         (
             flow: Authorize,
@@ -226,6 +227,12 @@ macros::create_all_prerequisites!(
         ) -> &'a str {
             &req.resource_common_data.connectors.qwikcilver.base_url
         }
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.qwikcilver.base_url
+        }
     }
 );
 
@@ -311,7 +318,7 @@ macros::macro_connector_implementation!(
     curl_request: Json(QwikcilverAuthorizeRequest),
     curl_response: QwikcilverAuthorizeResponse,
     flow_name: ServerAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerAuthenticationTokenRequestData,
     flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
@@ -320,18 +327,18 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}{}",
-                self.connector_base_url_payments(req),
+                self.connector_base_url_merchant_auth(req),
                 "Qwikcilver/eGMS.RestApi/api/v2/authorize"
             ))
         }
 
         fn get_headers(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut headers = vec![(
                 headers::CONTENT_TYPE.to_string(),

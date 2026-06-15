@@ -580,3 +580,96 @@ fn collect_values_by_removing_signature(value: &Value, signature: &str) -> Vec<S
             .collect(),
     }
 }
+
+pub fn build_card_holder_name(
+    explicit_name: &Option<Secret<String>>,
+    billing_first_name: Option<Secret<String>>,
+    billing_last_name: Option<Secret<String>>,
+) -> Option<Secret<String>> {
+    explicit_name.clone().or_else(|| {
+        let first = billing_first_name.map(|n| n.expose()).unwrap_or_default();
+        let last = billing_last_name.map(|n| n.expose()).unwrap_or_default();
+        let full = format!("{first} {last}").trim().to_string();
+        if full.is_empty() {
+            None
+        } else {
+            Some(Secret::new(full))
+        }
+    })
+}
+
+pub fn pad_expiry_year_to_four_digits(year: &Secret<String>) -> Secret<String> {
+    let y = year.peek();
+    if y.len() == 2 {
+        Secret::new(format!("20{y}"))
+    } else {
+        Secret::new(y.clone())
+    }
+}
+
+/// Used by CyberSource and connectors that run on the same backend (e.g. Wells Fargo).
+pub trait CardTypeCode {
+    fn type_code(&self) -> Option<&'static str>;
+}
+
+impl CardTypeCode for domain_types::utils::CardIssuer {
+    fn type_code(&self) -> Option<&'static str> {
+        Some(match self {
+            Self::AmericanExpress => "003",
+            Self::Master => "002",
+            Self::Maestro => "042",
+            Self::Visa => "001",
+            Self::Discover => "004",
+            Self::DinersClub => "005",
+            Self::CarteBlanche => "006",
+            Self::JCB => "007",
+            Self::CartesBancaires => "036",
+            Self::UnionPay => "062",
+        })
+    }
+}
+
+impl CardTypeCode for common_enums::CardNetwork {
+    fn type_code(&self) -> Option<&'static str> {
+        match self {
+            Self::Visa => Some("001"),
+            Self::Mastercard => Some("002"),
+            Self::AmericanExpress => Some("003"),
+            Self::Discover => Some("004"),
+            Self::DinersClub => Some("005"),
+            Self::JCB => Some("007"),
+            Self::Maestro => Some("042"),
+            Self::CartesBancaires => Some("036"),
+            Self::UnionPay => Some("062"),
+            _ => None,
+        }
+    }
+}
+
+pub fn truncate_secret_string(value: &Secret<String>, max_len: usize) -> Secret<String> {
+    let s = value.peek();
+    if s.len() > max_len {
+        Secret::new(s.chars().take(max_len).collect())
+    } else {
+        Secret::new(s.clone())
+    }
+}
+
+pub fn build_error_response(
+    code: String,
+    message: String,
+    status_code: u16,
+    connector_transaction_id: Option<String>,
+) -> ErrorResponse {
+    ErrorResponse {
+        code,
+        message: message.clone(),
+        reason: Some(message),
+        status_code,
+        attempt_status: None,
+        connector_transaction_id,
+        network_decline_code: None,
+        network_advice_code: None,
+        network_error_message: None,
+    }
+}

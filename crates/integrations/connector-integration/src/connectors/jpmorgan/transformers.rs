@@ -16,6 +16,7 @@ use domain_types::{
         RefundsResponseData, RepeatPaymentData, ResponseId, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -118,7 +119,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         JpmorganRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -131,7 +132,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _item: JpmorganRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -148,7 +149,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<responses::JpmorganAuthUpdateResponse, Self>>
     for RouterDataV2<
         F,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
     >
@@ -1082,7 +1083,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         JpmorganRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -1095,7 +1096,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: JpmorganRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -1122,7 +1123,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<responses::JpmorganClientAuthResponse, Self>>
     for RouterDataV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     >

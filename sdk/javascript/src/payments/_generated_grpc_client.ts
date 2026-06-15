@@ -118,6 +118,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   NetworkTokenWithNTI: ["tokenExpMonth", "tokenExpYear"],
   TaxInfo: ["customerTaxRegistrationId", "merchantTaxRegistrationId"],
   NmiData: ["publicKey"],
+  AdditionalCardInfo: ["cardExpMonth", "cardExpYear", "cardHolderName"],
   CustomerInfo: ["customerName", "customerEmail", "customerPhoneNumber", "customerBankId", "customerBankName"],
   AdyenClientAuthenticationResponse: ["sessionData"],
   CheckoutClientAuthenticationResponse: ["paymentSessionToken", "paymentSessionSecret"],
@@ -354,6 +355,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   NotifyConnectorResponse: { "error": "ErrorInfo" },
   EventAckResponse: { "headers": "HeadersEntry" },
   EventContent: { "paymentsResponse": "PaymentServiceGetResponse", "refundsResponse": "RefundResponse", "disputesResponse": "DisputeResponse" },
+  AdditionalPaymentData: { "card": "AdditionalCardInfo" },
   InteracCustomerInfo: { "customerInfo": "CustomerInfo" },
   BankRedirectConnectorResponse: { "interac": "InteracCustomerInfo" },
   AdditionalPaymentMethodConnectorResponse: { "card": "CardConnectorResponse", "upi": "UpiConnectorResponse", "googlePay": "GooglePayConnectorResponse", "applePay": "ApplePayConnectorResponse", "bankRedirect": "BankRedirectConnectorResponse" },
@@ -382,13 +384,13 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentServiceReverseResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse: { "error": "ErrorInfo" },
   MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest: { "state": "ConnectorState", "payment": "PaymentSessionContext" },
-  PaymentSessionContext: { "amount": "Money", "browserInfo": "BrowserInformation" },
+  PaymentSessionContext: { "amount": "Money", "browserInfo": "BrowserInformation", "customer": "Customer", "address": "PaymentAddress" },
   MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse: { "error": "ErrorInfo" },
   MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest: { "payment": "PaymentClientAuthenticationContext", "permissions": "Permissions" },
   PaymentClientAuthenticationContext: { "amount": "Money", "customer": "Customer" },
   MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse: { "sessionData": "ClientAuthenticationTokenData", "error": "ErrorInfo" },
-  PaymentServiceCaptureRequest: { "amountToCapture": "Money", "multipleCaptureData": "MultipleCaptureRequestData", "browserInfo": "BrowserInformation", "state": "ConnectorState" },
-  PaymentServiceCaptureResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState", "mandateReference": "MandateReference" },
+  PaymentServiceCaptureRequest: { "amountToCapture": "Money", "multipleCaptureData": "MultipleCaptureRequestData", "browserInfo": "BrowserInformation", "state": "ConnectorState", "orderTaxAmount": "Money" },
+  PaymentServiceCaptureResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState", "mandateReference": "MandateReference", "connectorResponse": "ConnectorResponseData" },
   PaymentServiceCreateOrderRequest: { "amount": "Money", "state": "ConnectorState" },
   PaymentServiceCreateOrderResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "sessionData": "ClientAuthenticationTokenData" },
   PaymentServiceRefundRequest: { "refundAmount": "Money", "browserInfo": "BrowserInformation", "state": "ConnectorState", "paymentMethod": "PaymentMethod" },
@@ -397,7 +399,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   DisputeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "disputeAmount": "Money", "evidenceDocuments": "EvidenceDocument" },
   PaymentServiceSetupRecurringRequest: { "amount": "Money", "paymentMethod": "PaymentMethod", "customer": "Customer", "address": "PaymentAddress", "authenticationData": "AuthenticationData", "customerAcceptance": "CustomerAcceptance", "browserInfo": "BrowserInformation", "billingDescriptor": "BillingDescriptor", "state": "ConnectorState", "l2L3Data": "L2L3Data", "setupMandateDetails": "SetupMandateDetails" },
   PaymentServiceSetupRecurringResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "mandateReference": "MandateReference", "redirectionData": "RedirectForm", "connectorResponse": "ConnectorResponseData", "state": "ConnectorState" },
-  RecurringPaymentServiceChargeRequest: { "connectorRecurringPaymentId": "MandateReference", "amount": "Money", "paymentMethod": "PaymentMethod", "address": "PaymentAddress", "browserInfo": "BrowserInformation", "state": "ConnectorState", "originalPaymentAuthorizedAmount": "Money", "billingDescriptor": "BillingDescriptor", "authenticationData": "AuthenticationData", "customer": "Customer", "l2L3Data": "L2L3Data", "customerDocumentDetails": "CustomerDocumentDetails" },
+  RecurringPaymentServiceChargeRequest: { "connectorRecurringPaymentId": "MandateReference", "amount": "Money", "paymentMethod": "PaymentMethod", "address": "PaymentAddress", "browserInfo": "BrowserInformation", "state": "ConnectorState", "originalPaymentAuthorizedAmount": "Money", "billingDescriptor": "BillingDescriptor", "authenticationData": "AuthenticationData", "customer": "Customer", "l2L3Data": "L2L3Data", "customerDocumentDetails": "CustomerDocumentDetails", "additionalPaymentData": "AdditionalPaymentData" },
   RecurringPaymentServiceChargeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "mandateReference": "MandateReference", "state": "ConnectorState", "connectorResponse": "ConnectorResponseData" },
   RecurringPaymentServiceRevokeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   PaymentMethodAuthenticationServicePreAuthenticateRequest: { "amount": "Money", "paymentMethod": "PaymentMethod", "customer": "Customer", "address": "PaymentAddress", "browserInfo": "BrowserInformation", "state": "ConnectorState" },
@@ -655,11 +657,6 @@ export class GrpcPaymentMethodClient {
     return callGrpc(this.ffi, this.config, "payment_method/payment_method_get",
       req, types.PaymentMethodServiceGetRequest, types.PaymentMethodServiceGetResponse);
   }
-  /** PaymentMethodService.Eligibility — Check if the payout method is eligible for the transaction */
-  async eligibility(req: unknown): Promise<unknown> {
-    return callGrpc(this.ffi, this.config, "payment_method/eligibility",
-      req, types.PayoutMethodEligibilityRequest, types.PayoutMethodEligibilityResponse);
-  }
   /** PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds. */
   async recharge(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "payment_method/recharge",
@@ -786,6 +783,11 @@ export class GrpcPayoutClient {
   async enrollDisburseAccount(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "payout/enroll_disburse_account",
       req, types.PayoutServiceEnrollDisburseAccountRequest, types.PayoutServiceEnrollDisburseAccountResponse);
+  }
+  /** PayoutService.Eligibility — Check if the payout method is eligible for the transaction */
+  async eligibility(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payout/eligibility",
+      req, types.PayoutMethodEligibilityRequest, types.PayoutMethodEligibilityResponse);
   }
 }
 
