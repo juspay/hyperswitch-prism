@@ -76,8 +76,6 @@ use grpc_api_types::payments::{
     PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest,
     PaymentServiceVoidResponse,
-    PayoutMethodEligibilityRequest,
-    PayoutMethodEligibilityResponse,
     PayoutServiceCreateLinkRequest,
     PayoutServiceCreateLinkResponse,
     PayoutServiceCreateRecipientRequest,
