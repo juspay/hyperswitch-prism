@@ -1455,6 +1455,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
     pub continue_redirection_url: Option<Url>,
     pub tokenization: Option<common_enums::Tokenization>,
+    /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
+    pub partner_merchant_identifier_details:
+        Option<grpc_api_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {

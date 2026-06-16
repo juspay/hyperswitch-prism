@@ -2938,6 +2938,9 @@ pub struct AuthorizationRequest {
     /// `PaymentFlowData::connector_order_id` so the Authorize TryFrom can
     /// attach the payment to the right pre-existing order.
     pub connector_order_id: Option<String>,
+    /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
+    pub partner_merchant_identifier_details:
+        Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3030,6 +3033,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             payment_method_token: None,
             merchant_request_id: req.merchant_request_id,
             connector_order_id: req.connector_order_id,
+            partner_merchant_identifier_details: req.partner_merchant_identifier_details,
         }
     }
 }
@@ -3094,6 +3098,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             payment_method_token: None,
             merchant_request_id: None,
             connector_order_id: None,
+            partner_merchant_identifier_details: None,
         }
     }
 }
@@ -3721,6 +3726,7 @@ impl<
                 connector_types::ThreeDsCompletionIndicator::foreign_try_from(i).ok()
             }),
             tokenization,
+            partner_merchant_identifier_details: value.partner_merchant_identifier_details,
         })
     }
 }
@@ -14335,6 +14341,7 @@ pub fn tokenized_authorize_to_base(
         threeds_completion_indicator: None,
         tokenization_strategy: None,
         merchant_request_id: None,
+        partner_merchant_identifier_details: None,
     }
 }
 
@@ -14506,6 +14513,7 @@ pub fn proxied_authorize_to_base(
         statement_descriptor_suffix: None,
         tokenization_strategy: None,
         merchant_request_id: None,
+        partner_merchant_identifier_details: None,
     })
 }
 
