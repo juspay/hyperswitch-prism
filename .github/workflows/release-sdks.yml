@@ -76,8 +76,15 @@ on:
       NPM_TOKEN:
         required: true
 
+# Key this group to a literal that identifies *this* workflow, not
+# ${{ github.workflow }}. When release-sdks is reached via `uses:` (e.g. from
+# release-stable-version), github.workflow resolves to the *caller's* name, so a
+# github.workflow-based group collides with the caller's own group — the parent
+# holds the slot and the called workflow can never acquire it, which GitHub
+# reports as a concurrency deadlock. A self-identifying literal still serializes
+# direct dispatches of this workflow on the same ref, without colliding with any caller.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: release-sdks-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
