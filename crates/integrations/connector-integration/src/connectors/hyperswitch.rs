@@ -12,22 +12,13 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{
-        Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, RepeatPayment,
-        ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, Void,
-    },
+    connector_flow::{PSync, RepeatPayment},
     connector_types::{
-        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
-        RefundsResponseData, RepeatPaymentData, RequestDetails,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentsResponseData,
+        PaymentsSyncData, RepeatPaymentData, RequestDetails, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
-    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -42,14 +33,8 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as hyperswitch, HyperswitchAccessTokenRequest, HyperswitchAccessTokenResponse,
-    HyperswitchCaptureRequest, HyperswitchCaptureResponse, HyperswitchErrorResponse,
-    HyperswitchPSyncResponse, HyperswitchPaymentsRequest, HyperswitchPaymentsResponse,
-    HyperswitchRSyncResponse, HyperswitchRefundRequest, HyperswitchRefundResponse,
-    HyperswitchRepeatPaymentRequest, HyperswitchRepeatPaymentResponse, HyperswitchSessionRequest,
-    HyperswitchSessionResponse, HyperswitchSetupMandateRequest, HyperswitchSetupMandateResponse,
-    HyperswitchTokenResponse, HyperswitchTokenizationRequest, HyperswitchVoidRequest,
-    HyperswitchVoidResponse,
+    self as hyperswitch, HyperswitchErrorResponse, HyperswitchPSyncResponse,
+    HyperswitchRepeatPaymentRequest, HyperswitchRepeatPaymentResponse,
 };
 
 use super::macros;
@@ -72,47 +57,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthorizeV2<T> for Hyperswitch<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Hyperswitch<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentCapture for Hyperswitch<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidV2 for Hyperswitch<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RefundV2 for Hyperswitch<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RefundSyncV2 for Hyperswitch<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SetupMandateV2<T> for Hyperswitch<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Hyperswitch<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Hyperswitch<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Hyperswitch<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Hyperswitch<T>
 {
 }
 
@@ -123,68 +72,15 @@ macros::create_all_prerequisites!(
     generic_type: T,
     api: [
         (
-            flow: Authorize,
-            request_body: HyperswitchPaymentsRequest<T>,
-            response_body: HyperswitchPaymentsResponse,
-            router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ),
-        (
             flow: PSync,
             response_body: HyperswitchPSyncResponse,
             router_data: RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ),
-        (
-            flow: Capture,
-            request_body: HyperswitchCaptureRequest,
-            response_body: HyperswitchCaptureResponse,
-            router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ),
-        (
-            flow: Void,
-            request_body: HyperswitchVoidRequest,
-            response_body: HyperswitchVoidResponse,
-            router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ),
-        (
-            flow: Refund,
-            request_body: HyperswitchRefundRequest,
-            response_body: HyperswitchRefundResponse,
-            router_data: RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ),
-        (
-            flow: RSync,
-            response_body: HyperswitchRSyncResponse,
-            router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ),
-        (
-            flow: SetupMandate,
-            request_body: HyperswitchSetupMandateRequest<T>,
-            response_body: HyperswitchSetupMandateResponse,
-            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ),
         (
             flow: RepeatPayment,
             request_body: HyperswitchRepeatPaymentRequest,
             response_body: HyperswitchRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
-        ),
-        (
-            flow: PaymentMethodToken,
-            request_body: HyperswitchTokenizationRequest<T>,
-            response_body: HyperswitchTokenResponse,
-            router_data: RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
-        ),
-        (
-            flow: ServerSessionAuthenticationToken,
-            request_body: HyperswitchSessionRequest,
-            response_body: HyperswitchSessionResponse,
-            router_data: RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
-        ),
-        (
-            flow: ServerAuthenticationToken,
-            request_body: HyperswitchAccessTokenRequest,
-            response_body: HyperswitchAccessTokenResponse,
-            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         )
     ],
     amount_converters: [
@@ -214,20 +110,6 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_payments<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, PaymentFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.hyperswitch.base_url
-        }
-
-        pub fn connector_base_url_refunds<'a, F, Req, Res>(
-            &self,
-            req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
-        ) -> &'a str {
-            &req.resource_common_data.connectors.hyperswitch.base_url
-        }
-
-        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
-            &self,
-            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.hyperswitch.base_url
         }
@@ -310,35 +192,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
-// ===== AUTHORIZE =====
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Hyperswitch,
-    curl_request: Json(HyperswitchPaymentsRequest),
-    curl_response: HyperswitchPaymentsResponse,
-    flow_name: Authorize,
-    resource_common_data: PaymentFlowData,
-    flow_request: PaymentsAuthorizeData<T>,
-    flow_response: PaymentsResponseData,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/payments", self.connector_base_url_payments(req)))
-        }
-    }
-);
-
 // ===== PSYNC =====
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -377,168 +230,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-// ===== CAPTURE =====
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Hyperswitch,
-    curl_request: Json(HyperswitchCaptureRequest),
-    curl_response: HyperswitchCaptureResponse,
-    flow_name: Capture,
-    resource_common_data: PaymentFlowData,
-    flow_request: PaymentsCaptureData,
-    flow_response: PaymentsResponseData,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
-        ) -> CustomResult<String, IntegrationError> {
-            let connector_payment_id = req
-                .request
-                .connector_transaction_id
-                .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
-                })?;
-            Ok(format!(
-                "{}/payments/{connector_payment_id}/capture",
-                self.connector_base_url_payments(req)
-            ))
-        }
-    }
-);
-
-// ===== VOID =====
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Hyperswitch,
-    curl_request: Json(HyperswitchVoidRequest),
-    curl_response: HyperswitchVoidResponse,
-    flow_name: Void,
-    resource_common_data: PaymentFlowData,
-    flow_request: PaymentVoidData,
-    flow_response: PaymentsResponseData,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
-        ) -> CustomResult<String, IntegrationError> {
-            let connector_payment_id = req.request.connector_transaction_id.clone();
-            Ok(format!(
-                "{}/payments/{connector_payment_id}/cancel",
-                self.connector_base_url_payments(req)
-            ))
-        }
-    }
-);
-
-// ===== REFUND =====
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Hyperswitch,
-    curl_request: Json(HyperswitchRefundRequest),
-    curl_response: HyperswitchRefundResponse,
-    flow_name: Refund,
-    resource_common_data: RefundFlowData,
-    flow_request: RefundsData,
-    flow_response: RefundsResponseData,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/refunds", self.connector_base_url_refunds(req)))
-        }
-    }
-);
-
-// ===== RSYNC =====
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Hyperswitch,
-    curl_response: HyperswitchRSyncResponse,
-    flow_name: RSync,
-    resource_common_data: RefundFlowData,
-    flow_request: RefundSyncData,
-    flow_response: RefundsResponseData,
-    http_method: Get,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
-        ) -> CustomResult<String, IntegrationError> {
-            let connector_refund_id = req.request.connector_refund_id.clone();
-            Ok(format!(
-                "{}/refunds/{connector_refund_id}",
-                self.connector_base_url_refunds(req)
-            ))
-        }
-    }
-);
-
-// ===== SETUP MANDATE (POST /payments + setup_future_usage + customer_acceptance) =====
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Hyperswitch,
-    curl_request: Json(HyperswitchSetupMandateRequest),
-    curl_response: HyperswitchSetupMandateResponse,
-    flow_name: SetupMandate,
-    resource_common_data: PaymentFlowData,
-    flow_request: SetupMandateRequestData<T>,
-    flow_response: PaymentsResponseData,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/payments", self.connector_base_url_payments(req)))
-        }
-    }
-);
-
 // ===== REPEAT PAYMENT (MIT recurring charge, POST /payments + recurring_details) =====
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -564,99 +255,6 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/payments", self.connector_base_url_payments(req)))
-        }
-    }
-);
-
-// ===== PAYMENT METHOD TOKEN (Tokenization, POST /payment_methods) =====
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Hyperswitch,
-    curl_request: Json(HyperswitchTokenizationRequest),
-    curl_response: HyperswitchTokenResponse,
-    flow_name: PaymentMethodToken,
-    resource_common_data: PaymentFlowData,
-    flow_request: PaymentMethodTokenizationData<T>,
-    flow_response: PaymentMethodTokenResponse,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/payment_methods", self.connector_base_url_payments(req)))
-        }
-    }
-);
-
-// ===== SESSION (ServerSessionAuthenticationToken, POST /payments → client_secret) =====
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Hyperswitch,
-    curl_request: Json(HyperswitchSessionRequest),
-    curl_response: HyperswitchSessionResponse,
-    flow_name: ServerSessionAuthenticationToken,
-    resource_common_data: MerchantAuthenticationFlowData,
-    flow_request: ServerSessionAuthenticationTokenRequestData,
-    flow_response: ServerSessionAuthenticationTokenResponseData,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/payments", self.connector_base_url_merchant_auth(req)))
-        }
-    }
-);
-
-// ===== ACCESS TOKEN (ServerAuthenticationToken) — DEGENERATE / non-functional =====
-// Hyperswitch uses a static `api-key` header and has NO token-mint endpoint
-// (tech spec section 11). This flow exists only for surface parity: the macro
-// requires an HTTP call, so we POST a benign body to `/payments`; the permissive
-// response struct accepts any JSON object (success or error) and the response
-// transformer echoes the configured `api-key` as the "access token". NOT for
-// production token exchange.
-macros::macro_connector_implementation!(
-    connector_default_implementations: [get_content_type, get_error_response_v2],
-    connector: Hyperswitch,
-    curl_request: Json(HyperswitchAccessTokenRequest),
-    curl_response: HyperswitchAccessTokenResponse,
-    flow_name: ServerAuthenticationToken,
-    resource_common_data: MerchantAuthenticationFlowData,
-    flow_request: ServerAuthenticationTokenRequestData,
-    flow_response: ServerAuthenticationTokenResponseData,
-    http_method: Post,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    other_functions: {
-        fn get_headers(
-            &self,
-            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
-        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
-            self.build_headers(req)
-        }
-        fn get_url(
-            &self,
-            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
-        ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/payments", self.connector_base_url_merchant_auth(req)))
         }
     }
 );
@@ -750,16 +348,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         hyperswitch::build_webhook_payment_response(&body, &request.body)
     }
 
-    fn process_refund_webhook(
-        &self,
-        request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
-        let body = hyperswitch::get_webhook_object_from_body(&request.body)?;
-        hyperswitch::build_webhook_refund_response(&body, &request.body)
-    }
-
     fn get_webhook_resource_object(
         &self,
         request: RequestDetails,
@@ -795,6 +383,15 @@ macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
+        Authorize,
+        Capture,
+        Void,
+        Refund,
+        RSync,
+        SetupMandate,
+        PaymentMethodToken,
+        ServerSessionAuthenticationToken,
+        ServerAuthenticationToken,
         CreateOrder,
         CreateConnectorCustomer,
         PreAuthenticate,
