@@ -1,6 +1,6 @@
 {
   "name": "@juspay-tech/medusa-custom-payments-react",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Generic payment UI components for Medusa v2 storefronts",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -73,8 +73,8 @@
   "homepage": "https://hyperswitch.io/prism",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/juspay/hyperswitch-prism.git",
-    "directory": "plugins/medusa/medusa-custom-payments-react"
+    "url": "https://github.com/juspay/hyperswitch-prism/tree/main/plugins/medusa",
+    "directory": "/medusa-custom-payments-react"
   },
   "bugs": {
     "url": "https://github.com/juspay/hyperswitch-prism/issues"

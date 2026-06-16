@@ -1,6 +1,6 @@
 {
   "name": "@juspay-tech/medusa-custom-payments",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Custom payments provider for Medusa v2",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -35,8 +35,8 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/juspay/hyperswitch-prism.git",
-    "directory": "plugins/medusa/medusa-custom-payments"
+    "url": "https://github.com/juspay/hyperswitch-prism/tree/main/plugins/medusa",
+    "directory": "/medusa-custom-payments"
   },
   "bugs": {
     "url": "https://github.com/juspay/hyperswitch-prism/issues"
