@@ -1458,6 +1458,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details:
         Option<grpc_api_types::payments::PartnerMerchantIdentifierDetails>,
+    /// Split-payment instructions (e.g. Adyen `splits`).
+    pub adyen_split_payment: Option<grpc_api_types::payments::AdyenSplitData>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {

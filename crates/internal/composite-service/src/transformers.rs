@@ -203,6 +203,7 @@ impl
             connector_order_id: item.connector_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
             partner_merchant_identifier_details: None,
+            adyen_split_payment: None,
         }
     }
 }
@@ -936,6 +937,7 @@ impl
             connector_order_id: request.connector_order_id.clone(),
             merchant_request_id: request.merchant_request_id.clone(),
             partner_merchant_identifier_details: None,
+            adyen_split_payment: None,
         }
     }
 }

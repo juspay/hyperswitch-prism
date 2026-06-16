@@ -2941,6 +2941,8 @@ pub struct AuthorizationRequest {
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details:
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
+    /// Split-payment instructions (e.g. Adyen `splits`).
+    pub adyen_split_payment: Option<grpc_payment_types::AdyenSplitData>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3034,6 +3036,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             merchant_request_id: req.merchant_request_id,
             connector_order_id: req.connector_order_id,
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
+            adyen_split_payment: req.adyen_split_payment,
         }
     }
 }
@@ -3099,6 +3102,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             merchant_request_id: None,
             connector_order_id: None,
             partner_merchant_identifier_details: None,
+            adyen_split_payment: None,
         }
     }
 }
@@ -3727,6 +3731,7 @@ impl<
             }),
             tokenization,
             partner_merchant_identifier_details: value.partner_merchant_identifier_details,
+            adyen_split_payment: value.adyen_split_payment,
         })
     }
 }
@@ -14342,6 +14347,7 @@ pub fn tokenized_authorize_to_base(
         tokenization_strategy: None,
         merchant_request_id: None,
         partner_merchant_identifier_details: None,
+        adyen_split_payment: None,
     }
 }
 
@@ -14514,6 +14520,7 @@ pub fn proxied_authorize_to_base(
         tokenization_strategy: None,
         merchant_request_id: None,
         partner_merchant_identifier_details: None,
+        adyen_split_payment: None,
     })
 }
 
