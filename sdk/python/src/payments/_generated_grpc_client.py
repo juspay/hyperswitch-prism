@@ -195,6 +195,13 @@ class GrpcFraudAndRiskManagementClient:
             "fraud_and_risk_management/pre_risk_check",
             req, payment_pb2.FrmServicePreRiskCheckResponse,
         )
+    def post_risk_check(self, req: payment_pb2.FrmServicePostRiskCheckRequest) -> payment_pb2.FrmServicePostRiskCheckResponse:
+        """FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "fraud_and_risk_management/post_risk_check",
+            req, payment_pb2.FrmServicePostRiskCheckResponse,
+        )
 
 class GrpcMerchantAuthenticationClient:
     """MerchantAuthenticationService — gRPC sub-client."""

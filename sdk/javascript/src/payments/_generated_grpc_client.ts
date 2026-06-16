@@ -294,6 +294,8 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentServiceProxySetupRecurringRequest: ["metadata"],
   FrmServicePreRiskCheckRequest: ["metadata", "connectorFeatureData"],
   FrmServicePreRiskCheckResponse: ["rawConnectorRequest", "rawConnectorResponse"],
+  FrmServicePostRiskCheckRequest: ["metadata", "connectorFeatureData"],
+  FrmServicePostRiskCheckResponse: ["rawConnectorRequest", "rawConnectorResponse"],
   CardPayout: ["cardNumber", "cardExpMonth", "cardExpYear", "cardHolderName"],
   AchBankTransferPayout: ["bankAccountNumber", "bankRoutingNumber"],
   BacsBankTransferPayout: ["bankAccountNumber", "bankSortCode"],
@@ -455,6 +457,8 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentServiceProxySetupRecurringRequest: { "amount": "Money", "cardProxy": "ProxyCardDetails", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "setupMandateDetails": "SetupMandateDetails", "customerAcceptance": "CustomerAcceptance", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation" },
   FrmServicePreRiskCheckRequest: { "amount": "Money", "customerInfo": "CustomerInfo", "paymentMethod": "PaymentMethod", "browserInfo": "BrowserInformation", "orderDetails": "OrderDetailsWithAmount", "address": "Address" },
   FrmServicePreRiskCheckResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  FrmServicePostRiskCheckRequest: { "amount": "Money", "customerInfo": "CustomerInfo", "paymentMethod": "PaymentMethod", "orderDetails": "OrderDetailsWithAmount" },
+  FrmServicePostRiskCheckResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   PayoutAddress: { "shippingAddress": "Address", "billingAddress": "Address" },
   PayoutMethod: { "card": "CardPayout", "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "applePayDecrypt": "ApplePayDecrypt", "paypal": "Paypal", "venmo": "Venmo", "interac": "InteracPayout", "openBankingUk": "OpenBankingUkPayout", "passthrough": "Passthrough", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout" },
   SourceBankData: { "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout" },
@@ -608,6 +612,11 @@ export class GrpcFraudAndRiskManagementClient {
   async preRiskCheck(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "fraud_and_risk_management/pre_risk_check",
       req, types.FrmServicePreRiskCheckRequest, types.FrmServicePreRiskCheckResponse);
+  }
+  /** FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud. */
+  async postRiskCheck(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "fraud_and_risk_management/post_risk_check",
+      req, types.FrmServicePostRiskCheckRequest, types.FrmServicePostRiskCheckResponse);
   }
 }
 

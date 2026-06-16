@@ -198,6 +198,11 @@ class GrpcFraudAndRiskManagementClient internal constructor(
      */
     suspend fun pre_risk_check(req: FrmServicePreRiskCheckRequest): FrmServicePreRiskCheckResponse =
         callGrpc(config, "fraud_and_risk_management/pre_risk_check", req, FrmServicePreRiskCheckResponse.parser())
+    /**
+     * FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+     */
+    suspend fun post_risk_check(req: FrmServicePostRiskCheckRequest): FrmServicePostRiskCheckResponse =
+        callGrpc(config, "fraud_and_risk_management/post_risk_check", req, FrmServicePostRiskCheckResponse.parser())
 }
 
 /**
