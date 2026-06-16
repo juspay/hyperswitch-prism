@@ -2938,6 +2938,8 @@ pub struct AuthorizationRequest {
     /// `PaymentFlowData::connector_order_id` so the Authorize TryFrom can
     /// attach the payment to the right pre-existing order.
     pub connector_order_id: Option<String>,
+    /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
+    pub domain_data: Option<grpc_payment_types::DomainData>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3030,6 +3032,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             payment_method_token: None,
             merchant_request_id: req.merchant_request_id,
             connector_order_id: req.connector_order_id,
+            domain_data: req.domain_data,
         }
     }
 }
@@ -3094,6 +3097,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             payment_method_token: None,
             merchant_request_id: None,
             connector_order_id: None,
+            domain_data: req.domain_data,
         }
     }
 }
@@ -3489,6 +3493,182 @@ fn map_customer_document_details(
         })
 }
 
+// ---- proto DomainData / AirlineData -> domain types (all fields optional) ----
+
+impl ForeignTryFrom<grpc_payment_types::DomainData> for connector_types::DomainData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        d: grpc_payment_types::DomainData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            airline_data: d
+                .airline_data
+                .map(connector_types::AirlineData::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::AirlineData> for connector_types::AirlineData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        a: grpc_payment_types::AirlineData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Read enum getters (which borrow `a`) before moving fields out.
+        let refundability = match a.refundability() {
+            grpc_payment_types::TicketRefundability::Refundable => {
+                Some(connector_types::TicketRefundability::Refundable)
+            }
+            grpc_payment_types::TicketRefundability::NonRefundable => {
+                Some(connector_types::TicketRefundability::NonRefundable)
+            }
+            grpc_payment_types::TicketRefundability::Unspecified => None,
+        };
+        let ticket_delivery_type = match a.ticket_delivery_type() {
+            grpc_payment_types::TicketDeliveryType::Electronic => {
+                Some(connector_types::TicketDeliveryType::Electronic)
+            }
+            grpc_payment_types::TicketDeliveryType::Paper => {
+                Some(connector_types::TicketDeliveryType::Paper)
+            }
+            grpc_payment_types::TicketDeliveryType::Unspecified => None,
+        };
+        let cardholder_travel_status = match a.cardholder_travel_status() {
+            grpc_payment_types::CardholderTravelStatus::CardholderTraveling => {
+                Some(connector_types::CardholderTravelStatus::Traveling)
+            }
+            grpc_payment_types::CardholderTravelStatus::CardholderNotTraveling => {
+                Some(connector_types::CardholderTravelStatus::NotTraveling)
+            }
+            grpc_payment_types::CardholderTravelStatus::Unspecified => None,
+        };
+        Ok(Self {
+            pnr_code: a.pnr_code,
+            booking_reference: a.booking_reference,
+            ticket_number: a.ticket_number,
+            ticket_issue_date: a.ticket_issue_date,
+            booking_date_time: a.booking_date_time,
+            flight_date: a.flight_date,
+            issuing_carrier_code: a.issuing_carrier_code,
+            airline_code: a.airline_code,
+            passenger_name: a.passenger_name,
+            number_of_passengers: a.number_of_passengers,
+            document_type: a.document_type,
+            refundability,
+            ticket_delivery_type,
+            cardholder_travel_status,
+            ticket_issue_address: a
+                .ticket_issue_address
+                .map(AddressDetails::foreign_try_from)
+                .transpose()?,
+            booking_system_unique_id: a.booking_system_unique_id,
+            agency_code: a.agency_code,
+            agency_name: a.agency_name,
+            agency_invoice_number: a.agency_invoice_number,
+            agency_plan_name: a.agency_plan_name,
+            total_fare: a
+                .total_fare
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            total_taxes: a
+                .total_taxes
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            total_fee: a
+                .total_fee
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            boarding_fee: a
+                .boarding_fee
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            flight_segments: a
+                .flight_segments
+                .into_iter()
+                .map(connector_types::AirlineSegment::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+            passengers: a
+                .passengers
+                .into_iter()
+                .map(connector_types::AirlinePassenger::from)
+                .collect(),
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::AirlineSegment> for connector_types::AirlineSegment {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        s: grpc_payment_types::AirlineSegment,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            sequence_no: s.sequence_no,
+            carrier_code: s.carrier_code,
+            flight_number: s.flight_number,
+            flight_type: s.flight_type,
+            class_of_service: s.class_of_service,
+            fare_basis_code: s.fare_basis_code,
+            stopover_code: s.stopover_code,
+            departure: s.departure.map(connector_types::AirlineLocation::from),
+            arrival: s.arrival.map(connector_types::AirlineLocation::from),
+            fare_amount: s
+                .fare_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            fee_amount: s
+                .fee_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            tax_amount: s
+                .tax_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
+            exchange_ticket_number: s.exchange_ticket_number,
+            conjunction_ticket: s.conjunction_ticket,
+            coupon_number: s.coupon_number,
+            endorsements_restrictions: s.endorsements_restrictions,
+        })
+    }
+}
+
+impl From<grpc_payment_types::AirlineLocation> for connector_types::AirlineLocation {
+    fn from(l: grpc_payment_types::AirlineLocation) -> Self {
+        Self {
+            airport_code: l.airport_code,
+            city_code: l.city_code,
+            city_name: l.city_name,
+            country_code: l.country_code,
+            country_name: l.country_name,
+            date_time: l.date_time,
+        }
+    }
+}
+
+impl From<grpc_payment_types::AirlinePassenger> for connector_types::AirlinePassenger {
+    fn from(p: grpc_payment_types::AirlinePassenger) -> Self {
+        Self {
+            sequence_no: p.sequence_no,
+            title: p.title,
+            first_name: p.first_name,
+            middle_name: p.middle_name,
+            last_name: p.last_name,
+            gender: p.gender,
+            email: p.email,
+            phone_number: p.phone_number,
+            date_of_birth: p.date_of_birth,
+            passenger_type: p.passenger_type,
+            frequent_flyer_number: p.frequent_flyer_number,
+            loyalty_tier: p.loyalty_tier,
+            passport_number: p.passport_number,
+            nationality: p.nationality,
+            ticket_number: p.ticket_number,
+        }
+    }
+}
+
 impl<
         T: PaymentMethodDataTypes
             + Default
@@ -3721,6 +3901,10 @@ impl<
                 connector_types::ThreeDsCompletionIndicator::foreign_try_from(i).ok()
             }),
             tokenization,
+            domain_data: value
+                .domain_data
+                .map(connector_types::DomainData::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -14335,6 +14519,7 @@ pub fn tokenized_authorize_to_base(
         threeds_completion_indicator: None,
         tokenization_strategy: None,
         merchant_request_id: None,
+        domain_data: None,
     }
 }
 
@@ -14506,6 +14691,7 @@ pub fn proxied_authorize_to_base(
         statement_descriptor_suffix: None,
         tokenization_strategy: None,
         merchant_request_id: None,
+        domain_data: None,
     })
 }
 

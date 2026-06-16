@@ -108,6 +108,9 @@ message CompositeAuthorizeRequest {
 
   // Server Session Token Information
   optional string merchant_server_session_id = 51; // Server session identifier for tracking
+
+  // Domain-specific data (e.g. airline itinerary) for connectors that need it.
+  optional DomainData domain_data = 52;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
