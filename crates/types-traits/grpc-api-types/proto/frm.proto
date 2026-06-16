@@ -49,7 +49,7 @@ message FrmServicePreRiskCheckRequest {
   optional string merchant_transaction_id = 5;
 
   // Order details
-  OrderDetailsWithAmount order_details = 6;
+  repeated OrderDetailsWithAmount order_details = 6;
 
   // Address information
   Address address = 7;
@@ -62,6 +62,9 @@ message FrmServicePreRiskCheckRequest {
 
   // Sandbox/test mode flag
   optional bool test_mode = 10;
+
+  // State Information
+  optional ConnectorState state = 11;
 }
 
 // Response for FrmService.PreRiskCheck
@@ -109,7 +112,7 @@ message FrmServicePostRiskCheckRequest {
   optional string merchant_transaction_id = 4;
 
   // Order details
-  OrderDetailsWithAmount order_details = 5;
+  repeated OrderDetailsWithAmount order_details = 5;
 
   // Additional metadata for the connector
   optional SecretString metadata = 6;
@@ -128,6 +131,9 @@ message FrmServicePostRiskCheckRequest {
 
   // Payment connector that processed the transaction
   Connector payment_connector = 11;
+
+  // State Information
+  optional ConnectorState state = 12;
 }
 
 // Response for FrmService.PostRiskCheck
