@@ -18,7 +18,7 @@
     "test:e2e:api": "playwright test --project=api"
   },
   "dependencies": {
-    "@juspay/medusa-custom-payments": "file:./medusa-custom-payments"
+    "@juspay-tech/medusa-custom-payments": "file:./medusa-custom-payments"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",

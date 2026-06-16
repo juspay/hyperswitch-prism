@@ -1,5 +1,5 @@
 {
-  "name": "@juspay-tech/medusa-custom-payments-test",
+  "name": "@juspay-tech/medusa-custom-payments",
   "version": "0.0.1",
   "description": "Custom payments provider for Medusa v2",
   "main": "dist/index.js",
