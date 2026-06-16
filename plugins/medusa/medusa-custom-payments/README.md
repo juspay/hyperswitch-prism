@@ -1,6 +1,6 @@
-# @juspay/medusa-unified-payment
+# @juspay-tech/medusa-custom-payments
 
-Unified payment provider plugin for Medusa v2. Enables payment processing through multiple connectors — Stripe, Adyen, PayPal, GlobalPay, Braintree, Cybersource, and Mollie — via a single Prism-powered provider.
+Custom payments provider plugin for Medusa v2. Enables payment processing through multiple connectors — Stripe, Adyen, PayPal, GlobalPay, Braintree, Cybersource, and Mollie — via a single Prism-powered provider.
 
 Powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism), an open-source unified connector service (UCS) that abstracts connector-specific APIs behind a single interface.
 
@@ -15,7 +15,7 @@ Powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism), an 
 ## Installation
 
 ```bash
-npm install @juspay/medusa-unified-payment
+npm install @juspay-tech/medusa-custom-payments
 ```
 
 ## Setup
@@ -54,7 +54,7 @@ export default defineConfig({
       options: {
         providers: [
           {
-            resolve: "@juspay/medusa-unified-payment",
+            resolve: "@juspay-tech/medusa-custom-payments",
             id: "stripe",
             options: {
               connector: "stripe",
@@ -68,7 +68,7 @@ export default defineConfig({
             },
           },
           {
-            resolve: "@juspay/medusa-unified-payment",
+            resolve: "@juspay-tech/medusa-custom-payments",
             id: "adyen",
             options: {
               connector: "adyen",
@@ -84,7 +84,7 @@ export default defineConfig({
             },
           },
           {
-            resolve: "@juspay/medusa-unified-payment",
+            resolve: "@juspay-tech/medusa-custom-payments",
             id: "paypal",
             options: {
               connector: "paypal",
@@ -100,7 +100,7 @@ export default defineConfig({
             },
           },
           {
-            resolve: "@juspay/medusa-unified-payment",
+            resolve: "@juspay-tech/medusa-custom-payments",
             id: "globalpay",
             options: {
               connector: "globalpay",
@@ -235,7 +235,7 @@ PAYPAL_WEBHOOK_ID=WH-1AB23456CD789...
 
 ```ts
 {
-  resolve: "@juspay/medusa-unified-payment",
+  resolve: "@juspay-tech/medusa-custom-payments",
   id: "adyen",
   options: {
     connector: "adyen",
@@ -248,7 +248,7 @@ PAYPAL_WEBHOOK_ID=WH-1AB23456CD789...
   },
 },
 {
-  resolve: "@juspay/medusa-unified-payment",
+  resolve: "@juspay-tech/medusa-custom-payments",
   id: "paypal",
   options: {
     connector: "paypal",
@@ -303,7 +303,7 @@ Note: Adyen refunds are asynchronous — the REFUND webhook is the settlement co
 
 ## Storefront Integration
 
-For React/Next.js storefront integration, see the companion package [`@juspay/medusa-unified-payment-react`](https://www.npmjs.com/package/@juspay/medusa-unified-payment-react).
+For React/Next.js storefront integration, see the companion package [`@juspay-tech/medusa-custom-payments-react`](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments-react).
 
 ## License
 

@@ -1,5 +1,5 @@
 import { ConnectorError, IntegrationError } from "hyperswitch-prism"
-import PrismService from "../../medusa-unified-payment/src/providers/prism"
+import PrismService from "../../medusa-custom-payments/src/providers/prism"
 
 import {
   loadCredsFile,

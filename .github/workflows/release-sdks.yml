@@ -1,4 +1,4 @@
-name: Release
+name: Release SDK
 
 on:
   workflow_dispatch:
@@ -91,29 +91,51 @@ env:
   RUSTFLAGS: "-C codegen-units=16"
 
 jobs:
-  validate-inputs:
-    name: Validate inputs
+  setup:
+    name: Normalize inputs
     runs-on: ubuntu-latest
-    if: ${{ inputs.preview_only == false }}
+    outputs:
+      preview_only: ${{ steps.norm.outputs.preview_only }}
+      publish_java: ${{ steps.norm.outputs.publish_java }}
+      publish_python: ${{ steps.norm.outputs.publish_python }}
+      publish_javascript: ${{ steps.norm.outputs.publish_javascript }}
     steps:
-      - name: Validate version is SemVer
+      - name: Normalize and validate inputs
+        id: norm
         shell: bash
         run: |
-          VERSION="${{ inputs.version }}"
-          if [ -z "${VERSION}" ]; then
-            echo "::error::version input is required when preview_only is false"
-            exit 1
+          # workflow_dispatch delivers boolean inputs as strings, while
+          # workflow_call delivers real booleans. Comparing inputs.* against a
+          # boolean literal (== true / == false) in a job `if:` therefore fails
+          # for dispatch — string-vs-boolean coerces to NaN and is never equal —
+          # which silently skips the package/collect/preview/publish chain.
+          # Normalize to canonical "true"/"false" strings here (bash sees the
+          # rendered string either way) so every downstream `if:` can compare
+          # against string literals reliably for both triggers.
+          norm() { case "$1" in true|True|TRUE) echo "true" ;; *) echo "false" ;; esac; }
+          PREVIEW="$(norm "${{ inputs.preview_only }}")"
+          echo "preview_only=${PREVIEW}" >> "$GITHUB_OUTPUT"
+          echo "publish_java=$(norm "${{ inputs.publish_java }}")" >> "$GITHUB_OUTPUT"
+          echo "publish_python=$(norm "${{ inputs.publish_python }}")" >> "$GITHUB_OUTPUT"
+          echo "publish_javascript=$(norm "${{ inputs.publish_javascript }}")" >> "$GITHUB_OUTPUT"
+
+          # A valid SemVer version is required when actually publishing.
+          if [ "${PREVIEW}" = "false" ]; then
+            VERSION="${{ inputs.version }}"
+            if [ -z "${VERSION}" ]; then
+              echo "::error::version input is required when preview_only is false"
+              exit 1
+            fi
+            if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::version '${VERSION}' is not valid SemVer (expected X.Y.Z)"
+              exit 1
+            fi
+            echo "Version ${VERSION} is valid SemVer"
           fi
-          if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::version '${VERSION}' is not valid SemVer (expected X.Y.Z)"
-            exit 1
-          fi
-          echo "Version ${VERSION} is valid SemVer"
 
   build-binaries:
     name: Build Binaries (${{ matrix.os }} ${{ matrix.arch }})
-    needs: [validate-inputs]
-    if: always() && (needs.validate-inputs.result == 'success' || needs.validate-inputs.result == 'skipped')
+    needs: [setup]
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -227,8 +249,8 @@ jobs:
   package-sdk-java:
     name: Package Java SDK
     runs-on: ubuntu-latest
-    needs: [build-binaries]
-    if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
+    needs: [setup, build-binaries]
+    if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' }}
     env:
       VERSION: ${{ inputs.version }}
     steps:
@@ -274,8 +296,8 @@ jobs:
   package-sdk-python:
     name: Package Python SDK
     runs-on: ubuntu-latest
-    needs: [build-binaries]
-    if: ${{ inputs.preview_only == true || inputs.publish_python == true }}
+    needs: [setup, build-binaries]
+    if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_python == 'true' }}
     env:
       VERSION: ${{ inputs.version }}
     steps:
@@ -315,8 +337,8 @@ jobs:
   package-sdk-javascript:
     name: Package JavaScript SDK
     runs-on: ubuntu-latest
-    needs: [build-binaries]
-    if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
+    needs: [setup, build-binaries]
+    if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_javascript == 'true' }}
     env:
       VERSION: ${{ inputs.version }}
     steps:
@@ -377,26 +399,26 @@ jobs:
   preview-publish:
     name: Preview What Will Be Published
     runs-on: ubuntu-latest
-    needs: [collect-sdks]
+    needs: [setup, collect-sdks]
     if: always() && needs.collect-sdks.result == 'success'
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
       - name: Download Java SDK artifact
-        if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' }}
         uses: actions/download-artifact@v4
         with:
           name: sdk-java
           path: artifacts/sdk-java
       - name: Download Python SDK artifact
-        if: ${{ inputs.preview_only == true || inputs.publish_python == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_python == 'true' }}
         uses: actions/download-artifact@v4
         with:
           name: sdk-python
           path: artifacts/sdk-python
       - name: Download JavaScript SDK artifact
-        if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_javascript == 'true' }}
         uses: actions/download-artifact@v4
         with:
           name: sdk-javascript
@@ -437,8 +459,8 @@ jobs:
   pre-publish-check:
     name: Pre-Publish Validation
     runs-on: ubuntu-latest
-    needs: [collect-sdks]
-    if: always() && needs.collect-sdks.result == 'success' && (inputs.preview_only == true || inputs.publish_java == true || inputs.publish_python == true || inputs.publish_javascript == true)
+    needs: [setup, collect-sdks]
+    if: always() && needs.collect-sdks.result == 'success' && (needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' || needs.setup.outputs.publish_python == 'true' || needs.setup.outputs.publish_javascript == 'true')
     env:
       VERSION: ${{ inputs.version }}
     steps:
@@ -510,7 +532,7 @@ jobs:
       # --- Auth checks ---
       - name: Check Java auth
         id: check-java-auth
-        if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' }}
         continue-on-error: true
         env:
           CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
@@ -521,7 +543,7 @@ jobs:
 
       - name: Check Python auth
         id: check-python-auth
-        if: ${{ inputs.preview_only == true || inputs.publish_python == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_python == 'true' }}
         continue-on-error: true
         env:
           TWINE_USERNAME: __token__
@@ -530,7 +552,7 @@ jobs:
 
       - name: Check JavaScript auth
         id: check-js-auth
-        if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_javascript == 'true' }}
         continue-on-error: true
         working-directory: sdk/javascript
         env:
@@ -546,19 +568,19 @@ jobs:
       # --- Version checks ---
       - name: Check Java version
         id: check-java-version
-        if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' }}
         continue-on-error: true
         run: make -C sdk/java publish-check-version
 
       - name: Check Python version
         id: check-python-version
-        if: ${{ inputs.preview_only == true || inputs.publish_python == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_python == 'true' }}
         continue-on-error: true
         run: make -C sdk/python publish-check-version
 
       - name: Check JavaScript version
         id: check-js-version
-        if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_javascript == 'true' }}
         continue-on-error: true
         working-directory: sdk/javascript
         run: |
@@ -572,7 +594,7 @@ jobs:
 
       # --- Dry-run checks ---
       - name: Download Java SDK artifact for dry-run
-        if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' }}
         uses: actions/download-artifact@v4
         with:
           name: sdk-java
@@ -580,7 +602,7 @@ jobs:
 
       - name: Java dry-run (verify bundle)
         id: check-java-dryrun
-        if: ${{ inputs.preview_only == true || inputs.publish_java == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' }}
         continue-on-error: true
         env:
           CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
@@ -595,12 +617,12 @@ jobs:
 
       - name: Python dry-run (twine check)
         id: check-python-dryrun
-        if: ${{ inputs.preview_only == true || inputs.publish_python == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_python == 'true' }}
         continue-on-error: true
         run: make -C sdk/python publish-check-dry-run
 
       - name: Download JavaScript SDK artifact for dry-run
-        if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_javascript == 'true' }}
         uses: actions/download-artifact@v4
         with:
           name: sdk-javascript
@@ -608,7 +630,7 @@ jobs:
 
       - name: JavaScript dry-run (npm publish --dry-run)
         id: check-js-dryrun
-        if: ${{ inputs.preview_only == true || inputs.publish_javascript == true }}
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_javascript == 'true' }}
         continue-on-error: true
         working-directory: sdk/javascript
         env:
@@ -670,8 +692,8 @@ jobs:
   publish-java:
     name: Publish Java SDK to Maven Central
     runs-on: ubuntu-latest
-    needs: [preview-publish, pre-publish-check]
-    if: always() && inputs.publish_java == true && inputs.preview_only == false && needs.pre-publish-check.result == 'success'
+    needs: [setup, preview-publish, pre-publish-check]
+    if: always() && needs.setup.outputs.publish_java == 'true' && needs.setup.outputs.preview_only == 'false' && needs.pre-publish-check.result == 'success'
     env:
       VERSION: ${{ inputs.version }}
     steps:
@@ -725,7 +747,7 @@ jobs:
             echo "✅ Will publish to Maven Central"
           fi
       - name: Publish to Maven Central
-        if: ${{ inputs.preview_only == false }}
+        if: ${{ needs.setup.outputs.preview_only == 'false' }}
         env:
           CENTRAL_TOKEN_USERNAME: ${{ secrets.CENTRAL_TOKEN_USERNAME }}
           CENTRAL_TOKEN_PASSWORD: ${{ secrets.CENTRAL_TOKEN_PASSWORD }}
@@ -740,8 +762,8 @@ jobs:
   publish-python:
     name: Publish Python SDK to PyPI
     runs-on: ubuntu-latest
-    needs: [preview-publish, pre-publish-check]
-    if: always() && inputs.publish_python == true && inputs.preview_only == false && needs.pre-publish-check.result == 'success'
+    needs: [setup, preview-publish, pre-publish-check]
+    if: always() && needs.setup.outputs.publish_python == 'true' && needs.setup.outputs.preview_only == 'false' && needs.pre-publish-check.result == 'success'
     env:
       VERSION: ${{ inputs.version }}
     steps:
@@ -791,7 +813,7 @@ jobs:
             echo "✅ Will publish to PyPI"
           fi
       - name: Publish to PyPI
-        if: ${{ inputs.preview_only == false }}
+        if: ${{ needs.setup.outputs.preview_only == 'false' }}
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
@@ -800,8 +822,8 @@ jobs:
   publish-javascript:
     name: Publish JavaScript SDK to npm
     runs-on: ubuntu-latest
-    needs: [preview-publish, pre-publish-check]
-    if: always() && inputs.publish_javascript == true && inputs.preview_only == false && needs.pre-publish-check.result == 'success'
+    needs: [setup, preview-publish, pre-publish-check]
+    if: always() && needs.setup.outputs.publish_javascript == 'true' && needs.setup.outputs.preview_only == 'false' && needs.pre-publish-check.result == 'success'
     permissions:
       contents: read
       id-token: write
@@ -855,7 +877,7 @@ jobs:
             echo "✅ Will publish to npm"
           fi
       - name: Publish to npm
-        if: ${{ inputs.preview_only == false }}
+        if: ${{ needs.setup.outputs.preview_only == 'false' }}
         working-directory: sdk/javascript
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

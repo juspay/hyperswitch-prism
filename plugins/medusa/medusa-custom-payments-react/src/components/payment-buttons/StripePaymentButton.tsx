@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useStripe, useElements } from "@stripe/react-stripe-js";
 import type { StripePaymentButtonProps } from "./types";
+import { isNextControlFlowError } from "../../utils/redirect-error";
 
 /**
  * Stripe payment button.
@@ -77,6 +78,7 @@ export function StripePaymentButton({
         await onPlaceOrder();
       }
     } catch (err: any) {
+      if (isNextControlFlowError(err)) throw err;
       setErrorMessage(err.message || "Payment failed");
     } finally {
       setSubmitting(false);
