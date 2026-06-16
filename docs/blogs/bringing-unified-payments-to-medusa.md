@@ -63,6 +63,8 @@ providers: [
 
 Adding PayPal next is another block that looks exactly like these. That's the whole point — the third processor really is half the work, and the fourth even less.
 
+![Region-based payment provider routing in Medusa Admin](https://cdn.sanity.io/images/9sed75bn/production/56c896a55aede8c91b775bfed2fd028931bb0615-1638x476.png)
+
 > **How do I add a second payment provider in Medusa?**
 >
 > Register `medusa-custom-payments` a second time with a different `id` and `connector` string, supply that processor's credentials, and assign it to a region in the Admin. That's it — no new provider class, no new webhook handler, no new checkout SDK to wire up. The block above is the entire diff.
@@ -74,6 +76,8 @@ The backend is only half the story, and the storefront is the half that usually 
 The companion React package, **`medusa-custom-payments-react`**, closes that gap. It gives you two components that behave the same regardless of connector: `HyperswitchPrismConnectorPanel` renders the right payment instrument for the selected method, and `HyperswitchPrismPaymentButton` dispatches the correct place-order behavior behind it. Drop the panel into the payment step and the button into review, and the per-connector branches disappear from your own code — the components absorb the differences in mounting, callbacks, and result handling.
 
 That's the piece most stacks miss: a backend abstraction is common, but a matching multi-processor checkout UI usually isn't. For a fully custom flow, the package also exposes the individual payment processor wrappers.
+
+![Unified checkout with multiple payment processors](https://cdn.sanity.io/images/9sed75bn/production/987b9c24c7f2c6ad463e83b2892c0f38ead04716-2560x1396.png)
 
 ## What are the benefits?
 
@@ -140,15 +144,3 @@ The [backend README](https://github.com/juspay/hyperswitch-prism/tree/main/plugi
 And juspay/hyperswitch-prism is the integration layer, unbundled so developers can use the integrations without adopting the full platform. `medusa-custom-payments` brings that same library to Medusa. 
 
 Requests, queries, bugs, and integrations asks can be logged at [juspay/hyperswitch-prism repo](https://github.com/juspay/hyperswitch-prism/issues).
-
----
-
-## Screenshots
-
-### Region-Based Provider Assignment
-
-![Region-based payment provider routing in Medusa Admin](https://cdn.sanity.io/images/9sed75bn/production/56c896a55aede8c91b775bfed2fd028931bb0615-1638x476.png)
-
-### Unified Checkout Experience
-
-![Unified checkout with multiple payment processors](https://cdn.sanity.io/images/9sed75bn/production/987b9c24c7f2c6ad463e83b2892c0f38ead04716-2560x1396.png)
