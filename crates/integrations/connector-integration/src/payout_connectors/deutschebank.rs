@@ -44,10 +44,10 @@ use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
 use signing::{build_cseal_headers, CsealHeaders};
 use transformers::{
-    build_eligibility_response, derive_vop_id, encode_connector_payout_id, DeutschebankAuthType,
-    DeutschebankErrorResponse, DeutschebankSepaPaymentBuilt, DeutschebankSepaPaymentResponse,
-    DeutschebankStatusRequest, DeutschebankStatusResponse, DeutschebankVopRequest,
-    DeutschebankVopResponse,
+    build_eligibility_response, current_iso_utc_seconds, derive_vop_id, encode_connector_payout_id,
+    DeutschebankAuthType, DeutschebankErrorResponse, DeutschebankSepaPaymentBuilt,
+    DeutschebankSepaPaymentResponse, DeutschebankStatusRequest, DeutschebankStatusResponse,
+    DeutschebankVopRequest, DeutschebankVopResponse,
 };
 
 pub(crate) mod headers {
@@ -65,12 +65,6 @@ const VOP_PATH: &str = "/v1/cseal/payments/sepa/vop-check/vop";
 const PAYMENT_PATH: &str = "/v2/cseal/payments/credit-transfer/sepa/payment";
 const STATUS_PATH: &str = "/v2/cseal/payments/credit-transfer/sepa/status";
 
-// The CB Connect v1.0 spec (§4.1, page 10) advertises a single
-// `^(PYMT)[0-9a-zA-Z]+$` correlation-id pattern for all three endpoints, but
-// DB's *VoP Check* endpoint rejects PYMT-prefixed correlation IDs in practice
-// with `APP-SCHM` (HTTP 400). Empirically, VoP demands an `ACID` prefix while
-// the SEPA Credit-Transfer and Status endpoints accept PYMT as documented.
-// Until DB harmonizes the two, keep the prefixes separate.
 const CORRELATION_PREFIX_VOP: &str = "ACID";
 const CORRELATION_PREFIX_PAYMENT: &str = "PYMT";
 
@@ -132,23 +126,6 @@ impl DeutschebankPayouts {
     }
 }
 
-fn current_iso_utc_seconds() -> CustomResult<String, IntegrationError> {
-    use time::macros::format_description;
-    let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
-    time::OffsetDateTime::now_utc().format(&fmt).change_context(
-        IntegrationError::RequestEncodingFailed {
-            context: domain_types::errors::IntegrationErrorContext {
-                additional_context: Some(
-                    "formatting current UTC datetime for CSEAL request timestamp header"
-                        .to_string(),
-                ),
-                suggested_action: Some("Retry the request; report if persistent.".to_string()),
-                doc_url: None,
-            },
-        },
-    )
-}
-
 fn unsupported_flow_context() -> domain_types::errors::IntegrationErrorContext {
     domain_types::errors::IntegrationErrorContext {
         additional_context: Some(
@@ -171,6 +148,57 @@ fn serialize_json<T: serde::Serialize>(value: &T) -> CustomResult<Vec<u8>, Integ
             doc_url: None,
         },
     })
+}
+
+macro_rules! unsupported_payout_flow {
+    ($marker:ident, $flow:ty, $req:ty, $resp:ty, $name:expr $(,)?) => {
+        impl $marker for DeutschebankPayouts {}
+
+        impl ConnectorIntegrationV2<$flow, PayoutFlowData, $req, $resp> for DeutschebankPayouts {
+            fn get_url(
+                &self,
+                _req: &RouterDataV2<$flow, PayoutFlowData, $req, $resp>,
+            ) -> CustomResult<String, IntegrationError> {
+                Err(IntegrationError::connector_flow_not_implemented(
+                    self.id(),
+                    $name,
+                    unsupported_flow_context(),
+                )
+                .into())
+            }
+        }
+    };
+}
+
+macro_rules! cseal_cert_accessors {
+    ($flow:ty, $req:ty, $resp:ty) => {
+        fn get_certificate(
+            &self,
+            req: &RouterDataV2<$flow, PayoutFlowData, $req, $resp>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            cert_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
+        }
+
+        fn get_certificate_key(
+            &self,
+            req: &RouterDataV2<$flow, PayoutFlowData, $req, $resp>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            cert_key_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
+        }
+
+        fn get_ca_certificate(
+            &self,
+            req: &RouterDataV2<$flow, PayoutFlowData, $req, $resp>,
+        ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+            server_ca_pem(
+                req.resource_common_data
+                    .connectors
+                    .deutschebank
+                    .server_ca_bundle
+                    .as_deref(),
+            )
+        }
+    };
 }
 
 // ===== CONNECTOR COMMON =====
@@ -314,47 +342,11 @@ impl
         "application/json"
     }
 
-    fn get_certificate(
-        &self,
-        req: &RouterDataV2<
-            PayoutEligibility,
-            PayoutFlowData,
-            PayoutEligibilityRequest,
-            PayoutEligibilityResponse,
-        >,
-    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-        cert_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
-    }
-
-    fn get_certificate_key(
-        &self,
-        req: &RouterDataV2<
-            PayoutEligibility,
-            PayoutFlowData,
-            PayoutEligibilityRequest,
-            PayoutEligibilityResponse,
-        >,
-    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-        cert_key_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
-    }
-
-    fn get_ca_certificate(
-        &self,
-        req: &RouterDataV2<
-            PayoutEligibility,
-            PayoutFlowData,
-            PayoutEligibilityRequest,
-            PayoutEligibilityResponse,
-        >,
-    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-        server_ca_pem(
-            req.resource_common_data
-                .connectors
-                .deutschebank
-                .server_ca_bundle
-                .as_deref(),
-        )
-    }
+    cseal_cert_accessors!(
+        PayoutEligibility,
+        PayoutEligibilityRequest,
+        PayoutEligibilityResponse
+    );
 
     fn get_url(
         &self,
@@ -489,47 +481,11 @@ impl
         "application/json"
     }
 
-    fn get_certificate(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-        cert_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
-    }
-
-    fn get_certificate_key(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-        cert_key_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
-    }
-
-    fn get_ca_certificate(
-        &self,
-        req: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
-        >,
-    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-        server_ca_pem(
-            req.resource_common_data
-                .connectors
-                .deutschebank
-                .server_ca_bundle
-                .as_deref(),
-        )
-    }
+    cseal_cert_accessors!(
+        PayoutTransfer,
+        PayoutTransferRequest,
+        PayoutTransferResponse
+    );
 
     fn get_url(
         &self,
@@ -687,32 +643,7 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         "application/json"
     }
 
-    fn get_certificate(
-        &self,
-        req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-        cert_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
-    }
-
-    fn get_certificate_key(
-        &self,
-        req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-        cert_key_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
-    }
-
-    fn get_ca_certificate(
-        &self,
-        req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
-    ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-        server_ca_pem(
-            req.resource_common_data
-                .connectors
-                .deutschebank
-                .server_ca_bundle
-                .as_deref(),
-        )
-    }
+    cseal_cert_accessors!(PayoutGet, PayoutGetRequest, PayoutGetResponse);
 
     fn get_url(
         &self,
@@ -792,145 +723,45 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
 
 // ===== PAYOUT STUB FLOWS =====
 
-impl PayoutCreateV2 for DeutschebankPayouts {}
-
-impl ConnectorIntegrationV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>
-    for DeutschebankPayouts
-{
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PayoutCreate,
-            PayoutFlowData,
-            PayoutCreateRequest,
-            PayoutCreateResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::connector_flow_not_implemented(
-            self.id(),
-            "payout_create",
-            unsupported_flow_context(),
-        )
-        .into())
-    }
-}
-
-impl PayoutVoidV2 for DeutschebankPayouts {}
-
-impl ConnectorIntegrationV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>
-    for DeutschebankPayouts
-{
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::connector_flow_not_implemented(
-            self.id(),
-            "payout_void",
-            unsupported_flow_context(),
-        )
-        .into())
-    }
-}
-
-impl PayoutStageV2 for DeutschebankPayouts {}
-
-impl ConnectorIntegrationV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>
-    for DeutschebankPayouts
-{
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<PayoutStage, PayoutFlowData, PayoutStageRequest, PayoutStageResponse>,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::connector_flow_not_implemented(
-            self.id(),
-            "payout_stage",
-            unsupported_flow_context(),
-        )
-        .into())
-    }
-}
-
-impl PayoutCreateLinkV2 for DeutschebankPayouts {}
-
-impl
-    ConnectorIntegrationV2<
-        PayoutCreateLink,
-        PayoutFlowData,
-        PayoutCreateLinkRequest,
-        PayoutCreateLinkResponse,
-    > for DeutschebankPayouts
-{
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PayoutCreateLink,
-            PayoutFlowData,
-            PayoutCreateLinkRequest,
-            PayoutCreateLinkResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::connector_flow_not_implemented(
-            self.id(),
-            "payout_create_link",
-            unsupported_flow_context(),
-        )
-        .into())
-    }
-}
-
-impl PayoutCreateRecipientV2 for DeutschebankPayouts {}
-
-impl
-    ConnectorIntegrationV2<
-        PayoutCreateRecipient,
-        PayoutFlowData,
-        PayoutCreateRecipientRequest,
-        PayoutCreateRecipientResponse,
-    > for DeutschebankPayouts
-{
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PayoutCreateRecipient,
-            PayoutFlowData,
-            PayoutCreateRecipientRequest,
-            PayoutCreateRecipientResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::connector_flow_not_implemented(
-            self.id(),
-            "payout_create_recipient",
-            unsupported_flow_context(),
-        )
-        .into())
-    }
-}
-
-impl PayoutEnrollDisburseAccountV2 for DeutschebankPayouts {}
-
-impl
-    ConnectorIntegrationV2<
-        PayoutEnrollDisburseAccount,
-        PayoutFlowData,
-        PayoutEnrollDisburseAccountRequest,
-        PayoutEnrollDisburseAccountResponse,
-    > for DeutschebankPayouts
-{
-    fn get_url(
-        &self,
-        _req: &RouterDataV2<
-            PayoutEnrollDisburseAccount,
-            PayoutFlowData,
-            PayoutEnrollDisburseAccountRequest,
-            PayoutEnrollDisburseAccountResponse,
-        >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::connector_flow_not_implemented(
-            self.id(),
-            "payout_enroll_disburse_account",
-            unsupported_flow_context(),
-        )
-        .into())
-    }
-}
+unsupported_payout_flow!(
+    PayoutCreateV2,
+    PayoutCreate,
+    PayoutCreateRequest,
+    PayoutCreateResponse,
+    "payout_create",
+);
+unsupported_payout_flow!(
+    PayoutVoidV2,
+    PayoutVoid,
+    PayoutVoidRequest,
+    PayoutVoidResponse,
+    "payout_void",
+);
+unsupported_payout_flow!(
+    PayoutStageV2,
+    PayoutStage,
+    PayoutStageRequest,
+    PayoutStageResponse,
+    "payout_stage",
+);
+unsupported_payout_flow!(
+    PayoutCreateLinkV2,
+    PayoutCreateLink,
+    PayoutCreateLinkRequest,
+    PayoutCreateLinkResponse,
+    "payout_create_link",
+);
+unsupported_payout_flow!(
+    PayoutCreateRecipientV2,
+    PayoutCreateRecipient,
+    PayoutCreateRecipientRequest,
+    PayoutCreateRecipientResponse,
+    "payout_create_recipient",
+);
+unsupported_payout_flow!(
+    PayoutEnrollDisburseAccountV2,
+    PayoutEnrollDisburseAccount,
+    PayoutEnrollDisburseAccountRequest,
+    PayoutEnrollDisburseAccountResponse,
+    "payout_enroll_disburse_account",
+);

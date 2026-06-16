@@ -1,5 +1,6 @@
 #[cfg(test)]
 #[allow(clippy::unwrap_used)]
+#[allow(clippy::expect_used)]
 #[allow(clippy::panic)]
 mod tests {
     use domain_types::errors::IntegrationError;

@@ -34,9 +34,7 @@ pub struct DeutschebankAuthType {
     pub customer_identifier: Secret<String>,
     pub key_id: Secret<String>,
     pub signing_private_key: Secret<String>,
-    /// mTLS client certificate (PEM), split out of the bundle field.
     pub client_certificate: Secret<String>,
-    /// mTLS client certificate private key (PEM), split out of the bundle field.
     pub client_certificate_key: Secret<String>,
 }
 
@@ -824,14 +822,16 @@ fn extract_debtor_iban(
     }
 }
 
-fn current_iso_utc_seconds() -> Result<String, error_stack::Report<IntegrationError>> {
+/// `YYYY-MM-DDTHH:MM:SSZ` UTC timestamp used for both the CSEAL
+/// `x-apiConsumer-request-timestamp` header and the SEPA `creationDateTime`.
+pub(super) fn current_iso_utc_seconds() -> Result<String, error_stack::Report<IntegrationError>> {
     use time::macros::format_description;
     let fmt = format_description!("[year]-[month]-[day]T[hour]:[minute]:[second]Z");
     time::OffsetDateTime::now_utc().format(&fmt).change_context(
         IntegrationError::RequestEncodingFailed {
             context: IntegrationErrorContext {
                 additional_context: Some(
-                    "formatting current UTC datetime for SEPA creationDateTime".to_string(),
+                    "formatting current UTC datetime for Deutsche Bank request".to_string(),
                 ),
                 suggested_action: Some("Retry the request; report if persistent.".to_string()),
                 doc_url: None,
@@ -842,9 +842,6 @@ fn current_iso_utc_seconds() -> Result<String, error_stack::Report<IntegrationEr
 
 fn sepa_execution_date() -> Result<String, error_stack::Report<IntegrationError>> {
     use time::format_description::well_known::Iso8601;
-    // SEPA SCT has a same-day cutoff (~14:00-16:00 CET). Submitting after cutoff with
-    // execution_date = today triggers APP-RULE at Deutsche Bank. D+1 sidesteps it
-    // unconditionally and DB advances to the next TARGET2 business day on its side.
     (time::OffsetDateTime::now_utc().date() + time::Duration::days(1))
         .format(&Iso8601::DATE)
         .change_context(IntegrationError::RequestEncodingFailed {
@@ -861,28 +858,16 @@ fn sepa_execution_date() -> Result<String, error_stack::Report<IntegrationError>
 // ============================================================================
 // PEM bundle handling for mTLS material
 // ============================================================================
-//
-// DB's MCA stores the mTLS client certificate and its private key together as
-// one concatenated PEM blob (`client_certificate_bundle`) because hyperswitch's
-// `ConnectorAuthType::MultiAuthKey` only has four typed slots and DB CSEAL
-// needs five secrets. Splitting back into `(cert_chain_pem, key_pem)` happens
-// here, once, in `DeutschebankAuthType::try_from`.
 
-/// One well-formed PEM block, captured by label and full marker-wrapped body.
 #[derive(Debug)]
 struct PemBlock<'a> {
     label: &'a str,
     body: &'a str,
 }
 
-/// Recognized private-key labels per RFC 7468 §10–11.
-/// PKCS#8 is the modern default; PKCS#1 and SEC1 are accepted for back-compat.
 const PRIVATE_KEY_LABELS: &[&str] = &["PRIVATE KEY", "RSA PRIVATE KEY", "EC PRIVATE KEY"];
 const CERTIFICATE_LABEL: &str = "CERTIFICATE";
 
-/// Scan a buffer for `-----BEGIN <label>-----` / `-----END <label>-----` pairs.
-/// Bytes between blocks are ignored. Malformed blocks (unmatched markers,
-/// mismatched labels) terminate the scan without panicking.
 fn parse_pem_blocks(input: &str) -> Vec<PemBlock<'_>> {
     const BEGIN_PREFIX: &str = "-----BEGIN ";
     const MARKER_SUFFIX: &str = "-----";
@@ -898,8 +883,6 @@ fn parse_pem_blocks(input: &str) -> Vec<PemBlock<'_>> {
         let label_end = label_start + label_end_rel;
         let label = &input[label_start..label_end];
 
-        // Find matching END marker. We search after the label to avoid
-        // BEGIN markers stealing from a previous block's body.
         let end_marker = format!("-----END {label}-----");
         let Some(end_rel) = input[label_end..].find(end_marker.as_str()) else {
             break;
@@ -915,16 +898,6 @@ fn parse_pem_blocks(input: &str) -> Vec<PemBlock<'_>> {
     blocks
 }
 
-/// Split a concatenated PEM bundle into (cert_chain_pem, private_key_pem).
-///
-/// Requirements:
-/// - At least one CERTIFICATE block (multiple are concatenated to form a chain).
-/// - Exactly one private-key block in PKCS#8, PKCS#1, or SEC1 form.
-///
-/// Order of cert vs. key is not significant. Other PEM block types are ignored.
-///
-/// Error messages never echo bundle bytes — they describe the structural
-/// problem only, so private-key material cannot leak into logs.
 pub(super) fn split_pem_bundle(
     bundle: &str,
 ) -> Result<(String, String), error_stack::Report<IntegrationError>> {
@@ -966,9 +939,6 @@ pub(super) fn split_pem_bundle(
         ));
     }
 
-    // Concatenate certs with a separating newline to form a chain PEM.
-    // `keys.first()` is `Some` by the `(_, 1)` arm above; we use the
-    // checked accessor to satisfy clippy without an explicit panic point.
     let cert_chain = format!("{}\n", certs.join("\n"));
     let key_pem = keys.first().map(|k| format!("{k}\n")).unwrap_or_default();
     Ok((cert_chain, key_pem))
