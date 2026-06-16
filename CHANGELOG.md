@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.16.0
+
+### Features
+
+- **metrics:** Add feature-flagged OTLP metrics push for the gRPC server ([#1500](https://github.com/juspay/connector-service/pull/1500)) ([`190bf15`](https://github.com/juspay/connector-service/commit/190bf154d1e8271dd504e8dffee4ec300782cd18))
+
+### Bug Fixes
+
+- **connector:** [Qwikcilver] send bill_amount in redeem request ([#1512](https://github.com/juspay/connector-service/pull/1512)) ([`cd7bf23`](https://github.com/juspay/connector-service/commit/cd7bf23e268b8ab4f7b324e3c6f9c7c1348be650))
+
+### Miscellaneous Tasks
+
+- Configure plugin ([#1513](https://github.com/juspay/connector-service/pull/1513)) ([`2f4db93`](https://github.com/juspay/connector-service/commit/2f4db93dad018940d6e3d52d1429592293b74d7d))
+
+**Full Changelog:** [`2026.06.15.0...2026.06.16.0`](https://github.com/juspay/connector-service/compare/2026.06.15.0...2026.06.16.0)
+
+- - -
+
 ## 2026.06.15.0
 
 ### Features

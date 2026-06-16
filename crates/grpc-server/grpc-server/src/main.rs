@@ -40,6 +40,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         [ucs_env::service_name!(), "grpc_server", "tower_http"],
     );
 
+    // Optionally push metrics over OTLP to an OpenTelemetry Collector (mirrors the
+    // hyperswitch app). Additive to the Prometheus /metrics scrape endpoint.
+    #[cfg(feature = "otel")]
+    logger::metrics::setup_metrics_pipeline(&config.metrics.otel, ucs_env::service_name!());
+
     let metrics_server = app::metrics_server_builder(config.clone());
     let server = app::server_builder(config);
 
