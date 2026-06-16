@@ -133,6 +133,7 @@ jobs:
       - name: Create npm package tarball
         run: |
           cd plugins/medusa/medusa-custom-payments
+          cp ../../../LICENSE LICENSE
           npm install --ignore-scripts
           npm pack
 

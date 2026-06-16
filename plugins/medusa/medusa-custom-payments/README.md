@@ -307,4 +307,4 @@ For React/Next.js storefront integration, see the companion package [`@juspay-te
 
 ## License
 
-MIT
+Apache-2.0
