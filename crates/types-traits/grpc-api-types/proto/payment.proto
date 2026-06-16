@@ -2136,6 +2136,10 @@ message PaymentServiceAuthorizeRequest {
   // Split-payment instructions, surfaced to connectors that support marketplace /
   // platform splits (e.g. Adyen `splits`).
   optional AdyenSplitData adyen_split_payment = 47;
+
+  // Stripe Connect split-payment instructions, surfaced so the Stripe connector
+  // can emit the `Stripe-Account` header for connected (direct-charge) accounts.
+  optional StripeSplitPaymentRequest stripe_split_payment = 48;
 }
 
 // A single Adyen split item (one entry of the `splits` array).
@@ -2150,6 +2154,18 @@ message AdyenSplitItem {
   string reference = 4;
   // Human-readable description for the split item.
   optional string description = 5;
+}
+
+// Stripe Connect split-payment data, mirroring hyperswitch's
+// StripeSplitPaymentRequest fed into the Stripe `Stripe-Account` header / charges.
+message StripeSplitPaymentRequest {
+  // Stripe charge type, lowercase wire value (e.g. "direct", "destination").
+  string charge_type = 1;
+  // Platform fees collected on the payment, in minor units.
+  optional int64 application_fees = 2;
+  // Connected-account id the funds are transferred to. Emitted as the
+  // `Stripe-Account` header for direct charges.
+  string transfer_account_id = 3;
 }
 
 // Adyen split-payment data (Platforms / MarketPay), mirroring hyperswitch's
