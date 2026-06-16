@@ -2611,6 +2611,10 @@ message PaymentServiceCaptureRequest {
   // Order-level tax amount. Some processors require this again on capture so
   // settlement receives the Level II sales tax value.
   optional Money order_tax_amount = 13;
+
+  // Stripe Connect split-payment data. Carries the connected-account id used to
+  // emit the `Stripe-Account` header on the capture request for direct charges.
+  optional StripeSplitPaymentRequest stripe_split_payment = 14;
 }
 
 // Response message for a payment capture operation
