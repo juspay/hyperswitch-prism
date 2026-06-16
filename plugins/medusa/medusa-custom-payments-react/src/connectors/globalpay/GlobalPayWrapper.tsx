@@ -44,13 +44,11 @@ export function GlobalPayWrapper({
 
         if (cancelled || !containerRef.current) return;
 
-        console.log("[GlobalPayWrapper] Configuring SDK with accessToken=%s env=%s", accessToken, environment);
         GlobalPayments.configure({ accessToken, env: environment });
 
         cardForm = GlobalPayments.creditCard.form(containerRef.current);
 
         cardForm.on("token-success", async (resp: any) => {
-          console.log("[GlobalPayWrapper] token-success resp=%o", resp);
           const token = resp?.paymentReference;
 
           if (!token) {
@@ -79,7 +77,6 @@ export function GlobalPayWrapper({
         });
 
         cardForm.on("token-error", (err: any) => {
-          console.log("[GlobalPayWrapper] token-error err=%o", err);
           let msg = "Payment tokenization failed";
           if (
             err?.error_code === "ACTION_NOT_AUTHORIZED" ||
