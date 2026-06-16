@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import type { BasePaymentButtonProps } from "./types";
+import { isNextControlFlowError } from "../../utils/redirect-error";
 
 /**
  * Manual / test payment button.
@@ -24,6 +25,7 @@ export function ManualTestPaymentButton({
     try {
       await onPlaceOrder();
     } catch (err: any) {
+      if (isNextControlFlowError(err)) throw err;
       setErrorMessage(err.message || "Payment failed");
     } finally {
       setSubmitting(false);
