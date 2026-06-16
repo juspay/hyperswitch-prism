@@ -1410,6 +1410,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub currency: Currency,
     pub confirm: bool,
     pub billing_descriptor: Option<BillingDescriptor>,
+    pub partner_merchant_identifier_details:
+        Option<grpc_api_types::payments::PartnerMerchantIdentifierDetails>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,

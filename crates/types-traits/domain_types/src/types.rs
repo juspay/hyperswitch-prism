@@ -2916,6 +2916,8 @@ pub struct AuthorizationRequest {
     pub customer_acceptance: Option<grpc_payment_types::CustomerAcceptance>,
     pub browser_info: Option<grpc_payment_types::BrowserInformation>,
     pub billing_descriptor: Option<grpc_payment_types::BillingDescriptor>,
+    pub partner_merchant_identifier_details:
+        Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
     pub payment_experience: Option<grpc_payment_types::PaymentExperience>,
     pub description: Option<String>,
     pub payment_channel: grpc_payment_types::PaymentChannel,
@@ -3012,6 +3014,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             customer_acceptance: req.customer_acceptance.clone(),
             browser_info: req.browser_info.clone(),
             billing_descriptor: req.billing_descriptor.clone(),
+            partner_merchant_identifier_details: req.partner_merchant_identifier_details.clone(),
             payment_experience: Some(req.payment_experience()),
             description: req.description.clone(),
             payment_channel: req.payment_channel(),
@@ -3076,6 +3079,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             customer_acceptance: req.customer_acceptance.clone(),
             browser_info: req.browser_info,
             billing_descriptor: req.billing_descriptor,
+            partner_merchant_identifier_details: None,
             payment_experience: None,
             description: req.description.clone(),
             payment_channel: grpc_payment_types::PaymentChannel::Unspecified,
@@ -3720,6 +3724,7 @@ impl<
             threeds_method_comp_ind: value.threeds_completion_indicator.and_then(|i| {
                 connector_types::ThreeDsCompletionIndicator::foreign_try_from(i).ok()
             }),
+            partner_merchant_identifier_details: value.partner_merchant_identifier_details,
             tokenization,
         })
     }
@@ -14335,6 +14340,7 @@ pub fn tokenized_authorize_to_base(
         threeds_completion_indicator: None,
         tokenization_strategy: None,
         merchant_request_id: None,
+        partner_merchant_identifier_details: None,
     }
 }
 
@@ -14506,6 +14512,7 @@ pub fn proxied_authorize_to_base(
         statement_descriptor_suffix: None,
         tokenization_strategy: None,
         merchant_request_id: None,
+        partner_merchant_identifier_details: None,
     })
 }
 

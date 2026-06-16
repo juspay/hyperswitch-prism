@@ -1301,8 +1301,61 @@ pub struct AdyenPaymentRequest<
     device_fingerprint: Option<Secret<String>>,
     metadata: Option<Secret<serde_json::Value>>,
     platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
+    application_info: Option<ApplicationInfo>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     session_validity: Option<PrimitiveDateTime>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplicationInfo {
+    external_platform: Option<ExternalPlatform>,
+    merchant_application: Option<MerchantApplication>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalPlatform {
+    name: Option<String>,
+    version: Option<String>,
+    integrator: Option<String>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantApplication {
+    name: Option<String>,
+    version: Option<String>,
+}
+
+/// Build Adyen `applicationInfo` (external platform + merchant application) from the
+/// partner/merchant identifier details carried on the authorize request. Mirrors the
+/// hyperswitch native adyen connector's `get_application_info`.
+fn get_application_info(
+    partner_merchant_identifier_details: Option<
+        &grpc_api_types::payments::PartnerMerchantIdentifierDetails,
+    >,
+) -> Option<ApplicationInfo> {
+    partner_merchant_identifier_details.map(|details| ApplicationInfo {
+        merchant_application: details
+            .merchant_details
+            .as_ref()
+            .map(|merchant_details| MerchantApplication {
+                name: merchant_details.name.clone(),
+                version: merchant_details.version.clone(),
+            }),
+        external_platform: details
+            .partner_details
+            .as_ref()
+            .map(|partner_details| ExternalPlatform {
+                name: partner_details.name.clone(),
+                version: partner_details.version.clone(),
+                integrator: partner_details.integrator.clone(),
+            }),
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -2425,6 +2478,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
+            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
             session_validity: None,
         })
     }
@@ -2584,6 +2638,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
+            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
             session_validity: None,
         })
     }
@@ -2705,6 +2760,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
+            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
             session_validity: None,
         })
     }
@@ -2845,6 +2901,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
+            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
             session_validity: None,
         })
     }
@@ -2998,6 +3055,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
             session_validity,
         })
     }
@@ -3111,6 +3174,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .expose_option()
                 .map(|value| Secret::new(filter_adyen_metadata(value))),
             platform_chargeback_logic,
+            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
             session_validity: None,
         })
     }
@@ -3218,6 +3282,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
+            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
             session_validity: None,
         })
     }
@@ -3359,6 +3424,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
+            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
             session_validity: None,
         })
     }
@@ -3479,6 +3545,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .metadata
                 .clone()
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
+            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
             session_validity: None,
         })
     }
@@ -3600,6 +3667,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
+            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
             session_validity: None,
         })
     }
@@ -3832,6 +3900,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .clone()
                             .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
                         platform_chargeback_logic,
+                        application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
                         session_validity: None,
                     })
                 }
@@ -6256,6 +6325,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             device_fingerprint,
             metadata: None,
             platform_chargeback_logic,
+            application_info: None,
             session_validity: None,
         }))
     }
@@ -6767,6 +6837,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
+            application_info: None,
             session_validity: None,
         }))
     }

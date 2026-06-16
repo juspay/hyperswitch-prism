@@ -158,6 +158,7 @@ impl
             .or_else(|| item.connector_feature_data.clone());
 
         Self {
+            partner_merchant_identifier_details: None,
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             amount: item.amount,
             order_tax_amount: item.order_tax_amount,
@@ -890,6 +891,7 @@ impl
         });
 
         Self {
+            partner_merchant_identifier_details: None,
             merchant_transaction_id: request.merchant_transaction_id.clone(),
             merchant_order_id: request.merchant_order_id.clone(),
             amount: request.amount,
