@@ -51,3 +51,6 @@ export {
   isHyperswitchPrismGlobalpay,
   HYPERSWITCH_PRISM_PROVIDER_IDS,
 } from "./utils/predicates";
+
+// Next.js redirect/notFound control-flow error detection (for re-throwing)
+export { isNextControlFlowError } from "./utils/redirect-error";

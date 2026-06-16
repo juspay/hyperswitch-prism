@@ -1,4 +1,4 @@
-# @juspay/medusa-unified-payment-react
+# @juspay-tech/medusa-custom-payments-react
 
 React UI components for Hyperswitch Prism payment connectors. Ships two layers of API:
 
@@ -34,19 +34,19 @@ React UI components for Hyperswitch Prism payment connectors. Ships two layers o
 ## Installation
 
 ```bash
-npm install @juspay/medusa-unified-payment-react
+npm install @juspay-tech/medusa-custom-payments-react
 # peer dependencies
 npm install @adyen/adyen-web @stripe/react-stripe-js @stripe/stripe-js
 ```
 
 **Local development** (linked to this repo):
 ```json
-"@juspay/medusa-unified-payment-react": "file:/path/to/medusa-hyperswitch-prism/medusa-unified-payment-react"
+"@juspay-tech/medusa-custom-payments-react": "file:/path/to/medusa-hyperswitch-prism/medusa-custom-payments-react"
 ```
 
 After source changes, rebuild with:
 ```bash
-cd medusa-unified-payment-react && npm run build
+cd medusa-custom-payments-react && npm run build
 # then yarn install in your storefront
 ```
 
@@ -90,7 +90,7 @@ NEXT_PUBLIC_ADYEN_CLIENT_KEY=test_...
 Renders the correct payment instrument UI for the selected Hyperswitch Prism provider. Returns `null` for Stripe (handled separately via `@stripe/react-stripe-js`) and unknown providers.
 
 ```tsx
-import { HyperswitchPrismConnectorPanel } from "@juspay/medusa-unified-payment-react"
+import { HyperswitchPrismConnectorPanel } from "@juspay-tech/medusa-custom-payments-react"
 
 <HyperswitchPrismConnectorPanel
   providerId={paymentMethod.id}
@@ -123,7 +123,7 @@ import { HyperswitchPrismConnectorPanel } from "@juspay/medusa-unified-payment-r
 Auto-dispatches to the correct connector place-order button. Returns `null` for non-Hyperswitch Prism providers.
 
 ```tsx
-import { HyperswitchPrismPaymentButton } from "@juspay/medusa-unified-payment-react"
+import { HyperswitchPrismPaymentButton } from "@juspay-tech/medusa-custom-payments-react"
 
 <HyperswitchPrismPaymentButton
   providerId={paymentSession?.provider_id}
@@ -176,7 +176,7 @@ Use these when building a custom (non-Medusa) checkout or embedding an individua
 Renders the Adyen Web v6 drop-in.
 
 ```tsx
-import { AdyenWrapper } from "@juspay/medusa-unified-payment-react"
+import { AdyenWrapper } from "@juspay-tech/medusa-custom-payments-react"
 
 <AdyenWrapper
   sessionData={{
@@ -205,7 +205,7 @@ import { AdyenWrapper } from "@juspay/medusa-unified-payment-react"
 Renders the PayPal Buttons SDK.
 
 ```tsx
-import { PayPalWrapper } from "@juspay/medusa-unified-payment-react"
+import { PayPalWrapper } from "@juspay-tech/medusa-custom-payments-react"
 
 <PayPalWrapper
   clientId="AYour_PayPal_Client_Id"
@@ -233,7 +233,7 @@ import { PayPalWrapper } from "@juspay/medusa-unified-payment-react"
 Renders the GlobalPay hosted card fields. After tokenization, `onSubmit` is called with the `paymentReference` that must be persisted before place order.
 
 ```tsx
-import { GlobalPayWrapper } from "@juspay/medusa-unified-payment-react"
+import { GlobalPayWrapper } from "@juspay-tech/medusa-custom-payments-react"
 
 <GlobalPayWrapper
   accessToken={sessionData.accessToken}
@@ -260,7 +260,7 @@ import { GlobalPayWrapper } from "@juspay/medusa-unified-payment-react"
 Renders the Stripe Payment Element (standalone — does not require an `<Elements>` context).
 
 ```tsx
-import { StripeWrapper } from "@juspay/medusa-unified-payment-react"
+import { StripeWrapper } from "@juspay-tech/medusa-custom-payments-react"
 
 <StripeWrapper
   publishableKey="pk_test_..."
@@ -281,8 +281,8 @@ import { StripeWrapper } from "@juspay/medusa-unified-payment-react"
 
 ## Backend Plugin
 
-For the Medusa backend plugin, see [`@juspay/medusa-unified-payment`](https://www.npmjs.com/package/@juspay/medusa-unified-payment).
+For the Medusa backend plugin, see [`@juspay-tech/medusa-custom-payments`](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments).
 
 ## License
 
-MIT
+Apache-2.0

@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@adyen/adyen-web": "^6.37.0",
-    "@juspay/medusa-unified-payment-react": "*",
+    "@juspay-tech/medusa-custom-payments-react": "*",
     "@stripe/react-stripe-js": "^3.1.1",
     "@stripe/stripe-js": "^5.5.0",
     "react": "^18.3.1",
