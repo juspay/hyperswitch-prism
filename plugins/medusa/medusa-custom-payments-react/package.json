@@ -1,6 +1,6 @@
 {
   "name": "@juspay-tech/medusa-custom-payments-react",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Generic payment UI components for Medusa v2 storefronts",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
