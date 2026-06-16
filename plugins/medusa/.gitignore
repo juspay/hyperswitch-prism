@@ -4,6 +4,10 @@ build/
 medusa-hyperswitch-prism/dist/
 medusa-hyperswitch-prism-react/dist/
 
+# LICENSE is copied from the repo root into each package at release time (see release workflows)
+medusa-custom-payments/LICENSE
+medusa-custom-payments-react/LICENSE
+
 # Dependencies
 node_modules/
 
