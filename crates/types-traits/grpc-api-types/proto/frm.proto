@@ -28,13 +28,13 @@ message FrmServicePreRiskCheckRequest {
   Money amount = 1;
 
   // Customer information
-  CustomerInfo customer_info = 2;
+  optional CustomerInfo customer_info = 2;
 
   // Payment method details
-  PaymentMethod payment_method = 3;
+  optional PaymentMethod payment_method = 3;
 
   // Browser/device information for risk scoring
-  BrowserInformation browser_info = 4;
+  optional BrowserInformation browser_info = 4;
 
   // Merchant transaction identifier
   optional string merchant_transaction_id = 5;
@@ -43,7 +43,7 @@ message FrmServicePreRiskCheckRequest {
   repeated OrderDetailsWithAmount order_details = 6;
 
   // Address information
-  Address address = 7;
+  optional Address address = 7;
 
   // Additional metadata for the connector
   optional SecretString metadata = 8;
@@ -94,10 +94,10 @@ message FrmServicePostRiskCheckRequest {
   Money amount = 1;
 
   // Customer information
-  CustomerInfo customer_info = 2;
+  optional CustomerInfo customer_info = 2;
 
   // Payment method details
-  PaymentMethod payment_method = 3;
+  optional PaymentMethod payment_method = 3;
 
   // Merchant transaction identifier
   optional string merchant_transaction_id = 4;
@@ -115,13 +115,13 @@ message FrmServicePostRiskCheckRequest {
   optional bool test_mode = 8;
 
   // Payment status after processing
-  PaymentStatus payment_status = 9;
+  optional PaymentStatus payment_status = 9;
 
   // Connector transaction identifier from the payment
   optional string connector_transaction_id = 10;
 
   // Payment connector that processed the transaction
-  Connector payment_connector = 11;
+  optional Connector payment_connector = 11;
 
   // State Information
   optional ConnectorState state = 12;
