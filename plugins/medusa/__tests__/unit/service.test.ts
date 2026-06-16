@@ -1,4 +1,4 @@
-import HyperswitchPrismService from "../../medusa-unified-payment/src/providers/service"
+import HyperswitchPrismService from "../../medusa-custom-payments/src/providers/service"
 
 describe("HyperswitchPrismService", () => {
   const baseOptions = {

@@ -1,7 +1,7 @@
 # E2E tests (Playwright)
 
-Browser + route-level end-to-end tests that exercise **medusa-unified-payment** and
-**medusa-unified-payment-react** together through the `app/` harness (Express server on
+Browser + route-level end-to-end tests that exercise **medusa-custom-payments** and
+**medusa-custom-payments-react** together through the `app/` harness (Express server on
 :3000 serving the built React client and the `/store`, `/admin`, `/hooks` APIs same-origin).
 
 ## Layout

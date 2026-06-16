@@ -1,4 +1,4 @@
-// Documented sandbox test cards (see medusa-unified-payment/README.md).
+// Documented sandbox test cards (see medusa-custom-payments/README.md).
 export interface TestCard {
   number: string
   expMonth: string

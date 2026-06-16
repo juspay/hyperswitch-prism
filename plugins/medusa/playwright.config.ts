@@ -53,7 +53,7 @@ export default defineConfig({
   // harness. server:dev loads creds.json automatically.
   webServer: {
     command:
-      "npm run build && npm run build --workspace=medusa-unified-payment-react && npm run client:build && npm run server:dev",
+      "npm run build && npm run build --workspace=medusa-custom-payments-react && npm run client:build && npm run server:dev",
     url: `${BASE_URL}/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,
