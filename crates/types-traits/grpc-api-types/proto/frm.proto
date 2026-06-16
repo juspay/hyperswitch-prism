@@ -70,7 +70,7 @@ message FrmServicePreRiskCheckRequest {
 // Response for FrmService.PreRiskCheck
 message FrmServicePreRiskCheckResponse {
   // Risk assessment outcome
-  FrmDecision frm_decision = 1;
+  optional FrmDecision frm_decision = 1;
 
   // Risk score (higher = riskier)
   optional int32 risk_score = 2;
@@ -139,7 +139,7 @@ message FrmServicePostRiskCheckRequest {
 // Response for FrmService.PostRiskCheck
 message FrmServicePostRiskCheckResponse {
   // Risk assessment outcome
-  FrmDecision frm_decision = 1;
+  optional FrmDecision frm_decision = 1;
 
   // Risk score (higher = riskier)
   optional int32 risk_score = 2;
