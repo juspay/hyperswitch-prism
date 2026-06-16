@@ -454,7 +454,13 @@ mod unit {
         });
         let new_config = apply_override(override_json);
         assert!(new_config.events.enabled);
-        assert_eq!(new_config.events.topic.as_str(), "events-override");
+        // The override JSON above intentionally uses the legacy `topic` key; this asserts it
+        // still applies through the patch layer via the `#[serde(alias = "topic")]` on the
+        // renamed `connector_events_topic` field (backward compatibility).
+        assert_eq!(
+            new_config.events.connector_events_topic.as_str(),
+            "events-override"
+        );
         assert_eq!(
             new_config.events.brokers,
             vec!["broker1:9092".to_string(), "broker2:9092".to_string()]

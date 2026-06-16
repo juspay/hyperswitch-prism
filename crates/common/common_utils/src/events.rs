@@ -229,12 +229,11 @@ pub struct Event {
     /// HTTP verb for outbound connector calls; empty string for gRPC-only audit events.
     #[serde(serialize_with = "serialize_method")]
     pub method: Option<String>,
+    // Routing key only; deliberately not serialized (the stream is the discriminator).
+    #[serde(skip)]
     pub stage: EventStage,
     /// Service that produced this event (always `ucs`).
     pub source: &'static str,
-    /// Which leg this event records: the payment-connector call, or a UCS-service request.
-    /// Derived from `stage` (see `CallType: From<&EventStage>`).
-    pub call_type: CallType,
     /// Whether this leg was the primary execution or a shadow mirror.
     pub execution_mode: ExecutionMode,
     pub latency_ms: Option<u64>,
@@ -434,26 +433,6 @@ impl EventStage {
 /// `source` identifies the emitter (`ucs`), never the caller — UCS is caller-agnostic.
 pub const EVENT_SOURCE: &str = "ucs";
 
-/// Which leg of the call chain an event records.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CallType {
-    /// The outbound call to the payment connector (the external processor).
-    Connector,
-    /// A request at the UCS service interface (the inbound gRPC/HTTP request UCS serves).
-    /// Caller- and transport-agnostic.
-    Service,
-}
-
-impl From<&EventStage> for CallType {
-    fn from(stage: &EventStage) -> Self {
-        match stage {
-            EventStage::ConnectorCall => Self::Connector,
-            EventStage::GrpcRequest => Self::Service,
-        }
-    }
-}
-
 /// Whether a leg was the primary execution or a shadow mirror.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -479,7 +458,16 @@ impl ExecutionMode {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct EventConfig {
     pub enabled: bool,
-    pub topic: String,
+    /// Topic for outbound payment-connector calls (`ConnectorCall` stage -> the
+    /// `connector_events` table). Accepts the legacy key `topic` for backward compatibility
+    /// with existing deployments.
+    #[serde(alias = "topic")]
+    pub connector_events_topic: String,
+    /// Topic for inbound requests UCS serves over any transport — gRPC or HTTP
+    /// (`GrpcRequest` stage -> the `ucs_api_events` table). Falls back to
+    /// `connector_events_topic` when empty.
+    #[serde(default)]
+    pub ucs_api_events_topic: String,
     pub brokers: Vec<String>,
     pub partition_key_field: String,
     #[serde(default)]
@@ -494,7 +482,8 @@ impl Default for EventConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            topic: "events".to_string(),
+            connector_events_topic: "events".to_string(),
+            ucs_api_events_topic: String::new(),
             brokers: vec!["localhost:9092".to_string()],
             partition_key_field: "request_id".to_string(),
             transformations: HashMap::new(),

@@ -6,7 +6,7 @@ use serde_json;
 use tracing_kafka::{builder::KafkaWriterBuilder, KafkaWriter};
 
 use crate::{
-    events::{Event, EventConfig},
+    events::{Event, EventConfig, EventStage},
     CustomResult, EventPublisherError,
 };
 
@@ -35,7 +35,7 @@ impl EventPublisher {
             ));
         }
 
-        if config.topic.is_empty() {
+        if config.connector_events_topic.is_empty() {
             return Err(error_stack::Report::new(
                 EventPublisherError::InvalidConfiguration {
                     message: "topic cannot be empty".to_string(),
@@ -45,20 +45,20 @@ impl EventPublisher {
 
         tracing::debug!(
           brokers = ?config.brokers,
-          topic = %config.topic,
+          topic = %config.connector_events_topic,
           "Creating EventPublisher with configuration"
         );
 
         let writer = KafkaWriterBuilder::new()
             .brokers(config.brokers.clone())
-            .topic(config.topic.clone())
+            .topic(config.connector_events_topic.clone())
             .build()
             .map_err(|e| {
                 error_stack::Report::new(EventPublisherError::KafkaWriterInitializationFailed)
                     .attach_printable(format!("KafkaWriter build failed: {e}"))
                     .attach_printable(format!(
                         "Brokers: {:?}, Topic: {}",
-                        config.brokers, config.topic
+                        config.brokers, config.connector_events_topic
                     ))
             })?;
 
@@ -180,7 +180,7 @@ pub fn init_event_publisher(config: &EventConfig) {
             tracing::warn!(
                 error = ?e,
                 brokers = ?config.brokers,
-                topic = %config.topic,
+                topic = %config.connector_events_topic,
                 "Failed to initialize EventPublisher (Kafka may be unavailable); \
                  events will be dropped until the service is restarted with Kafka reachable"
             );
@@ -206,10 +206,18 @@ pub fn publish_event_to_kafka(
     if config.enabled {
         if let Some(publisher) = get_event_publisher() {
             let metadata = publisher.build_kafka_metadata(event);
+            let topic = match event.stage {
+                EventStage::GrpcRequest if !config.ucs_api_events_topic.is_empty() => {
+                    &config.ucs_api_events_topic
+                }
+                // Unset -> fall back to `topic`: preserves the pre-split single-topic behavior
+                // for existing deployments that have not opted into the new stream.
+                _ => &config.connector_events_topic,
+            };
             let _ = publisher
                 .publish_event_with_metadata(
                     processed_event,
-                    &config.topic,
+                    topic,
                     &config.partition_key_field,
                     metadata,
                 )

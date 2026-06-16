@@ -160,7 +160,12 @@ axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
 [events]
 enabled = false
 brokers = ["localhost:9092"]
-topic = "audit-trail-events"
+# Outbound payment-connector calls (ConnectorCall stage -> connector_events table).
+# (Legacy key `topic` is still accepted via serde alias for backward compatibility.)
+connector_events_topic = "audit-trail-events"
+# Inbound requests UCS serves over any transport, gRPC or HTTP (-> ucs_api_events table).
+# Optional: when unset, these events fall back to `topic` (pre-split behavior).
+ucs_api_events_topic = "audit-trail-service-events"
 partition_key_field = "request_id"
 
 [lineage]
@@ -177,7 +182,6 @@ field_prefix = "lineage_"
 "message.request_time" = "timestamp"
 "message.res_code" = "status_code"
 "message.url" = "url"
-"message.stage" = "stage"
 "message.req_body" = "connector_request_data"
 "message.res_body" = "connector_response_data"
 "udf_txn_uuid" = "reference_id"
