@@ -1,20 +1,20 @@
 {
   "info": {
     "name": "Flywire — Composite HTTP (Verified E2E)",
-    "description": "Verified end-to-end against Flywire sandbox (recipient ZENDD). Run against local UCS with CS__SERVER__TYPE=http on port 8000.\n\nFlow:\n  1. Initial CompositeAuthorize → creates Flywire checkout session → REDIRECT_REQUIRED + iframe HTML\n  2. User completes hosted form at the session URL\n  3. Post-redirect CompositeAuthorize (with connector_order_id + redirection_response) → VerifyRedirectResponse + Authorize confirm → COMPLETED\n  4. CompositeGet (PSync) → polls payment status → CHARGED\n  5. CompositeRefund → full or partial refund\n\nNote: payment_method JSON requires double nesting — the outer PaymentMethod proto message wraps a field also named payment_method containing the oneof.",
+    "description": "Verified end-to-end against Flywire sandbox (recipient ZENDD). Run against local UCS with CS__SERVER__TYPE=http on port 8000.\n\nFull flow:\n  1a. CompositeAuthorize (initial) → internally calls Authenticate → creates Flywire checkout session → REDIRECT_REQUIRED + iframe HTML\n  1b. [User opens hosted form URL and completes payment]\n  2.  CompositeAuthorize (post-redirect) → internally calls VerifyRedirectResponse + Authorize confirm → COMPLETED / CHARGED\n  3.  CompositeGet (PSync) → polls Flywire payment status → CHARGED / guaranteed\n  4.  CompositeRefund → submits refund against payment_id\n\nKey JSON gotcha: payment_method requires double nesting because the outer PaymentMethod proto message wraps a field also named payment_method containing the oneof:\n  { \"payment_method\": { \"payment_method\": { \"card_redirect\": { \"type\": \"CARD_REDIRECT\" } } } }",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "base_url",         "value": "http://localhost:8000" },
-    { "key": "connector_config", "value": "{\"config\":{\"Flywire\":{\"api_key\":\"<REDACTED>\",\"recipient_id\":\"ZENDD\",\"base_url\":\"https://api-platform-sandbox.flywire.com\"}}}" },
-    { "key": "merchant_txn_id",  "value": "fw-txn-{{$randomUUID}}" },
-    { "key": "merchant_order_id","value": "fw-order-{{$randomUUID}}" },
-    { "key": "session_id",       "value": "" },
-    { "key": "payment_id",       "value": "" }
+    { "key": "base_url",          "value": "http://localhost:8000" },
+    { "key": "connector_config",  "value": "{\"config\":{\"Flywire\":{\"api_key\":\"<REDACTED>\",\"recipient_id\":\"ZENDD\",\"base_url\":\"https://api-platform-sandbox.flywire.com\"}}}" },
+    { "key": "merchant_txn_id",   "value": "fw-txn-001" },
+    { "key": "merchant_order_id", "value": "fw-order-001" },
+    { "key": "session_id",        "value": "" },
+    { "key": "payment_id",        "value": "" }
   ],
   "item": [
     {
-      "name": "1. Initial Authorize → REDIRECT_REQUIRED",
+      "name": "1a. CompositeAuthorize — Initial (Authenticate leg) → REDIRECT_REQUIRED",
       "event": [
         {
           "listen": "test",
@@ -24,31 +24,33 @@
               "const res = pm.response.json();",
               "",
               "pm.test('composite_status is REDIRECT_REQUIRED', () => {",
-              "  pm.expect(res.composite_status).to.eql('REDIRECT_REQUIRED');",
+              "    pm.expect(res.composite_status).to.eql('REDIRECT_REQUIRED');",
               "});",
               "pm.test('authenticate_response present', () => {",
-              "  pm.expect(res.authenticate_response).to.be.an('object');",
+              "    pm.expect(res.authenticate_response).to.be.an('object');",
               "});",
               "pm.test('session_id returned', () => {",
-              "  pm.expect(res.authenticate_response.connector_transaction_id).to.be.a('string').and.not.empty;",
+              "    pm.expect(res.authenticate_response.connector_transaction_id).to.be.a('string').and.not.empty;",
               "});",
-              "pm.test('iframe HTML returned', () => {",
-              "  const html = res.authenticate_response?.redirection_data?.form_type?.Html?.html_data;",
-              "  pm.expect(html).to.include('flywireFrame');",
-              "  pm.expect(html).to.include('elements.demo.flywire.com');",
+              "pm.test('iframe HTML contains hosted form URL', () => {",
+              "    const html = res.authenticate_response?.redirection_data?.form_type?.Html?.html_data;",
+              "    pm.expect(html).to.include('flywireFrame');",
+              "    pm.expect(html).to.include('elements.demo.flywire.com');",
               "});",
               "",
-              "// Auto-populate session_id for subsequent requests",
+              "// Auto-populate session_id for step 2",
               "const sid = res.authenticate_response?.connector_transaction_id;",
               "if (sid) {",
-              "  pm.collectionVariables.set('session_id', sid);",
-              "  console.log('session_id set:', sid);",
-              "  // Print the hosted form URL so you can open it in a browser",
-              "  try {",
+              "    pm.collectionVariables.set('session_id', sid);",
+              "    console.log('session_id set to:', sid);",
+              "}",
+              "",
+              "// Log the hosted form URL — open this in a browser to complete payment",
+              "try {",
               "    const raw = JSON.parse(res.authenticate_response.raw_connector_response);",
-              "    console.log('Open in browser:', raw.hosted_form?.url);",
-              "  } catch(e) {}",
-              "}"
+              "    const url = raw.hosted_form?.url;",
+              "    console.log('>>> Open in browser to complete payment:', url);",
+              "} catch(e) {}"
             ]
           }
         }
@@ -56,12 +58,12 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type",      "value": "application/json" },
-          { "key": "x-connector",       "value": "flywire" },
-          { "key": "x-auth",            "value": "header-key" },
-          { "key": "x-tenant-id",       "value": "public" },
-          { "key": "x-request-id",      "value": "fw-initial-{{$randomUUID}}" },
-          { "key": "x-connector-config","value": "{{connector_config}}" }
+          { "key": "Content-Type",       "value": "application/json" },
+          { "key": "x-connector",        "value": "flywire" },
+          { "key": "x-auth",             "value": "header-key" },
+          { "key": "x-tenant-id",        "value": "public" },
+          { "key": "x-request-id",       "value": "fw-initial-{{$randomUUID}}" },
+          { "key": "x-connector-config", "value": "{{connector_config}}" }
         ],
         "body": {
           "mode": "raw",
@@ -81,21 +83,50 @@
           "code": 200,
           "_postman_previewlanguage": "json",
           "header": [{ "key": "Content-Type", "value": "application/json" }],
-          "body": "{\n  \"composite_status\": \"REDIRECT_REQUIRED\",\n  \"authenticate_response\": {\n    \"connector_transaction_id\": \"601863c7-f170-4c75-9ce9-c1316d6daf89\",\n    \"status\": \"PENDING\",\n    \"status_code\": 201,\n    \"response_headers\": {},\n    \"redirection_data\": {\n      \"form_type\": {\n        \"Html\": {\n          \"html_data\": \"<!DOCTYPE html>\\n<html lang=\\\"en\\\">\\n<head>\\n  <title>Flywire Payment Listener</title>\\n</head>\\n<body>\\n  <h2>Flywire Payment</h2>\\n  <iframe id=\\\"flywireFrame\\\" src=\\\"https://elements.demo.flywire.com/v1/form?session_id=601863c7-f170-4c75-9ce9-c1316d6daf89\\\" allow=\\\"payment\\\"></iframe>\\n  <script>\\n    window.addEventListener('message', (event) => {\\n      if (result.success) window.location.href = 'https://example.com/return';\\n    });\\n  </script>\\n</body>\\n</html>\"\n        }\n      }\n    },\n    \"raw_connector_response\": \"{\\\"id\\\":\\\"601863c7-f170-4c75-9ce9-c1316d6daf89\\\",\\\"expires_in_seconds\\\":1800,\\\"hosted_form\\\":{\\\"url\\\":\\\"https://elements.demo.flywire.com/v1/form?session_id=601863c7-f170-4c75-9ce9-c1316d6daf89\\\"},\\\"warnings\\\":[]}\"\n  }\n}"
+          "body": "{\n  \"composite_status\": \"REDIRECT_REQUIRED\",\n  \"authenticate_response\": {\n    \"connector_transaction_id\": \"601863c7-f170-4c75-9ce9-c1316d6daf89\",\n    \"status\": \"PENDING\",\n    \"status_code\": 201,\n    \"response_headers\": {},\n    \"redirection_data\": {\n      \"form_type\": {\n        \"Html\": {\n          \"html_data\": \"<!DOCTYPE html>\\n<html lang=\\\"en\\\">\\n<head>\\n  <meta charset=\\\"UTF-8\\\" />\\n  <title>Flywire Payment Listener</title>\\n  <style>\\n    body { margin: 0; font-family: Arial, sans-serif; }\\n    h2 { text-align: center; padding: 16px; }\\n    iframe { width: 100%; height: calc(100vh - 70px); border: none; }\\n  </style>\\n</head>\\n<body>\\n  <h2>Flywire Payment</h2>\\n  <iframe id=\\\"flywireFrame\\\" src=\\\"https://elements.demo.flywire.com/v1/form?session_id=601863c7-f170-4c75-9ce9-c1316d6daf89\\\" allow=\\\"payment\\\"></iframe>\\n  <script>\\n    window.addEventListener('message', (event) => {\\n      if (!event.origin.endsWith('.flywire.com')) return;\\n      const result = event.data;\\n      if (result.success) window.location.href = 'https://example.com/return';\\n      else if (result.success === false) window.location.href = 'https://example.com/return';\\n    });\\n  </script>\\n</body>\\n</html>\"\n        }\n      }\n    },\n    \"raw_connector_response\": \"{\\\"id\\\":\\\"601863c7-f170-4c75-9ce9-c1316d6daf89\\\",\\\"expires_in_seconds\\\":1800,\\\"hosted_form\\\":{\\\"url\\\":\\\"https://elements.demo.flywire.com/v1/form?session_id=601863c7-f170-4c75-9ce9-c1316d6daf89\\\"},\\\"warnings\\\":[]}\"\n  }\n}"
         }
       ]
     },
     {
-      "name": "2. Post-Redirect Authorize → COMPLETED",
+      "name": "1b. [Manual] Open hosted form URL in browser — complete payment",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// This is a documentation-only placeholder.",
+              "// After step 1a, the console logs the hosted form URL.",
+              "// Open it in a browser, complete the payment, then run step 2."
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://elements.demo.flywire.com/v1/form?session_id={{session_id}}",
+          "host": ["elements.demo.flywire.com"],
+          "path": ["v1", "form"],
+          "query": [{ "key": "session_id", "value": "{{session_id}}" }]
+        },
+        "description": "Open this URL in a browser. Log in or fill in test card details on the Flywire hosted form, then submit. Once done, return here and run step 2 (post-redirect authorize)."
+      },
+      "response": []
+    },
+    {
+      "name": "2. CompositeAuthorize — Post-redirect (VerifyRedirectResponse + Authorize leg) → COMPLETED",
       "event": [
         {
           "listen": "prerequest",
           "script": {
             "type": "text/javascript",
             "exec": [
-              "// Ensure session_id is set from Flow 1 before running this request",
               "const sid = pm.collectionVariables.get('session_id');",
-              "if (!sid) console.warn('session_id is empty — run Flow 1 first and complete the hosted form');"
+              "if (!sid) {",
+              "    console.warn('session_id is empty — run step 1a first, then complete the hosted form (step 1b)');",
+              "}"
             ]
           }
         },
@@ -107,23 +138,23 @@
               "const res = pm.response.json();",
               "",
               "pm.test('composite_status is COMPLETED', () => {",
-              "  pm.expect(res.composite_status).to.eql('COMPLETED');",
+              "    pm.expect(res.composite_status).to.eql('COMPLETED');",
               "});",
               "pm.test('authorize_response status is CHARGED', () => {",
-              "  pm.expect(res.authorize_response?.status).to.eql('CHARGED');",
+              "    pm.expect(res.authorize_response?.status).to.eql('CHARGED');",
               "});",
-              "pm.test('payment_id returned', () => {",
-              "  pm.expect(res.authorize_response?.connector_transaction_id).to.be.a('string').and.not.empty;",
+              "pm.test('connector_transaction_id (payment_id) returned', () => {",
+              "    pm.expect(res.authorize_response?.connector_transaction_id).to.be.a('string').and.not.empty;",
               "});",
               "pm.test('verify_redirect_response present', () => {",
-              "  pm.expect(res.verify_redirect_response).to.be.an('object');",
+              "    pm.expect(res.verify_redirect_response).to.be.an('object');",
               "});",
               "",
               "// Auto-populate payment_id for PSync and Refund",
               "const pid = res.authorize_response?.connector_transaction_id;",
               "if (pid) {",
-              "  pm.collectionVariables.set('payment_id', pid);",
-              "  console.log('payment_id set:', pid);",
+              "    pm.collectionVariables.set('payment_id', pid);",
+              "    console.log('payment_id set to:', pid);",
               "}"
             ]
           }
@@ -132,12 +163,12 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type",      "value": "application/json" },
-          { "key": "x-connector",       "value": "flywire" },
-          { "key": "x-auth",            "value": "header-key" },
-          { "key": "x-tenant-id",       "value": "public" },
-          { "key": "x-request-id",      "value": "fw-redirect-{{$randomUUID}}" },
-          { "key": "x-connector-config","value": "{{connector_config}}" }
+          { "key": "Content-Type",       "value": "application/json" },
+          { "key": "x-connector",        "value": "flywire" },
+          { "key": "x-auth",             "value": "header-key" },
+          { "key": "x-tenant-id",        "value": "public" },
+          { "key": "x-request-id",       "value": "fw-redirect-{{$randomUUID}}" },
+          { "key": "x-connector-config", "value": "{{connector_config}}" }
         ],
         "body": {
           "mode": "raw",
@@ -162,7 +193,7 @@
       ]
     },
     {
-      "name": "3. PSync — CompositeGet → CHARGED",
+      "name": "3. CompositeGet (PSync) → CHARGED",
       "event": [
         {
           "listen": "test",
@@ -172,10 +203,10 @@
               "const res = pm.response.json();",
               "",
               "pm.test('get_response present', () => {",
-              "  pm.expect(res.get_response).to.be.an('object');",
+              "    pm.expect(res.get_response).to.be.an('object');",
               "});",
               "pm.test('status is CHARGED', () => {",
-              "  pm.expect(res.get_response?.status).to.eql('CHARGED');",
+              "    pm.expect(res.get_response?.status).to.eql('CHARGED');",
               "});"
             ]
           }
@@ -184,12 +215,12 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type",      "value": "application/json" },
-          { "key": "x-connector",       "value": "flywire" },
-          { "key": "x-auth",            "value": "header-key" },
-          { "key": "x-tenant-id",       "value": "public" },
-          { "key": "x-request-id",      "value": "fw-psync-{{$randomUUID}}" },
-          { "key": "x-connector-config","value": "{{connector_config}}" }
+          { "key": "Content-Type",       "value": "application/json" },
+          { "key": "x-connector",        "value": "flywire" },
+          { "key": "x-auth",             "value": "header-key" },
+          { "key": "x-tenant-id",        "value": "public" },
+          { "key": "x-request-id",       "value": "fw-psync-{{$randomUUID}}" },
+          { "key": "x-connector-config", "value": "{{connector_config}}" }
         ],
         "body": {
           "mode": "raw",
@@ -214,7 +245,7 @@
       ]
     },
     {
-      "name": "4. Refund — CompositeRefund",
+      "name": "4. CompositeRefund",
       "event": [
         {
           "listen": "test",
@@ -223,7 +254,7 @@
             "exec": [
               "const res = pm.response.json();",
               "pm.test('Response is valid JSON', () => { pm.response.to.be.json; });",
-              "// Note: Flywire sandbox returns 422 for refund amounts below the recipient minimum.",
+              "// Note: Flywire sandbox may reject amounts below the recipient's minimum refund setting.",
               "// A successful refund returns refund_response.status = 'PENDING'."
             ]
           }
@@ -232,12 +263,12 @@
       "request": {
         "method": "POST",
         "header": [
-          { "key": "Content-Type",      "value": "application/json" },
-          { "key": "x-connector",       "value": "flywire" },
-          { "key": "x-auth",            "value": "header-key" },
-          { "key": "x-tenant-id",       "value": "public" },
-          { "key": "x-request-id",      "value": "fw-refund-{{$randomUUID}}" },
-          { "key": "x-connector-config","value": "{{connector_config}}" }
+          { "key": "Content-Type",       "value": "application/json" },
+          { "key": "x-connector",        "value": "flywire" },
+          { "key": "x-auth",             "value": "header-key" },
+          { "key": "x-tenant-id",        "value": "public" },
+          { "key": "x-request-id",       "value": "fw-refund-{{$randomUUID}}" },
+          { "key": "x-connector-config", "value": "{{connector_config}}" }
         ],
         "body": {
           "mode": "raw",
