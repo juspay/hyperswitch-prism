@@ -75,8 +75,74 @@ message FrmServicePreRiskCheckResponse {
   // Reason for the decision
   optional string reason = 3;
 
-  // Connector transaction identifier
-  optional string connector_transaction_id = 4;
+  // FRM transaction identifier
+  optional string frm_transaction_id = 4;
+
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+
+  // Error information if the request failed
+  optional ErrorInfo error = 6;
+
+  // Raw request sent to the connector for debugging
+  optional SecretString raw_connector_request = 7;
+
+  // Raw response from the connector for debugging
+  optional SecretString raw_connector_response = 8;
+
+  // Response headers from the connector
+  map<string, string> response_headers = 9;
+}
+
+// Request for FrmService.PostRiskCheck
+message FrmServicePostRiskCheckRequest {
+  // Transaction details
+  Money amount = 1;
+
+  // Customer information
+  CustomerInfo customer_info = 2;
+
+  // Payment method details
+  PaymentMethod payment_method = 3;
+
+  // Merchant transaction identifier
+  optional string merchant_transaction_id = 4;
+
+  // Order details
+  OrderDetailsWithAmount order_details = 5;
+
+  // Additional metadata for the connector
+  optional SecretString metadata = 6;
+
+  // Connector-specific feature data for the transaction
+  optional SecretString connector_feature_data = 7;
+
+  // Sandbox/test mode flag
+  optional bool test_mode = 8;
+
+  // Payment status after processing
+  PaymentStatus payment_status = 9;
+
+  // Connector transaction identifier from the payment
+  optional string connector_transaction_id = 10;
+
+  // Payment connector that processed the transaction
+  Connector payment_connector = 11;
+}
+
+// Response for FrmService.PostRiskCheck
+message FrmServicePostRiskCheckResponse {
+  // Risk assessment outcome
+  FrmDecision frm_decision = 1;
+
+  // Risk score (higher = riskier)
+  int32 risk_score = 2;
+
+  // Reason for the decision
+  optional string reason = 3;
+
+  // FRM transaction identifier
+  optional string frm_transaction_id = 4;
 
   // HTTP status code from the connector
   uint32 status_code = 5;
