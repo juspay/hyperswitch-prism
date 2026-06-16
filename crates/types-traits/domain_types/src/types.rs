@@ -404,6 +404,7 @@ pub struct Connectors {
     pub juspay: ConnectorParams,
     pub payconex: ConnectorParams,
     pub tamara: ConnectorParams,
+    pub hyperswitch: ConnectorParams,
     pub qwikcilver: ConnectorParams,
 }
 

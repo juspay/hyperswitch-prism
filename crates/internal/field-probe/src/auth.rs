@@ -690,6 +690,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             base_url: None,
         },
+        ConnectorEnum::Hyperswitch => ConnectorSpecificConfig::Hyperswitch {
+            api_key: k(),
+            base_url: None,
+        },
+
         ConnectorEnum::Qwikcilver => ConnectorSpecificConfig::Qwikcilver {
             bootstrap_bearer_token: k(),
             terminal_id: k(),
