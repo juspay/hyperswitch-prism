@@ -285,4 +285,4 @@ For the Medusa backend plugin, see [`@juspay-tech/medusa-custom-payments`](https
 
 ## License
 
-MIT
+Apache-2.0

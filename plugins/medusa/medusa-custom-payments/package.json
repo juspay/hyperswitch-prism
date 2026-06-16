@@ -46,6 +46,7 @@
     "typescript": "^5.3.0"
   },
   "homepage": "https://github.com/juspay/medusa-hyperswitch-prism/blob/main/medusa-custom-payments/README.md",
+  "license": "Apache-2.0",
   "keywords": [
     "medusa-plugin",
     "medusa-plugin-payment",

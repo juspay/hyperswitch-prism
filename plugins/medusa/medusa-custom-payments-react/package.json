@@ -55,5 +55,14 @@
     "stripe",
     "paypal"
   ],
-  "license": "MIT"
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juspay/medusa-hyperswitch-prism.git",
+    "directory": "medusa-custom-payments-react"
+  },
+  "homepage": "https://github.com/juspay/medusa-hyperswitch-prism/blob/main/medusa-custom-payments-react/README.md",
+  "bugs": {
+    "url": "https://github.com/juspay/medusa-hyperswitch-prism/issues"
+  },
+  "license": "Apache-2.0"
 }
