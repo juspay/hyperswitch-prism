@@ -2166,7 +2166,7 @@ message PaymentServiceAuthorizeResponse {
   optional ConnectorResponseData connector_response = 17;
   optional SecretString connector_feature_data =
       18; // Connector-specific metadata for the transaction
-  optional string network_transaction_link_id = 19;
+  optional string network_txn_link_id = 19;
 }
 
 // Request message for synchronizing payment status
