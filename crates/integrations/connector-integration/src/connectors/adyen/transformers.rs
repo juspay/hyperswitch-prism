@@ -5824,12 +5824,13 @@ fn get_application_info<
                 version: p.version.clone(),
                 integrator: p.integrator.clone(),
             }),
-            merchant_application: details.merchant_details.as_ref().map(|m| {
-                MerchantApplication {
+            merchant_application: details
+                .merchant_details
+                .as_ref()
+                .map(|m| MerchantApplication {
                     name: m.name.clone(),
                     version: m.version.clone(),
-                }
-            }),
+                }),
         })
 }
 
