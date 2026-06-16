@@ -2,7 +2,7 @@
 
 Hey everyone! 👋
 
-I just published **@juspay-tech/medusa-unified-payment** — a Medusa v2 payment provider that lets your store accept payments across **many processors through a single provider**, powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism), the open unified connector service. It ships with a companion React package so the storefront checkout UI is handled for you too. One integration instead of one per processor 🎉
+I just published **@juspay-tech/medusa-custom-payments** — a Medusa v2 payment provider that lets your store accept payments across **many processors through a single provider**, powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism), the open unified connector service. It ships with a companion React package so the storefront checkout UI is handled for you too. One integration instead of one per processor 🎉
 
 ---
 
@@ -11,7 +11,7 @@ I just published **@juspay-tech/medusa-unified-payment** — a Medusa v2 payment
 • 💳 One provider, many processors — Stripe, Adyen, PayPal, GlobalPay, Braintree, Cybersource, and Mollie, all behind a single Medusa payment provider
 • 🧩 Built for Medusa v2 — registers under the Payment module (requires Medusa >= 2.15, Node >= 20)
 • ⚙️ One config shape — add a connector by changing one connector string and its credentials; secret-manager-friendly { value } credential format
-• 🛒 Ready-made checkout UI — @juspay-tech/medusa-unified-payment-react gives you HyperswitchPrismConnectorPanel + HyperswitchPrismPaymentButton (storefront UI for Stripe, Adyen, PayPal, GlobalPay), plus low-level connector wrappers for fully custom checkouts
+• 🛒 Ready-made checkout UI — @juspay-tech/medusa-custom-payments-react gives you HyperswitchPrismConnectorPanel + HyperswitchPrismPaymentButton (storefront UI for Stripe, Adyen, PayPal, GlobalPay), plus low-level connector wrappers for fully custom checkouts
 • 🔁 Full payment lifecycle — authorize, capture, void, and refund through one consistent model across connectors
 • 🔐 Centralized, verified webhooks — inbound events flow through Prism with mandatory signature verification (events that can't be verified are rejected, never silently trusted)
 • 🌍 Per-region routing — assign different providers to different regions right from the Medusa Admin
@@ -21,8 +21,8 @@ I just published **@juspay-tech/medusa-unified-payment** — a Medusa v2 payment
 
 🔗 Links
 
-• 📦 npm (backend) → https://www.npmjs.com/package/@juspay-tech/medusa-unified-payment
-• 🛍️ npm (storefront) → https://www.npmjs.com/package/@juspay-tech/medusa-unified-payment-react
+• 📦 npm (backend) → https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments
+• 🛍️ npm (storefront) → https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments-react
 • ⭐ Hyperswitch Prism → https://github.com/juspay/hyperswitch-prism
 
 Would love your feedback — happy to answer any questions! 🙌

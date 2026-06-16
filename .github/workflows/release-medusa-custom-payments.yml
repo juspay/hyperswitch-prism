@@ -1,4 +1,4 @@
-name: Release medusa-unified-payment-react
+name: Release medusa-custom-payments
 
 on:
   workflow_dispatch:
@@ -54,14 +54,14 @@ jobs:
       - name: Bump package version
         id: bump
         run: |
-          OLD_VERSION=$(node -p "require('./plugins/medusa/medusa-unified-payment-react/package.json').version")
-          (cd plugins/medusa/medusa-unified-payment-react && npm version ${{ inputs.version_bump }} --no-git-tag-version)
-          NEW_VERSION=$(node -p "require('./plugins/medusa/medusa-unified-payment-react/package.json').version")
+          OLD_VERSION=$(node -p "require('./plugins/medusa/medusa-custom-payments/package.json').version")
+          (cd plugins/medusa/medusa-custom-payments && npm version ${{ inputs.version_bump }} --no-git-tag-version)
+          NEW_VERSION=$(node -p "require('./plugins/medusa/medusa-custom-payments/package.json').version")
           echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
-          git add plugins/medusa/medusa-unified-payment-react/package.json
-          git commit -m "medusa-unified-payment-react-v${NEW_VERSION}"
-          git tag "medusa-unified-payment-react-v${NEW_VERSION}"
+          git add plugins/medusa/medusa-custom-payments/package.json
+          git commit -m "medusa-custom-payments-v${NEW_VERSION}"
+          git tag "medusa-custom-payments-v${NEW_VERSION}"
 
       - name: Push version bump and tag
         id: push
@@ -91,23 +91,22 @@ jobs:
 
       - name: Install and build
         run: |
-          cd plugins/medusa/medusa-unified-payment-react
+          cd plugins/medusa/medusa-custom-payments
           npm install
           npm run build
 
       - name: Verify build output
         run: |
           echo "Verifying build artifacts..."
-          test -f plugins/medusa/medusa-unified-payment-react/dist/index.js  || (echo "❌ plugins/medusa/medusa-unified-payment-react/dist/index.js not found"  && exit 1)
-          test -f plugins/medusa/medusa-unified-payment-react/dist/index.mjs || (echo "❌ plugins/medusa/medusa-unified-payment-react/dist/index.mjs not found" && exit 1)
-          test -f plugins/medusa/medusa-unified-payment-react/dist/index.d.ts || (echo "❌ plugins/medusa/medusa-unified-payment-react/dist/index.d.ts not found" && exit 1)
+          test -f plugins/medusa/medusa-custom-payments/dist/index.js || (echo "❌ plugins/medusa/medusa-custom-payments/dist/index.js not found" && exit 1)
+          test -f plugins/medusa/medusa-custom-payments/dist/index.d.ts || (echo "❌ plugins/medusa/medusa-custom-payments/dist/index.d.ts not found" && exit 1)
           echo "✅ Build output verified"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: medusa-unified-payment-react-dist
-          path: plugins/medusa/medusa-unified-payment-react/dist/
+          name: dist
+          path: plugins/medusa/medusa-custom-payments/dist/
 
   package:
     name: Package for npm
@@ -128,20 +127,20 @@ jobs:
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
-          name: medusa-unified-payment-react-dist
-          path: plugins/medusa/medusa-unified-payment-react/dist/
+          name: dist
+          path: plugins/medusa/medusa-custom-payments/dist/
 
       - name: Create npm package tarball
         run: |
-          cd plugins/medusa/medusa-unified-payment-react
+          cd plugins/medusa/medusa-custom-payments
           npm install --ignore-scripts
           npm pack
 
       - name: Upload package tarball
         uses: actions/upload-artifact@v4
         with:
-          name: medusa-unified-payment-react-tarball
-          path: 'plugins/medusa/medusa-unified-payment-react/*.tgz'
+          name: package-tarball
+          path: 'plugins/medusa/medusa-custom-payments/*.tgz'
 
   preview:
     name: Preview What Will Be Published
@@ -152,7 +151,7 @@ jobs:
       - name: Download package tarball
         uses: actions/download-artifact@v4
         with:
-          name: medusa-unified-payment-react-tarball
+          name: package-tarball
 
       - name: Show Preview
         run: |
@@ -169,11 +168,11 @@ jobs:
           echo "═══════════════════════════════════════════════════════════════════"
           echo ""
           if [ "${{ inputs.preview_only }}" == "true" ]; then
-            echo "⚠️  PREVIEW ONLY MODE - Package will not be published"
+            echo "PREVIEW ONLY MODE - Package will not be published"
           elif [ "${{ inputs.publish_npm }}" == "true" ]; then
-            echo "✅ Package will be published to npm"
+            echo "Package will be published to npm"
           else
-            echo "ℹ️  Publishing not enabled (publish_npm not checked)"
+            echo "Publishing not enabled (publish_npm not checked)"
           fi
           echo ""
           echo "═══════════════════════════════════════════════════════════════════"
@@ -193,13 +192,13 @@ jobs:
       - name: Download package tarball
         uses: actions/download-artifact@v4
         with:
-          name: medusa-unified-payment-react-tarball
+          name: package-tarball
 
       - name: Check npm authentication
         id: check-npm-auth
         continue-on-error: true
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TEST_TOKEN }}
         run: |
           echo "Checking npm authentication..."
           npm whoami
@@ -225,7 +224,7 @@ jobs:
         id: check-dryrun
         continue-on-error: true
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TEST_TOKEN }}
         run: |
           echo "Running npm publish --dry-run..."
           npm publish *.tgz --dry-run
@@ -279,7 +278,7 @@ jobs:
       - name: Download package tarball
         uses: actions/download-artifact@v4
         with:
-          name: medusa-unified-payment-react-tarball
+          name: package-tarball
 
       - name: Check what will be published
         run: |
@@ -293,7 +292,7 @@ jobs:
 
       - name: Publish to npm
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TEST_TOKEN }}
         run: |
           echo "Publishing package..."
           npm publish *.tgz --access public

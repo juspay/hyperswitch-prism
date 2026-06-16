@@ -103,8 +103,8 @@ jest.mock("hyperswitch-prism", () => {
   }
 })
 
-import PrismService from "../../medusa-unified-payment/src/providers/prism"
-import { recordWebhookOutcome } from "../../medusa-unified-payment/src/providers/connector/webhook-common"
+import PrismService from "../../medusa-custom-payments/src/providers/prism"
+import { recordWebhookOutcome } from "../../medusa-custom-payments/src/providers/connector/webhook-common"
 import { ConnectorError, IntegrationError } from "hyperswitch-prism"
 
 describe("PrismService — remaining methods (unit)", () => {

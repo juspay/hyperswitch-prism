@@ -1,5 +1,5 @@
-import hyperswitchPrismProvider from "@juspay/medusa-unified-payment"
-import type { HyperswitchPrismOptions } from "@juspay/medusa-unified-payment"
+import hyperswitchPrismProvider from "@juspay/medusa-custom-payments"
+import type { HyperswitchPrismOptions } from "@juspay/medusa-custom-payments"
 
 // The package's public entry exposes a Medusa ModuleProvider; the payment
 // service class (which wraps PrismService) is its single registered service.

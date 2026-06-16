@@ -2,6 +2,7 @@
 
 import React, { useState } from "react"
 import type { PayPalPaymentButtonProps } from "./types"
+import { isNextControlFlowError } from "../../utils/redirect-error"
 
 /**
  * PayPal payment button for the review step.
@@ -27,6 +28,7 @@ export function PayPalPaymentButton({
     try {
       await onPlaceOrder()
     } catch (err: any) {
+      if (isNextControlFlowError(err)) throw err
       setErrorMessage(err.message || "PayPal order placement failed")
     } finally {
       setSubmitting(false)

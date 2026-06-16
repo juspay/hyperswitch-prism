@@ -1,5 +1,5 @@
 {
-  "name": "@juspay-tech/medusa-unified-payment-react-test",
+  "name": "@juspay-tech/medusa-custom-payments-react-test",
   "version": "0.0.3",
   "description": "Generic payment UI components for Medusa v2 storefronts",
   "main": "dist/index.js",
