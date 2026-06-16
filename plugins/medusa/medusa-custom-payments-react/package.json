@@ -13,7 +13,9 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --external react,react-dom,@medusajs/js-sdk,@adyen/adyen-web,@stripe/react-stripe-js,@stripe/stripe-js",
@@ -50,10 +52,34 @@
   },
   "keywords": [
     "medusa",
+    "medusajs",
+    "medusa-v2",
+    "medusa-plugin",
+    "storefront",
+    "react",
+    "components",
     "payment",
+    "hyperswitch",
+    "prism",
     "adyen",
     "stripe",
     "paypal"
   ],
-  "license": "MIT"
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Juspay Prism",
+    "url": "https://hyperswitch.io/prism"
+  },
+  "homepage": "https://hyperswitch.io/prism",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juspay/hyperswitch-prism.git",
+    "directory": "plugins/medusa/medusa-custom-payments-react"
+  },
+  "bugs": {
+    "url": "https://github.com/juspay/hyperswitch-prism/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }
