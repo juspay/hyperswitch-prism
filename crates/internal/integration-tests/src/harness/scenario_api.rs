@@ -2738,8 +2738,8 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
-            "PaymentMethodService/Eligibility" => {
-                let payload: grpc_api_types::payments::PayoutMethodEligibilityRequest =
+            "PayoutService/Eligibility" => {
+                let payload: grpc_api_types::payouts::PayoutServiceEligibilityRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
                 add_connector_metadata(
@@ -2750,7 +2750,7 @@ pub fn execute_tonic_request_from_payload(
                     &request_id,
                     &connector_request_reference_id,
                 );
-                let mut client = grpc_api_types::payments::payment_method_service_client::PaymentMethodServiceClient::new(channel.clone());
+                let mut client = grpc_api_types::payouts::payout_service_client::PayoutServiceClient::new(channel.clone());
                 let response = client.eligibility(request).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(

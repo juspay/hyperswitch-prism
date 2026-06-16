@@ -291,12 +291,6 @@ impl_grpc_client!(
         PaymentMethodServiceGetResponse
     ),
     (
-        eligibility,
-        eligibility,
-        PayoutMethodEligibilityRequest,
-        PayoutMethodEligibilityResponse
-    ),
-    (
         recharge,
         recharge,
         PaymentMethodServiceRechargeRequest,

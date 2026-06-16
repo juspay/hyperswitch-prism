@@ -487,6 +487,12 @@ impl HasConnectors for DisputeFlowData {
     }
 }
 
+impl HasConnectors for crate::payouts::payouts_types::PayoutFlowData {
+    fn connectors(&self) -> &Connectors {
+        &self.connectors
+    }
+}
+
 impl Connectors {
     /// Patch the specified connector's URL configuration with resolved URLs from superposition.
     ///
@@ -8838,6 +8844,23 @@ pub fn generate_payment_capture_response(
         .resource_common_data
         .get_raw_connector_request();
 
+    let connector_response = router_data_v2
+        .resource_common_data
+        .connector_response
+        .as_ref()
+        .and_then(|connector_response_data| {
+            grpc_api_types::payments::ConnectorResponseData::foreign_try_from(
+                connector_response_data.clone(),
+            )
+            .map_err(|error| {
+                tracing::warn!(
+                    ?error,
+                    "Failed to convert connector_response for capture response; omitting it"
+                );
+            })
+            .ok()
+        });
+
     match transaction_response {
         Ok(response) => match response {
             PaymentsResponseData::TransactionResponse {
@@ -8885,6 +8908,7 @@ pub fn generate_payment_capture_response(
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
+                    connector_response,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -8933,6 +8957,7 @@ pub fn generate_payment_capture_response(
                 mandate_reference: None,
                 captured_amount: None,
                 connector_feature_data: None,
+                connector_response,
             })
         }
     }
@@ -10402,6 +10427,53 @@ pub struct ConnectorInfo {
     pub connector_type: PaymentConnectorCategory,
 }
 
+/// Required for passing additional details for Recurring payments from initial payments
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum AdditionalPaymentData {
+    /// Card-specific additional payment data
+    Card(AdditionalCardInfo),
+}
+
+/// Additional card information for payment processing
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AdditionalCardInfo {
+    /// The name of issuer of the card
+    pub card_issuer: Option<String>,
+    /// Last 4 digits of the card number
+    pub last4: Option<String>,
+    /// The ISIN of the card
+    pub card_isin: Option<String>,
+    /// Extended bin of card, contains the first 8 digits of card number
+    pub card_extended_bin: Option<String>,
+    /// Card expiry month (sensitive)
+    pub card_exp_month: Option<Secret<String>>,
+    /// Card expiry year (sensitive)
+    pub card_exp_year: Option<Secret<String>>,
+    /// Card holder name (sensitive)
+    pub card_holder_name: Option<Secret<String>>,
+}
+
+impl ForeignFrom<grpc_payment_types::AdditionalPaymentData> for Option<AdditionalPaymentData> {
+    fn foreign_from(data: grpc_payment_types::AdditionalPaymentData) -> Self {
+        match data.payment_method_data {
+            Some(grpc_payment_types::additional_payment_data::PaymentMethodData::Card(card)) => {
+                Some(AdditionalPaymentData::Card(AdditionalCardInfo {
+                    card_issuer: card.card_issuer,
+                    last4: card.last4,
+                    card_isin: card.card_isin,
+                    card_extended_bin: card.card_extended_bin,
+                    card_exp_month: card.card_exp_month,
+                    card_exp_year: card.card_exp_year,
+                    card_holder_name: card.card_holder_name,
+                }))
+            }
+
+            None => None,
+        }
+    }
+}
+
 /// Connector Access Method
 #[derive(
     Clone,
@@ -11771,6 +11843,9 @@ impl<
             }),
             merchant_account_id: value.merchant_account_id,
             merchant_configured_currency,
+            additional_payment_data: value
+                .additional_payment_data
+                .and_then(Option::<AdditionalPaymentData>::foreign_from),
         })
     }
 }

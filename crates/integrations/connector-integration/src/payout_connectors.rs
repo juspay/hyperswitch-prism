@@ -9,3 +9,9 @@ pub use self::paypal::PaypalPayouts;
 
 pub mod deutschebank;
 pub use self::deutschebank::DeutschebankPayouts;
+
+pub mod worldpayxml;
+pub use self::worldpayxml::WorldpayxmlPayouts;
+
+pub mod cybersource;
+pub use self::cybersource::CybersourcePayouts;

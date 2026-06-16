@@ -170,6 +170,12 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Deutschebank => {
                 Box::new(payout_connectors::DeutschebankPayouts::new())
             }
+            PayoutConnectorEnum::Worldpayxml => {
+                Box::new(payout_connectors::WorldpayxmlPayouts::new())
+            }
+            PayoutConnectorEnum::Cybersource => {
+                Box::new(payout_connectors::CybersourcePayouts::new())
+            }
         }
     }
 }

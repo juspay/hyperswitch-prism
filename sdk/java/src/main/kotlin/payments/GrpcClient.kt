@@ -254,11 +254,6 @@ class GrpcPaymentMethodClient internal constructor(
     suspend fun payment_method_get(req: PaymentMethodServiceGetRequest): PaymentMethodServiceGetResponse =
         callGrpc(config, "payment_method/payment_method_get", req, PaymentMethodServiceGetResponse.parser())
     /**
-     * PaymentMethodService.Eligibility — Check if the payout method is eligible for the transaction
-     */
-    suspend fun eligibility(req: PayoutMethodEligibilityRequest): PayoutMethodEligibilityResponse =
-        callGrpc(config, "payment_method/eligibility", req, PayoutMethodEligibilityResponse.parser())
-    /**
      * PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds.
      */
     suspend fun recharge(req: PaymentMethodServiceRechargeRequest): PaymentMethodServiceRechargeResponse =
