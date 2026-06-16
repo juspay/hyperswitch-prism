@@ -8618,6 +8618,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
             order_tax_amount: value
                 .order_tax_amount
                 .map(|amount| common_utils::types::MinorUnit::new(amount.minor_amount)),
+            split_payments: stripe_split_payment_to_domain(value.stripe_split_payment),
         })
     }
 }

@@ -3098,6 +3098,7 @@ pub struct PaymentsCaptureData {
     pub metadata: Option<SecretSerdeValue>,
     pub merchant_order_id: Option<String>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub split_payments: Option<SplitPaymentsRequest>,
 }
 
 impl PaymentsCaptureData {

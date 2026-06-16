@@ -633,6 +633,7 @@ impl
             merchant_order_id: item.merchant_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
             order_tax_amount: item.order_tax_amount,
+            stripe_split_payment: None,
         }
     }
 }
