@@ -2132,6 +2132,33 @@ message PaymentServiceAuthorizeRequest {
   // Partner / merchant application identifiers, surfaced to connectors that need
   // them (e.g. Adyen `applicationInfo`).
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 46;
+
+  // Split-payment instructions, surfaced to connectors that support marketplace /
+  // platform splits (e.g. Adyen `splits`).
+  optional AdyenSplitData adyen_split_payment = 47;
+}
+
+// A single Adyen split item (one entry of the `splits` array).
+message AdyenSplitItem {
+  // Split amount in minor units. Absent for split types that do not carry an amount.
+  optional int64 amount = 1;
+  // Adyen split type, PascalCase wire value (e.g. "BalanceAccount", "Commission").
+  string split_type = 2;
+  // Balance account the split amount is booked to.
+  optional string account = 3;
+  // Unique reference for the split item.
+  string reference = 4;
+  // Human-readable description for the split item.
+  optional string description = 5;
+}
+
+// Adyen split-payment data (Platforms / MarketPay), mirroring hyperswitch's
+// AdyenSplitData fed into the Adyen `splits` request field.
+message AdyenSplitData {
+  // The store identifier the splits apply to.
+  optional string store = 1;
+  // The individual split instructions.
+  repeated AdyenSplitItem split_items = 2;
 }
 
 // Partner / external-platform application details.
