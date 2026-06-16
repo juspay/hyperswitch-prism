@@ -388,7 +388,11 @@ pub struct Order {
     description: String,
 }
 
-#[skip_serializing_none]
+// NOTE: intentionally NOT `#[skip_serializing_none]`. Hyperswitch's authorizedotnet
+// `BillTo` serializes every field (emitting `null` for absent ones, e.g. `"lastName": null`
+// when the card holder name has no surname). Skipping None here made UCS omit those keys,
+// producing a shadow-validation key diff (`billTo.lastName = {hyperswitch:true, ucs:false}`).
+// Authorize.net accepts the explicit nulls, so we mirror Hyperswitch exactly.
 #[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BillTo {
