@@ -2943,6 +2943,28 @@ pub struct AuthorizationRequest {
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
     /// Split-payment instructions (e.g. Adyen `splits`).
     pub adyen_split_payment: Option<grpc_payment_types::AdyenSplitData>,
+    /// Stripe Connect split-payment instructions (e.g. the `Stripe-Account` header).
+    pub stripe_split_payment: Option<grpc_payment_types::StripeSplitPaymentRequest>,
+}
+
+/// Map the proto Stripe split-payment field onto the domain `SplitPaymentsRequest`
+/// so the Stripe connector can emit the `Stripe-Account` header for connected accounts.
+fn stripe_split_payment_to_domain(
+    stripe_split: Option<grpc_payment_types::StripeSplitPaymentRequest>,
+) -> Option<connector_types::SplitPaymentsRequest> {
+    stripe_split.map(|split| {
+        connector_types::SplitPaymentsRequest::StripeSplitPayment(
+            connector_types::StripeSplitPaymentRequest {
+                charge_type: common_enums::PaymentChargeType::Stripe(
+                    split.charge_type.parse().unwrap_or_default(),
+                ),
+                application_fees: split
+                    .application_fees
+                    .map(common_utils::types::MinorUnit::new),
+                transfer_account_id: split.transfer_account_id,
+            },
+        )
+    })
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3037,6 +3059,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             connector_order_id: req.connector_order_id,
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
             adyen_split_payment: req.adyen_split_payment,
+            stripe_split_payment: req.stripe_split_payment,
         }
     }
 }
@@ -3103,6 +3126,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             connector_order_id: None,
             partner_merchant_identifier_details: None,
             adyen_split_payment: None,
+            stripe_split_payment: None,
         }
     }
 }
@@ -3694,7 +3718,7 @@ impl<
             integrity_object: None,
             merchant_config_currency: Some(merchant_config_currency),
             all_keys_required: None, // Field not available in new proto structure
-            split_payments: None,
+            split_payments: stripe_split_payment_to_domain(value.stripe_split_payment),
             enable_overcapture: None,
             setup_mandate_details: value
                 .setup_mandate_details
@@ -10811,7 +10835,7 @@ impl ForeignTryFrom<PaymentServiceAuthorizeRequest> for ConnectorCustomerData {
             email: email.map(Secret::new),
             name: name_string,
             description: None,
-            split_payments: None,
+            split_payments: stripe_split_payment_to_domain(value.stripe_split_payment),
             phone: None,
             preprocessing_id: None,
         })
@@ -11019,7 +11043,7 @@ impl<
             mandate_id: None,
             setup_mandate_details: None,
             integrity_object: None,
-            split_payments: None,
+            split_payments: stripe_split_payment_to_domain(value.stripe_split_payment),
             connector_feature_data: value
                 .connector_feature_data
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
@@ -11529,7 +11553,7 @@ impl ForeignTryFrom<grpc_api_types::payments::CustomerServiceCreateRequest>
             email: email.map(Secret::new),
             name: value.customer_name.map(Secret::new),
             description: None, // description field not available in this proto
-            split_payments: None,
+            split_payments: stripe_split_payment_to_domain(value.stripe_split_payment),
             phone: None,
             preprocessing_id: None,
         })
@@ -14348,6 +14372,7 @@ pub fn tokenized_authorize_to_base(
         merchant_request_id: None,
         partner_merchant_identifier_details: None,
         adyen_split_payment: None,
+        stripe_split_payment: None,
     }
 }
 
@@ -14521,6 +14546,7 @@ pub fn proxied_authorize_to_base(
         merchant_request_id: None,
         partner_merchant_identifier_details: None,
         adyen_split_payment: None,
+        stripe_split_payment: None,
     })
 }
 

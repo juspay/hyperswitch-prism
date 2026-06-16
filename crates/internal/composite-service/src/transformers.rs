@@ -94,6 +94,7 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            stripe_split_payment: None,
         }
     }
 }
@@ -204,6 +205,7 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             partner_merchant_identifier_details: None,
             adyen_split_payment: None,
+            stripe_split_payment: None,
         }
     }
 }
@@ -938,6 +940,7 @@ impl
             merchant_request_id: request.merchant_request_id.clone(),
             partner_merchant_identifier_details: None,
             adyen_split_payment: None,
+            stripe_split_payment: None,
         }
     }
 }
