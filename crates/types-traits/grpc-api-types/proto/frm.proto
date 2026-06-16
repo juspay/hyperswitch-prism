@@ -70,7 +70,7 @@ message FrmServicePreRiskCheckResponse {
   FrmDecision frm_decision = 1;
 
   // Risk score (higher = riskier)
-  int32 risk_score = 2;
+  optional int32 risk_score = 2;
 
   // Reason for the decision
   optional string reason = 3;
@@ -136,7 +136,7 @@ message FrmServicePostRiskCheckResponse {
   FrmDecision frm_decision = 1;
 
   // Risk score (higher = riskier)
-  int32 risk_score = 2;
+  optional int32 risk_score = 2;
 
   // Reason for the decision
   optional string reason = 3;
