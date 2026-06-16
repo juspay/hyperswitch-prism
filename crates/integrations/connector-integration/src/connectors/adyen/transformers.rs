@@ -923,6 +923,7 @@ pub struct AdditionalData {
     #[serde(flatten)]
     riskdata: Option<RiskData>,
     sca_exemption: Option<AdyenExemptionValues>,
+    capture_delay_hours: Option<u64>,
     pub auth_code: Option<String>,
 }
 
@@ -5777,6 +5778,15 @@ fn get_additional_data<
         Some("false".to_string())
     };
 
+    // Mirror HS adyen: extract capture_delay_hours from metadata → additionalData.captureDelayHours.
+    // Manual capture must not carry it (HS rejects a present value); for automatic capture HS only
+    // permits None/0, so pass the metadata value straight through (non-zero never reaches comparison
+    // because HS errors the request before building it).
+    let capture_delay_hours = match item.request.capture_method.unwrap_or_default() {
+        common_enums::CaptureMethod::Manual | common_enums::CaptureMethod::ManualMultiple => None,
+        _ => get_adyen_metadata(item.request.metadata.clone().expose_option()).capture_delay_hours,
+    };
+
     Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -5791,6 +5801,7 @@ fn get_additional_data<
                 .as_ref()
                 .and_then(to_adyen_exemption)
         }),
+        capture_delay_hours,
         ..AdditionalData::default()
     })
 }
@@ -7277,6 +7288,8 @@ struct AdyenMetadata {
     pub store: Option<String>,
     #[serde(alias = "platform_chargeback_logic")]
     pub platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
+    #[serde(alias = "capture_delay_hours")]
+    pub capture_delay_hours: Option<u64>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -7312,6 +7325,8 @@ fn filter_adyen_metadata(metadata: serde_json::Value) -> serde_json::Value {
         map.remove("platform_chargeback_logic");
         map.remove("platformChargebackLogic");
         map.remove("store");
+        map.remove("capture_delay_hours");
+        map.remove("captureDelayHours");
 
         serde_json::Value::Object(map)
     } else {
