@@ -1,0 +1,95 @@
+// Copyright (c) Juspay Technologies. All rights reserved.
+//
+// Package: ucs.v2
+// File: frm.proto
+//
+// Overview:
+//   This file defines the data types and request/response messages for the
+//   FraudAndRiskManagementService API. It enables evaluation of transaction
+//   fraud risk before and after payment processing.
+//
+// Related Files:
+//   - services.proto       — gRPC service definitions
+//   - payment.proto        — Shared types (Money, ErrorInfo, etc.)
+//   - payment_methods.proto — Payment method types
+
+syntax = "proto3";
+
+package types;
+
+import "payment.proto";
+import "payment_methods.proto";
+
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
+
+// Risk management decision outcomes from the FRM service
+enum FrmDecision {
+  FRM_DECISION_UNSPECIFIED = 0; // Default, unspecified FRM Decision
+  APPROVE = 1;                  // Transaction is low risk; proceed with payment authorization.
+  REJECT = 2;                   // Transaction is fraudulent or high risk; block the payment.
+  REVIEW = 3;                   // Transaction is suspicious; hold for manual review.
+  ERROR = 4;                    // The FRM check itself failed (network, timeout, misconfiguration).
+}
+
+// Request for FrmService.PreRiskCheck
+message FrmServicePreRiskCheckRequest {
+  // Transaction details
+  Money amount = 1;
+
+  // Customer information
+  CustomerInfo customer_info = 2;
+
+  // Payment method details
+  PaymentMethod payment_method = 3;
+
+  // Browser/device information for risk scoring
+  BrowserInformation browser_info = 4;
+
+  // Merchant transaction identifier
+  optional string merchant_transaction_id = 5;
+
+  // Order details
+  OrderDetailsWithAmount order_details = 6;
+
+  // Address information
+  Address address = 7;
+
+  // Additional metadata for the connector
+  optional SecretString metadata = 8;
+
+  // Connector-specific feature data for the transaction
+  optional SecretString connector_feature_data = 9;
+
+  // Sandbox/test mode flag
+  optional bool test_mode = 10;
+}
+
+// Response for FrmService.PreRiskCheck
+message FrmServicePreRiskCheckResponse {
+  // Risk assessment outcome
+  FrmDecision frm_decision = 1;
+
+  // Risk score (higher = riskier)
+  int32 risk_score = 2;
+
+  // Reason for the decision
+  optional string reason = 3;
+
+  // Connector transaction identifier
+  optional string connector_transaction_id = 4;
+
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+
+  // Error information if the request failed
+  optional ErrorInfo error = 6;
+
+  // Raw request sent to the connector for debugging
+  optional SecretString raw_connector_request = 7;
+
+  // Raw response from the connector for debugging
+  optional SecretString raw_connector_response = 8;
+
+  // Response headers from the connector
+  map<string, string> response_headers = 9;
+}
