@@ -434,7 +434,7 @@ impl_grpc_client!(
         PayoutServiceEnrollDisburseAccountResponse
     ),
     (
-        payout_eligibility,
+        eligibility,
         eligibility,
         PayoutServiceEligibilityRequest,
         PayoutServiceEligibilityResponse

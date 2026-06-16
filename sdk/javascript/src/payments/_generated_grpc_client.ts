@@ -226,7 +226,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaysafeCardAccountId: ["noThreeDs", "threeDs"],
   PaysafeAchAccountId: ["accountId"],
   LoonioConfig: ["merchantId", "merchantToken"],
-  DeutschebankConfig: ["customerIdentifier", "consumerIdentifier", "keyId", "signingPrivateKey", "clientCertificate", "clientCertificateKey", "serverCaBundle"],
+  DeutschebankConfig: ["customerIdentifier", "keyId", "signingPrivateKey", "clientCertificateBundle"],
   PaysafeConfig: ["username", "password"],
   PayuConfig: ["apiKey", "apiSecret"],
   PowertranzConfig: ["powerTranzId", "powerTranzPassword"],
@@ -789,8 +789,8 @@ export class GrpcPayoutClient {
       req, types.PayoutServiceEnrollDisburseAccountRequest, types.PayoutServiceEnrollDisburseAccountResponse);
   }
   /** PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification). */
-  async payoutEligibility(req: unknown): Promise<unknown> {
-    return callGrpc(this.ffi, this.config, "payout/payout_eligibility",
+  async eligibility(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payout/eligibility",
       req, types.PayoutServiceEligibilityRequest, types.PayoutServiceEligibilityResponse);
   }
 }
