@@ -2941,6 +2941,9 @@ pub struct AuthorizationRequest {
     /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
     pub domain_data: Option<grpc_payment_types::DomainData>,
     pub split_payments: Option<grpc_payment_types::SplitPaymentsDetails>,
+    /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
+    pub partner_merchant_identifier_details:
+        Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3035,6 +3038,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             connector_order_id: req.connector_order_id,
             domain_data: req.domain_data,
             split_payments: req.split_payments,
+            partner_merchant_identifier_details: req.partner_merchant_identifier_details,
         }
     }
 }
@@ -3101,6 +3105,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             connector_order_id: None,
             domain_data: req.domain_data,
             split_payments: None,
+            partner_merchant_identifier_details: None,
         }
     }
 }
@@ -3917,6 +3922,7 @@ impl<
                 .domain_data
                 .map(connector_types::DomainData::foreign_try_from)
                 .transpose()?,
+            partner_merchant_identifier_details: value.partner_merchant_identifier_details,
         })
     }
 }
@@ -14832,6 +14838,7 @@ pub fn tokenized_authorize_to_base(
         tokenization_strategy: None,
         merchant_request_id: None,
         domain_data: None,
+        partner_merchant_identifier_details: None,
     }
 }
 
@@ -15005,6 +15012,7 @@ pub fn proxied_authorize_to_base(
         tokenization_strategy: None,
         merchant_request_id: None,
         domain_data: None,
+        partner_merchant_identifier_details: None,
     })
 }
 

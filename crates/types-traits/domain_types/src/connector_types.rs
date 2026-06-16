@@ -1458,6 +1458,9 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub tokenization: Option<common_enums::Tokenization>,
     /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
     pub domain_data: Option<DomainData>,
+    /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
+    pub partner_merchant_identifier_details:
+        Option<grpc_api_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {

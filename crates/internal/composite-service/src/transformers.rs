@@ -205,6 +205,7 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             domain_data: item.domain_data.clone(),
             split_payments: item.split_payments.clone(),
+            partner_merchant_identifier_details: None,
         }
     }
 }
@@ -942,6 +943,7 @@ impl
             merchant_request_id: request.merchant_request_id.clone(),
             domain_data: None,
             split_payments: request.split_payments.clone(),
+            partner_merchant_identifier_details: None,
         }
     }
 }

@@ -2347,6 +2347,29 @@ message PaymentServiceAuthorizeRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 47;
+
+  // Partner / merchant application identifiers, surfaced to connectors that need
+  // them (e.g. Adyen `applicationInfo`).
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 48;
+}
+
+// Partner / external-platform application details.
+message PartnerApplicationDetails {
+  optional string name = 1;
+  optional string version = 2;
+  optional string integrator = 3;
+}
+
+// Merchant application details.
+message MerchantApplicationDetails {
+  optional string name = 1;
+  optional string version = 2;
+}
+
+// Partner and merchant application identifiers initiating the request.
+message PartnerMerchantIdentifierDetails {
+  optional PartnerApplicationDetails partner_details = 1;
+  optional MerchantApplicationDetails merchant_details = 2;
 }
 
 // Response message for a payment authorization
@@ -3192,6 +3215,11 @@ message RecurringPaymentServiceChargeRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 34;
+
+  // Partner / merchant application identifiers, surfaced to connectors that need
+  // them (e.g. Adyen `applicationInfo`) on MIT / repeat charges.
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 35;
+
 }
 
 // Response message for repeat payment operation
