@@ -217,6 +217,7 @@ fn create_payment_authorize_request(
         }),
         return_url: Some("https://duck.com".to_string()),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: None,
@@ -291,6 +292,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
             minor_amount: TEST_AMOUNT,
             currency: i32::from(Currency::Usd),
         }),
+        order_tax_amount: None,
         multiple_capture_data: None,
         merchant_capture_id: Some(format!(
             "paysafe_capture_{}_{}",

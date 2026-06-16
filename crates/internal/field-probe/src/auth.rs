@@ -697,5 +697,12 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             password: p(),
             base_url: None,
         },
+        ConnectorEnum::Qwikcilver => ConnectorSpecificConfig::Qwikcilver {
+            bootstrap_bearer_token: k(),
+            terminal_id: k(),
+            username: k(),
+            password: k(),
+            base_url: None,
+        },
     }
 }

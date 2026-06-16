@@ -267,13 +267,6 @@ class GrpcPaymentMethodClient:
             "payment_method/payment_method_get",
             req, payment_pb2.PaymentMethodServiceGetResponse,
         )
-    def eligibility(self, req: payment_pb2.PayoutMethodEligibilityRequest) -> payment_pb2.PayoutMethodEligibilityResponse:
-        """PaymentMethodService.Eligibility — Check if the payout method is eligible for the transaction"""
-        return _call_grpc(
-            self._ffi, self._config,
-            "payment_method/eligibility",
-            req, payment_pb2.PayoutMethodEligibilityResponse,
-        )
     def recharge(self, req: payment_pb2.PaymentMethodServiceRechargeRequest) -> payment_pb2.PaymentMethodServiceRechargeResponse:
         """PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds."""
         return _call_grpc(
@@ -450,6 +443,13 @@ class GrpcPayoutClient:
             self._ffi, self._config,
             "payout/enroll_disburse_account",
             req, payment_pb2.PayoutServiceEnrollDisburseAccountResponse,
+        )
+    def eligibility(self, req: payment_pb2.PayoutMethodEligibilityRequest) -> payment_pb2.PayoutMethodEligibilityResponse:
+        """PayoutService.Eligibility — Check if the payout method is eligible for the transaction"""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payout/eligibility",
+            req, payment_pb2.PayoutMethodEligibilityResponse,
         )
 
 class GrpcRecurringPaymentClient:

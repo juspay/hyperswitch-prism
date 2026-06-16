@@ -45,6 +45,9 @@ connector_request_kafka = { path = "../connector_request_kafka", optional = true
 url = "2.5.0"
 chrono = "0.4.31"
 
+# OpenTelemetry (OTLP metrics push) — optional, enabled via the `otel` feature.
+opentelemetry = { version = "0.27", optional = true, default-features = false, features = ["metrics"] }
+
 [features]
 # injector-client pulls in hyperswitch's injector crate (which transitively
 # brings diesel via hyperswitch's common_enums). Only the gRPC server path that
@@ -54,6 +57,8 @@ chrono = "0.4.31"
 default = ["injector-client"]
 injector-client = ["dep:injector"]
 connector-request-kafka = ["dep:connector_request_kafka"]
+# Push gRPC metrics over OTLP (in addition to the Prometheus /metrics endpoint).
+otel = ["dep:opentelemetry"]
 
 [lints]
 workspace=true

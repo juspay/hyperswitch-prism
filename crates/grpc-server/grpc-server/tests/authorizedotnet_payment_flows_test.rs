@@ -311,6 +311,7 @@ fn create_payment_authorize_request(
     });
 
     request.customer = Some(grpc_api_types::payments::Customer {
+        customer_document_details: None,
         email: Some(generate_unique_email().into()),
         name: None,
         id: Some("TEST_CONNECTOR".to_string()),
@@ -426,6 +427,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
             minor_amount: TEST_AMOUNT,
             currency: i32::from(Currency::Usd),
         }),
+        order_tax_amount: None,
         multiple_capture_data: None,
         metadata: None,
         connector_feature_data: None,
@@ -493,6 +495,7 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
 
         merchant_request_id: None,
         connector_order_id: None,
+        payment_method: None,
     }
 }
 
@@ -549,6 +552,7 @@ fn create_register_request() -> PaymentServiceSetupRecurringRequest {
 
     // Set customer information with unique email
     request.customer = Some(grpc_api_types::payments::Customer {
+        customer_document_details: None,
         email: Some(generate_unique_email().into()),
         name: Some(TEST_CARD_HOLDER.to_string()),
         id: None,

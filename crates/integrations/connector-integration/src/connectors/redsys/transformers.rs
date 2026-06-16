@@ -745,6 +745,7 @@ fn get_payments_response(
                 )),
                 redirection_data: None,
                 authentication_data,
+                connector_feature_data: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 status_code: http_code,
             })
@@ -778,6 +779,7 @@ fn get_payments_response(
                 )),
                 redirection_data: redirection_form.map(Box::new),
                 authentication_data,
+                connector_feature_data: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 status_code: http_code,
             })
@@ -940,6 +942,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         ..item.router_data.resource_common_data
                     },
                     response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                        resource_id: None,
                         redirection_data,
                         connector_response_reference_id: response_ref_id,
                         status_code: item.http_code,

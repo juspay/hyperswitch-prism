@@ -460,3 +460,19 @@ pub struct VerifyWebhookSourceRequestData {
 pub struct VerifyWebhookSourceIntegrityObject {
     pub webhook_id: String,
 }
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct RechargeIntegrityObject {
+    pub amount: common_utils::types::MinorUnit,
+    pub currency: common_enums::Currency,
+}
+
+/// Create-payment-method has no payment-attempt invariants worth verifying;
+/// the integrity machinery is a no-op stub. Kept as a marker so the flow
+/// can participate in the framework's CheckIntegrity bound.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct CreatePaymentMethodIntegrityObject {}
+
+/// See `CreatePaymentMethodIntegrityObject`.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct GetPaymentMethodIntegrityObject {}

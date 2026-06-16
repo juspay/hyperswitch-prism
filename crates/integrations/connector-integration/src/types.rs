@@ -124,6 +124,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Payconex => Box::new(connectors::Payconex::<T>::new()),
             ConnectorEnum::Tamara => Box::new(connectors::Tamara::<T>::new()),
             ConnectorEnum::Asiapay => Box::new(connectors::Asiapay::<T>::new()),
+            ConnectorEnum::Qwikcilver => Box::new(connectors::Qwikcilver::<T>::new()),
         }
     }
 }
@@ -166,6 +167,12 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
             PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
             PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),
+            PayoutConnectorEnum::Worldpayxml => {
+                Box::new(payout_connectors::WorldpayxmlPayouts::new())
+            }
+            PayoutConnectorEnum::Cybersource => {
+                Box::new(payout_connectors::CybersourcePayouts::new())
+            }
         }
     }
 }

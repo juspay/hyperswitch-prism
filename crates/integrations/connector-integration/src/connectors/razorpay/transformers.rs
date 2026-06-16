@@ -16,6 +16,7 @@ use domain_types::{
         RefundsResponseData, ResponseId, ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankRedirectData, Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         WalletData,
@@ -303,7 +304,9 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             WalletData::BillDeskRedirect(_) => Ok(Self::BillDesk),
             WalletData::CashfreeRedirect(_) => Ok(Self::Cashfree),
             WalletData::PayURedirect(_) => Ok(Self::PayU),
-            WalletData::EaseBuzzRedirect(_) => Ok(Self::EaseBuzz),
+            WalletData::EaseBuzzRedirect(_) | WalletData::QwikcilverWalletDirect(_) => {
+                Ok(Self::EaseBuzz)
+            }
             WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
@@ -1221,7 +1224,7 @@ impl
         &RazorpayRouterData<
             &RouterDataV2<
                 ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerSessionAuthenticationTokenRequestData,
                 ServerSessionAuthenticationTokenResponseData,
             >,
@@ -1234,7 +1237,7 @@ impl
         item: &RazorpayRouterData<
             &RouterDataV2<
                 ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerSessionAuthenticationTokenRequestData,
                 ServerSessionAuthenticationTokenResponseData,
             >,
@@ -1273,7 +1276,7 @@ impl
 impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16)>
     for RouterDataV2<
         ServerSessionAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData,
     >
@@ -1290,11 +1293,6 @@ impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16)>
             response: Ok(ServerSessionAuthenticationTokenResponseData {
                 session_token: session_token.clone(),
             }),
-            resource_common_data: PaymentFlowData {
-                connector_order_id: Some(session_token.clone()),
-                session_token: Some(session_token),
-                ..data.resource_common_data
-            },
             ..data
         })
     }

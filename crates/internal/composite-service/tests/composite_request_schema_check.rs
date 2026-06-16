@@ -39,6 +39,18 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
         ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
     },
     CompositeFlowSpec {
+        name: "verify_redirect",
+        composite_request_message: "CompositeVerifyRedirectResponseRequest",
+        granular_request_messages: &[
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
+            "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest",
+            "PaymentServiceAuthorizeRequest",
+            "PaymentServiceVerifyRedirectResponseRequest",
+        ],
+        ignore_granular_only_fields: AUTHORIZE_IGNORE_GRANULAR_ONLY_FIELDS,
+        ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
+    },
+    CompositeFlowSpec {
         name: "get",
         composite_request_message: "CompositeGetRequest",
         granular_request_messages: &[
@@ -56,7 +68,9 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
             "PaymentServiceRefundRequest",
         ],
         ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
-        ignore_composite_only_fields: IGNORE_COMPOSITE_ONLY_FIELDS,
+        // `payment_method` is on both granular (PaymentServiceRefundRequest)
+        // and composite (CompositeRefundRequest), so no ignore needed here.
+        ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
     },
     CompositeFlowSpec {
         name: "refund_get",
@@ -67,6 +81,36 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
         ],
         ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
         ignore_composite_only_fields: IGNORE_COMPOSITE_ONLY_FIELDS,
+    },
+    CompositeFlowSpec {
+        name: "payment_method_recharge",
+        composite_request_message: "CompositePaymentMethodRechargeRequest",
+        granular_request_messages: &[
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
+            "PaymentMethodServiceRechargeRequest",
+        ],
+        ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
+        ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
+    },
+    CompositeFlowSpec {
+        name: "payment_method_create",
+        composite_request_message: "CompositePaymentMethodCreateRequest",
+        granular_request_messages: &[
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
+            "PaymentMethodServiceCreateRequest",
+        ],
+        ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
+        ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
+    },
+    CompositeFlowSpec {
+        name: "payment_method_get",
+        composite_request_message: "CompositePaymentMethodGetRequest",
+        granular_request_messages: &[
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
+            "PaymentMethodServiceGetRequest",
+        ],
+        ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
+        ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
     },
 ];
 

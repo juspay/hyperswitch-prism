@@ -1,0 +1,89 @@
+{
+  "name": "@juspay-tech/medusa-custom-payments",
+  "version": "0.0.3",
+  "description": "Custom payments provider for Medusa v2",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "rimraf dist && tsc --project ../tsconfig.json",
+    "watch": "tsc --watch --project ../tsconfig.json",
+    "test": "jest",
+    "test:unit": "jest --testPathIgnorePatterns=integration",
+    "test:integration": "jest --testPathPatterns=integration",
+    "test:coverage": "jest --coverage"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./providers": {
+      "types": "./dist/providers/index.d.ts",
+      "import": "./dist/providers/index.js",
+      "require": "./dist/providers/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Juspay Prism",
+    "url": "https://hyperswitch.io/prism"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/juspay/hyperswitch-prism/tree/main/plugins/medusa",
+    "directory": "/medusa-custom-payments"
+  },
+  "bugs": {
+    "url": "https://github.com/juspay/hyperswitch-prism/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@medusajs/framework": "^2.15.0"
+  },
+  "dependencies": {
+    "hyperswitch-prism": "latest",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "@medusajs/framework": "^2.15.0",
+    "@types/jest": "^30.0.0",
+    "@types/express": "^4.17.21",
+    "jest": "^30.4.2",
+    "rimraf": "^5.0.0",
+    "ts-jest": "^29.4.11",
+    "tsx": "^4.19.2",
+    "typescript": "^5.3.0"
+  },
+  "homepage": "https://hyperswitch.io/prism",
+  "keywords": [
+    "medusa-plugin",
+    "medusa-plugin-payment",
+    "medusa-plugin-integration",
+    "medusa-v2",
+    "medusa",
+    "medusajs",
+    "payment",
+    "hyperswitch",
+    "prism",
+    "stripe",
+    "adyen",
+    "paypal",
+    "globalpay",
+    "braintree",
+    "cybersource",
+    "mollie",
+    "custom-payments"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ]
+}

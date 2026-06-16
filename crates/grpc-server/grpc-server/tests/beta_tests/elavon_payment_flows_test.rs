@@ -422,6 +422,7 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
         capture_method: None,
         request_ref_id: None, // all_keys_required: Some(false),
         state: None,
+        payment_method: None,
     }
 }
 

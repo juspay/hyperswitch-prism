@@ -451,3 +451,27 @@ crates/internal/integration-tests/test_report/
 
 # Field probe manifest (generated at runtime)
 data/field_probe/manifest.json
+
+# Stray nested clone of upstream hyperswitch — not part of this repo
+/hyperswitch/
+
+# Playwright e2e artifacts
+grace/grace-workspace/packages/dashboard/test-results/
+grace/grace-workspace/packages/dashboard/playwright-report/
+
+# Playwright MCP snapshot traces (generated when Claude drives the dashboard)
+.playwright-mcp/
+
+# Stray Playwright screenshots dropped at repo root by ad-hoc debugging sessions
+/wizard_*.png
+/homepage*.png
+/workflow*.png
+/connectors*.png
+/connector_*.png
+/pr_resolver*.png
+/parity_*.png
+/asiapay*.png
+/automode*.png
+/past_runs*.png
+/create_modal.png
+docs/qwikcilver.postman_collection.json

@@ -145,6 +145,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
         return_url: Some("https://example.com/return".to_string()),
         webhook_url: Some("https://example.com/webhook".to_string()),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: None,
@@ -199,6 +200,7 @@ fn create_payment_capture_request(
             minor_amount: amount,
             currency: i32::from(Currency::Usd),
         }),
+        order_tax_amount: None,
         multiple_capture_data: None,
         merchant_capture_id: None,
         ..Default::default()
@@ -322,6 +324,7 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
             payment_method: Some(payment_method::PaymentMethod::Card(card_details)),
         }),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(unique_email.clone().into()),
             name: Some(format!("{unique_first_name} Doe")),
             id: None,

@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Vite
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Local config overrides
+config.local.yml
+config.local.yaml
+10xgrace.config.local.yml
+
+# Editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Local opencode scratch dir created by the runner
+.10xgrace-opencode-tmp/
+
+# Parity Autopilot derived artifacts (regenerated every heartbeat) — anchored to workspace root
+/parity-dashboard.md
+/connectors/
+/.cache/
+
+# Playwright MCP browser snapshots / console logs (debug artifacts from agent sessions)
+.playwright-mcp/
+
+# Un-ignore source `lib/` directories — the root .gitignore inherits a generic
+# `lib/` rule from the toptal Python template, which would otherwise swallow
+# package source directories like packages/dashboard/src/lib/.
+!packages/*/src/lib/
+!packages/*/src/lib/**

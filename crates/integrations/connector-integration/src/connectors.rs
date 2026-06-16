@@ -270,3 +270,6 @@ pub use self::tamara::Tamara;
 
 pub mod asiapay;
 pub use self::asiapay::Asiapay;
+
+pub mod qwikcilver;
+pub use self::qwikcilver::Qwikcilver;

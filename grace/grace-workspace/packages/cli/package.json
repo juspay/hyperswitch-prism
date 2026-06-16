@@ -1,0 +1,22 @@
+{
+  "name": "@10xgrace/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "10xgrace": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@10xgrace/core": "workspace:*",
+    "@10xgrace/parity-core": "workspace:*",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.0",
+    "typescript": "^5.6.2"
+  }
+}
