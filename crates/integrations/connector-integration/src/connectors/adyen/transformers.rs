@@ -2339,7 +2339,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let adyen_metadata =
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
-        let store = adyen_metadata.store.clone(); // no split payment support yet
+        let (store, splits) = get_adyen_split_request(
+            &item.router_data.request.adyen_split_payment,
+            &item.router_data.request.metadata,
+            &adyen_metadata.store,
+            item.router_data.request.currency,
+        );
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
         let country_code =
@@ -2443,7 +2448,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_id.clone(),
             store,
-            splits: None,
+            splits,
             device_fingerprint,
             metadata: item
                 .router_data
@@ -3080,6 +3085,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
 
         let (store, splits) = get_adyen_split_request(
+            &item.router_data.request.adyen_split_payment,
             &item.router_data.request.metadata,
             &adyen_metadata.store,
             item.router_data.request.currency,
@@ -3460,6 +3466,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_recurring_processing_model(&item.router_data)?;
 
         let (store, splits) = get_adyen_split_request(
+            &item.router_data.request.adyen_split_payment,
             &item.router_data.request.metadata,
             &adyen_metadata.store,
             item.router_data.request.currency,
@@ -3591,6 +3598,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(&item.router_data)?;
         let (store, splits) = get_adyen_split_request(
+            &item.router_data.request.adyen_split_payment,
             &item.router_data.request.metadata,
             &adyen_metadata.store,
             item.router_data.request.currency,
@@ -7676,10 +7684,37 @@ impl AdditionalData {
 }
 
 fn get_adyen_split_request(
+    structured_split: &Option<grpc_api_types::payments::AdyenSplitData>,
     metadata: &Option<SecretSerdeValue>,
     adyen_store: &Option<String>,
     currency: common_enums::Currency,
 ) -> (Option<String>, Option<Vec<AdyenSplitData>>) {
+    // Prefer the structured split-payment request threaded from hyperswitch
+    // (request.split_payments) so the UCS Adyen request matches the Direct gateway.
+    // Fall back to the legacy metadata-embedded request when it is absent.
+    if let Some(split_request) = structured_split.as_ref() {
+        let splits: Vec<AdyenSplitData> = split_request
+            .split_items
+            .iter()
+            .filter_map(|split_item| {
+                let split_type = split_item.split_type.parse::<AdyenSplitType>().ok()?;
+                let amount = split_item.amount.map(|value| Amount {
+                    currency,
+                    value: MinorUnit::new(value),
+                });
+                Some(AdyenSplitData {
+                    amount,
+                    reference: split_item.reference.clone(),
+                    split_type,
+                    account: split_item.account.clone(),
+                    description: split_item.description.clone(),
+                })
+            })
+            .collect();
+        let store = split_request.store.clone().or_else(|| adyen_store.clone());
+        return (store, Some(splits));
+    }
+
     metadata
         .as_ref()
         .and_then(|secret| {
