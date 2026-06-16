@@ -16,6 +16,7 @@ import types.Payment.*
 import types.PaymentMethods.*
 import types.Payouts.*
 import types.Surcharge.*
+import types.Frm.*
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -184,6 +185,19 @@ class GrpcEventClient internal constructor(
      */
     suspend fun notify_connector(req: NotifyConnectorRequest): NotifyConnectorResponse =
         callGrpc(config, "event/notify_connector", req, NotifyConnectorResponse.parser())
+}
+
+/**
+ * FraudAndRiskManagementService — gRPC sub-client.
+ */
+class GrpcFraudAndRiskManagementClient internal constructor(
+    private val config: GrpcConfig,
+) {
+    /**
+     * FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+     */
+    suspend fun pre_risk_check(req: FrmServicePreRiskCheckRequest): FrmServicePreRiskCheckResponse =
+        callGrpc(config, "fraud_and_risk_management/pre_risk_check", req, FrmServicePreRiskCheckResponse.parser())
 }
 
 /**
@@ -444,6 +458,8 @@ class GrpcClient(config: GrpcConfig) {
         GrpcDisputeClient(config)
     val event: GrpcEventClient =
         GrpcEventClient(config)
+    val fraud_and_risk_management: GrpcFraudAndRiskManagementClient =
+        GrpcFraudAndRiskManagementClient(config)
     val merchant_authentication: GrpcMerchantAuthenticationClient =
         GrpcMerchantAuthenticationClient(config)
     val payment_method_authentication: GrpcPaymentMethodAuthenticationClient =
