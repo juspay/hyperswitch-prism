@@ -4967,11 +4967,6 @@ impl
             .transpose()?;
 
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
-        let customer_info = value
-            .customer
-            .as_ref()
-            .map(CustomerInfo::foreign_try_from)
-            .transpose()?;
 
         Ok(Self {
             merchant_id: merchant_id_from_header,
@@ -4986,12 +4981,7 @@ impl
             connector_customer: value
                 .customer
                 .and_then(|customer| customer.connector_customer_id),
-            l2_l3_data: customer_info.map(|ci| {
-                Box::new(L2L3Data {
-                    customer_info: Some(ci),
-                    ..Default::default()
-                })
-            }),
+            l2_l3_data: None,
             description: None,
             return_url: None,
             connector_feature_data: value
@@ -7919,16 +7909,11 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
         let payment_method_type =
             <Option<PaymentMethodType>>::foreign_try_from(value.payment_method_type())?;
 
-        let customer = value.customer.map(|c| CustomerInfo {
-            customer_id: None,
-            customer_email: c.email.and_then(|e| Email::try_from(e.expose()).ok()),
-            customer_name: c.name.map(Secret::new),
-            first_name: c.first_name.map(Secret::new),
-            last_name: c.last_name.map(Secret::new),
-            customer_phone_number: c.phone_number.map(Secret::new),
-            customer_phone_country_code: c.phone_country_code,
-            salutation: c.salutation,
-        });
+        let customer = value
+            .customer
+            .as_ref()
+            .map(CustomerInfo::foreign_try_from)
+            .transpose()?;
 
         let metadata = value
             .metadata
@@ -7946,7 +7931,7 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
             customer,
             country_code: country,
             payment_method_type,
-            locale: value.description,
+            description: value.description,
             metadata,
             connector_feature_data,
             test_mode: value.test_mode,

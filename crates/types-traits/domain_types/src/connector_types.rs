@@ -1382,8 +1382,8 @@ pub struct PaymentMethodEligibilityData {
     /// The specific payment method (e.g. a BNPL variant) eligibility is being
     /// checked for, when the caller wants to scope the check.
     pub payment_method_type: Option<PaymentMethodType>,
-    /// Locale/language hint for connector-rendered eligibility messaging.
-    pub locale: Option<String>,
+    /// description/language hint for connector-rendered eligibility messaging.
+    pub description: Option<String>,
     /// Connector-specific extras that don't have a first-class field.
     pub metadata: Option<SecretSerdeValue>,
     /// Connector-specific feature data (JSON blob) for the transaction.
