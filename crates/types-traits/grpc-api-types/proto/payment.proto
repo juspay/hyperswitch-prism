@@ -3669,6 +3669,10 @@ message PaymentMethodServiceTokenizeRequest {
 
   // State Information
   optional ConnectorState state = 10;
+
+  // Stripe Connect split-payment instructions, so the Stripe connector can emit
+  // the `Stripe-Account` header on the payment-method tokenize call.
+  optional StripeSplitPaymentRequest stripe_split_payment = 11;
 }
 
 // Response message for tokenizing a payment method
@@ -3869,6 +3873,10 @@ message CustomerServiceCreateRequest {
 
   // Environment Configuration
   optional bool test_mode = 8;
+
+  // Stripe Connect split-payment instructions, so the Stripe connector can emit
+  // the `Stripe-Account` header on the connector-customer create call.
+  optional StripeSplitPaymentRequest stripe_split_payment = 9;
 }
 
 // Response message for creating a customer
