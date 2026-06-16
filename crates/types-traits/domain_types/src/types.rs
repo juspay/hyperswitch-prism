@@ -419,6 +419,8 @@ pub struct ConnectorParams {
     pub secondary_base_url: Option<String>,
     #[serde(default)]
     pub third_base_url: Option<String>,
+    #[serde(default)]
+    pub server_ca_bundle: Option<String>,
 }
 
 impl ConnectorParams {
@@ -428,6 +430,7 @@ impl ConnectorParams {
             dispute_base_url,
             secondary_base_url: None,
             third_base_url: None,
+            server_ca_bundle: None,
         }
     }
 
@@ -448,6 +451,7 @@ impl ConnectorParams {
             dispute_base_url: dispute_base_url.or(self.dispute_base_url.clone()),
             secondary_base_url: secondary_base_url.or(self.secondary_base_url.clone()),
             third_base_url: third_base_url.or(self.third_base_url.clone()),
+            server_ca_bundle: self.server_ca_bundle.clone(),
         }
     }
 }
@@ -521,6 +525,7 @@ impl Connectors {
             dispute_base_url: Some(urls.dispute_base_url.clone()),
             secondary_base_url: Some(urls.secondary_base_url.clone()),
             third_base_url: Some(urls.third_base_url.clone()),
+            server_ca_bundle: None,
         };
 
         // Apply the patch to the appropriate connector field

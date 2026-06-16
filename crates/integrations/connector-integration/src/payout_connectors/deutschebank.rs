@@ -1,6 +1,9 @@
 pub mod signing;
 pub mod transformers;
 
+#[cfg(test)]
+mod test;
+
 use common_enums::CurrencyUnit;
 use common_utils::{
     consts::NO_ERROR_CODE, errors::CustomResult, events, ext_traits::ByteSliceExt,
@@ -55,7 +58,6 @@ pub(crate) mod headers {
     pub(crate) const X_CORRELATION_IDENTIFIER: &str = "x-correlation-identifier";
     pub(crate) const X_APICONSUMER_REQUEST_TIMESTAMP: &str = "x-apiConsumer-request-timestamp";
     pub(crate) const X_CUSTOMER_IDENTIFIER: &str = "x-customer-identifier";
-    pub(crate) const I_APICONSUMER_IDENTIFIER: &str = "i-apiconsumer-identifier";
     pub(crate) const X_VERIFICATIONOFPAYEE_IDENTIFIER: &str = "x-verificationofpayee-identifier";
 }
 
@@ -63,6 +65,12 @@ const VOP_PATH: &str = "/v1/cseal/payments/sepa/vop-check/vop";
 const PAYMENT_PATH: &str = "/v2/cseal/payments/credit-transfer/sepa/payment";
 const STATUS_PATH: &str = "/v2/cseal/payments/credit-transfer/sepa/status";
 
+// The CB Connect v1.0 spec (§4.1, page 10) advertises a single
+// `^(PYMT)[0-9a-zA-Z]+$` correlation-id pattern for all three endpoints, but
+// DB's *VoP Check* endpoint rejects PYMT-prefixed correlation IDs in practice
+// with `APP-SCHM` (HTTP 400). Empirically, VoP demands an `ACID` prefix while
+// the SEPA Credit-Transfer and Status endpoints accept PYMT as documented.
+// Until DB harmonizes the two, keep the prefixes separate.
 const CORRELATION_PREFIX_VOP: &str = "ACID";
 const CORRELATION_PREFIX_PAYMENT: &str = "PYMT";
 
@@ -78,6 +86,10 @@ impl DeutschebankPayouts {
         auth: &DeutschebankAuthType,
         correlation_prefix: &str,
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        let correlation_id = format!(
+            "{correlation_prefix}{}",
+            uuid::Uuid::new_v4().simple().to_string().to_uppercase()
+        );
         Ok(vec![
             (
                 headers::CONTENT_TYPE.to_string(),
@@ -88,16 +100,8 @@ impl DeutschebankPayouts {
                 auth.customer_identifier.clone().expose().into_masked(),
             ),
             (
-                headers::I_APICONSUMER_IDENTIFIER.to_string(),
-                auth.consumer_identifier.clone().expose().into_masked(),
-            ),
-            (
                 headers::X_CORRELATION_IDENTIFIER.to_string(),
-                format!(
-                    "{correlation_prefix}{}",
-                    uuid::Uuid::new_v4().simple().to_string().to_uppercase()
-                )
-                .into(),
+                correlation_id.into(),
             ),
             (
                 headers::X_APICONSUMER_REQUEST_TIMESTAMP.to_string(),
@@ -281,13 +285,13 @@ fn b64_pem(mut pem: String) -> String {
     common_utils::consts::BASE64_ENGINE.encode(pem)
 }
 
-fn server_ca_pem(
-    auth: &DeutschebankAuthType,
-) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-    Ok(auth
-        .server_ca_bundle
-        .clone()
-        .map(|pem| Secret::new(b64_pem(pem.expose()))))
+/// Trust anchor for verifying DB's *server* certificate.
+///
+/// Read from per-connector env config (`Connectors::deutschebank.server_ca_bundle`)
+/// rather than the merchant's MCA, since the CA is environment-level
+/// infrastructure shared by every merchant pointing at the same DB endpoint.
+fn server_ca_pem(bundle: Option<&str>) -> CustomResult<Option<Secret<String>>, IntegrationError> {
+    Ok(bundle.map(|pem| Secret::new(b64_pem(pem.to_string()))))
 }
 
 // ===== PAYOUT ELIGIBILITY — VoP Check =====
@@ -343,7 +347,13 @@ impl
             PayoutEligibilityResponse,
         >,
     ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-        server_ca_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
+        server_ca_pem(
+            req.resource_common_data
+                .connectors
+                .deutschebank
+                .server_ca_bundle
+                .as_deref(),
+        )
     }
 
     fn get_url(
@@ -512,7 +522,13 @@ impl
             PayoutTransferResponse,
         >,
     ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-        server_ca_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
+        server_ca_pem(
+            req.resource_common_data
+                .connectors
+                .deutschebank
+                .server_ca_bundle
+                .as_deref(),
+        )
     }
 
     fn get_url(
@@ -689,7 +705,13 @@ impl ConnectorIntegrationV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutG
         &self,
         req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
     ) -> CustomResult<Option<Secret<String>>, IntegrationError> {
-        server_ca_pem(&DeutschebankAuthType::try_from(&req.connector_config)?)
+        server_ca_pem(
+            req.resource_common_data
+                .connectors
+                .deutschebank
+                .server_ca_bundle
+                .as_deref(),
+        )
     }
 
     fn get_url(

@@ -4116,12 +4116,9 @@ message LoonioConfig {
 
 message DeutschebankConfig {
   SecretString customer_identifier = 1;
-  SecretString consumer_identifier = 2;
-  SecretString key_id = 3;
-  SecretString signing_private_key = 4;
-  SecretString client_certificate = 5;
-  SecretString client_certificate_key = 6;
-  optional SecretString server_ca_bundle = 7;
+  SecretString key_id = 2;
+  SecretString signing_private_key = 3;
+  SecretString client_certificate_bundle = 4;
   optional string base_url = 50;
 }
 
