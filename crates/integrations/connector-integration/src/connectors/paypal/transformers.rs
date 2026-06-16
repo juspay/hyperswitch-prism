@@ -704,6 +704,8 @@ pub struct AttributeResponse {
 pub struct PaypalVault {
     store_in_vault: StoreInVault,
     usage_type: UsageType,
+    // required for vaulting multiple payment tokens for a customer, as per Paypal's documentation. If false or not provided, only one payment token can be vaulted for a customer. If true, multiple payment tokens can be vaulted for a customer. and this will be required for returning customer flow.
+    permit_multiple_payment_tokens: Option<bool>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PaypalVaultResponse {
@@ -837,6 +839,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             Some(common_enums::FutureUsage::OffSession) => Some(PaypalVault {
                                 store_in_vault: StoreInVault::OnSuccess,
                                 usage_type: UsageType::Merchant,
+                                // only required for paypal
+                                permit_multiple_payment_tokens: Some(false),
                             }),
                             _ => None,
                         },
@@ -866,6 +870,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             vault: PaypalVault {
                                 store_in_vault: StoreInVault::OnSuccess,
                                 usage_type: UsageType::Merchant,
+                                permit_multiple_payment_tokens: Some(true),
                             },
                         }),
                         _ => None,
@@ -1443,6 +1448,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     common_enums::FutureUsage::OffSession => Some(PaypalVault {
                                         store_in_vault: StoreInVault::OnSuccess,
                                         usage_type: UsageType::Merchant,
+                                        // only required for paypal
+                                        permit_multiple_payment_tokens: Some(false),
                                     }),
 
                                     common_enums::FutureUsage::OnSession => None,
@@ -1494,6 +1501,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                             vault: PaypalVault {
                                                 store_in_vault: StoreInVault::OnSuccess,
                                                 usage_type: UsageType::Merchant,
+                                                permit_multiple_payment_tokens: Some(true),
                                             },
                                         }),
                                         common_enums::FutureUsage::OnSession => None,
@@ -1526,6 +1534,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                             vault: PaypalVault {
                                                 store_in_vault: StoreInVault::OnSuccess,
                                                 usage_type: UsageType::Merchant,
+                                                permit_multiple_payment_tokens: Some(true),
                                             },
                                         }),
                                         common_enums::FutureUsage::OnSession => None,
