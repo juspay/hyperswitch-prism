@@ -42,3 +42,11 @@ export async function initiatePayment({
     status: PaymentSessionStatus.PENDING,
   }
 }
+
+// Stripe carries its real reference (the PaymentIntent id, `pi_…`) in `data.id`.
+// When no client secret was obtained, `data.id` falls back to the Medusa session
+// id — in that case there is no real PaymentIntent to void, so skip the void.
+export function shouldSkipVoid(data: Record<string, unknown> | undefined): boolean {
+  const d = data as any
+  return !d?.id || d.id === d?.merchantClientSessionId
+}
