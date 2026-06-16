@@ -10,142 +10,111 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandbox.hyperswitch.io/payments",
-          "method": "Post",
-          "headers": {
-            "api-key": "probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"authentication_type\":\"no_three_ds\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4111111111111111\",\"card_exp_month\":\"03\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"John Doe\",\"card_cvc\":\"737\"}},\"return_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Crypto": {
         "status": "not_supported",
@@ -153,11 +122,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -165,35 +134,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Givex": {
         "status": "not_supported",
@@ -201,87 +170,87 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -289,43 +258,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -333,19 +302,19 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -353,15 +322,15 @@
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Paysera": {
         "status": "not_supported",
@@ -373,63 +342,63 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Skrill": {
         "status": "not_supported",
@@ -437,70 +406,53 @@
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       }
     },
     "capture": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_capture_id": "probe_capture_001",
-          "connector_transaction_id": "probe_connector_txn_001",
-          "amount_to_capture": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          }
-        },
-        "sample": {
-          "url": "https://sandbox.hyperswitch.io/payments/probe_connector_txn_001/capture",
-          "method": "Post",
-          "headers": {
-            "api-key": "probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount_to_capture\":1000}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for hyperswitch"
       }
     },
     "create_client_authentication_token": {
@@ -517,43 +469,14 @@
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "supported",
-        "proto_request": {},
-        "sample": {
-          "url": "https://sandbox.hyperswitch.io/payments",
-          "method": "Post",
-          "headers": {
-            "api-key": "probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"grant_type\":\"client_credentials\"}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for hyperswitch"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "domain_context": {
-            "payment": {
-              "amount": {
-                "minor_amount": 1000,
-                "currency": "USD"
-              }
-            }
-          }
-        },
-        "sample": {
-          "url": "https://sandbox.hyperswitch.io/payments",
-          "method": "Post",
-          "headers": {
-            "api-key": "probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\"}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for hyperswitch"
       }
     },
     "customer_create": {
@@ -672,77 +595,14 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe",
-            "card_network": "VISA"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandbox.hyperswitch.io/payments",
-          "method": "Post",
-          "headers": {
-            "api-key": "probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"authentication_type\":\"no_three_ds\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"{{$card_number}}\",\"card_exp_month\":\"{{$card_exp_month}}\",\"card_exp_year\":\"{{$card_exp_year}}\",\"card_holder_name\":\"John Doe\",\"card_cvc\":\"{{$card_cvc}}\"}},\"return_url\":\"https://example.com/return\"}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe",
-            "card_network": "VISA"
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "customer_acceptance": {
-            "acceptance_type": "OFFLINE",
-            "accepted_at": 0
-          },
-          "auth_type": "NO_THREE_DS",
-          "setup_future_usage": "OFF_SESSION"
-        },
-        "sample": {
-          "url": "https://sandbox.hyperswitch.io/payments",
-          "method": "Post",
-          "headers": {
-            "api-key": "probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":0,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"authentication_type\":\"no_three_ds\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"{{$card_number}}\",\"card_exp_month\":\"{{$card_exp_month}}\",\"card_exp_year\":\"{{$card_exp_year}}\",\"card_holder_name\":\"John Doe\",\"card_cvc\":\"{{$card_cvc}}\"}},\"setup_future_usage\":\"off_session\",\"customer_acceptance\":{\"acceptance_type\":\"online\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"UCS\"}}}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for hyperswitch"
       }
     },
     "recurring_charge": {
@@ -759,47 +619,14 @@
     },
     "refund": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_refund_id": "probe_refund_001",
-          "connector_transaction_id": "probe_connector_txn_001",
-          "payment_amount": 1000,
-          "refund_amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "reason": "customer_request"
-        },
-        "sample": {
-          "url": "https://sandbox.hyperswitch.io/refunds",
-          "method": "Post",
-          "headers": {
-            "api-key": "probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"payment_id\":\"probe_connector_txn_001\",\"amount\":1000,\"reason\":\"customer_request\"}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for hyperswitch"
       }
     },
     "refund_get": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_refund_id": "probe_refund_001",
-          "connector_transaction_id": "probe_connector_txn_001",
-          "refund_id": "probe_refund_id_001"
-        },
-        "sample": {
-          "url": "https://sandbox.hyperswitch.io/refunds/probe_refund_id_001",
-          "method": "Get",
-          "headers": {
-            "api-key": "probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": null
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for hyperswitch"
       }
     },
     "reverse": {
@@ -810,90 +637,26 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "enrolled_for_3ds": false,
-          "return_url": "https://example.com/mandate-return",
-          "setup_future_usage": "OFF_SESSION",
-          "request_incremental_authorization": false,
-          "customer_acceptance": {
-            "acceptance_type": "OFFLINE",
-            "accepted_at": 0
-          }
-        },
-        "sample": {
-          "url": "https://sandbox.hyperswitch.io/payments",
-          "method": "Post",
-          "headers": {
-            "api-key": "probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":0,\"currency\":\"USD\",\"confirm\":true,\"capture_method\":\"automatic\",\"authentication_type\":\"no_three_ds\",\"payment_method\":\"card\",\"payment_method_data\":{\"card\":{\"card_number\":\"4111111111111111\",\"card_exp_month\":\"03\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"John Doe\",\"card_cvc\":\"737\"}},\"setup_future_usage\":\"off_session\",\"customer_acceptance\":{\"acceptance_type\":\"online\",\"online\":{\"ip_address\":\"127.0.0.1\",\"user_agent\":\"UCS\"}}}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for hyperswitch"
       }
     },
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: hyperswitch token authorize requires `merchant_connector_id` in metadata"
+        "error": "This feature is not implemented: authorize flow for hyperswitch"
       }
     },
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through hyperswitch"
+        "error": "This feature is not implemented: setup_mandate flow for hyperswitch"
       }
     },
     "tokenize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          }
-        },
-        "sample": {
-          "url": "https://sandbox.hyperswitch.io/payment_methods",
-          "method": "Post",
-          "headers": {
-            "api-key": "probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"payment_method\":\"card\",\"card\":{\"card_number\":\"4111111111111111\",\"card_exp_month\":\"03\",\"card_exp_year\":\"2030\",\"card_holder_name\":\"John Doe\",\"card_cvc\":\"737\"}}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for hyperswitch"
       }
     },
     "verify_redirect": {
@@ -903,21 +666,8 @@
     },
     "void": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_void_id": "probe_void_001",
-          "connector_transaction_id": "probe_connector_txn_001"
-        },
-        "sample": {
-          "url": "https://sandbox.hyperswitch.io/payments/probe_connector_txn_001/cancel",
-          "method": "Post",
-          "headers": {
-            "api-key": "probe_key",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{}"
-        }
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for hyperswitch"
       }
     }
   }
