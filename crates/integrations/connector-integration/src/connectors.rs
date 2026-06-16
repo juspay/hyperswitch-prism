@@ -267,3 +267,6 @@ pub mod payconex;
 pub use self::payconex::Payconex;
 pub mod tamara;
 pub use self::tamara::Tamara;
+
+pub mod asiapay;
+pub use self::asiapay::Asiapay;

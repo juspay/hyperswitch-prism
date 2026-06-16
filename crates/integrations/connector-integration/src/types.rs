@@ -123,6 +123,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Juspay => Box::new(connectors::Juspay::<T>::new()),
             ConnectorEnum::Payconex => Box::new(connectors::Payconex::<T>::new()),
             ConnectorEnum::Tamara => Box::new(connectors::Tamara::<T>::new()),
+            ConnectorEnum::Asiapay => Box::new(connectors::Asiapay::<T>::new()),
         }
     }
 }

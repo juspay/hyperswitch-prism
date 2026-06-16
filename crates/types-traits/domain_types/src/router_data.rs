@@ -304,6 +304,13 @@ pub enum ConnectorSpecificConfig {
         entity_id: Secret<String>,
         base_url: Option<String>,
     },
+    Asiapay {
+        merchant_id: Secret<String>,
+        secure_hash_secret: Secret<String>,
+        login_id: Secret<String>,
+        password: Secret<String>,
+        base_url: Option<String>,
+    },
     Airwallex {
         api_key: Secret<String>,
         client_id: Secret<String>,
@@ -1103,6 +1110,7 @@ impl ConnectorSpecificConfig {
                 office_id,
                 paco_kid
             },
+            Asiapay { base_url },
         )
     }
 
@@ -1524,6 +1532,7 @@ impl ConnectorSpecificConfig {
                     office_id,
                     paco_kid
                 },
+                Asiapay { base_url },
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -1556,6 +1565,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: aci.api_key.ok_or_else(err)?,
                 entity_id: aci.entity_id.ok_or_else(err)?,
                 base_url: aci.base_url,
+            }),
+            AuthType::Asiapay(asiapay) => Ok(Self::Asiapay {
+                merchant_id: asiapay.merchant_id.ok_or_else(err)?,
+                secure_hash_secret: asiapay.secure_hash_secret.ok_or_else(err)?,
+                login_id: asiapay.login_id.ok_or_else(err)?,
+                password: asiapay.password.ok_or_else(err)?,
+                base_url: asiapay.base_url,
             }),
             AuthType::Adyen(adyen) => Ok(Self::Adyen {
                 api_key: adyen.api_key.ok_or_else(err)?,
@@ -3200,6 +3216,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
                 ConnectorEnum::TwocTwopPaco => Err(err().into()),
+                ConnectorEnum::Asiapay => match auth {
+                    ConnectorAuthType::MultiAuthKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                        key2,
+                    } => Ok(Self::Asiapay {
+                        merchant_id: api_key.clone(),
+                        secure_hash_secret: key1.clone(),
+                        login_id: api_secret.clone(),
+                        password: key2.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Tamara => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Tamara {
                         api_key: api_key.clone(),

@@ -398,6 +398,7 @@ pub struct Connectors {
     pub juspay: ConnectorParams,
     pub payconex: ConnectorParams,
     pub tamara: ConnectorParams,
+    pub asiapay: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]

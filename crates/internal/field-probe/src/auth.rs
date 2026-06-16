@@ -690,5 +690,12 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             base_url: None,
         },
+        ConnectorEnum::Asiapay => ConnectorSpecificConfig::Asiapay {
+            merchant_id: m(),
+            secure_hash_secret: s(),
+            login_id: u(),
+            password: p(),
+            base_url: None,
+        },
     }
 }
