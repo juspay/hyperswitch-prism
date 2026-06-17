@@ -15,6 +15,7 @@ pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
 pub mod surcharge;
+pub mod frm;
 pub mod types;
 pub mod utils;
 

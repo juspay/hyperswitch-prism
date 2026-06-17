@@ -43,6 +43,10 @@ use domain_types::{
         SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
         SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse,
     },
+    frm::frm_types::{
+        FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse,
+        PostRiskCheckRequest, PostRiskCheckResponse,
+    },
     types::{PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
 };
 use error_stack::ResultExt;
@@ -114,6 +118,8 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + MandateRevokeV2
     + VerifyWebhookSourceV2
     + VerifyRedirectResponse
+    + PreRiskCheckV2
+    + PostRiskCheckV2
 {
 }
 
@@ -868,6 +874,26 @@ pub trait SurchargeRefundSucceededV2:
     SurchargeFlowData,
     SurchargeRefundSucceededRequest,
     SurchargeRefundSucceededResponse,
+>
+{
+}
+
+pub trait PreRiskCheckV2:
+    ConnectorIntegrationV2<
+    connector_flow::PreRiskCheck,
+    FrmFlowData,
+    PreRiskCheckRequest,
+    PreRiskCheckResponse,
+>
+{
+}
+
+pub trait PostRiskCheckV2:
+    ConnectorIntegrationV2<
+    connector_flow::PostRiskCheck,
+    FrmFlowData,
+    PostRiskCheckRequest,
+    PostRiskCheckResponse,
 >
 {
 }
