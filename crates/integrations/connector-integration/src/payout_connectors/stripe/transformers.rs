@@ -120,7 +120,6 @@ pub struct StripeConnectPayoutCreateRequest {
     pub currency: String,
 
     pub destination: String,
-    #[serde(rename = "transfer_group")]
     pub transfer_group: Option<String>,
 }
 
@@ -278,7 +277,6 @@ pub struct StripeConnectReversalRequest {
 pub struct StripeConnectReversalResponse {
     pub id: String,
 
-    #[serde(rename = "source_refund")]
     pub source_refund: Option<String>,
 }
 
@@ -338,10 +336,8 @@ pub struct StripeConnectPayoutRetrieveResponse {
 
     pub description: Option<String>,
 
-    #[serde(rename = "failure_code")]
     pub failure_code: Option<String>,
 
-    #[serde(rename = "failure_message")]
     pub failure_message: Option<String>,
 }
 
@@ -390,7 +386,6 @@ pub struct StripeConnectRecipientCreateRequest {
     #[serde(rename = "tos_acceptance[ip]")]
     pub tos_acceptance_ip: Option<Secret<String>>,
 
-    #[serde(rename = "business_type")]
     pub business_type: String,
 
     #[serde(rename = "business_profile[mcc]")]
@@ -518,7 +513,6 @@ pub struct RecipientBankAccountRequest {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct RecipientTokenRequest {
-    #[serde(rename = "external_account")]
     pub external_account: Secret<String>,
 }
 
