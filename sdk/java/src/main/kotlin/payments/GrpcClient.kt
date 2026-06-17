@@ -439,11 +439,6 @@ class GrpcRefundClient internal constructor(
      */
     suspend fun refund_get(req: RefundServiceGetRequest): RefundResponse =
         callGrpc(config, "refund/refund_get", req, RefundResponse.parser())
-    /**
-     * RefundService.VoidPostRefund — Void/reverse a refund before processor settlement.
-     */
-    suspend fun void_post_refund(req: RefundServiceVoidPostRefundRequest): RefundResponse =
-        callGrpc(config, "refund/void_post_refund", req, RefundResponse.parser())
 }
 
 /**

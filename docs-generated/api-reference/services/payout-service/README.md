@@ -57,19 +57,19 @@ sequenceDiagram
     CS->>PP: Register recipient
     PP-->>CS: Return recipient ID
     CS-->>App: Return connector_payout_id (Recipient)
-
+    
     App->>CS: 2. EnrollDisburseAccount (Bank Details)
     CS->>PP: Link bank account
     PP-->>CS: Return account ID
     CS-->>App: Return connector_payout_id (Account)
-
+    
     App->>CS: 3. Create (Payout Details & Amount)
     CS->>PP: Initiate Payout
     PP-->>CS: Return payout status
     CS-->>App: Return status: PENDING
-
+    
     Note over App: Wait for async clearing
-
+    
     App->>CS: 4. Get (Poll Status)
     CS->>PP: Check status
     PP-->>CS: Return status: SUCCESS
