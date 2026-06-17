@@ -3015,6 +3015,60 @@ fn split_payments_from_grpc(
     }
 }
 
+/// Convert the gRPC `SplitRefundsRequest` into the domain `SplitRefundsRequest`.
+/// Only the Stripe Connect variant exists in the contract today; an unset proto
+/// `charge_type` falls back to Direct, and missing `options` default to a Direct
+/// refund that does not revert the platform fee (the domain default).
+fn split_refunds_from_grpc(
+    value: Option<grpc_payment_types::SplitRefundsRequest>,
+) -> Option<connector_types::SplitRefundsRequest> {
+    let split = value?.split_refund?;
+    match split {
+        grpc_payment_types::split_refunds_request::SplitRefund::StripeSplitRefund(stripe) => {
+            let charge_type = match stripe.charge_type() {
+                grpc_payment_types::StripeChargeType::Destination => {
+                    common_enums::PaymentChargeType::Stripe(
+                        common_enums::StripeChargeType::Destination,
+                    )
+                }
+                _ => {
+                    common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct)
+                }
+            };
+            let options = match stripe.options.and_then(|o| o.options) {
+                Some(grpc_payment_types::charge_refunds_options::Options::Destination(d)) => {
+                    connector_types::ChargeRefundsOptions::Destination(
+                        connector_types::DestinationChargeRefund {
+                            revert_platform_fee: d.revert_platform_fee,
+                            revert_transfer: d.revert_transfer,
+                        },
+                    )
+                }
+                Some(grpc_payment_types::charge_refunds_options::Options::Direct(d)) => {
+                    connector_types::ChargeRefundsOptions::Direct(
+                        connector_types::DirectChargeRefund {
+                            revert_platform_fee: d.revert_platform_fee,
+                        },
+                    )
+                }
+                None => connector_types::ChargeRefundsOptions::Direct(
+                    connector_types::DirectChargeRefund {
+                        revert_platform_fee: false,
+                    },
+                ),
+            };
+            Some(connector_types::SplitRefundsRequest::StripeSplitRefund(
+                connector_types::StripeSplitRefund {
+                    charge_id: stripe.charge_id,
+                    transfer_account_id: stripe.transfer_account_id,
+                    charge_type,
+                    options,
+                },
+            ))
+        }
+    }
+}
+
 impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationRequest {
     fn from(req: grpc_payment_types::PaymentServiceAuthorizeRequest) -> Self {
         let tokenization_strategy = req
@@ -8205,7 +8259,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
             integrity_object: None,
-            split_refunds: None,
+            split_refunds: split_refunds_from_grpc(value.split_refunds),
             connector_order_id: value.connector_order_id,
             payment_method_data: value.payment_method.and_then(|pm| {
                 payment_method_data::PaymentMethodData::<

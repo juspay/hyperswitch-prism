@@ -2082,6 +2082,41 @@ message SplitPaymentsRequest {
   }
 }
 
+// Fee-reversal options for a Stripe Connect split refund (mirrors domain
+// ChargeRefundsOptions). Direct vs Destination charge each carry their own flags.
+message DirectChargeRefund {
+  bool revert_platform_fee = 1; // Refund the platform application fee too.
+}
+message DestinationChargeRefund {
+  bool revert_platform_fee = 1; // Refund the platform application fee too.
+  bool revert_transfer = 2;     // Reverse the transfer to the connected account.
+}
+message ChargeRefundsOptions {
+  oneof options {
+    DirectChargeRefund direct = 1;
+    DestinationChargeRefund destination = 2;
+  }
+}
+
+// Stripe Connect split-refund routing: a refund issued against the connected-account
+// charge (Stripe-Account header + refund_application_fee / reverse_transfer) rather
+// than the payment_intent. Mirrors the domain `StripeSplitRefund`.
+message StripeSplitRefundRequest {
+  string charge_id = 1;             // Connector charge id of the original split payment.
+  string transfer_account_id = 2;   // Connected account the original charge routed to.
+  StripeChargeType charge_type = 3; // Direct vs Destination (mirrors the original charge).
+  ChargeRefundsOptions options = 4; // Fee-reversal options for the refund.
+}
+
+// Split-refund / connected-account routing for refunds. Connector-specific via the
+// oneof (Stripe Connect today; extensible without a wire break). Used by connectors
+// (e.g. Stripe) to emit the `Stripe-Account` header and route the refund to the charge.
+message SplitRefundsRequest {
+  oneof split_refund {
+    StripeSplitRefundRequest stripe_split_refund = 1;
+  }
+}
+
 // Request message for authorizing a payment
 message PaymentServiceAuthorizeRequest {
   // Identification
@@ -2715,6 +2750,11 @@ message PaymentServiceRefundRequest {
 
   // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
   optional PaymentMethod payment_method = 19;
+
+  // Split-refund / Stripe Connect routing. When present (Direct charge) the connector
+  // issues the refund against the charge and emits the `Stripe-Account` header instead
+  // of refunding the payment_intent. Carried into `RefundsData::split_refunds`.
+  optional SplitRefundsRequest split_refunds = 20;
 }
 
 // Response message for a refund operation (unified for both Create and Get)
