@@ -7,7 +7,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RepeatPaymentData, ResponseId,
         WebhookDetailsResponse, WebhookResourceReference,
     },
-    errors::{ConnectorError, IntegrationError, WebhookError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -128,7 +128,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 router_data.request.currency,
             )
             .change_context(IntegrationError::AmountConversionFailed {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "hyperswitch repeat payment: failed to convert amount to minor units"
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         // The vaulted payment-method id comes from the mandate reference
