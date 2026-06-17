@@ -4776,6 +4776,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Bluesnap(_) => Ok(Self::Payment(ConnectorEnum::Bluesnap)),
             AuthType::Braintree(_) => Ok(Self::Payment(ConnectorEnum::Braintree)),
             AuthType::Cashtocode(_) => Ok(Self::Payment(ConnectorEnum::Cashtocode)),
+            AuthType::Checkout(_) => Ok(Self::Payment(ConnectorEnum::Checkout)),
             AuthType::Cryptopay(_) => Ok(Self::Payment(ConnectorEnum::Cryptopay)),
             AuthType::Cybersource(_) => Ok(Self::Payment(ConnectorEnum::Cybersource)),
             AuthType::Datatrans(_) => Ok(Self::Payment(ConnectorEnum::Datatrans)),

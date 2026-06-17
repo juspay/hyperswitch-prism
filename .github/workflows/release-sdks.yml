@@ -76,8 +76,10 @@ on:
       NPM_TOKEN:
         required: true
 
+# Literal group, not ${{ github.workflow }}: when called via `uses:` that resolves
+# to the caller's name and collides with the caller's group, deadlocking the run.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: release-sdks-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -99,6 +101,7 @@ jobs:
       publish_java: ${{ steps.norm.outputs.publish_java }}
       publish_python: ${{ steps.norm.outputs.publish_python }}
       publish_javascript: ${{ steps.norm.outputs.publish_javascript }}
+      version: ${{ steps.norm.outputs.version }}
     steps:
       - name: Normalize and validate inputs
         id: norm
@@ -119,19 +122,36 @@ jobs:
           echo "publish_python=$(norm "${{ inputs.publish_python }}")" >> "$GITHUB_OUTPUT"
           echo "publish_javascript=$(norm "${{ inputs.publish_javascript }}")" >> "$GITHUB_OUTPUT"
 
-          # A valid SemVer version is required when actually publishing.
+          VERSION="${{ inputs.version }}"
+          REF="${{ inputs.ref }}"
+
           if [ "${PREVIEW}" = "false" ]; then
-            VERSION="${{ inputs.version }}"
+            # Publishing: a real SemVer is mandatory.
             if [ -z "${VERSION}" ]; then
-              echo "::error::version input is required when preview_only is false"
+              echo "::error::version input is required when publishing (preview_only=false)"
               exit 1
             fi
             if [[ ! "${VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               echo "::error::version '${VERSION}' is not valid SemVer (expected X.Y.Z)"
               exit 1
             fi
-            echo "Version ${VERSION} is valid SemVer"
+            # Tag-only: publish must build from the matching release tag, not a branch.
+            if [ "${REF}" != "v${VERSION}" ] && [ "${REF}" != "${VERSION}" ]; then
+              echo "::error::publishing requires ref to be the release tag 'v${VERSION}' (got '${REF}'); publishing from a branch is not allowed"
+              exit 1
+            fi
+            echo "Publishing version ${VERSION} from tag ${REF}"
+          else
+            # Preview: empty version is fine; default to a plain "0.0.0" so the
+            # builders never see "" (which breaks the Java jar name). Avoid suffixes
+            # like "-preview" — PEP 440 rewrites them and renames the Python wheel.
+            if [ -z "${VERSION}" ]; then
+              VERSION="0.0.0"
+              echo "No version supplied for preview — defaulting to ${VERSION}"
+            fi
           fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
   build-binaries:
     name: Build Binaries (${{ matrix.os }} ${{ matrix.arch }})
@@ -252,7 +272,7 @@ jobs:
     needs: [setup, build-binaries]
     if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' }}
     env:
-      VERSION: ${{ inputs.version }}
+      VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -299,7 +319,7 @@ jobs:
     needs: [setup, build-binaries]
     if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_python == 'true' }}
     env:
-      VERSION: ${{ inputs.version }}
+      VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -340,7 +360,7 @@ jobs:
     needs: [setup, build-binaries]
     if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_javascript == 'true' }}
     env:
-      VERSION: ${{ inputs.version }}
+      VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -462,7 +482,7 @@ jobs:
     needs: [setup, collect-sdks]
     if: always() && needs.collect-sdks.result == 'success' && (needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_java == 'true' || needs.setup.outputs.publish_python == 'true' || needs.setup.outputs.publish_javascript == 'true')
     env:
-      VERSION: ${{ inputs.version }}
+      VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -695,7 +715,7 @@ jobs:
     needs: [setup, preview-publish, pre-publish-check]
     if: always() && needs.setup.outputs.publish_java == 'true' && needs.setup.outputs.preview_only == 'false' && needs.pre-publish-check.result == 'success'
     env:
-      VERSION: ${{ inputs.version }}
+      VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -765,7 +785,7 @@ jobs:
     needs: [setup, preview-publish, pre-publish-check]
     if: always() && needs.setup.outputs.publish_python == 'true' && needs.setup.outputs.preview_only == 'false' && needs.pre-publish-check.result == 'success'
     env:
-      VERSION: ${{ inputs.version }}
+      VERSION: ${{ needs.setup.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:

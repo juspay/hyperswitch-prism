@@ -237,6 +237,17 @@ If you wish to learn more about routing logic and smart retries, you can checkou
 
 ---
 
+## 🔌 Plugins
+
+Ready-made integrations for popular platforms.
+
+| Platform | Package | Description |
+|----------|---------|-------------|
+| [Medusa](./plugins/medusa) | [`@juspay-tech/medusa-custom-payments`](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments) | Medusa v2 backend payment provider |
+| [Medusa](./plugins/medusa) | [`@juspay-tech/medusa-custom-payments-react`](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments-react) | React storefront checkout components |
+
+---
+
 ## 🛠️ Development
 
 ### Prerequisites
