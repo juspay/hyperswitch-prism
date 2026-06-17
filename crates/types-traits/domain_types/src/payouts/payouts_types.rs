@@ -549,12 +549,11 @@ impl PayoutCreateRecipientRequest {
         }
     }
 
-    pub fn get_email_with_fallback(&self) -> Option<Secret<String>> {
+    pub fn get_email_with_fallback(&self) -> Option<common_utils::pii::Email> {
         self.customer
             .as_ref()
-            .and_then(|c| c.customer_email.as_ref())
-            .map(|e| Secret::new(e.peek().to_string()))
-            .or_else(|| self.get_optional_billing_email())
+            .and_then(|c| c.customer_email.clone())
+            .or_else(|| self.address.as_ref().and_then(|a| a.email.clone()))
     }
 
     pub fn is_company(&self) -> bool {

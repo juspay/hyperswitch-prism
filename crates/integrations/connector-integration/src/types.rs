@@ -166,7 +166,9 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
             PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
             PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),
-            PayoutConnectorEnum::Stripe => Box::new(payout_connectors::StripePayouts::new()),
+            PayoutConnectorEnum::Stripe => Box::new(payout_connectors::StripePayouts::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
         }
     }
 }

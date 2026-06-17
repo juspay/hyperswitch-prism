@@ -1,12 +1,15 @@
 //! Stripe Connect payout transformers.
 
+use std::fmt::Debug;
+
 use common_utils::types::MinorUnit;
 use domain_types::{
     connector_flow::{
         PayoutCreate, PayoutCreateRecipient, PayoutEnrollDisburseAccount, PayoutGet,
         PayoutTransfer, PayoutVoid,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    payment_method_data::PaymentMethodDataTypes,
     payouts::payout_method_data::{Bank, PayoutMethodData},
     payouts::payouts_types::{
         PayoutCreateRecipientRequest, PayoutCreateRecipientResponse, PayoutCreateRequest,
@@ -18,7 +21,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::report;
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{connectors::stripe::StripeAmountConvertor, types::ResponseRouterData};
@@ -72,19 +75,36 @@ fn stripe_currency_string(currency: common_enums::Currency) -> String {
     currency.to_string().to_lowercase()
 }
 
+const STRIPE_ACCOUNT_TYPE_INDIVIDUAL: &str = "individual";
+const STRIPE_ACCOUNT_TYPE_COMPANY: &str = "company";
+const STRIPE_EXTERNAL_ACCOUNT_OBJECT_BANK: &str = "bank_account";
+
 fn tos_acceptance_now() -> Result<i64, error_stack::Report<IntegrationError>> {
-    use domain_types::errors::IntegrationErrorContext;
     let secs = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|_| IntegrationError::InvalidDataFormat {
             field_name: "system_time",
-            context: IntegrationErrorContext::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "System clock is set before the Unix epoch, so tos_acceptance[date] cannot be computed"
+                        .to_string(),
+                ),
+                suggested_action: Some("Ensure the host system clock is configured correctly".to_string()),
+                doc_url: None,
+            },
         })?
         .as_secs();
     i64::try_from(secs).map_err(|_| {
         error_stack::report!(IntegrationError::InvalidDataFormat {
             field_name: "system_time",
-            context: IntegrationErrorContext::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Current Unix timestamp does not fit into i64, so tos_acceptance[date] cannot be computed"
+                        .to_string(),
+                ),
+                suggested_action: Some("Ensure the host system clock is configured correctly".to_string()),
+                doc_url: None,
+            },
         })
     })
 }
@@ -104,19 +124,23 @@ pub struct StripeConnectPayoutCreateRequest {
     pub transfer_group: Option<String>,
 }
 
-impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>>
-    for StripeConnectPayoutCreateRequest
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::StripePayoutsRouterData<
+            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+            T,
+        >,
+    > for StripeConnectPayoutCreateRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        router_data: &RouterDataV2<
-            PayoutCreate,
-            PayoutFlowData,
-            PayoutCreateRequest,
-            PayoutCreateResponse,
+        item: super::StripePayoutsRouterData<
+            RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, PayoutCreateResponse>,
+            T,
         >,
     ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
         let request = &router_data.request;
         let amount = StripeAmountConvertor::convert(request.amount, request.source_currency)?;
         let currency = stripe_currency_string(request.source_currency);
@@ -147,11 +171,6 @@ impl TryFrom<&RouterDataV2<PayoutCreate, PayoutFlowData, PayoutCreateRequest, Pa
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StripeConnectPayoutCreateResponse {
     pub id: String,
-
-    pub description: Option<String>,
-
-    #[serde(rename = "source_transaction")]
-    pub source_transaction: Option<String>,
 }
 
 impl TryFrom<ResponseRouterData<StripeConnectPayoutCreateResponse, Self>>
@@ -185,26 +204,33 @@ pub struct StripeConnectPayoutFulfillRequest {
     pub currency: String,
 }
 
-impl
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
+        super::StripePayoutsRouterData<
+            RouterDataV2<
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest,
+                PayoutTransferResponse,
+            >,
+            T,
         >,
     > for StripeConnectPayoutFulfillRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        router_data: &RouterDataV2<
-            PayoutTransfer,
-            PayoutFlowData,
-            PayoutTransferRequest,
-            PayoutTransferResponse,
+        item: super::StripePayoutsRouterData<
+            RouterDataV2<
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest,
+                PayoutTransferResponse,
+            >,
+            T,
         >,
     ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
         let request = &router_data.request;
         let amount = StripeAmountConvertor::convert(request.amount, request.source_currency)?;
         let currency = stripe_currency_string(request.source_currency);
@@ -215,25 +241,6 @@ impl
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StripeConnectPayoutFulfillResponse {
     pub id: String,
-
-    pub currency: String,
-
-    pub description: Option<String>,
-
-    #[serde(rename = "failure_balance_transaction")]
-    pub failure_balance_transaction: Option<String>,
-
-    #[serde(rename = "failure_code")]
-    pub failure_code: Option<String>,
-
-    #[serde(rename = "failure_message")]
-    pub failure_message: Option<String>,
-
-    #[serde(rename = "original_payout")]
-    pub original_payout: Option<String>,
-
-    #[serde(rename = "statement_descriptor")]
-    pub statement_descriptor: Option<String>,
 
     pub status: StripeConnectPayoutStatus,
 }
@@ -275,17 +282,20 @@ pub struct StripeConnectReversalResponse {
     pub source_refund: Option<String>,
 }
 
-impl TryFrom<&RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>>
-    for StripeConnectReversalRequest
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::StripePayoutsRouterData<
+            RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
+            T,
+        >,
+    > for StripeConnectReversalRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        _router_data: &RouterDataV2<
-            PayoutVoid,
-            PayoutFlowData,
-            PayoutVoidRequest,
-            PayoutVoidResponse,
+        _item: super::StripePayoutsRouterData<
+            RouterDataV2<PayoutVoid, PayoutFlowData, PayoutVoidRequest, PayoutVoidResponse>,
+            T,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self { amount: None })
@@ -366,7 +376,7 @@ pub struct StripeConnectRecipientCreateRequest {
 
     pub country: Option<common_enums::CountryAlpha2>,
 
-    pub email: Option<String>,
+    pub email: Option<common_utils::pii::Email>,
 
     #[serde(rename = "capabilities[card_payments][requested]")]
     pub capabilities_card_payments: Option<bool>,
@@ -450,7 +460,7 @@ pub struct StripeConnectRecipientCreateRequest {
     pub individual_address_state: Option<Secret<String>>,
 
     #[serde(rename = "individual[email]")]
-    pub individual_email: Option<Secret<String>>,
+    pub individual_email: Option<common_utils::pii::Email>,
 
     #[serde(rename = "individual[phone]")]
     pub individual_phone: Option<Secret<String>>,
@@ -509,7 +519,7 @@ pub struct RecipientBankAccountRequest {
 #[derive(Clone, Debug, Serialize)]
 pub struct RecipientTokenRequest {
     #[serde(rename = "external_account")]
-    pub external_account: String,
+    pub external_account: Secret<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -517,30 +527,42 @@ pub struct StripeConnectRecipientAccountCreateResponse {
     pub id: String,
 }
 
-impl
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        &RouterDataV2<
-            PayoutCreateRecipient,
-            PayoutFlowData,
-            PayoutCreateRecipientRequest,
-            PayoutCreateRecipientResponse,
+        super::StripePayoutsRouterData<
+            RouterDataV2<
+                PayoutCreateRecipient,
+                PayoutFlowData,
+                PayoutCreateRecipientRequest,
+                PayoutCreateRecipientResponse,
+            >,
+            T,
         >,
     > for StripeConnectRecipientCreateRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        router_data: &RouterDataV2<
-            PayoutCreateRecipient,
-            PayoutFlowData,
-            PayoutCreateRecipientRequest,
-            PayoutCreateRecipientResponse,
+        item: super::StripePayoutsRouterData<
+            RouterDataV2<
+                PayoutCreateRecipient,
+                PayoutFlowData,
+                PayoutCreateRecipientRequest,
+                PayoutCreateRecipientResponse,
+            >,
+            T,
         >,
     ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
         let request = &router_data.request;
 
         let is_company = request.is_company();
-        let business_type = if is_company { "company" } else { "individual" }.to_string();
+        let business_type = if is_company {
+            STRIPE_ACCOUNT_TYPE_COMPANY
+        } else {
+            STRIPE_ACCOUNT_TYPE_INDIVIDUAL
+        }
+        .to_string();
 
         let account_type = request.get_account_type()?;
         let phone = request.get_phone()?;
@@ -562,14 +584,26 @@ impl
         let addr_zip = request.get_optional_billing_zip();
         let addr_city = request.get_optional_billing_city();
         let addr_state = request.get_optional_billing_state();
-        let addr_country = request
-            .get_optional_billing_country()
-            .unwrap_or(common_enums::CountryAlpha2::US);
+        let addr_country = request.get_optional_billing_country().ok_or_else(|| {
+            report!(IntegrationError::MissingRequiredField {
+                field_name: "billing.address.country",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Billing country is required to create a Stripe connected account"
+                            .to_string(),
+                    ),
+                    suggested_action: Some(
+                        "Provide the recipient's billing address country".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            })
+        })?;
 
         Ok(Self {
             account_type,
             country: Some(addr_country),
-            email: email.as_ref().map(|e| e.peek().clone()),
+            email: email.clone(),
             capabilities_card_payments: Some(true),
             capabilities_transfers: Some(true),
             tos_acceptance_date: Some(tos_acceptance_now()?),
@@ -580,13 +614,13 @@ impl
             business_profile_name: Some(business_profile_name.clone()),
 
             company_name: is_company.then_some(business_profile_name),
-            company_address_line1: if is_company { addr_line1.clone() } else { None },
-            company_address_line2: if is_company { addr_line2.clone() } else { None },
-            company_address_postal_code: if is_company { addr_zip.clone() } else { None },
-            company_address_city: if is_company { addr_city.clone() } else { None },
-            company_address_state: if is_company { addr_state.clone() } else { None },
+            company_address_line1: addr_line1.clone().filter(|_| is_company),
+            company_address_line2: addr_line2.clone().filter(|_| is_company),
+            company_address_postal_code: addr_zip.clone().filter(|_| is_company),
+            company_address_city: addr_city.clone().filter(|_| is_company),
+            company_address_state: addr_state.clone().filter(|_| is_company),
             company_phone: is_company.then(|| phone.clone()),
-            company_tax_id: if is_company { id_number.clone() } else { None },
+            company_tax_id: id_number.clone().filter(|_| is_company),
             company_owners_provided: None,
 
             individual_first_name: (!is_company).then_some(first_name),
@@ -594,15 +628,15 @@ impl
             individual_dob_day: (!is_company).then_some(dob_day),
             individual_dob_month: (!is_company).then_some(dob_month),
             individual_dob_year: (!is_company).then_some(dob_year),
-            individual_address_line1: if !is_company { addr_line1 } else { None },
-            individual_address_line2: if !is_company { addr_line2 } else { None },
-            individual_address_postal_code: if !is_company { addr_zip } else { None },
-            individual_address_city: if !is_company { addr_city } else { None },
-            individual_address_state: if !is_company { addr_state } else { None },
+            individual_address_line1: addr_line1.filter(|_| !is_company),
+            individual_address_line2: addr_line2.filter(|_| !is_company),
+            individual_address_postal_code: addr_zip.filter(|_| !is_company),
+            individual_address_city: addr_city.filter(|_| !is_company),
+            individual_address_state: addr_state.filter(|_| !is_company),
             individual_email: email,
             individual_phone: (!is_company).then_some(phone),
-            individual_id_number: if !is_company { id_number } else { None },
-            individual_ssn_last_4: if !is_company { ssn_last_4 } else { None },
+            individual_id_number: id_number.filter(|_| !is_company),
+            individual_ssn_last_4: ssn_last_4.filter(|_| !is_company),
 
             statement_descriptor: Some(statement_descriptor),
         })
@@ -634,47 +668,74 @@ impl TryFrom<ResponseRouterData<StripeConnectRecipientCreateResponse, Self>>
     }
 }
 
-impl
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        &RouterDataV2<
-            PayoutEnrollDisburseAccount,
-            PayoutFlowData,
-            PayoutEnrollDisburseAccountRequest,
-            PayoutEnrollDisburseAccountResponse,
+        super::StripePayoutsRouterData<
+            RouterDataV2<
+                PayoutEnrollDisburseAccount,
+                PayoutFlowData,
+                PayoutEnrollDisburseAccountRequest,
+                PayoutEnrollDisburseAccountResponse,
+            >,
+            T,
         >,
     > for StripeConnectRecipientAccountCreateRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        router_data: &RouterDataV2<
-            PayoutEnrollDisburseAccount,
-            PayoutFlowData,
-            PayoutEnrollDisburseAccountRequest,
-            PayoutEnrollDisburseAccountResponse,
+        item: super::StripePayoutsRouterData<
+            RouterDataV2<
+                PayoutEnrollDisburseAccount,
+                PayoutFlowData,
+                PayoutEnrollDisburseAccountRequest,
+                PayoutEnrollDisburseAccountResponse,
+            >,
+            T,
         >,
     ) -> Result<Self, Self::Error> {
-        use domain_types::errors::IntegrationErrorContext;
-
+        let router_data = &item.router_data;
         let request = &router_data.request;
         let payout_method_data = request.get_payout_method_data()?;
 
         match payout_method_data {
             PayoutMethodData::Bank(Bank::Ach(ach)) => {
-                let country = ach
-                    .bank_country_code
-                    .unwrap_or(common_enums::CountryAlpha2::US);
+                let country = ach.bank_country_code.ok_or_else(|| {
+                    report!(IntegrationError::MissingRequiredField {
+                        field_name: "bank_country_code",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Bank country code is required to create a Stripe external bank account"
+                                    .to_string(),
+                            ),
+                            suggested_action: Some(
+                                "Provide the bank account country code".to_string(),
+                            ),
+                            doc_url: None,
+                        },
+                    })
+                })?;
                 let currency = stripe_currency_string(request.source_currency);
-                let account_holder_name = request
-                    .get_customer_name()
-                    .unwrap_or_else(|| Secret::new("Account Holder".to_string()));
+                let account_holder_name = request.get_customer_name().ok_or_else(|| {
+                    report!(IntegrationError::MissingRequiredField {
+                        field_name: "customer.name",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Account holder name is required to create a Stripe external bank account"
+                                    .to_string(),
+                            ),
+                            suggested_action: Some("Provide the customer name".to_string()),
+                            doc_url: None,
+                        },
+                    })
+                })?;
 
                 Ok(Self::Bank(RecipientBankAccountRequest {
-                    external_account_object: "bank_account".to_string(),
+                    external_account_object: STRIPE_EXTERNAL_ACCOUNT_OBJECT_BANK.to_string(),
                     external_account_country: country,
                     external_account_currency: currency,
                     external_account_account_holder_name: account_holder_name,
-                    external_account_account_holder_type: "individual".to_string(),
+                    external_account_account_holder_type: STRIPE_ACCOUNT_TYPE_INDIVIDUAL.to_string(),
                     external_account_account_number: ach.bank_account_number.clone(),
                     external_account_routing_number: ach.bank_routing_number.clone(),
                 }))
