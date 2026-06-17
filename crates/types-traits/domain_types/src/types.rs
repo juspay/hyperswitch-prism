@@ -5368,7 +5368,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 redirection_data,
                 connector_metadata,
                 network_txn_id,
-                network_txn_link_id: _,
+                network_txn_link_id,
                 connector_response_reference_id,
                 incremental_authorization_allowed,
                 mandate_reference,
@@ -5414,6 +5414,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                         .minor_amount_authorized
                         .map(|amount_authorized| amount_authorized.get_amount_as_i64()),
                     connector_response,
+                    network_txn_link_id,
                 }
             }
             _ => {
@@ -5475,6 +5476,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 capturable_amount: None,
                 authorized_amount: None,
                 connector_response,
+                network_txn_link_id: None,
             }
         }
     };
