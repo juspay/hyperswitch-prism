@@ -3093,6 +3093,10 @@ pub struct PaymentsCaptureData {
     pub metadata: Option<SecretSerdeValue>,
     pub merchant_order_id: Option<String>,
     pub order_tax_amount: Option<MinorUnit>,
+    /// Split-payment / Stripe Connect routing (charge type + connected account).
+    /// The Stripe capture header builder reads this to emit the `Stripe-Account`
+    /// header for Direct charges. Carried from `PaymentServiceCaptureRequest`.
+    pub split_payments: Option<SplitPaymentsRequest>,
 }
 
 impl PaymentsCaptureData {

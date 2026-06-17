@@ -736,6 +736,27 @@ macros::macro_connector_implementation!(
             )];
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
+
+            // Route the capture onto the connected account for Stripe Connect
+            // Direct charges by emitting the `Stripe-Account` header from the
+            // request's split_payments (mirrors the HS capture path and the UCS
+            // authorize header builder).
+            if let Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(
+                stripe_split_payment,
+            )) = &req.request.split_payments
+            {
+                if stripe_split_payment.charge_type
+                    == common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct)
+                {
+                    header.push((
+                        headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
+                        stripe_split_payment
+                            .transfer_account_id
+                            .clone()
+                            .into_masked(),
+                    ));
+                }
+            }
             Ok(header)
         }
         fn get_url(
