@@ -2461,16 +2461,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // can reconcile the partial capture/authorization against the
         // requested amount; for the fully-approved A0000 case this is also
         // harmless to populate.
-        let minor_amount_captured = body
-            .processed_amount
-            .as_ref()
-            .and_then(|amount| {
-                crate::connectors::tsys_transit::TsysTransitAmountConvertor::convert_back(
-                    amount.clone(),
-                    router_data.request.currency,
-                )
-                .ok()
-            });
+        let minor_amount_captured = body.processed_amount.as_ref().and_then(|amount| {
+            crate::connectors::tsys_transit::TsysTransitAmountConvertor::convert_back(
+                amount.clone(),
+                router_data.request.currency,
+            )
+            .ok()
+        });
         let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {

@@ -33,8 +33,7 @@ use interfaces::{
 use serde::Serialize;
 use transformers::{
     self as tsys_transit, TsysTransitAuthorizeRequest, TsysTransitAuthorizeResponse,
-    TsysTransitCaptureRequest,
-    TsysTransitCaptureResponse, TsysTransitCardAuthenticationRequest,
+    TsysTransitCaptureRequest, TsysTransitCaptureResponse, TsysTransitCardAuthenticationRequest,
     TsysTransitCardAuthenticationResponse, TsysTransitRSyncRequest, TsysTransitRSyncResponse,
     TsysTransitRepeatPaymentRequest, TsysTransitRepeatPaymentResponse, TsysTransitReturnRequest,
     TsysTransitReturnResponse, TsysTransitTransactionInquiryRequest,
