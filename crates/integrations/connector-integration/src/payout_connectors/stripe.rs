@@ -295,7 +295,12 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PayoutTransfer, PayoutFlowData, PayoutTransferRequest, PayoutTransferResponse>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut headers = self.build_payout_headers(&req.connector_config)?;
-            if let Some(ref account_id) = req.request.connector_payout_method_id {
+            if let Some(account_id) = req
+                .request
+                .customer
+                .as_ref()
+                .and_then(|c| c.connector_customer_id.as_ref())
+            {
                 headers.push((
                     headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
                     Secret::new(account_id.clone()).into_masked(),
@@ -335,7 +340,12 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut headers = self.build_payout_headers(&req.connector_config)?;
-            if let Some(ref account_id) = req.request.connector_payout_method_id {
+            if let Some(account_id) = req
+                .request
+                .customer
+                .as_ref()
+                .and_then(|c| c.connector_customer_id.as_ref())
+            {
                 headers.push((
                     headers::STRIPE_COMPATIBLE_CONNECT_ACCOUNT.to_string(),
                     Secret::new(account_id.clone()).into_masked(),

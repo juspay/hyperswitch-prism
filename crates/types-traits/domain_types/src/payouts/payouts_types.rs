@@ -86,10 +86,10 @@ pub struct PayoutCreateRequest {
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
     pub priority: Option<common_enums::PayoutPriority>,
-    pub connector_payout_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub payout_method_data: Option<PayoutMethodData>,
     pub source_bank_data: Option<Bank>,
+    pub customer: Option<PayoutCustomer>,
 }
 
 #[derive(Debug, Clone)]
@@ -115,7 +115,6 @@ pub struct PayoutTransferRequest {
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
     pub priority: Option<common_enums::PayoutPriority>,
-    pub connector_payout_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub payout_method_data: Option<PayoutMethodData>,
     pub address: Option<PayoutAddress>,
@@ -301,7 +300,7 @@ pub struct PayoutTransferResponse {
 pub struct PayoutGetRequest {
     pub merchant_payout_id: Option<String>,
     pub connector_payout_id: Option<String>,
-    pub connector_payout_method_id: Option<String>,
+    pub customer: Option<PayoutCustomer>,
 }
 
 #[derive(Debug, Clone)]
@@ -351,7 +350,6 @@ pub struct PayoutCreateLinkRequest {
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
     pub priority: Option<common_enums::PayoutPriority>,
-    pub connector_payout_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub payout_method_data: Option<PayoutMethodData>,
 }

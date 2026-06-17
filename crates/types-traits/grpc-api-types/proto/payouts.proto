@@ -254,8 +254,6 @@ message PayoutServiceCreateRequest {
   optional Customer customer = 9;
   // Priority of the Payout
   optional PayoutEnums.PayoutPriority priority = 10;
-  // Connector Payout Method ID representing the Payout Method
-  optional string connector_payout_method_id = 11;
   // Webhook URL
   optional string webhook_url = 12;
   // Browser Information
@@ -302,8 +300,6 @@ message PayoutServiceTransferRequest {
   optional Customer customer = 8;
   // Priority of the Payout
   optional PayoutEnums.PayoutPriority priority = 9;
-  // Connector Transfer Method ID representing the Payout Method
-  optional string connector_payout_method_id = 10;
   // Webhook URL
   optional string webhook_url = 11;
   // Browser Information
@@ -370,8 +366,8 @@ message PayoutServiceGetRequest {
   optional string connector_payout_id = 2;
   // access token
   optional SecretString access_token = 3;
-  // The Stripe account ID (for Stripe-Account header in Connect)
-  optional string connector_payout_method_id = 4;
+  // Customer Details
+  optional Customer customer = 4;
 }
 
 // Response message for fetching a payout
@@ -438,8 +434,6 @@ message PayoutServiceCreateLinkRequest {
   optional Customer customer = 9;
   // Priority of the Payout
   optional PayoutEnums.PayoutPriority priority = 10;
-  // Connector Payout Method ID representing the Payout Method
-  optional string connector_payout_method_id = 11;
   // Webhook URL
   optional string webhook_url = 12;
   // Browser Information

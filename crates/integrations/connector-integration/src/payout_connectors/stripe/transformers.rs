@@ -144,12 +144,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = StripeAmountConvertor::convert(request.amount, request.source_currency)?;
         let currency = stripe_currency_string(request.source_currency);
 
-        let destination = request.connector_payout_method_id.clone().ok_or_else(|| {
-            report!(IntegrationError::MissingRequiredField {
-                field_name: "connector_payout_method_id",
-                context: Default::default(),
-            })
-        })?;
+        let destination = request
+            .customer
+            .as_ref()
+            .and_then(|c| c.connector_customer_id.clone())
+            .ok_or_else(|| {
+                report!(IntegrationError::MissingRequiredField {
+                    field_name: "customer.connector_customer_id",
+                    context: Default::default(),
+                })
+            })?;
 
         let transfer_group = Some(
             router_data

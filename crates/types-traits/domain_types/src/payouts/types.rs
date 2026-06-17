@@ -121,13 +121,51 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
                     common_enums::PayoutPriority::foreign_try_from(pp)
                 })
                 .transpose()?,
-            connector_payout_method_id: value.connector_payout_method_id.clone(),
             webhook_url: value.webhook_url.clone(),
             payout_method_data,
             source_bank_data: value
                 .source_bank_data
                 .map(payouts::payout_method_data::Bank::foreign_try_from)
                 .transpose()?,
+            customer: value
+                .customer
+                .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
+                .transpose()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payouts::Customer>
+    for payouts::payouts_types::PayoutCustomer
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        customer: grpc_api_types::payouts::Customer,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let email = customer
+            .email
+            .map(|email_str| {
+                common_utils::pii::Email::try_from(email_str.expose()).map_err(|e| {
+                    error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                        field_name: "email",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid email".to_owned()),
+                            ..Default::default()
+                        },
+                    })
+                    .attach_printable(format!("{e:?}"))
+                })
+            })
+            .transpose()?;
+
+        Ok(Self {
+            name: customer.name,
+            email,
+            merchant_customer_id: customer.id,
+            connector_customer_id: customer.connector_customer_id,
+            phone_number: customer.phone_number.map(::hyperswitch_masking::Secret::new),
+            phone_country_code: customer.phone_country_code,
         })
     }
 }
@@ -1103,36 +1141,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
 
         let customer = value
             .customer
-            .map(
-                |customer| -> Result<_, error_stack::Report<IntegrationError>> {
-                    let email = customer
-                        .email
-                        .map(|email_str| {
-                            common_utils::pii::Email::try_from(email_str.expose()).map_err(|e| {
-                                error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                                    field_name: "email",
-                                    context: IntegrationErrorContext {
-                                        additional_context: Some("Invalid email".to_owned()),
-                                        ..Default::default()
-                                    },
-                                })
-                                .attach_printable(format!("{e:?}"))
-                            })
-                        })
-                        .transpose()?;
-
-                    Ok(payouts::payouts_types::PayoutCustomer {
-                        name: customer.name,
-                        email,
-                        merchant_customer_id: customer.id,
-                        connector_customer_id: customer.connector_customer_id,
-                        phone_number: customer
-                            .phone_number
-                            .map(::hyperswitch_masking::Secret::new),
-                        phone_country_code: customer.phone_country_code,
-                    })
-                },
-            )
+            .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
             .transpose()?;
 
         let address = value
@@ -1148,7 +1157,6 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
             source_currency,
             destination_currency,
             priority,
-            connector_payout_method_id: value.connector_payout_method_id,
             webhook_url: value.webhook_url,
             payout_method_data,
             source_bank_data: value
@@ -1213,7 +1221,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id,
             connector_payout_id: value.connector_payout_id,
-            connector_payout_method_id: value.connector_payout_method_id,
+            customer: value
+                .customer
+                .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -1365,7 +1376,6 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateLinkRequest>
             source_currency,
             destination_currency,
             priority,
-            connector_payout_method_id: value.connector_payout_method_id,
             webhook_url: value.webhook_url,
             payout_method_data,
         })
