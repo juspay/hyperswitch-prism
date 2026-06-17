@@ -1151,7 +1151,7 @@ fn compute_recurring_context(
              without them TSYS rejects the transaction at the gateway. Populate \
              `recurring_mandate_payment_data.mandate_metadata.payment_count` and \
              `.current_payment_count` upstream, or pick a non-Installment `mit_category`. \
-             See: https://developer.tsys.com/tsys-transit/api/installment-payments",
+             See: https://developerportal.transit-pass.com/developerportal/resources/dist/#/api-specs/./assets/build/api/API3.0/UseCases/index.html",
         ));
     }
 
@@ -1253,7 +1253,7 @@ impl TryFrom<&ConnectorSpecificConfig> for TsysTransitAuthType {
                  merchant connector account. Confirm the MCA is provisioned with the \
                  TSYS TransIT SignatureKey auth type (deviceID + transactionKey from \
                  TSYS' GenKey flow, developerID from your TSYS integration credentials). \
-                 See: https://developer.tsys.com/tsys-transit/getting-started/authentication",
+                 See: https://developerportal.transit-pass.com/developerportal/resources/dist/#/api-specs/./assets/build/api/API3.0/UseCases/index.html",
             )),
         }
     }
