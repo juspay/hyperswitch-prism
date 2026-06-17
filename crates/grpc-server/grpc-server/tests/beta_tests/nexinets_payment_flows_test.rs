@@ -184,6 +184,7 @@ fn create_payment_capture_request(
     request_ref_id: &str,
 ) -> PaymentServiceCaptureRequest {
     PaymentServiceCaptureRequest {
+        split_payments: None,
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),
         }),
@@ -211,6 +212,7 @@ fn create_refund_request(
     let mut metadata = HashMap::new();
     metadata.insert("connector_metadata".to_string(), connector_metadata_json);
     PaymentServiceRefundRequest {
+        split_refunds: None,
         refund_id: format!("refund_{}", get_timestamp()),
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),

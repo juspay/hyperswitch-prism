@@ -195,6 +195,7 @@ fn create_payment_capture_request(
     amount: i64,
 ) -> PaymentServiceCaptureRequest {
     PaymentServiceCaptureRequest {
+        split_payments: None,
         connector_transaction_id: transaction_id.to_string(),
         amount_to_capture: Some(grpc_api_types::payments::Money {
             minor_amount: amount,
@@ -224,6 +225,7 @@ fn create_payment_void_request(transaction_id: &str, amount: i64) -> PaymentServ
 
 fn create_refund_request(transaction_id: &str, amount: i64) -> PaymentServiceRefundRequest {
     PaymentServiceRefundRequest {
+        split_refunds: None,
         merchant_refund_id: Some(generate_unique_id("refund")),
         connector_transaction_id: transaction_id.to_string(),
         payment_amount: amount,

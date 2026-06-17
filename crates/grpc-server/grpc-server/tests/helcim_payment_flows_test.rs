@@ -292,6 +292,7 @@ fn create_payment_capture_request(
     amount: i64,
 ) -> PaymentServiceCaptureRequest {
     PaymentServiceCaptureRequest {
+        split_payments: None,
         connector_transaction_id: transaction_id.to_string(),
         amount_to_capture: Some(grpc_api_types::payments::Money {
             minor_amount: amount,

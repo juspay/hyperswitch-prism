@@ -197,6 +197,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
 // Helper function to create a payment capture request
 fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCaptureRequest {
     PaymentServiceCaptureRequest {
+        split_payments: None,
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),
         }),
@@ -229,6 +230,7 @@ fn create_payment_void_request(transaction_id: &str) -> PaymentServiceVoidReques
 // Helper function to create a refund request
 fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
     PaymentServiceRefundRequest {
+        split_refunds: None,
         refund_id: format!("refund_{}", get_timestamp()),
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),

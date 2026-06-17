@@ -193,6 +193,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
 // Helper function to create a payment capture request
 fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCaptureRequest {
     PaymentServiceCaptureRequest {
+        split_payments: None,
         connector_transaction_id: transaction_id.to_string(),
         amount_to_capture: Some(grpc_api_types::payments::Money {
             minor_amount: TEST_AMOUNT,
@@ -221,6 +222,7 @@ fn create_payment_void_request(transaction_id: &str) -> PaymentServiceVoidReques
 // Helper function to create a refund request
 fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
     PaymentServiceRefundRequest {
+        split_refunds: None,
         merchant_refund_id: Some(format!("refund_{}", generate_unique_id("test"))),
         connector_transaction_id: transaction_id.to_string(),
         payment_amount: TEST_AMOUNT,

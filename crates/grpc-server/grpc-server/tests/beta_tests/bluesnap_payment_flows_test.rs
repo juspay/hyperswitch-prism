@@ -181,6 +181,7 @@ fn create_payment_capture_request(
     amount: i64,
 ) -> PaymentServiceCaptureRequest {
     PaymentServiceCaptureRequest {
+        split_payments: None,
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),
         }),
@@ -217,6 +218,7 @@ fn create_refund_request(
     refund_amount: i64,
 ) -> PaymentServiceRefundRequest {
     PaymentServiceRefundRequest {
+        split_refunds: None,
         refund_id: generate_unique_id("refund"),
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),

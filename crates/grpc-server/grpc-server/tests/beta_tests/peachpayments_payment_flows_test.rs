@@ -154,6 +154,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
 
 fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCaptureRequest {
     PaymentServiceCaptureRequest {
+        split_payments: None,
         connector_transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),
         }),
@@ -183,6 +184,7 @@ fn create_payment_void_request(transaction_id: &str) -> PaymentServiceVoidReques
 
 fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
     PaymentServiceRefundRequest {
+        split_refunds: None,
         merchant_refund_id: Some(Identifier {
             id_type: Some(IdType::Id(generate_unique_id("refund"))),
         }),
