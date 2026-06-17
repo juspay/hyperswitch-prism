@@ -371,27 +371,39 @@ pub struct PayoutCreateRecipientRequest {
     pub source_currency: common_enums::Currency,
     pub payout_method_data: Option<PayoutMethodData>,
     pub recipient_type: common_enums::PayoutRecipientType,
-    pub phone: Option<Secret<String>>,
-    pub ssn_last_4: Option<Secret<String>>,
-
-    pub id_number: Option<Secret<String>>,
-
-    pub first_name: Option<Secret<String>>,
-    pub last_name: Option<Secret<String>>,
-    pub dob_day: Option<Secret<String>>,
-    pub dob_month: Option<Secret<String>>,
-    pub dob_year: Option<Secret<String>>,
-    pub business_profile_mcc: Option<String>,
-    pub business_profile_url: Option<Secret<String>>,
-    pub business_profile_name: Option<Secret<String>>,
-    pub statement_descriptor: Option<Secret<String>>,
-    pub tos_acceptance_ip: Option<Secret<String>>,
 
     pub address: Option<super::super::payment_address::Address>,
 
     pub customer: Option<crate::connector_types::CustomerInfo>,
 
+    pub vendor_account_details: Option<PayoutVendorAccountDetails>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PayoutVendorAccountDetails {
+    pub vendor_details: Option<PayoutVendorDetails>,
+    pub individual_details: Option<PayoutIndividualDetails>,
+}
+#[derive(Debug, Clone, Default)]
+pub struct PayoutVendorDetails {
     pub account_type: Option<String>,
+    pub business_profile_mcc: Option<String>,
+    pub business_profile_url: Option<Secret<String>>,
+    pub business_profile_name: Option<Secret<String>>,
+    pub statement_descriptor: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct PayoutIndividualDetails {
+    pub first_name: Option<Secret<String>>,
+    pub last_name: Option<Secret<String>>,
+    pub phone: Option<Secret<String>>,
+    pub ssn_last_4: Option<Secret<String>>,
+    pub id_number: Option<Secret<String>>,
+    pub dob_day: Option<Secret<String>>,
+    pub dob_month: Option<Secret<String>>,
+    pub dob_year: Option<Secret<String>>,
+    pub tos_acceptance_ip: Option<Secret<String>>,
 }
 
 pub type IdNumberOrSsnLast4 = (Option<Secret<String>>, Option<Secret<String>>);
@@ -459,74 +471,88 @@ impl PayoutCreateRecipientRequest {
             .map(|e| Secret::new(e.peek().to_string()))
     }
 
+    fn vendor_details(&self) -> Option<&PayoutVendorDetails> {
+        self.vendor_account_details
+            .as_ref()
+            .and_then(|v| v.vendor_details.as_ref())
+    }
+
+    fn individual_details(&self) -> Option<&PayoutIndividualDetails> {
+        self.vendor_account_details
+            .as_ref()
+            .and_then(|v| v.individual_details.as_ref())
+    }
+
     pub fn get_phone(&self) -> Result<Secret<String>, Error> {
-        self.phone.clone().ok_or_else(missing_field_err("phone"))
+        self.individual_details()
+            .and_then(|i| i.phone.clone())
+            .ok_or_else(missing_field_err("phone"))
     }
 
     pub fn get_first_name(&self) -> Result<Secret<String>, Error> {
-        self.first_name
-            .clone()
+        self.individual_details()
+            .and_then(|i| i.first_name.clone())
             .ok_or_else(missing_field_err("first_name"))
     }
 
     pub fn get_last_name(&self) -> Result<Secret<String>, Error> {
-        self.last_name
-            .clone()
+        self.individual_details()
+            .and_then(|i| i.last_name.clone())
             .ok_or_else(missing_field_err("last_name"))
     }
 
     pub fn get_dob_day(&self) -> Result<Secret<String>, Error> {
-        self.dob_day
-            .clone()
+        self.individual_details()
+            .and_then(|i| i.dob_day.clone())
             .ok_or_else(missing_field_err("dob_day"))
     }
 
     pub fn get_dob_month(&self) -> Result<Secret<String>, Error> {
-        self.dob_month
-            .clone()
+        self.individual_details()
+            .and_then(|i| i.dob_month.clone())
             .ok_or_else(missing_field_err("dob_month"))
     }
 
     pub fn get_dob_year(&self) -> Result<Secret<String>, Error> {
-        self.dob_year
-            .clone()
+        self.individual_details()
+            .and_then(|i| i.dob_year.clone())
             .ok_or_else(missing_field_err("dob_year"))
     }
 
     pub fn get_account_type(&self) -> Result<String, Error> {
-        self.account_type
-            .clone()
+        self.vendor_details()
+            .and_then(|v| v.account_type.clone())
             .ok_or_else(missing_field_err("account_type"))
     }
 
     pub fn get_business_profile_url(&self) -> Result<Secret<String>, Error> {
-        self.business_profile_url
-            .clone()
+        self.vendor_details()
+            .and_then(|v| v.business_profile_url.clone())
             .ok_or_else(missing_field_err("business_profile_url"))
     }
 
     pub fn get_business_profile_name(&self) -> Result<Secret<String>, Error> {
-        self.business_profile_name
-            .clone()
+        self.vendor_details()
+            .and_then(|v| v.business_profile_name.clone())
             .ok_or_else(missing_field_err("business_profile_name"))
     }
 
     pub fn get_statement_descriptor(&self) -> Result<Secret<String>, Error> {
-        self.statement_descriptor
-            .clone()
+        self.vendor_details()
+            .and_then(|v| v.statement_descriptor.clone())
             .ok_or_else(missing_field_err("statement_descriptor"))
     }
 
     pub fn get_tos_acceptance_ip(&self) -> Result<Secret<String>, Error> {
-        self.tos_acceptance_ip
-            .clone()
+        self.individual_details()
+            .and_then(|i| i.tos_acceptance_ip.clone())
             .ok_or_else(missing_field_err("tos_acceptance_ip"))
     }
 
     pub fn get_business_profile_mcc_i32(&self) -> Result<i32, Error> {
         let raw = self
-            .business_profile_mcc
-            .as_deref()
+            .vendor_details()
+            .and_then(|v| v.business_profile_mcc.as_deref())
             .ok_or_else(missing_field_err("business_profile_mcc"))?;
         raw.parse::<i32>().map_err(|_| {
             error_stack::report!(IntegrationError::InvalidDataFormat {
@@ -537,12 +563,12 @@ impl PayoutCreateRecipientRequest {
     }
 
     pub fn get_id_number_or_ssn_last_4(&self) -> Result<IdNumberOrSsnLast4, Error> {
-        match &self.id_number {
-            Some(id) => Ok((Some(id.clone()), None)),
+        let individual = self.individual_details();
+        match individual.and_then(|i| i.id_number.clone()) {
+            Some(id) => Ok((Some(id), None)),
             None => {
-                let ssn = self
-                    .ssn_last_4
-                    .clone()
+                let ssn = individual
+                    .and_then(|i| i.ssn_last_4.clone())
                     .ok_or_else(missing_field_err("ssn_last_4 or id_number"))?;
                 Ok((None, Some(ssn)))
             }

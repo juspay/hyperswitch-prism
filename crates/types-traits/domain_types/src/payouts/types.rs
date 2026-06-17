@@ -1533,12 +1533,32 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
             })
             .transpose()?;
 
-        let (vendor_details, individual_details) = value
-            .vendor_account_details
-            .map(|v| (v.vendor_details, v.individual_details))
-            .unwrap_or((None, None));
-        let vendor_details = vendor_details.unwrap_or_default();
-        let individual_details = individual_details.unwrap_or_default();
+        let vendor_account_details = value.vendor_account_details.map(|v| {
+            payouts::payouts_types::PayoutVendorAccountDetails {
+                vendor_details: v.vendor_details.map(|vd| {
+                    payouts::payouts_types::PayoutVendorDetails {
+                        account_type: vd.account_type,
+                        business_profile_mcc: vd.business_profile_mcc,
+                        business_profile_url: vd.business_profile_url,
+                        business_profile_name: vd.business_profile_name,
+                        statement_descriptor: vd.statement_descriptor,
+                    }
+                }),
+                individual_details: v.individual_details.map(|id| {
+                    payouts::payouts_types::PayoutIndividualDetails {
+                        first_name: id.first_name,
+                        last_name: id.last_name,
+                        phone: id.phone,
+                        ssn_last_4: id.ssn_last_4,
+                        id_number: id.id_number,
+                        dob_day: id.dob_day,
+                        dob_month: id.dob_month,
+                        dob_year: id.dob_year,
+                        tos_acceptance_ip: id.tos_acceptance_ip,
+                    }
+                }),
+            }
+        });
 
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
@@ -1548,22 +1568,9 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
             recipient_type: common_enums::PayoutRecipientType::foreign_try_from(
                 payout_recipient_type,
             )?,
-            phone: individual_details.phone,
-            ssn_last_4: individual_details.ssn_last_4,
-            id_number: individual_details.id_number,
-            first_name: individual_details.first_name,
-            last_name: individual_details.last_name,
-            dob_day: individual_details.dob_day,
-            dob_month: individual_details.dob_month,
-            dob_year: individual_details.dob_year,
-            business_profile_mcc: vendor_details.business_profile_mcc,
-            business_profile_url: vendor_details.business_profile_url,
-            business_profile_name: vendor_details.business_profile_name,
-            statement_descriptor: vendor_details.statement_descriptor,
-            tos_acceptance_ip: individual_details.tos_acceptance_ip,
             address,
             customer,
-            account_type: vendor_details.account_type,
+            vendor_account_details,
         })
     }
 }

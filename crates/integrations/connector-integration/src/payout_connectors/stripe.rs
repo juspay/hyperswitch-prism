@@ -123,9 +123,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             reason: response.error.decline_code.clone(),
             attempt_status: None,
             connector_transaction_id: None,
-            network_advice_code: None,
-            network_decline_code: None,
-            network_error_message: response.error.decline_code,
+            network_advice_code: response.error.network_advice_code.clone(),
+            network_decline_code: response.error.network_decline_code.clone(),
+            network_error_message: response
+                .error
+                .decline_code
+                .clone()
+                .or(response.error.advice_code.clone()),
         })
     }
 }

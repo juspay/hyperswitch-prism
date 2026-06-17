@@ -328,17 +328,7 @@ impl TryFrom<ResponseRouterData<StripeConnectReversalResponse, Self>>
 pub struct StripeConnectPayoutRetrieveResponse {
     pub id: String,
 
-    pub amount: MinorUnit,
-
-    pub currency: String,
-
     pub status: StripeConnectPayoutStatus,
-
-    pub description: Option<String>,
-
-    pub failure_code: Option<String>,
-
-    pub failure_message: Option<String>,
 }
 
 impl TryFrom<ResponseRouterData<StripeConnectPayoutRetrieveResponse, Self>>
@@ -551,10 +541,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let request = &router_data.request;
 
         let is_company = request.is_company();
-        let business_type = if is_company {
-            STRIPE_ACCOUNT_TYPE_COMPANY
-        } else {
-            STRIPE_ACCOUNT_TYPE_INDIVIDUAL
+        let business_type = match request.recipient_type {
+            common_enums::PayoutRecipientType::Company => STRIPE_ACCOUNT_TYPE_COMPANY,
+            _ => STRIPE_ACCOUNT_TYPE_INDIVIDUAL,
         }
         .to_string();
 
@@ -785,4 +774,10 @@ pub struct StripeConnectError {
     pub message: String,
 
     pub decline_code: Option<String>,
+
+    pub advice_code: Option<String>,
+
+    pub network_advice_code: Option<String>,
+
+    pub network_decline_code: Option<String>,
 }
