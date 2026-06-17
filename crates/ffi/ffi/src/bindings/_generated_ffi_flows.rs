@@ -31,10 +31,10 @@ use grpc_api_types::payments::{
     RefundServiceGetRequest,
 };
 use grpc_api_types::payouts::{
+    PayoutMethodEligibilityRequest,
     PayoutServiceCreateLinkRequest,
     PayoutServiceCreateRecipientRequest,
     PayoutServiceCreateRequest,
-    PayoutMethodEligibilityRequest,
     PayoutServiceEnrollDisburseAccountRequest,
     PayoutServiceGetRequest,
     PayoutServiceStageRequest,

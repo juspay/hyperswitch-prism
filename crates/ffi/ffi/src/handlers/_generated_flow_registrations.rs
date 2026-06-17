@@ -53,14 +53,14 @@ use grpc_api_types::payments::{
     RefundServiceGetRequest,
 };
 use grpc_api_types::payouts::{
+    PayoutMethodEligibilityRequest,
+    PayoutMethodEligibilityResponse,
     PayoutServiceCreateLinkRequest,
     PayoutServiceCreateLinkResponse,
     PayoutServiceCreateRecipientRequest,
     PayoutServiceCreateRecipientResponse,
     PayoutServiceCreateRequest,
     PayoutServiceCreateResponse,
-    PayoutMethodEligibilityRequest,
-    PayoutMethodEligibilityResponse,
     PayoutServiceEnrollDisburseAccountRequest,
     PayoutServiceEnrollDisburseAccountResponse,
     PayoutServiceGetRequest,
