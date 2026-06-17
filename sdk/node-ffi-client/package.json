@@ -20,7 +20,7 @@
     "payment-gateway"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "build": "sh build.sh",
     "test": "node tests/test_node.js"

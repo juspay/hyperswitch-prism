@@ -13,7 +13,7 @@
   },
   "homepage": "https://github.com/juspay/hyperswitch-prism#readme",
   "types": "dist/src/index.d.ts",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "hyperswitch",
     "prism",
