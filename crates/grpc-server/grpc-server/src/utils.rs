@@ -7,7 +7,7 @@ pub use ucs_interface_common::metadata::*;
 use common_utils::{
     consts::{self, Env},
     errors::CustomResult,
-    events::{Event, EventStage, ExecutionMode, FlowName, MaskedSerdeValue, EVENT_SOURCE},
+    events::{Event, EventStage, ExecutionMode, FlowName, MaskedSerdeValue},
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
 };
@@ -429,9 +429,7 @@ fn create_and_emit_grpc_event<R>(
         connector,
         url: None,
         method: None,
-        // Inbound gRPC request UCS serves; routes this event to the ucs_api_events stream.
         stage: EventStage::GrpcRequest,
-        source: EVENT_SOURCE,
         execution_mode: ExecutionMode::from_shadow_flag(
             metadata_payload.map(|md| md.shadow_mode).unwrap_or(false),
         ),

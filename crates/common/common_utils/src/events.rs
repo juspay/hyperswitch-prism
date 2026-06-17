@@ -229,12 +229,10 @@ pub struct Event {
     /// HTTP verb for outbound connector calls; empty string for gRPC-only audit events.
     #[serde(serialize_with = "serialize_method")]
     pub method: Option<String>,
-    // Routing key only; deliberately not serialized (the stream is the discriminator).
+    // Routing key only; not serialized.
     #[serde(skip)]
     pub stage: EventStage,
-    /// Service that produced this event (always `ucs`).
-    pub source: &'static str,
-    /// Whether this leg was the primary execution or a shadow mirror.
+    /// Primary execution or shadow mirror.
     pub execution_mode: ExecutionMode,
     pub latency_ms: Option<u64>,
     pub status_code: Option<i32>,
@@ -429,11 +427,7 @@ impl EventStage {
     }
 }
 
-/// `source` value for events emitted by the connector-service (UCS).
-/// `source` identifies the emitter (`ucs`), never the caller — UCS is caller-agnostic.
-pub const EVENT_SOURCE: &str = "ucs";
-
-/// Whether a leg was the primary execution or a shadow mirror.
+/// Primary execution or shadow mirror.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecutionMode {

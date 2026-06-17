@@ -202,7 +202,7 @@ use common_utils::events::{Event, EventConfig, FlowName};
 // Only the injector-client build compiles `create_event` (the outbound connector
 // call path), which is the sole user of these event-dimension enums.
 #[cfg(feature = "injector-client")]
-use common_utils::events::{ExecutionMode, EVENT_SOURCE};
+use common_utils::events::ExecutionMode;
 #[cfg(feature = "injector-client")]
 // TokenData is now imported from hyperswitch_injector
 use common_utils::{consts, emit_event_with_config};
@@ -878,9 +878,7 @@ fn create_event(
         connector: event_params.connector_name.to_string(),
         url,
         method,
-        // Outbound HTTP to the payment connector; routes this event to the connector_events stream.
         stage: EventStage::ConnectorCall,
-        source: EVENT_SOURCE,
         execution_mode: ExecutionMode::from_shadow_flag(event_params.shadow_mode),
         latency_ms,
         status_code,
