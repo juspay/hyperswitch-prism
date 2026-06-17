@@ -804,7 +804,7 @@ pub struct TsysTransitAuthorizeResponseBody {
     #[serde(rename = "transactionAmount", default)]
     pub transaction_amount: Option<String>,
     #[serde(rename = "processedAmount", default)]
-    pub processed_amount: Option<String>,
+    pub processed_amount: Option<StringMajorUnit>,
     #[serde(rename = "totalAmount", default)]
     pub total_amount: Option<String>,
     #[serde(rename = "addressVerificationCode", default)]
@@ -2382,8 +2382,23 @@ fn map_authorize_status(response: &TsysTransitAuthorizeResponse) -> AttemptStatu
             Some("A0000"),
             TsysTransitAuthorizeResponse::AuthResponse(_),
         ) => AttemptStatus::Authorized,
-        (Some(TsysTransitStatus::Pass), Some("A0002"), _) => AttemptStatus::PartialCharged,
+        // A0002 — partially approved. For Sale this is a partial capture
+        // (money moved), for Auth this is a partial authorization
+        // (no capture yet; the capture flow will move the approved amount).
+        (
+            Some(TsysTransitStatus::Pass),
+            Some("A0002"),
+            TsysTransitAuthorizeResponse::SaleResponse(_),
+        ) => AttemptStatus::PartialCharged,
+        (
+            Some(TsysTransitStatus::Pass),
+            Some("A0002"),
+            TsysTransitAuthorizeResponse::AuthResponse(_),
+        ) => AttemptStatus::PartiallyAuthorized,
         (Some(TsysTransitStatus::Fail), _, _) => AttemptStatus::Failure,
+        // TODO(tsys-cert): confirm with TSYS whether any other Pass codes
+        // (soft / referral / "call issuer") should be mapped to Pending
+        // rather than Failure. Until then we conservatively fail.
         _ => AttemptStatus::Failure,
     }
 }
@@ -2436,6 +2451,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
+        // On A0002 (partial approval) TSYS returns the actually approved
+        // value in <processedAmount>. Forward it as MinorUnit so the core
+        // can reconcile the partial capture/authorization against the
+        // requested amount; for the fully-approved A0000 case this is also
+        // harmless to populate.
+        let minor_amount_captured = body
+            .processed_amount
+            .as_ref()
+            .and_then(|amount| {
+                crate::connectors::tsys_transit::TsysTransitAmountConvertor::convert_back(
+                    amount.clone(),
+                    router_data.request.currency,
+                )
+                .ok()
+            });
+        let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
             redirection_data: None,
@@ -2451,6 +2483,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                amount_captured,
+                minor_amount_captured,
                 ..router_data.resource_common_data.clone()
             },
             response: Ok(payments_response_data),
