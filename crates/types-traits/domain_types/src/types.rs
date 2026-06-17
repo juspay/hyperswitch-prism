@@ -2979,9 +2979,9 @@ pub struct SetupRecurringRequest {
     pub l2_l3_data: Option<grpc_payment_types::L2l3Data>,
 }
 
-/// ============================================================================
-/// CONVERSION IMPLEMENTATIONS FOR INTERMEDIATE TYPES
-/// ============================================================================
+// ============================================================================
+// CONVERSION IMPLEMENTATIONS FOR INTERMEDIATE TYPES
+// ============================================================================
 
 /// Convert the gRPC `SplitPaymentsRequest` into the domain `SplitPaymentsRequest`.
 /// Only the Stripe Connect variant exists in the contract today; an unset proto
