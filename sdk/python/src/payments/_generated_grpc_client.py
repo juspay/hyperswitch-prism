@@ -444,12 +444,12 @@ class GrpcPayoutClient:
             "payout/enroll_disburse_account",
             req, payment_pb2.PayoutServiceEnrollDisburseAccountResponse,
         )
-    def eligibility(self, req: payment_pb2.PayoutServiceEligibilityRequest) -> payment_pb2.PayoutServiceEligibilityResponse:
+    def payout_eligibility(self, req: payment_pb2.PayoutMethodEligibilityRequest) -> payment_pb2.PayoutMethodEligibilityResponse:
         """PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification)."""
         return _call_grpc(
             self._ffi, self._config,
-            "payout/eligibility",
-            req, payment_pb2.PayoutServiceEligibilityResponse,
+            "payout/payout_eligibility",
+            req, payment_pb2.PayoutMethodEligibilityResponse,
         )
 
 class GrpcRecurringPaymentClient:

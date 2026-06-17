@@ -26,7 +26,7 @@ use grpc_api_types::payouts::{
     payout_service_server::PayoutService, PayoutServiceCreateLinkRequest,
     PayoutServiceCreateLinkResponse, PayoutServiceCreateRecipientRequest,
     PayoutServiceCreateRecipientResponse, PayoutServiceCreateRequest, PayoutServiceCreateResponse,
-    PayoutServiceEligibilityRequest, PayoutServiceEligibilityResponse,
+    PayoutMethodEligibilityRequest, PayoutMethodEligibilityResponse,
     PayoutServiceEnrollDisburseAccountRequest, PayoutServiceEnrollDisburseAccountResponse,
     PayoutServiceGetRequest, PayoutServiceGetResponse, PayoutServiceStageRequest,
     PayoutServiceStageResponse, PayoutServiceTransferRequest, PayoutServiceTransferResponse,
@@ -185,8 +185,8 @@ impl PayoutService for Payouts {
 
     async fn eligibility(
         &self,
-        request: tonic::Request<PayoutServiceEligibilityRequest>,
-    ) -> Result<tonic::Response<PayoutServiceEligibilityResponse>, tonic::Status> {
+        request: tonic::Request<PayoutMethodEligibilityRequest>,
+    ) -> Result<tonic::Response<PayoutMethodEligibilityResponse>, tonic::Status> {
         let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
@@ -258,9 +258,9 @@ pub(crate) trait PayoutOperationsInternal {
 
     fn internal_payout_eligibility(
         &self,
-        request: RequestData<PayoutServiceEligibilityRequest>,
+        request: RequestData<PayoutMethodEligibilityRequest>,
     ) -> impl std::future::Future<
-        Output = Result<tonic::Response<PayoutServiceEligibilityResponse>, tonic::Status>,
+        Output = Result<tonic::Response<PayoutMethodEligibilityResponse>, tonic::Status>,
     > + Send;
 }
 
@@ -396,8 +396,8 @@ impl PayoutOperationsInternal for Payouts {
     implement_connector_operation!(
         fn_name: internal_payout_eligibility,
         log_prefix: "PAYOUT_ELIGIBILITY",
-        request_type: PayoutServiceEligibilityRequest,
-        response_type: PayoutServiceEligibilityResponse,
+        request_type: PayoutMethodEligibilityRequest,
+        response_type: PayoutMethodEligibilityResponse,
         flow_marker: PayoutEligibility,
         resource_common_data_type: PayoutFlowData,
         request_data_type: PayoutEligibilityRequest,

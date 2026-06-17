@@ -150,7 +150,7 @@ class PayoutClient(_ConnectorClientBase):
 
     def payout_eligibility(self, request, options=None):
         """PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification)."""
-        return self._execute_flow("payout_eligibility", request, _pb2.PayoutServiceEligibilityResponse, options)
+        return self._execute_flow("payout_eligibility", request, _pb2.PayoutMethodEligibilityResponse, options)
 
     def payout_enroll_disburse_account(self, request, options=None):
         """PayoutService.EnrollDisburseAccount — Enroll disburse account."""

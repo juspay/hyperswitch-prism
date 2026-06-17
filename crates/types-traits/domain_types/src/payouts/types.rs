@@ -2088,13 +2088,13 @@ pub fn generate_payout_create_recipient_response(
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEligibilityRequest>
+impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethodEligibilityRequest>
     for payouts::payouts_types::PayoutEligibilityRequest
 {
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_api_types::payouts::PayoutServiceEligibilityRequest,
+        value: grpc_api_types::payouts::PayoutMethodEligibilityRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let amount = match value.amount {
             Some(amount) => amount,
@@ -2197,7 +2197,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEligibilityRequest>
 
 impl
     ForeignTryFrom<(
-        grpc_api_types::payouts::PayoutServiceEligibilityRequest,
+        grpc_api_types::payouts::PayoutMethodEligibilityRequest,
         Connectors,
         &MaskedMetadata,
     )> for payouts::payouts_types::PayoutFlowData
@@ -2206,7 +2206,7 @@ impl
 
     fn foreign_try_from(
         (value, connectors, metadata): (
-            grpc_api_types::payouts::PayoutServiceEligibilityRequest,
+            grpc_api_types::payouts::PayoutMethodEligibilityRequest,
             Connectors,
             &MaskedMetadata,
         ),
@@ -2244,7 +2244,7 @@ pub fn generate_payout_eligibility_response(
         super::payouts_types::PayoutEligibilityResponse,
     >,
 ) -> Result<
-    grpc_api_types::payouts::PayoutServiceEligibilityResponse,
+    grpc_api_types::payouts::PayoutMethodEligibilityResponse,
     error_stack::Report<crate::errors::ConnectorError>,
 > {
     match router_data_v2.response {
@@ -2252,7 +2252,7 @@ pub fn generate_payout_eligibility_response(
             let payout_status = grpc_api_types::payouts::payout_enums::PayoutStatus::foreign_from(
                 response.payout_status,
             ) as i32;
-            Ok(grpc_api_types::payouts::PayoutServiceEligibilityResponse {
+            Ok(grpc_api_types::payouts::PayoutMethodEligibilityResponse {
                 merchant_payout_id: response.merchant_payout_id,
                 payout_status: Some(payout_status),
                 connector_payout_id: response.connector_payout_id,
@@ -2261,7 +2261,7 @@ pub fn generate_payout_eligibility_response(
                 status_code: u32::from(response.status_code),
             })
         }
-        Err(err) => Ok(grpc_api_types::payouts::PayoutServiceEligibilityResponse {
+        Err(err) => Ok(grpc_api_types::payouts::PayoutMethodEligibilityResponse {
             merchant_payout_id: Some(router_data_v2.resource_common_data.payout_id),
             payout_status: Some(
                 grpc_api_types::payouts::payout_enums::PayoutStatus::Pending as i32,

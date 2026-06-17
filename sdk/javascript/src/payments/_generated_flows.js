@@ -52,7 +52,7 @@ const FLOWS = {
   payout_create_recipient                    : { request: "PayoutServiceCreateRecipientRequest", response: "PayoutServiceCreateRecipientResponse" },
 
   // payout_eligibility: PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
-  payout_eligibility                         : { request: "PayoutServiceEligibilityRequest", response: "PayoutServiceEligibilityResponse" },
+  payout_eligibility                         : { request: "PayoutMethodEligibilityRequest", response: "PayoutMethodEligibilityResponse" },
 
   // payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
   payout_enroll_disburse_account             : { request: "PayoutServiceEnrollDisburseAccountRequest", response: "PayoutServiceEnrollDisburseAccountResponse" },

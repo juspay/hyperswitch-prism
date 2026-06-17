@@ -2739,7 +2739,7 @@ pub fn execute_tonic_request_from_payload(
                 serialize_tonic_response(&response.into_inner())
             }
             "PayoutService/Eligibility" => {
-                let payload: grpc_api_types::payouts::PayoutServiceEligibilityRequest =
+                let payload: grpc_api_types::payouts::PayoutMethodEligibilityRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
                 add_connector_metadata(

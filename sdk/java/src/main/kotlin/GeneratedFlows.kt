@@ -351,8 +351,8 @@ class PayoutClient(
         executeFlow("payout_create_recipient", request.toByteArray(), PayoutServiceCreateRecipientResponse.parser(), options)
 
     // payout_eligibility: PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification).
-    fun payout_eligibility(request: PayoutServiceEligibilityRequest, options: RequestConfig? = null): PayoutServiceEligibilityResponse =
-        executeFlow("payout_eligibility", request.toByteArray(), PayoutServiceEligibilityResponse.parser(), options)
+    fun payout_eligibility(request: PayoutMethodEligibilityRequest, options: RequestConfig? = null): PayoutMethodEligibilityResponse =
+        executeFlow("payout_eligibility", request.toByteArray(), PayoutMethodEligibilityResponse.parser(), options)
 
     // payout_enroll_disburse_account: PayoutService.EnrollDisburseAccount — Enroll disburse account.
     fun payout_enroll_disburse_account(request: PayoutServiceEnrollDisburseAccountRequest, options: RequestConfig? = null): PayoutServiceEnrollDisburseAccountResponse =

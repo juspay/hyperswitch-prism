@@ -82,8 +82,8 @@ use grpc_api_types::payments::{
     PayoutServiceCreateRecipientResponse,
     PayoutServiceCreateRequest,
     PayoutServiceCreateResponse,
-    PayoutServiceEligibilityRequest,
-    PayoutServiceEligibilityResponse,
+    PayoutMethodEligibilityRequest,
+    PayoutMethodEligibilityResponse,
     PayoutServiceEnrollDisburseAccountRequest,
     PayoutServiceEnrollDisburseAccountResponse,
     PayoutServiceGetRequest,
@@ -436,8 +436,8 @@ impl_grpc_client!(
     (
         eligibility,
         eligibility,
-        PayoutServiceEligibilityRequest,
-        PayoutServiceEligibilityResponse
+        PayoutMethodEligibilityRequest,
+        PayoutMethodEligibilityResponse
     ),
 );
 

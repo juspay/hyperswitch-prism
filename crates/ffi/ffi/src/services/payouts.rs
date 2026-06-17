@@ -1,8 +1,8 @@
 use grpc_api_types::payouts::{
     PayoutServiceCreateLinkRequest, PayoutServiceCreateLinkResponse,
     PayoutServiceCreateRecipientRequest, PayoutServiceCreateRecipientResponse,
-    PayoutServiceCreateRequest, PayoutServiceCreateResponse, PayoutServiceEligibilityRequest,
-    PayoutServiceEligibilityResponse, PayoutServiceEnrollDisburseAccountRequest,
+    PayoutServiceCreateRequest, PayoutServiceCreateResponse, PayoutMethodEligibilityRequest,
+    PayoutMethodEligibilityResponse, PayoutServiceEnrollDisburseAccountRequest,
     PayoutServiceEnrollDisburseAccountResponse, PayoutServiceGetRequest, PayoutServiceGetResponse,
     PayoutServiceStageRequest, PayoutServiceStageResponse, PayoutServiceTransferRequest,
     PayoutServiceTransferResponse, PayoutServiceVoidRequest, PayoutServiceVoidResponse,
@@ -204,7 +204,7 @@ payout_res_transformer!(
 // payout eligibility request transformer
 payout_req_transformer!(
     fn_name: payout_eligibility_req_transformer,
-    request_type: PayoutServiceEligibilityRequest,
+    request_type: PayoutMethodEligibilityRequest,
     flow_marker: PayoutEligibility,
     resource_common_data_type: PayoutFlowData,
     request_data_type: PayoutEligibilityRequest,
@@ -214,8 +214,8 @@ payout_req_transformer!(
 // payout eligibility response transformer
 payout_res_transformer!(
     fn_name: payout_eligibility_res_transformer,
-    request_type: PayoutServiceEligibilityRequest,
-    response_type: PayoutServiceEligibilityResponse,
+    request_type: PayoutMethodEligibilityRequest,
+    response_type: PayoutMethodEligibilityResponse,
     flow_marker: PayoutEligibility,
     resource_common_data_type: PayoutFlowData,
     request_data_type: PayoutEligibilityRequest,
