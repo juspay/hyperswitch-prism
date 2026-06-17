@@ -20,3 +20,7 @@ pub mod payouts {
 pub mod surcharge {
     tonic::include_proto!("types");
 }
+
+pub mod frm {
+    tonic::include_proto!("types");
+}
