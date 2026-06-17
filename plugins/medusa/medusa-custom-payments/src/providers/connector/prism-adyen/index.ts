@@ -62,6 +62,14 @@ export async function initiatePayment({
   }
 }
 
+// Adyen's voidable reference is the webhook pspReference, adopted as
+// `connectorTransactionId` only at authorize time. Until then (an initiated
+// session being deleted, e.g. on a payment-method switch) there is nothing to
+// void.
+export function shouldSkipVoid(data: Record<string, unknown> | undefined): boolean {
+  return !(data as any)?.connectorTransactionId
+}
+
 export type AdyenAuthorizeDeps = {
   getPaymentStatus: (
     input: GetPaymentStatusInput

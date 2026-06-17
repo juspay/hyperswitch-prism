@@ -97,7 +97,6 @@ export function HyperswitchPrismConnectorPanel({
         includeCustomerData={includeCustomerData}
         onCreateOrder={() => Promise.resolve(sessionData.paypalOrderId ?? "")}
         onSubmit={(paymentData: any) => {
-          console.log("[PayPal] approved", paymentData)
           onPaymentCompleted?.(paymentData)
         }}
         onError={onError}

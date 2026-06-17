@@ -409,10 +409,24 @@ class PrismService {
       return { data }
     }
 
-    if (
-      this.options_.connector === "globalpay" &&
-      connectors.globalpay.shouldSkipVoid(data)
-    ) {
+    // A session that was only initiated (never authorized) has no real connector
+    // transaction to void. The "never authorized" marker differs per connector,
+    // so each connector module owns its own shouldSkipVoid check. Skipping here
+    // (rather than letting the void fail) keeps Medusa's delete-session flow —
+    // run when a shopper switches payment methods — from aborting with a 500.
+    const shouldSkipVoid: Record<
+      string,
+      (data: Record<string, unknown> | undefined) => boolean
+    > = {
+      paypal: connectors.paypal.shouldSkipVoid,
+      adyen: connectors.adyen.shouldSkipVoid,
+      braintree: connectors.braintree.shouldSkipVoid,
+      cybersource: connectors.cybersource.shouldSkipVoid,
+      globalpay: connectors.globalpay.shouldSkipVoid,
+      stripe: connectors.stripe.shouldSkipVoid,
+      mollie: connectors.mollie.shouldSkipVoid,
+    }
+    if (shouldSkipVoid[this.options_.connector]?.(data)) {
       return { data }
     }
 
