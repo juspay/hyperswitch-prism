@@ -229,8 +229,6 @@ pub struct Event {
     /// HTTP verb for outbound connector calls; empty string for gRPC-only audit events.
     #[serde(serialize_with = "serialize_method")]
     pub method: Option<String>,
-    // Routing key only; not serialized.
-    #[serde(skip)]
     pub stage: EventStage,
     /// Primary execution or shadow mirror.
     pub execution_mode: ExecutionMode,
@@ -453,8 +451,8 @@ impl ExecutionMode {
 pub struct EventConfig {
     pub enabled: bool,
     /// Topic for outbound payment-connector calls (`ConnectorCall` stage -> the
-    /// `connector_events` table). Accepts the legacy key `topic` for backward compatibility
-    /// with existing deployments.
+    /// `connector_events` table). Accepts the legacy key `topic` for backward compatibility.
+    // TODO: remove the `topic` alias once configs use `connector_events_topic`.
     #[serde(alias = "topic")]
     pub connector_events_topic: String,
     /// Topic for inbound requests UCS serves over any transport — gRPC or HTTP
@@ -476,7 +474,7 @@ impl Default for EventConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            connector_events_topic: "events".to_string(),
+            connector_events_topic: String::new(),
             ucs_api_events_topic: String::new(),
             brokers: vec!["localhost:9092".to_string()],
             partition_key_field: "request_id".to_string(),

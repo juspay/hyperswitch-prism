@@ -207,12 +207,14 @@ pub fn publish_event_to_kafka(
         if let Some(publisher) = get_event_publisher() {
             let metadata = publisher.build_kafka_metadata(event);
             let topic = match event.stage {
-                EventStage::GrpcRequest if !config.ucs_api_events_topic.is_empty() => {
-                    &config.ucs_api_events_topic
+                EventStage::ConnectorCall => &config.connector_events_topic,
+                EventStage::GrpcRequest => {
+                    if config.ucs_api_events_topic.is_empty() {
+                        &config.connector_events_topic
+                    } else {
+                        &config.ucs_api_events_topic
+                    }
                 }
-                // Unset -> fall back to `topic`: preserves the pre-split single-topic behavior
-                // for existing deployments that have not opted into the new stream.
-                _ => &config.connector_events_topic,
             };
             let _ = publisher
                 .publish_event_with_metadata(
