@@ -3023,6 +3023,12 @@ message RecurringPaymentServiceChargeRequest {
   // Additional payment data for various payment methods
   optional AdditionalPaymentData additional_payment_data = 33;
 
+  // Split-payment / connected-account routing (Stripe Connect). For a MIT
+  // split charge the connector (e.g. Stripe) emits the `Stripe-Account`
+  // header / `application_fee_amount` from this. Reuses the shared
+  // SplitPaymentsRequest message (also used by authorize/customer/tokenize).
+  optional SplitPaymentsRequest split_payments = 34;
+
 }
 
 // Response message for repeat payment operation
