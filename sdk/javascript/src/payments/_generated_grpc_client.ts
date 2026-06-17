@@ -292,6 +292,10 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentServiceTokenSetupRecurringRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceProxyAuthorizeRequest: ["metadata", "connectorFeatureData"],
   PaymentServiceProxySetupRecurringRequest: ["metadata"],
+  FrmServicePreRiskCheckRequest: ["metadata", "connectorFeatureData"],
+  FrmServicePreRiskCheckResponse: ["rawConnectorRequest", "rawConnectorResponse"],
+  FrmServicePostRiskCheckRequest: ["metadata", "connectorFeatureData"],
+  FrmServicePostRiskCheckResponse: ["rawConnectorRequest", "rawConnectorResponse"],
   CardPayout: ["cardNumber", "cardExpMonth", "cardExpYear", "cardHolderName"],
   AchBankTransferPayout: ["bankAccountNumber", "bankRoutingNumber"],
   BacsBankTransferPayout: ["bankAccountNumber", "bankSortCode"],
@@ -351,7 +355,8 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   RequestDetails: { "headers": "HeadersEntry" },
   EventServiceHandleResponse: { "eventContent": "EventContent", "eventAckResponse": "EventAckResponse" },
   NotifyConnectorRequest: { "content": "NotifyConnectorContent" },
-  NotifyConnectorContent: { "surchargeContent": "SurchargeContent" },
+  NotifyConnectorContent: { "surchargeContent": "SurchargeContent", "frmNotification": "FrmNotificationContent" },
+  FrmNotificationContent: { "amount": "Money", "paymentSuccess": "FrmPaymentSuccessDetails", "refund": "FrmRefundDetails", "chargeback": "FrmChargebackDetails" },
   NotifyConnectorResponse: { "error": "ErrorInfo" },
   EventAckResponse: { "headers": "HeadersEntry" },
   EventContent: { "paymentsResponse": "PaymentServiceGetResponse", "refundsResponse": "RefundResponse", "disputesResponse": "DisputeResponse" },
@@ -451,6 +456,10 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentServiceTokenSetupRecurringRequest: { "amount": "Money", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "customerAcceptance": "CustomerAcceptance", "setupMandateDetails": "SetupMandateDetails", "billingDescriptor": "BillingDescriptor" },
   PaymentServiceProxyAuthorizeRequest: { "amount": "Money", "cardProxy": "ProxyCardDetails", "customer": "Customer", "address": "PaymentAddress", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation", "state": "ConnectorState", "setupMandateDetails": "SetupMandateDetails", "billingDescriptor": "BillingDescriptor", "redirectionResponse": "RedirectionResponse", "l2L3Data": "L2L3Data", "customerAcceptance": "CustomerAcceptance" },
   PaymentServiceProxySetupRecurringRequest: { "amount": "Money", "cardProxy": "ProxyCardDetails", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "setupMandateDetails": "SetupMandateDetails", "customerAcceptance": "CustomerAcceptance", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation" },
+  FrmServicePreRiskCheckRequest: { "amount": "Money", "customerInfo": "CustomerInfo", "paymentMethod": "PaymentMethod", "browserInfo": "BrowserInformation", "orderDetails": "OrderDetailsWithAmount", "address": "Address", "state": "ConnectorState" },
+  FrmServicePreRiskCheckResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  FrmServicePostRiskCheckRequest: { "amount": "Money", "customerInfo": "CustomerInfo", "paymentMethod": "PaymentMethod", "orderDetails": "OrderDetailsWithAmount", "state": "ConnectorState" },
+  FrmServicePostRiskCheckResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   SplitRefundsRequest: { "stripeSplitRefund": "StripeSplitRefund", "adyenSplitRefund": "AdyenSplitData" },
   StripeSplitRefund: { "options": "ChargeRefundsOptions" },
   ChargeRefundsOptions: { "destination": "DestinationChargeRefund", "direct": "DirectChargeRefund" },
@@ -597,6 +606,22 @@ export class GrpcEventClient {
   async notifyConnector(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "event/notify_connector",
       req, types.NotifyConnectorRequest, types.NotifyConnectorResponse);
+  }
+}
+
+// FraudAndRiskManagementService
+export class GrpcFraudAndRiskManagementClient {
+  constructor(private ffi: GrpcFfi, private config: GrpcConfig) {}
+
+  /** FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review. */
+  async preRiskCheck(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "fraud_and_risk_management/pre_risk_check",
+      req, types.FrmServicePreRiskCheckRequest, types.FrmServicePreRiskCheckResponse);
+  }
+  /** FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud. */
+  async postRiskCheck(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "fraud_and_risk_management/post_risk_check",
+      req, types.FrmServicePostRiskCheckRequest, types.FrmServicePostRiskCheckResponse);
   }
 }
 
@@ -839,6 +864,7 @@ export class GrpcClient {
   public customer: GrpcCustomerClient;
   public dispute: GrpcDisputeClient;
   public event: GrpcEventClient;
+  public fraudAndRiskManagement: GrpcFraudAndRiskManagementClient;
   public merchantAuthentication: GrpcMerchantAuthenticationClient;
   public paymentMethodAuthentication: GrpcPaymentMethodAuthenticationClient;
   public paymentMethod: GrpcPaymentMethodClient;
@@ -853,6 +879,7 @@ export class GrpcClient {
     this.customer = new GrpcCustomerClient(ffi, config);
     this.dispute = new GrpcDisputeClient(ffi, config);
     this.event = new GrpcEventClient(ffi, config);
+    this.fraudAndRiskManagement = new GrpcFraudAndRiskManagementClient(ffi, config);
     this.merchantAuthentication = new GrpcMerchantAuthenticationClient(ffi, config);
     this.paymentMethodAuthentication = new GrpcPaymentMethodAuthenticationClient(ffi, config);
     this.paymentMethod = new GrpcPaymentMethodClient(ffi, config);

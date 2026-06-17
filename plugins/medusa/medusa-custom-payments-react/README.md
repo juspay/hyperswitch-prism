@@ -1,5 +1,7 @@
 # @juspay-tech/medusa-custom-payments-react
 
+[![npm](https://img.shields.io/npm/v/@juspay-tech/medusa-custom-payments-react?logo=npm)](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments-react)
+
 React UI components for Hyperswitch Prism payment connectors. Ships two layers of API:
 
 - **High-level Medusa components** — drop-in components for a Medusa v2 Next.js storefront checkout
@@ -38,6 +40,8 @@ npm install @juspay-tech/medusa-custom-payments-react
 # peer dependencies
 npm install @adyen/adyen-web @stripe/react-stripe-js @stripe/stripe-js
 ```
+
+📦 [View on npm](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments-react)
 
 **Local development** (linked to this repo):
 ```json

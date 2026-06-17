@@ -507,6 +507,12 @@ enum NotifyEventType {
   // Surcharge events
   SURCHARGE_PAYMENT_SUCCEEDED = 1; // Surcharge payment succeeded
   SURCHARGE_REFUND_SUCCEEDED = 2;  // Surcharge refund succeeded
+
+  // FRM events
+  FRM_PAYMENT_SUCCEEDED = 6;     // Payment authorized/captured — update FRM with outcome
+  FRM_PAYMENT_FAILURE = 7;       // Payment authorized/captured — update FRM with outcome
+  FRM_REFUND_PROCESSED = 8;      // Refund completed — notify FRM of return
+  FRM_CHARGEBACK_RECEIVED = 9;   // Chargeback opened — notify FRM of reversal
 }
 
 // Currency codes (ISO 4217)
@@ -1447,8 +1453,11 @@ message NotifyConnectorRequest {
 // Content of an event
 message NotifyConnectorContent {
   oneof content {
-    // surcharge details 
+    // surcharge details
     SurchargeContent surcharge_content = 1;
+
+    // FRM notification content
+    FrmNotificationContent frm_notification = 2;
   }
 }
 
@@ -1457,6 +1466,57 @@ message NotifyConnectorContent {
 message SurchargeContent {
   // Connector surcharge identifier
   string connector_surcharge_id = 1;
+}
+
+// Risk management decision outcomes from the FRM service
+enum FrmDecision {
+  FRM_DECISION_UNSPECIFIED = 0; // Default, unspecified FRM Decision
+  APPROVE = 1;                  // Transaction is low risk; proceed with payment authorization.
+  REJECT = 2;                   // Transaction is fraudulent or high risk; block the payment.
+  REVIEW = 3;                   // Transaction is suspicious; hold for manual review.
+  ERROR = 4;                    // The FRM check itself failed (network, timeout, misconfiguration).
+}
+
+// Unified FRM notification content.
+// Used for all FRM lifecycle events (payment success, refund, chargeback).
+message FrmNotificationContent {
+  // Merchant-facing identifiers
+  optional string connector_transaction_id = 1;
+  Money amount = 2;
+
+  // Correlation ID from PreRiskCheck, if available
+  optional string frm_transaction_id = 3;
+
+  // The specific notification type — exactly one must be set
+  oneof notification_type {
+    FrmPaymentSuccessDetails payment_success = 4;
+    FrmRefundDetails refund = 5;
+    FrmChargebackDetails chargeback = 6;
+  }
+
+  // Risk assessment outcome
+  optional FrmDecision frm_decision = 7;
+}
+
+// FRM payment success details
+message FrmPaymentSuccessDetails {
+  optional string connector_transaction_id = 1;
+  optional string merchant_transaction_id = 2;
+  PaymentStatus payment_status = 3;
+}
+
+// FRM refund details
+message FrmRefundDetails {
+  optional string connector_refund_id = 1;
+  optional string merchant_refund_id = 2;
+  optional string refund_reason = 3;
+}
+
+// FRM chargeback details
+message FrmChargebackDetails {
+  optional string connector_dispute_id = 1;
+  optional string merchant_dispute_id = 2;
+  optional string chargeback_reason = 3;
 }
 
 // Response for notifying connectors

@@ -23,3 +23,10 @@ export async function initiatePayment({
     status: PaymentSessionStatus.PENDING,
   }
 }
+
+// Braintree never obtains a real connector transaction id on this flow, so when a
+// session is deleted (e.g. the shopper switches payment methods) there is nothing
+// to void — skip it instead of letting the connector reject the bogus session id.
+export function shouldSkipVoid(data: Record<string, unknown> | undefined): boolean {
+  return !(data as any)?.connectorTransactionId
+}
