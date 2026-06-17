@@ -912,7 +912,6 @@ macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        VoidPostRefund,
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,
@@ -927,6 +926,7 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
     ],
     not_supported: [
+        VoidPostRefund,
         CreateOrder,
         CreateConnectorCustomer,
         ServerAuthenticationToken,

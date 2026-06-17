@@ -466,7 +466,6 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     // Flows that could be built against PayConex later but are not implemented yet.
     not_implemented: [
-        VoidPostRefund,
         CreateConnectorCustomer,
         CreateOrder,
         MandateRevoke,
@@ -478,6 +477,7 @@ macros::macro_connector_flow_status_impls!(
     // no-3DS card connector), client/server SDK session tokens (direct server-to-server
     // only), disputes, and partial-capture void.
     not_supported: [
+        VoidPostRefund,
         Accept,
         Authenticate,
         ClientAuthenticationToken,

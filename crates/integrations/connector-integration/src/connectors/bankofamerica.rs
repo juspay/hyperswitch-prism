@@ -714,7 +714,6 @@ macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        VoidPostRefund,
         IncrementalAuthorization,
         CreateOrder,
         SubmitEvidence,
@@ -730,5 +729,8 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
         ClientAuthenticationToken,
         MandateRevoke,
+    ],
+    not_supported: [
+        VoidPostRefund,
     ],
 );

@@ -547,7 +547,6 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
-        VoidPostRefund,
         ClientAuthenticationToken,
         CreateConnectorCustomer,
         IncrementalAuthorization,
@@ -559,6 +558,7 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         SetupMandate
     ],
     not_supported: [
+        VoidPostRefund,
         Accept,
         DefendDispute,
         SubmitEvidence,
