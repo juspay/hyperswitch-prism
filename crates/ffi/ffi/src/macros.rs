@@ -666,13 +666,13 @@ macro_rules! frm_req_transformer {
         pub fn $fn_name(
             payload: $request_type,
             config: &std::sync::Arc<ucs_env::configs::Config>,
-            connector: domain_types::connector_types::ConnectorEnum,
+            connector: domain_types::connector_types::FrmConnectorEnum,
             connector_config: domain_types::router_data::ConnectorSpecificConfig,
             metadata: &common_utils::metadata::MaskedMetadata,
         ) -> Result<Option<common_utils::request::Request>, grpc_api_types::payments::IntegrationError> {
 
-            let connector_data: connector_integration::types::ConnectorData<connector_integration::types::DefaultPCIHolder> =
-                connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+            let connector_data: connector_integration::types::FrmConnectorData =
+                connector_integration::types::FrmConnectorData::get_connector_by_name(&connector);
 
             let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
                 '_,
@@ -740,13 +740,13 @@ macro_rules! frm_res_transformer {
         pub fn $fn_name(
             payload: $request_type,
             config: &std::sync::Arc<ucs_env::configs::Config>,
-            connector: domain_types::connector_types::ConnectorEnum,
+            connector: domain_types::connector_types::FrmConnectorEnum,
             connector_config: domain_types::router_data::ConnectorSpecificConfig,
             metadata: &common_utils::metadata::MaskedMetadata,
             response: domain_types::router_response_types::Response,
         ) -> Result<$response_type, Box<grpc_api_types::payments::ConnectorError>> {
-            let connector_data: connector_integration::types::ConnectorData<connector_integration::types::DefaultPCIHolder> =
-                connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+            let connector_data: connector_integration::types::FrmConnectorData =
+                connector_integration::types::FrmConnectorData::get_connector_by_name(&connector);
 
             let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
                 '_,

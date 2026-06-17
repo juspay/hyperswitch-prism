@@ -118,13 +118,16 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + MandateRevokeV2
     + VerifyWebhookSourceV2
     + VerifyRedirectResponse
-    + PreRiskCheckV2
-    + PostRiskCheckV2
 {
 }
 
 pub trait SurchargeServiceTrait:
     ConnectorCommon + SurchargeCalculateV2 + SurchargePaymentSucceededV2 + SurchargeRefundSucceededV2
+{
+}
+
+pub trait FrmServiceTrait:
+    ConnectorCommon + PreRiskCheckV2 + PostRiskCheckV2
 {
 }
 
@@ -159,6 +162,8 @@ pub trait PaymentVoidPostCaptureV2:
 pub type BoxedConnector<T> = Box<&'static (dyn ConnectorServiceTrait<T> + Sync)>;
 
 pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Sync)>;
+
+pub type BoxedFrmConnector = Box<&'static (dyn FrmServiceTrait + Sync)>;
 
 pub type BoxedPayoutConnector = Box<&'static (dyn PayoutServiceTrait + Sync)>;
 

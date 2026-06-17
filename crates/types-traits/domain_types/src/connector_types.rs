@@ -171,6 +171,24 @@ pub enum SurchargeConnectorEnum {
     Interpayments,
 }
 
+/// Enum representing connectors that support FRM flows
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    EnumIter,
+    EnumString,
+    serde::Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum FrmConnectorEnum {
+}
+
 /// Enum representing connectors that support payout flows
 #[derive(
     Clone,
@@ -258,12 +276,31 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
     }
 }
 
+impl ForeignTryFrom<AuthType> for FrmConnectorEnum {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(_config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
+        Err(error_stack::Report::new(
+            IntegrationError::InvalidDataFormat {
+                field_name: "connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Connector is not supported for FRM flows".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        ))
+    }
+}
+
 /// Unified connector enum that can represent either payment, surcharge, or payout connectors
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectorVariant {
     Payment(ConnectorEnum),
     Surcharge(SurchargeConnectorEnum),
     Payout(PayoutConnectorEnum),
+    Frm(FrmConnectorEnum),
 }
 
 impl ConnectorVariant {
@@ -291,11 +328,20 @@ impl ConnectorVariant {
         }
     }
 
+    /// Get the FRM connector if this is a FRM variant
+    pub fn as_frm(&self) -> Option<FrmConnectorEnum> {
+        match self {
+            ConnectorVariant::Frm(conn) => Some(*conn),
+            _ => None,
+        }
+    }
+
     pub fn get_connector_name(&self) -> String {
         match self {
             ConnectorVariant::Payment(conn) => conn.to_string(),
             ConnectorVariant::Surcharge(conn) => conn.to_string(),
             ConnectorVariant::Payout(conn) => conn.to_string(),
+            ConnectorVariant::Frm(conn) => conn.to_string(),
         }
     }
 }

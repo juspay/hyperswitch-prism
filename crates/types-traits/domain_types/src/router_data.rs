@@ -3250,6 +3250,8 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
             },
+            connector_types::ConnectorVariant::Frm(_connector_enum) => match auth {
+            },
             connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
                 PayoutConnectorEnum::Loonio => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {

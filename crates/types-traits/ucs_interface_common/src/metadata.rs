@@ -182,6 +182,30 @@ pub fn connector_variant_from_metadata(
                 })
             })?;
         Ok(connector_types::ConnectorVariant::Payout(connector))
+    } else if let Some(value) = metadata.get(consts::X_FRM_CONNECTOR_NAME)
+    {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-frm-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Invalid x-frm-connector header value: {e}"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector =
+            connector_types::FrmConnectorEnum::from_str(connector_str).map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-frm-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid FRM connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Frm(connector))
     } else {
         // Neither header found
         Err(Report::new(IntegrationError::MissingRequiredField {
