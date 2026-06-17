@@ -19,6 +19,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.17.0
+
+### Features
+
+- **frm:** Scaffold empty files for new FRM service ([#1515](https://github.com/juspay/connector-service/pull/1515)) ([`b8780ec`](https://github.com/juspay/connector-service/commit/b8780ec0561cc9e00032b4401c4911b0c6111652))
+
+### Bug Fixes
+
+- **ci:** Harden SDK release workflows (tag-gated publish, version, deadlock, idempotent tags) ([#1536](https://github.com/juspay/connector-service/pull/1536)) ([`5a51cf8`](https://github.com/juspay/connector-service/commit/5a51cf8999216875d5edbc9629c9a1c1e34e065c))
+- **connector:** Fixed Paypal authorize request diff ([#1525](https://github.com/juspay/connector-service/pull/1525)) ([`4874968`](https://github.com/juspay/connector-service/commit/4874968adfcc573087e2edad3f2d4433eda80c66))
+- Medusa plugin multi session ([#1542](https://github.com/juspay/connector-service/pull/1542)) ([`2c82442`](https://github.com/juspay/connector-service/commit/2c82442248ef1893ca694fd60f62653458adafc8))
+
+### Miscellaneous Tasks
+
+- Fix medusa release pipeline ([#1516](https://github.com/juspay/connector-service/pull/1516)) ([`714e7d9`](https://github.com/juspay/connector-service/commit/714e7d9c47ff29577d9cf1588bc90e5abf949fb2))
+- Update medusa package ([#1523](https://github.com/juspay/connector-service/pull/1523)) ([`fa602d3`](https://github.com/juspay/connector-service/commit/fa602d3eca4b966d4290cd683d158533add0b996))
+- Update medusa readme ([#1531](https://github.com/juspay/connector-service/pull/1531)) ([`f94daa4`](https://github.com/juspay/connector-service/commit/f94daa4cc7983132b0501813513e5da1e0851946))
+- Bump medusa version ([#1532](https://github.com/juspay/connector-service/pull/1532)) ([`8d83844`](https://github.com/juspay/connector-service/commit/8d8384402ae1257f3cb43463047fbe27333a991b))
+- Update package ([#1534](https://github.com/juspay/connector-service/pull/1534)) ([`562c1db`](https://github.com/juspay/connector-service/commit/562c1db02aa2e99f0b785b508349199c3f7e2f79))
+
+**Full Changelog:** [`2026.06.16.0...2026.06.17.0`](https://github.com/juspay/connector-service/compare/2026.06.16.0...2026.06.17.0)
+
+- - -
+
+## 2026.06.16.0
+
+### Features
+
+- **metrics:** Add feature-flagged OTLP metrics push for the gRPC server ([#1500](https://github.com/juspay/connector-service/pull/1500)) ([`190bf15`](https://github.com/juspay/connector-service/commit/190bf154d1e8271dd504e8dffee4ec300782cd18))
+
+### Bug Fixes
+
+- **connector:** [Qwikcilver] send bill_amount in redeem request ([#1512](https://github.com/juspay/connector-service/pull/1512)) ([`cd7bf23`](https://github.com/juspay/connector-service/commit/cd7bf23e268b8ab4f7b324e3c6f9c7c1348be650))
+
+### Miscellaneous Tasks
+
+- Configure plugin ([#1513](https://github.com/juspay/connector-service/pull/1513)) ([`2f4db93`](https://github.com/juspay/connector-service/commit/2f4db93dad018940d6e3d52d1429592293b74d7d))
+
+**Full Changelog:** [`2026.06.15.0...2026.06.16.0`](https://github.com/juspay/connector-service/compare/2026.06.15.0...2026.06.16.0)
+
+- - -
+
 ## 2026.06.15.0
 
 ### Features

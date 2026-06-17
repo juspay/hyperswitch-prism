@@ -78,8 +78,8 @@ if (System.getenv("CENTRAL_TOKEN_USERNAME") != null) {
             url = "https://github.com/juspay/hyperswitch-prism"
 
             license {
-                name = "MIT License"
-                url = "https://opensource.org/licenses/MIT"
+                name = "Apache License, Version 2.0"
+                url = "https://github.com/juspay/hyperswitch-prism/tree/main?tab=Apache-2.0-1-ov-file"
             }
 
             developer {
@@ -118,8 +118,8 @@ publishing {
 
                 licenses {
                     license {
-                        name.set("MIT License")
-                        url.set("https://opensource.org/licenses/MIT")
+                        name.set("Apache License, Version 2.0")
+                        url.set("https://github.com/juspay/hyperswitch-prism/tree/main?tab=Apache-2.0-1-ov-file")
                     }
                 }
 

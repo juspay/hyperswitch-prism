@@ -6,7 +6,7 @@ import {
   AdyenWrapper,
   PayPalWrapper,
   GlobalPayWrapper,
-} from "@juspay/medusa-unified-payment-react";
+} from "@juspay-tech/medusa-custom-payments-react";
 
 // The Stripe publishable key and Adyen client key are delivered by the server
 // in the payment session (sessionData.publishableKey), sourced from creds.json.

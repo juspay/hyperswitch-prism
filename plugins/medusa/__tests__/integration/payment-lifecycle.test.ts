@@ -98,7 +98,7 @@ jest.mock("hyperswitch-prism", () => {
   }
 })
 
-import HyperswitchPrismService from "../../medusa-unified-payment/src/providers/service"
+import HyperswitchPrismService from "../../medusa-custom-payments/src/providers/service"
 import { ConnectorError, IntegrationError } from "hyperswitch-prism"
 
 describe("Payment Lifecycle Integration — Stripe & Adyen", () => {

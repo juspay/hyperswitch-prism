@@ -216,6 +216,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   BillwerkConfig: ["apiKey", "publicApiKey"],
   BluesnapConfig: ["username", "password"],
   CashfreeConfig: ["appId", "secretKey"],
+  CheckoutConfig: ["apiKey", "apiSecret", "processingChannelId"],
   CryptopayConfig: ["apiKey", "apiSecret"],
   DatatransConfig: ["merchantId", "password"],
   FiservemeaConfig: ["apiKey", "apiSecret"],
@@ -293,6 +294,10 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentServiceTokenSetupRecurringRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceProxyAuthorizeRequest: ["metadata", "connectorFeatureData"],
   PaymentServiceProxySetupRecurringRequest: ["metadata"],
+  FrmServicePreRiskCheckRequest: ["metadata", "connectorFeatureData"],
+  FrmServicePreRiskCheckResponse: ["rawConnectorRequest", "rawConnectorResponse"],
+  FrmServicePostRiskCheckRequest: ["metadata", "connectorFeatureData"],
+  FrmServicePostRiskCheckResponse: ["rawConnectorRequest", "rawConnectorResponse"],
   CardPayout: ["cardNumber", "cardExpMonth", "cardExpYear", "cardHolderName"],
   AchBankTransferPayout: ["bankAccountNumber", "bankRoutingNumber"],
   BacsBankTransferPayout: ["bankAccountNumber", "bankSortCode"],
@@ -352,7 +357,8 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   RequestDetails: { "headers": "HeadersEntry" },
   EventServiceHandleResponse: { "eventContent": "EventContent", "eventAckResponse": "EventAckResponse" },
   NotifyConnectorRequest: { "content": "NotifyConnectorContent" },
-  NotifyConnectorContent: { "surchargeContent": "SurchargeContent" },
+  NotifyConnectorContent: { "surchargeContent": "SurchargeContent", "frmNotification": "FrmNotificationContent" },
+  FrmNotificationContent: { "amount": "Money", "paymentSuccess": "FrmPaymentSuccessDetails", "refund": "FrmRefundDetails", "chargeback": "FrmChargebackDetails" },
   NotifyConnectorResponse: { "error": "ErrorInfo" },
   EventAckResponse: { "headers": "HeadersEntry" },
   EventContent: { "paymentsResponse": "PaymentServiceGetResponse", "refundsResponse": "RefundResponse", "disputesResponse": "DisputeResponse" },
@@ -447,11 +453,15 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   CashtocodeConfig: { "authKeyMap": "AuthKeyMapEntry" },
   AuthKeyMapEntry: { "value": "PayloadCurrencyAuthData" },
   PayloadConfig: { "authKeyMap": "AuthKeyMapEntry" },
-  ConnectorSpecificConfig: { "adyen": "AdyenConfig", "airwallex": "AirwallexConfig", "bambora": "BamboraConfig", "bankofamerica": "BankOfAmericaConfig", "billwerk": "BillwerkConfig", "bluesnap": "BluesnapConfig", "braintree": "BraintreeConfig", "cashtocode": "CashtocodeConfig", "cryptopay": "CryptopayConfig", "cybersource": "CybersourceConfig", "datatrans": "DatatransConfig", "dlocal": "DlocalConfig", "elavon": "ElavonConfig", "fiserv": "FiservConfig", "fiservemea": "FiservemeaConfig", "forte": "ForteConfig", "getnet": "GetnetConfig", "globalpay": "GlobalpayConfig", "hipay": "HipayConfig", "helcim": "HelcimConfig", "iatapay": "IatapayConfig", "jpmorgan": "JpmorganConfig", "mifinity": "MifinityConfig", "mollie": "MollieConfig", "multisafepay": "MultisafepayConfig", "nexinets": "NexinetsConfig", "nexixpay": "NexixpayConfig", "nmi": "NmiConfig", "noon": "NoonConfig", "novalnet": "NovalnetConfig", "nuvei": "NuveiConfig", "paybox": "PayboxConfig", "payme": "PaymeConfig", "payu": "PayuConfig", "powertranz": "PowertranzConfig", "rapyd": "RapydConfig", "redsys": "RedsysConfig", "shift4": "Shift4Config", "stax": "StaxConfig", "stripe": "StripeConfig", "trustpay": "TrustpayConfig", "tsys": "TsysConfig", "volt": "VoltConfig", "wellsfargo": "WellsfargoConfig", "worldpay": "WorldpayConfig", "worldpayvantiv": "WorldpayvantivConfig", "xendit": "XenditConfig", "phonepe": "PhonepeConfig", "cashfree": "CashfreeConfig", "paytm": "PaytmConfig", "calida": "CalidaConfig", "payload": "PayloadConfig", "authipay": "AuthipayConfig", "silverflow": "SilverflowConfig", "celero": "CeleroConfig", "trustpayments": "TrustpaymentsConfig", "paysafe": "PaysafeConfig", "barclaycard": "BarclaycardConfig", "worldpayxml": "WorldpayxmlConfig", "revolut": "RevolutConfig", "loonio": "LoonioConfig", "gigadat": "GigadatConfig", "hyperpg": "HyperpgConfig", "zift": "ZiftConfig", "screenstream": "ScreenstreamConfig", "ebanx": "EbanxConfig", "fiuu": "FiuuConfig", "globepay": "GlobepayConfig", "coinbase": "CoinbaseConfig", "coingate": "CoingateConfig", "revolv3": "Revolv3Config", "authorizedotnet": "AuthorizedotnetConfig", "peachpayments": "PeachpaymentsConfig", "paypal": "PaypalConfig", "truelayer": "TruelayerConfig", "fiservcommercehub": "FiservcommercehubConfig", "itaubank": "ItaubankConfig", "ppro": "PproConfig", "trustly": "TrustlyConfig", "absaSanlam": "AbsaSanlamConfig", "pinelabsOnline": "PinelabsOnlineConfig", "imerchantsolutions": "ImerchantsolutionsConfig", "axisbank": "AxisbankConfig", "easebuzz": "EasebuzzConfig", "twocTwopPaco": "TwocTwopPacoConfig", "bamboraapac": "BamboraapacConfig", "placetopay": "PlacetopayConfig", "finix": "FinixConfig", "aci": "AciConfig", "interpayments": "InterpaymentsConfig", "juspay": "JuspayConfig", "tamara": "TamaraConfig", "payconex": "PayconexConfig", "qwikcilver": "QwikcilverConfig", "hyperswitch": "HyperswitchConfig" },
+  ConnectorSpecificConfig: { "adyen": "AdyenConfig", "airwallex": "AirwallexConfig", "bambora": "BamboraConfig", "bankofamerica": "BankOfAmericaConfig", "billwerk": "BillwerkConfig", "bluesnap": "BluesnapConfig", "braintree": "BraintreeConfig", "cashtocode": "CashtocodeConfig", "cryptopay": "CryptopayConfig", "cybersource": "CybersourceConfig", "datatrans": "DatatransConfig", "dlocal": "DlocalConfig", "elavon": "ElavonConfig", "fiserv": "FiservConfig", "fiservemea": "FiservemeaConfig", "forte": "ForteConfig", "getnet": "GetnetConfig", "globalpay": "GlobalpayConfig", "hipay": "HipayConfig", "helcim": "HelcimConfig", "iatapay": "IatapayConfig", "jpmorgan": "JpmorganConfig", "mifinity": "MifinityConfig", "mollie": "MollieConfig", "multisafepay": "MultisafepayConfig", "nexinets": "NexinetsConfig", "nexixpay": "NexixpayConfig", "nmi": "NmiConfig", "noon": "NoonConfig", "novalnet": "NovalnetConfig", "nuvei": "NuveiConfig", "paybox": "PayboxConfig", "payme": "PaymeConfig", "payu": "PayuConfig", "powertranz": "PowertranzConfig", "rapyd": "RapydConfig", "redsys": "RedsysConfig", "shift4": "Shift4Config", "stax": "StaxConfig", "stripe": "StripeConfig", "trustpay": "TrustpayConfig", "tsys": "TsysConfig", "volt": "VoltConfig", "wellsfargo": "WellsfargoConfig", "worldpay": "WorldpayConfig", "worldpayvantiv": "WorldpayvantivConfig", "xendit": "XenditConfig", "phonepe": "PhonepeConfig", "cashfree": "CashfreeConfig", "paytm": "PaytmConfig", "calida": "CalidaConfig", "payload": "PayloadConfig", "authipay": "AuthipayConfig", "silverflow": "SilverflowConfig", "celero": "CeleroConfig", "trustpayments": "TrustpaymentsConfig", "paysafe": "PaysafeConfig", "barclaycard": "BarclaycardConfig", "worldpayxml": "WorldpayxmlConfig", "revolut": "RevolutConfig", "loonio": "LoonioConfig", "gigadat": "GigadatConfig", "hyperpg": "HyperpgConfig", "zift": "ZiftConfig", "screenstream": "ScreenstreamConfig", "ebanx": "EbanxConfig", "fiuu": "FiuuConfig", "globepay": "GlobepayConfig", "coinbase": "CoinbaseConfig", "coingate": "CoingateConfig", "revolv3": "Revolv3Config", "authorizedotnet": "AuthorizedotnetConfig", "peachpayments": "PeachpaymentsConfig", "paypal": "PaypalConfig", "truelayer": "TruelayerConfig", "fiservcommercehub": "FiservcommercehubConfig", "itaubank": "ItaubankConfig", "ppro": "PproConfig", "trustly": "TrustlyConfig", "absaSanlam": "AbsaSanlamConfig", "pinelabsOnline": "PinelabsOnlineConfig", "imerchantsolutions": "ImerchantsolutionsConfig", "axisbank": "AxisbankConfig", "easebuzz": "EasebuzzConfig", "twocTwopPaco": "TwocTwopPacoConfig", "bamboraapac": "BamboraapacConfig", "placetopay": "PlacetopayConfig", "finix": "FinixConfig", "aci": "AciConfig", "interpayments": "InterpaymentsConfig", "juspay": "JuspayConfig", "tamara": "TamaraConfig", "payconex": "PayconexConfig", "qwikcilver": "QwikcilverConfig", "checkout": "CheckoutConfig", "hyperswitch": "HyperswitchConfig" },
   PaymentServiceTokenAuthorizeRequest: { "amount": "Money", "customer": "Customer", "address": "PaymentAddress", "browserInfo": "BrowserInformation", "state": "ConnectorState", "billingDescriptor": "BillingDescriptor", "l2L3Data": "L2L3Data", "customerAcceptance": "CustomerAcceptance" },
   PaymentServiceTokenSetupRecurringRequest: { "amount": "Money", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "customerAcceptance": "CustomerAcceptance", "setupMandateDetails": "SetupMandateDetails", "billingDescriptor": "BillingDescriptor" },
   PaymentServiceProxyAuthorizeRequest: { "amount": "Money", "cardProxy": "ProxyCardDetails", "customer": "Customer", "address": "PaymentAddress", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation", "state": "ConnectorState", "setupMandateDetails": "SetupMandateDetails", "billingDescriptor": "BillingDescriptor", "redirectionResponse": "RedirectionResponse", "l2L3Data": "L2L3Data", "customerAcceptance": "CustomerAcceptance" },
   PaymentServiceProxySetupRecurringRequest: { "amount": "Money", "cardProxy": "ProxyCardDetails", "customer": "Customer", "address": "PaymentAddress", "state": "ConnectorState", "setupMandateDetails": "SetupMandateDetails", "customerAcceptance": "CustomerAcceptance", "authenticationData": "AuthenticationData", "browserInfo": "BrowserInformation" },
+  FrmServicePreRiskCheckRequest: { "amount": "Money", "customerInfo": "CustomerInfo", "paymentMethod": "PaymentMethod", "browserInfo": "BrowserInformation", "orderDetails": "OrderDetailsWithAmount", "address": "Address", "state": "ConnectorState" },
+  FrmServicePreRiskCheckResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  FrmServicePostRiskCheckRequest: { "amount": "Money", "customerInfo": "CustomerInfo", "paymentMethod": "PaymentMethod", "orderDetails": "OrderDetailsWithAmount", "state": "ConnectorState" },
+  FrmServicePostRiskCheckResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   PayoutAddress: { "shippingAddress": "Address", "billingAddress": "Address" },
   PayoutMethod: { "card": "CardPayout", "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "applePayDecrypt": "ApplePayDecrypt", "paypal": "Paypal", "venmo": "Venmo", "interac": "InteracPayout", "openBankingUk": "OpenBankingUkPayout", "passthrough": "Passthrough", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout" },
   SourceBankData: { "ach": "AchBankTransferPayout", "bacs": "BacsBankTransferPayout", "sepa": "SepaBankTransferPayout", "pix": "PixBankTransferPayout", "pixKey": "PixKeyBankTransferPayout", "pixEmv": "PixEmvBankTransferPayout" },
@@ -594,6 +604,22 @@ export class GrpcEventClient {
   async notifyConnector(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "event/notify_connector",
       req, types.NotifyConnectorRequest, types.NotifyConnectorResponse);
+  }
+}
+
+// FraudAndRiskManagementService
+export class GrpcFraudAndRiskManagementClient {
+  constructor(private ffi: GrpcFfi, private config: GrpcConfig) {}
+
+  /** FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review. */
+  async preRiskCheck(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "fraud_and_risk_management/pre_risk_check",
+      req, types.FrmServicePreRiskCheckRequest, types.FrmServicePreRiskCheckResponse);
+  }
+  /** FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud. */
+  async postRiskCheck(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "fraud_and_risk_management/post_risk_check",
+      req, types.FrmServicePostRiskCheckRequest, types.FrmServicePostRiskCheckResponse);
   }
 }
 
@@ -836,6 +862,7 @@ export class GrpcClient {
   public customer: GrpcCustomerClient;
   public dispute: GrpcDisputeClient;
   public event: GrpcEventClient;
+  public fraudAndRiskManagement: GrpcFraudAndRiskManagementClient;
   public merchantAuthentication: GrpcMerchantAuthenticationClient;
   public paymentMethodAuthentication: GrpcPaymentMethodAuthenticationClient;
   public paymentMethod: GrpcPaymentMethodClient;
@@ -850,6 +877,7 @@ export class GrpcClient {
     this.customer = new GrpcCustomerClient(ffi, config);
     this.dispute = new GrpcDisputeClient(ffi, config);
     this.event = new GrpcEventClient(ffi, config);
+    this.fraudAndRiskManagement = new GrpcFraudAndRiskManagementClient(ffi, config);
     this.merchantAuthentication = new GrpcMerchantAuthenticationClient(ffi, config);
     this.paymentMethodAuthentication = new GrpcPaymentMethodAuthenticationClient(ffi, config);
     this.paymentMethod = new GrpcPaymentMethodClient(ffi, config);
