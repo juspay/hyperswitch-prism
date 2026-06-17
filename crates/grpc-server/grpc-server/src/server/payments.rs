@@ -823,7 +823,6 @@ impl PaymentService for Payments {
         )
         skip(self, request)
     )]
-    #[allow(clippy::large_futures)]
     async fn authorize(
         &self,
         request: tonic::Request<PaymentServiceAuthorizeRequest>,
@@ -835,7 +834,7 @@ impl PaymentService for Payments {
             .cloned()
             .unwrap_or_else(|| "PaymentService".to_string());
         let config = get_config_from_request(&request)?;
-        grpc_logging_wrapper(request, &service_name, config.clone(), FlowName::Authorize, |request_data| {
+        Box::pin(grpc_logging_wrapper(request, &service_name, config.clone(), FlowName::Authorize, |request_data| {
             let service_name = service_name.clone();
             Box::pin(async move {
                 let metadata_payload = request_data.extracted_metadata;
@@ -919,7 +918,7 @@ impl PaymentService for Payments {
 
                 Ok(tonic::Response::new(authorize_response))
             })
-        })
+        }))
         .await
     }
 
