@@ -2261,6 +2261,9 @@ message PaymentServiceAuthorizeResponse {
   optional ConnectorResponseData connector_response = 17;
   optional SecretString connector_feature_data =
       18; // Connector-specific metadata for the transaction
+  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+  // Distinct from network_transaction_id.
+  optional string network_txn_link_id = 19;
 }
 
 // Request message for synchronizing payment status
@@ -2328,8 +2331,8 @@ message PaymentServiceGetResponse {
   // Transaction Details
   optional MandateReference mandate_reference = 6;
   optional string network_transaction_id = 7;
-  // Network-issued link/reference id (Adyen `transactionLinkId`, etc.) chaining
-  // related network transactions. Distinct from network_transaction_id.
+  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+  // Distinct from network_transaction_id.
   optional string network_txn_link_id = 31;
 
   // Payment Details
@@ -4164,6 +4167,13 @@ message CashfreeConfig {
   optional string base_url = 50;
 }
 
+message CheckoutConfig {
+  SecretString api_key = 1;
+  SecretString api_secret = 2;
+  SecretString processing_channel_id = 3;
+  optional string base_url = 50;
+}
+
 message CryptopayConfig {
   SecretString api_key = 1;
   SecretString api_secret = 2;
@@ -4986,6 +4996,9 @@ message ConnectorSpecificConfig {
     PayconexConfig payconex = 129;
     // QWIKCILVER = 125
     QwikcilverConfig qwikcilver = 130;
+
+    // CHECKOUT = 126
+    CheckoutConfig checkout = 131;
   }
 }
 
