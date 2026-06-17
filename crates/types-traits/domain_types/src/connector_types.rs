@@ -1370,8 +1370,8 @@ impl PaymentVoidData {
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodEligibilityData {
-    pub amount: MinorUnit,
-    pub currency: Currency,
+    /// Order amount and currency.
+    pub amount: common_utils::types::Money,
     /// Customer details (phone, email, name, etc.) for eligibility check.
     pub customer: Option<CustomerInfo>,
     /// Market/country the eligibility check is for. BNPL eligibility is

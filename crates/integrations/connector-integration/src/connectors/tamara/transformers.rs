@@ -827,8 +827,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(Self {
             order: TamaraEligibilityOrder {
                 total_amount: TamaraAmount {
-                    amount: data.amount,
-                    currency: data.currency,
+                    amount: data.amount.amount,
+                    currency: data.amount.currency,
                 },
                 country_code,
             },

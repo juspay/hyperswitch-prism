@@ -5374,7 +5374,6 @@ pub fn generate_payment_method_eligibility_response(
         PaymentMethodEligibilityResponse,
     >,
 ) -> Result<PaymentMethodServiceEligibilityResponse, error_stack::Report<ConnectorError>> {
-    use crate::connector_types::RawConnectorRequestResponse;
     let response_headers = router_data_v2
         .resource_common_data
         .get_connector_response_headers_as_map();
@@ -5388,7 +5387,8 @@ pub fn generate_payment_method_eligibility_response(
         Ok(response) => Ok(PaymentMethodServiceEligibilityResponse {
             eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(
                 response.eligibility,
-            ) as i32,
+            )
+            .into(),
             status_code: response.status_code,
             error_info: None,
             raw_connector_request,
@@ -5398,7 +5398,8 @@ pub fn generate_payment_method_eligibility_response(
         Err(err) => Ok(PaymentMethodServiceEligibilityResponse {
             eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(
                 EligibilityStatus::Ineligible,
-            ) as i32,
+            )
+            .into(),
             status_code: err.status_code as u32,
             error_info: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
@@ -7896,11 +7897,18 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
         let money = value.amount.ok_or_else(|| {
             report!(IntegrationError::MissingRequiredField {
                 field_name: "amount",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Order amount is required for eligibility check".to_string()
+                    ),
+                    ..Default::default()
+                },
             })
         })?;
-        let amount = common_utils::types::MinorUnit::new(money.minor_amount);
-        let currency = common_enums::Currency::foreign_try_from(money.currency())?;
+        let amount = common_utils::types::Money {
+            amount: common_utils::types::MinorUnit::new(money.minor_amount),
+            currency: common_enums::Currency::foreign_try_from(money.currency())?,
+        };
 
         // Resolve fields read via prost accessors (which borrow all of `value`)
         // before moving any owned fields out of `value`.
@@ -7927,7 +7935,6 @@ impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEli
 
         Ok(Self {
             amount,
-            currency,
             customer,
             country_code: country,
             payment_method_type,

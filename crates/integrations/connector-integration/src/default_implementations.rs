@@ -103,7 +103,7 @@ macro_rules! default_impl_verify_webhook_source_v2_single {
 /// );
 /// ```
 #[macro_export]
-macro_rules! default_impl_payment_eligibility_v2_single {
+macro_rules! default_impl_payment_method_eligibility_v2_single {
     ($connector:ident, $err_helper:ident) => {
         impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
             PaymentMethodEligibilityV2 for $connector<T>
@@ -144,10 +144,10 @@ macro_rules! default_impl_payment_eligibility_v2 {
         $( not_supported: [ $($ns:ident),* $(,)? ] $(,)? )?
         $( not_implemented: [ $($ni:ident),* $(,)? ] $(,)? )?
     ) => {
-        $( $( $crate::default_impl_payment_eligibility_v2_single!(
+        $( $( $crate::default_impl_payment_method_eligibility_v2_single!(
             $ns, connector_flow_not_supported
         ); )* )?
-        $( $( $crate::default_impl_payment_eligibility_v2_single!(
+        $( $( $crate::default_impl_payment_method_eligibility_v2_single!(
             $ni, connector_flow_not_implemented
         ); )* )?
     };
