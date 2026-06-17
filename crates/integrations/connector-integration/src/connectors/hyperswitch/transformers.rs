@@ -186,7 +186,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 pub struct HyperswitchPaymentsResponse {
     pub payment_id: String,
     pub status: HyperswitchIntentStatus,
-    #[serde(default)]
     pub connector_transaction_id: Option<String>,
     pub error_code: Option<String>,
     pub error_message: Option<String>,
@@ -233,7 +232,7 @@ fn map_intent_status(
         HyperswitchIntentStatus::RequiresCustomerAction => {
             common_enums::AttemptStatus::AuthenticationPending
         }
-        HyperswitchIntentStatus::Unknown => common_enums::AttemptStatus::Pending,
+        HyperswitchIntentStatus::Unknown => common_enums::AttemptStatus::Unknown,
     }
 }
 
@@ -344,7 +343,9 @@ pub struct HyperswitchErrorDetail {
     #[serde(rename = "type")]
     pub error_type: Option<String>,
     pub message: Option<String>,
-    pub code: Option<String>,
+    // Hyperswitch always returns an error `code` in its error envelope; keeping
+    // it mandatory ensures this struct doesn't match arbitrary JSON objects.
+    pub code: String,
 }
 
 // =============================================================================
@@ -358,9 +359,7 @@ pub struct HyperswitchErrorDetail {
 // never fail deserialization of the envelope.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct HyperswitchWebhookBody {
-    #[serde(default)]
     pub merchant_id: Option<String>,
-    #[serde(default)]
     pub event_id: Option<String>,
     pub event_type: String,
     pub content: HyperswitchWebhookContent,
@@ -377,11 +376,8 @@ pub struct HyperswitchWebhookContent {
 pub struct HyperswitchWebhookPayment {
     pub payment_id: String,
     pub status: HyperswitchIntentStatus,
-    #[serde(default)]
     pub connector_transaction_id: Option<String>,
-    #[serde(default)]
     pub error_code: Option<String>,
-    #[serde(default)]
     pub error_message: Option<String>,
 }
 

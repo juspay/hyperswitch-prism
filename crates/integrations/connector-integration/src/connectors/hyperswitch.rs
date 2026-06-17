@@ -4,7 +4,7 @@ use std::fmt::Debug;
 
 use common_enums::CurrencyUnit;
 use common_utils::{
-    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    consts::NO_ERROR_MESSAGE,
     crypto::{self, VerifySignature},
     errors::CustomResult,
     events,
@@ -174,10 +174,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         let error = response.error;
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: error
-                .code
-                .clone()
-                .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            code: error.code.clone(),
             message: error
                 .message
                 .clone()
