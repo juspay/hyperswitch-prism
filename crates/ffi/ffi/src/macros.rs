@@ -663,6 +663,7 @@ macro_rules! frm_req_transformer {
         request_data_type: $request_data_type:ty,
         response_data_type: $response_data_type:ty $(,)?
     ) => {
+        #[allow(unreachable_code, unused_variables)]
         pub fn $fn_name(
             payload: $request_type,
             config: &std::sync::Arc<ucs_env::configs::Config>,
@@ -737,6 +738,7 @@ macro_rules! frm_res_transformer {
         response_data_type: $response_data_type:ty,
         generate_response_fn: $generate_response_fn:ident,
     ) => {
+        #[allow(unreachable_code, unused_variables)]
         pub fn $fn_name(
             payload: $request_type,
             config: &std::sync::Arc<ucs_env::configs::Config>,
@@ -832,11 +834,11 @@ macro_rules! frm_res_transformer {
     };
 }
 
+pub(crate) use frm_req_transformer;
+pub(crate) use frm_res_transformer;
 pub(crate) use payout_req_transformer;
 pub(crate) use payout_res_transformer;
 pub(crate) use req_transformer;
 pub(crate) use res_transformer;
 pub(crate) use surcharge_req_transformer;
 pub(crate) use surcharge_res_transformer;
-pub(crate) use frm_req_transformer;
-pub(crate) use frm_res_transformer;

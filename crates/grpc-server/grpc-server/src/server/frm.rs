@@ -1,20 +1,23 @@
+use connector_integration::types::FrmConnectorData;
+
 use std::fmt::Debug;
 
 use domain_types::{
     connector_flow::{FlowName as DomainFlowName, PostRiskCheck, PreRiskCheck},
     frm::frm_types::{
-        FrmFlowData, PostRiskCheckRequest, PostRiskCheckResponse,
-        PreRiskCheckRequest, PreRiskCheckResponse,
+        FrmFlowData, PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest,
+        PreRiskCheckResponse,
     },
     frm::types::{generate_post_risk_check_response, generate_pre_risk_check_response},
     utils::ForeignTryFrom,
 };
 use grpc_api_types::frm::{
     fraud_and_risk_management_service_server::FraudAndRiskManagementService,
-    FrmServicePostRiskCheckRequest, FrmServicePostRiskCheckResponse,
-    FrmServicePreRiskCheckRequest, FrmServicePreRiskCheckResponse,
+    FrmServicePostRiskCheckRequest, FrmServicePostRiskCheckResponse, FrmServicePreRiskCheckRequest,
+    FrmServicePreRiskCheckResponse,
 };
 
+use common_utils::consts::FRM_SERVICE_NAME;
 use ucs_env::error::ResultExtGrpc;
 
 use crate::{implement_connector_operation, request::RequestData, utils};
@@ -75,7 +78,7 @@ impl FraudAndRiskManagementService for FrmServiceImpl {
         name = "pre_risk_check",
         fields(
             name = common_utils::consts::NAME,
-            service_name = tracing::field::FRM_SERVICE_NAME,
+            service_name = FRM_SERVICE_NAME,
             service_method = DomainFlowName::PreRiskCheck.to_string(),
             request_body = tracing::field::Empty,
             response_body = tracing::field::Empty,
@@ -116,7 +119,7 @@ impl FraudAndRiskManagementService for FrmServiceImpl {
         name = "post_risk_check",
         fields(
             name = common_utils::consts::NAME,
-            service_name = tracing::field::FRM_SERVICE_NAME,
+            service_name = FRM_SERVICE_NAME,
             service_method = DomainFlowName::PostRiskCheck.to_string(),
             request_body = tracing::field::Empty,
             response_body = tracing::field::Empty,

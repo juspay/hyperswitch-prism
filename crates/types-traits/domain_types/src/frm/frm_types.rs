@@ -1,27 +1,31 @@
 use crate::{
-    connector_types::{ConnectorResponseHeaders, RawConnectorRequestResponse},
+    connector_types::{ConnectorResponseHeaders, CustomerInfo, RawConnectorRequestResponse},
     errors::IntegrationError,
+    payment_address::OrderDetailsWithAmount,
+    payment_method_data::{DefaultPCIHolder, PaymentMethodData},
+    router_request_types::BrowserInformation,
     types::Connectors,
-    utils::ForeignTryFrom,
+    utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom},
 };
-use common_enums::{Currency, FrmDecision};
+use common_enums::{AttemptStatus, Currency, FrmDecision};
 use common_utils::types::MinorUnit;
+use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
-use serde::Serialize;
 
-impl From<grpc_api_types::frm::FrmDecision> for FrmDecision {
-    fn from(value: grpc_api_types::frm::FrmDecision) -> Self {
+impl ForeignFrom<grpc_api_types::frm::FrmDecision> for FrmDecision {
+    fn foreign_from(value: grpc_api_types::frm::FrmDecision) -> Self {
         match value {
             grpc_api_types::frm::FrmDecision::Approve => Self::Approve,
             grpc_api_types::frm::FrmDecision::Reject => Self::Reject,
-            grpc_api_types::frm::FrmDecision::Unspecified | grpc_api_types::frm::FrmDecision::Review => Self::Review,
+            grpc_api_types::frm::FrmDecision::Unspecified
+            | grpc_api_types::frm::FrmDecision::Review => Self::Review,
             grpc_api_types::frm::FrmDecision::Error => Self::Error,
         }
     }
 }
 
-impl From<FrmDecision> for grpc_api_types::frm::FrmDecision {
-    fn from(value: FrmDecision) -> Self {
+impl ForeignFrom<FrmDecision> for grpc_api_types::frm::FrmDecision {
+    fn foreign_from(value: FrmDecision) -> Self {
         match value {
             FrmDecision::Approve => Self::Approve,
             FrmDecision::Reject => Self::Reject,
@@ -31,28 +35,26 @@ impl From<FrmDecision> for grpc_api_types::frm::FrmDecision {
     }
 }
 
-impl ForeignTryFrom<(
-    grpc_api_types::frm::FrmServicePreRiskCheckRequest,
-    Connectors,
-    &common_utils::metadata::MaskedMetadata,
-)> for FrmFlowData
+impl
+    ForeignTryFrom<(
+        grpc_api_types::frm::FrmServicePreRiskCheckRequest,
+        Connectors,
+        &common_utils::metadata::MaskedMetadata,
+    )> for FrmFlowData
 {
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        (value, connectors, _metadata): (
+        (_value, connectors, metadata): (
             grpc_api_types::frm::FrmServicePreRiskCheckRequest,
             Connectors,
             &common_utils::metadata::MaskedMetadata,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id = extract_merchant_id_from_metadata(metadata)?;
+
         Ok(Self {
-            merchant_id: common_utils::id_type::MerchantId::try_from(
-                std::str::from_utf8(&value.merchant_txn_id.as_bytes())
-                    .unwrap_or_default()
-                    .to_string(),
-            )
-            .unwrap_or_default(),
+            merchant_id,
             connectors,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -82,7 +84,9 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "currency",
                     context: crate::errors::IntegrationErrorContext {
-                        additional_context: Some("Invalid currency in pre-risk check request".to_owned()),
+                        additional_context: Some(
+                            "Invalid currency in pre-risk check request".to_owned(),
+                        ),
                         ..Default::default()
                     },
                 })?;
@@ -90,43 +94,41 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
         };
 
         Ok(Self {
-            amount: MinorUnit::from(amount.amount),
+            amount: MinorUnit::new(amount.minor_amount),
             currency,
             customer_info: None,
             payment_method: None,
             browser_info: None,
-            merchant_transaction_id: Some(value.merchant_txn_id),
+            merchant_transaction_id: value.merchant_transaction_id,
             order_details: None,
             address: None,
-            metadata: value.metadata.map(|m| Secret::new(m.value)),
-            connector_feature_data: value.connector_feature_data.map(|m| Secret::new(m.value)),
+            metadata: value.metadata,
+            connector_feature_data: value.connector_feature_data,
             test_mode: value.test_mode,
         })
     }
 }
 
-impl ForeignTryFrom<(
-    grpc_api_types::frm::FrmServicePostRiskCheckRequest,
-    Connectors,
-    &common_utils::metadata::MaskedMetadata,
-)> for FrmFlowData
+impl
+    ForeignTryFrom<(
+        grpc_api_types::frm::FrmServicePostRiskCheckRequest,
+        Connectors,
+        &common_utils::metadata::MaskedMetadata,
+    )> for FrmFlowData
 {
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        (value, connectors, _metadata): (
+        (_value, connectors, metadata): (
             grpc_api_types::frm::FrmServicePostRiskCheckRequest,
             Connectors,
             &common_utils::metadata::MaskedMetadata,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id = extract_merchant_id_from_metadata(metadata)?;
+
         Ok(Self {
-            merchant_id: common_utils::id_type::MerchantId::try_from(
-                std::str::from_utf8(&value.merchant_txn_id.as_bytes())
-                    .unwrap_or_default()
-                    .to_string(),
-            )
-            .unwrap_or_default(),
+            merchant_id,
             connectors,
             raw_connector_response: None,
             raw_connector_request: None,
@@ -156,37 +158,38 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
                 .change_context(IntegrationError::InvalidDataFormat {
                     field_name: "currency",
                     context: crate::errors::IntegrationErrorContext {
-                        additional_context: Some("Invalid currency in post-risk check request".to_owned()),
+                        additional_context: Some(
+                            "Invalid currency in post-risk check request".to_owned(),
+                        ),
                         ..Default::default()
                     },
                 })?;
             common_enums::Currency::foreign_try_from(curr)?
         };
 
-        let payment_status = common_enums::PaymentStatus::foreign_try_from(
-            grpc_api_types::payments::PaymentStatus::try_from(value.payment_status)
-                .change_context(IntegrationError::InvalidDataFormat {
-                    field_name: "payment_status",
-                    context: crate::errors::IntegrationErrorContext {
-                        additional_context: Some("Invalid payment status".to_owned()),
-                        ..Default::default()
-                    },
-                })?
-        )?;
+        let payment_status = value.payment_status.and_then(|status| {
+            grpc_api_types::payments::PaymentStatus::try_from(status)
+                .ok()
+                .and_then(|payment_status| AttemptStatus::foreign_try_from(payment_status).ok())
+        });
+
+        let payment_connector = value
+            .payment_connector
+            .and_then(|c| grpc_api_types::payments::Connector::try_from(c).ok());
 
         Ok(Self {
-            amount: MinorUnit::from(amount.amount),
+            amount: MinorUnit::new(amount.minor_amount),
             currency,
             customer_info: None,
             payment_method: None,
-            merchant_transaction_id: Some(value.merchant_txn_id),
+            merchant_transaction_id: value.merchant_transaction_id,
             order_details: None,
-            metadata: value.metadata.map(|m| Secret::new(m.value)),
-            connector_feature_data: value.connector_feature_data.map(|m| Secret::new(m.value)),
+            metadata: value.metadata,
+            connector_feature_data: value.connector_feature_data,
             test_mode: value.test_mode,
             payment_status,
             connector_transaction_id: value.connector_transaction_id,
-            payment_connector: value.payment_connector,
+            payment_connector,
         })
     }
 }
@@ -233,11 +236,11 @@ impl ConnectorResponseHeaders for FrmFlowData {
 pub struct PreRiskCheckRequest {
     pub amount: MinorUnit,
     pub currency: Currency,
-    pub customer_info: Option<crate::types::CustomerInfo>,
-    pub payment_method: Option<crate::payment_method_data::PaymentMethodData>,
-    pub browser_info: Option<crate::types::BrowserInformation>,
+    pub customer_info: Option<CustomerInfo>,
+    pub payment_method: Option<PaymentMethodData<DefaultPCIHolder>>,
+    pub browser_info: Option<BrowserInformation>,
     pub merchant_transaction_id: Option<String>,
-    pub order_details: Option<Vec<crate::types::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub address: Option<crate::payment_address::PaymentAddress>,
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,
@@ -259,16 +262,16 @@ pub struct PreRiskCheckResponse {
 pub struct PostRiskCheckRequest {
     pub amount: MinorUnit,
     pub currency: Currency,
-    pub customer_info: Option<crate::types::CustomerInfo>,
-    pub payment_method: Option<crate::payment_method_data::PaymentMethodData>,
+    pub customer_info: Option<CustomerInfo>,
+    pub payment_method: Option<PaymentMethodData<DefaultPCIHolder>>,
     pub merchant_transaction_id: Option<String>,
-    pub order_details: Option<Vec<crate::types::OrderDetailsWithAmount>>,
+    pub order_details: Option<Vec<OrderDetailsWithAmount>>,
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,
     pub test_mode: Option<bool>,
-    pub payment_status: crate::types::PaymentStatus,
+    pub payment_status: Option<AttemptStatus>,
     pub connector_transaction_id: Option<String>,
-    pub payment_connector: String,
+    pub payment_connector: Option<grpc_api_types::payments::Connector>,
 }
 
 /// Response data for post-risk check

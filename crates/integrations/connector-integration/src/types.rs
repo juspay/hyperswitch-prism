@@ -1,10 +1,14 @@
 use std::fmt::Debug;
 
 use domain_types::{
-    connector_types::{ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum, SurchargeConnectorEnum},
+    connector_types::{
+        ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum, SurchargeConnectorEnum,
+    },
     payment_method_data::PaymentMethodDataTypes,
 };
-use interfaces::connector_types::{BoxedConnector, BoxedFrmConnector, BoxedPayoutConnector, BoxedSurchargeConnector};
+use interfaces::connector_types::{
+    BoxedConnector, BoxedFrmConnector, BoxedPayoutConnector, BoxedSurchargeConnector,
+};
 
 use crate::{connectors, payout_connectors, surcharge_connectors};
 
@@ -174,9 +178,7 @@ impl ConnectorDataProvider for FrmConnectorData {
     fn from_connector_variant(
         variant: &domain_types::connector_types::ConnectorVariant,
     ) -> Option<Self> {
-        variant
-            .as_frm()
-            .map(|c| Self::get_connector_by_name(&c))
+        variant.as_frm().map(|c| Self::get_connector_by_name(&c))
     }
 }
 

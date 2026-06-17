@@ -1,15 +1,15 @@
 use grpc_api_types::frm::{
-    FrmServicePreRiskCheckRequest, FrmServicePreRiskCheckResponse,
-    FrmServicePostRiskCheckRequest, FrmServicePostRiskCheckResponse,
+    FrmServicePostRiskCheckRequest, FrmServicePostRiskCheckResponse, FrmServicePreRiskCheckRequest,
+    FrmServicePreRiskCheckResponse,
 };
 
 use crate::macros::{frm_req_transformer, frm_res_transformer};
 
 use domain_types::{
-    connector_flow::{PreRiskCheck, PostRiskCheck},
+    connector_flow::{PostRiskCheck, PreRiskCheck},
     frm::frm_types::{
-        FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse,
-        PostRiskCheckRequest, PostRiskCheckResponse,
+        FrmFlowData, PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest,
+        PreRiskCheckResponse,
     },
 };
 

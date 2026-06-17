@@ -17,6 +17,7 @@ use domain_types::connector_types::{
     RefundsData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
     ServerSessionAuthenticationTokenRequestData, SetupMandateRequestData, SubmitEvidenceData,
 };
+use domain_types::frm::frm_types::{PostRiskCheckRequest, PreRiskCheckRequest};
 use domain_types::payouts::payouts_types::{
     PayoutCreateLinkRequest, PayoutCreateRecipientRequest, PayoutCreateRequest,
     PayoutEnrollDisburseAccountRequest, PayoutGetRequest, PayoutStageRequest,
@@ -44,10 +45,10 @@ use domain_types::{
         IncrementalAuthorizationIntegrityObject, MandateRevokeIntegrityObject,
         PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
         PaymentVoidPostCaptureIntegrityObject, PostAuthenticateIntegrityObject,
-        PreAuthenticateIntegrityObject, RechargeIntegrityObject, RefundIntegrityObject,
-        RefundSyncIntegrityObject, RepeatPaymentIntegrityObject, SessionTokenIntegrityObject,
-        SetupMandateIntegrityObject, SubmitEvidenceIntegrityObject,
-        VerifyWebhookSourceIntegrityObject,
+        PostRiskCheckIntegrityObject, PreAuthenticateIntegrityObject, PreRiskCheckIntegrityObject,
+        RechargeIntegrityObject, RefundIntegrityObject, RefundSyncIntegrityObject,
+        RepeatPaymentIntegrityObject, SessionTokenIntegrityObject, SetupMandateIntegrityObject,
+        SubmitEvidenceIntegrityObject, VerifyWebhookSourceIntegrityObject,
     },
 };
 
@@ -206,6 +207,8 @@ impl_check_integrity!(SurchargeRefundSucceededRequest);
 impl_check_integrity!(RechargeRequestData);
 impl_check_integrity!(CreatePaymentMethodData);
 impl_check_integrity!(GetPaymentMethodData);
+impl_check_integrity!(PreRiskCheckRequest);
+impl_check_integrity!(PostRiskCheckRequest);
 
 // ========================================================================
 // GET INTEGRITY OBJECT IMPLEMENTATIONS
@@ -1458,6 +1461,26 @@ impl GetIntegrityObject<GetPaymentMethodIntegrityObject> for GetPaymentMethodDat
     }
 }
 
+impl GetIntegrityObject<PreRiskCheckIntegrityObject> for PreRiskCheckRequest {
+    fn get_response_integrity_object(&self) -> Option<PreRiskCheckIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PreRiskCheckIntegrityObject {
+        PreRiskCheckIntegrityObject {}
+    }
+}
+
+impl GetIntegrityObject<PostRiskCheckIntegrityObject> for PostRiskCheckRequest {
+    fn get_response_integrity_object(&self) -> Option<PostRiskCheckIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PostRiskCheckIntegrityObject {
+        PostRiskCheckIntegrityObject {}
+    }
+}
+
 // --- GENERATED FLOW INTEGRITY IMPLEMENTATIONS ---
 
 impl FlowIntegrity for PayoutTransferIntegrityObject {
@@ -1792,6 +1815,32 @@ impl FlowIntegrity for GetPaymentMethodIntegrityObject {
         connector_transaction_id: Option<String>,
     ) -> Result<(), IntegrityCheckError> {
         // GetPaymentMethod has no payment-attempt invariants to check.
+        check_integrity_result(Vec::new(), connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for PreRiskCheckIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        _req_integrity_object: Self,
+        _res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        // PreRiskCheck has no invariants to check.
+        check_integrity_result(Vec::new(), connector_transaction_id)
+    }
+}
+
+impl FlowIntegrity for PostRiskCheckIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        _req_integrity_object: Self,
+        _res_integrity_object: Self,
+        connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        // PostRiskCheck has no invariants to check.
         check_integrity_result(Vec::new(), connector_transaction_id)
     }
 }

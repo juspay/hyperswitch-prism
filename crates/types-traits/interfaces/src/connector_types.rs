@@ -26,6 +26,10 @@ use domain_types::{
         WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::WebhookError,
+    frm::frm_types::{
+        FrmFlowData, PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest,
+        PreRiskCheckResponse,
+    },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     payouts::payouts_types::{
@@ -42,10 +46,6 @@ use domain_types::{
         SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
         SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
         SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse,
-    },
-    frm::frm_types::{
-        FrmFlowData, PreRiskCheckRequest, PreRiskCheckResponse,
-        PostRiskCheckRequest, PostRiskCheckResponse,
     },
     types::{PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
 };
@@ -126,10 +126,7 @@ pub trait SurchargeServiceTrait:
 {
 }
 
-pub trait FrmServiceTrait:
-    ConnectorCommon + PreRiskCheckV2 + PostRiskCheckV2
-{
-}
+pub trait FrmServiceTrait: ConnectorCommon + PreRiskCheckV2 + PostRiskCheckV2 {}
 
 pub trait PayoutServiceTrait:
     ConnectorCommon

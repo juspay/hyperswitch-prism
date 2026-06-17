@@ -4,6 +4,7 @@ pub mod api;
 pub mod connector_flow;
 pub mod connector_types;
 pub mod errors;
+pub mod frm;
 pub mod mandates;
 pub mod merchant_authentication_flow_data;
 pub mod payment_address;
@@ -15,7 +16,6 @@ pub mod router_flow_types;
 pub mod router_request_types;
 pub mod router_response_types;
 pub mod surcharge;
-pub mod frm;
 pub mod types;
 pub mod utils;
 

@@ -198,6 +198,16 @@ impl AdditionalHeaders
         None
     }
 }
+impl ConnectorRequestReference for domain_types::frm::frm_types::FrmFlowData {
+    fn get_connector_request_reference_id(&self) -> &str {
+        ""
+    }
+}
+impl AdditionalHeaders for domain_types::frm::frm_types::FrmFlowData {
+    fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
+        None
+    }
+}
 use common_utils::events::{Event, EventConfig, FlowName};
 #[cfg(feature = "injector-client")]
 // TokenData is now imported from hyperswitch_injector
@@ -273,6 +283,12 @@ impl GetFlowStatus for domain_types::surcharge::surcharge_types::SurchargeFlowDa
 impl GetFlowStatus
     for domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData
 {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+
+impl GetFlowStatus for domain_types::frm::frm_types::FrmFlowData {
     fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
         None
     }

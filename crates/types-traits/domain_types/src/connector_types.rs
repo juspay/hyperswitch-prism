@@ -186,8 +186,7 @@ pub enum SurchargeConnectorEnum {
     Serialize,
 )]
 #[strum(serialize_all = "snake_case")]
-pub enum FrmConnectorEnum {
-}
+pub enum FrmConnectorEnum {}
 
 /// Enum representing connectors that support payout flows
 #[derive(
