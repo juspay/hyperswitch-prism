@@ -23,10 +23,10 @@ use domain_types::{
     utils::ForeignTryFrom,
 };
 use grpc_api_types::payouts::{
-    payout_service_server::PayoutService, PayoutServiceCreateLinkRequest,
+    payout_service_server::PayoutService, PayoutMethodEligibilityRequest,
+    PayoutMethodEligibilityResponse, PayoutServiceCreateLinkRequest,
     PayoutServiceCreateLinkResponse, PayoutServiceCreateRecipientRequest,
     PayoutServiceCreateRecipientResponse, PayoutServiceCreateRequest, PayoutServiceCreateResponse,
-    PayoutMethodEligibilityRequest, PayoutMethodEligibilityResponse,
     PayoutServiceEnrollDisburseAccountRequest, PayoutServiceEnrollDisburseAccountResponse,
     PayoutServiceGetRequest, PayoutServiceGetResponse, PayoutServiceStageRequest,
     PayoutServiceStageResponse, PayoutServiceTransferRequest, PayoutServiceTransferResponse,
