@@ -8,6 +8,7 @@ use grpc_api_types::payments::{
     customer_service_client::CustomerServiceClient,
     dispute_service_client::DisputeServiceClient,
     event_service_client::EventServiceClient,
+    fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient,
     merchant_authentication_service_client::MerchantAuthenticationServiceClient,
     payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient,
     payment_method_service_client::PaymentMethodServiceClient,
@@ -31,6 +32,10 @@ use grpc_api_types::payments::{
     EventServiceHandleResponse,
     EventServiceParseRequest,
     EventServiceParseResponse,
+    FrmServicePostRiskCheckRequest,
+    FrmServicePostRiskCheckResponse,
+    FrmServicePreRiskCheckRequest,
+    FrmServicePreRiskCheckResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
@@ -218,6 +223,24 @@ impl_grpc_client!(
     ),
 );
 
+// FraudAndRiskManagementService
+impl_grpc_client!(
+    GrpcFraudAndRiskManagementClient,
+    FraudAndRiskManagementServiceClient,
+    (
+        pre_risk_check,
+        pre_risk_check,
+        FrmServicePreRiskCheckRequest,
+        FrmServicePreRiskCheckResponse
+    ),
+    (
+        post_risk_check,
+        post_risk_check,
+        FrmServicePostRiskCheckRequest,
+        FrmServicePostRiskCheckResponse
+    ),
+);
+
 // MerchantAuthenticationService
 impl_grpc_client!(
     GrpcMerchantAuthenticationClient,
@@ -287,12 +310,6 @@ impl_grpc_client!(
         get,
         PaymentMethodServiceGetRequest,
         PaymentMethodServiceGetResponse
-    ),
-    (
-        eligibility,
-        eligibility,
-        PayoutMethodEligibilityRequest,
-        PayoutMethodEligibilityResponse
     ),
     (
         recharge,
@@ -439,6 +456,12 @@ impl_grpc_client!(
         PayoutServiceEnrollDisburseAccountRequest,
         PayoutServiceEnrollDisburseAccountResponse
     ),
+    (
+        eligibility,
+        eligibility,
+        PayoutMethodEligibilityRequest,
+        PayoutMethodEligibilityResponse
+    ),
 );
 
 // RecurringPaymentService
@@ -498,13 +521,14 @@ impl_grpc_client!(
 /// let _ = client.customer.customer_create(Default::default()).await;
 /// let _ = client.dispute.submit_evidence(Default::default()).await;
 /// let _ = client.event.parse_event(Default::default()).await;
-/// let _ = client.merchant_authentication.create_server_authentication_token(Default::default()).await;
+/// let _ = client.fraud_and_risk_management.pre_risk_check(Default::default()).await;
 /// # Ok(()) }
 /// ```
 pub struct GrpcClient {
     pub customer: GrpcCustomerClient,
     pub dispute: GrpcDisputeClient,
     pub event: GrpcEventClient,
+    pub fraud_and_risk_management: GrpcFraudAndRiskManagementClient,
     pub merchant_authentication: GrpcMerchantAuthenticationClient,
     pub payment_method_authentication: GrpcPaymentMethodAuthenticationClient,
     pub payment_method: GrpcPaymentMethodClient,
@@ -534,6 +558,10 @@ impl GrpcClient {
             customer: GrpcCustomerClient::new(channel.clone(), Arc::clone(&headers)),
             dispute: GrpcDisputeClient::new(channel.clone(), Arc::clone(&headers)),
             event: GrpcEventClient::new(channel.clone(), Arc::clone(&headers)),
+            fraud_and_risk_management: GrpcFraudAndRiskManagementClient::new(
+                channel.clone(),
+                Arc::clone(&headers),
+            ),
             merchant_authentication: GrpcMerchantAuthenticationClient::new(
                 channel.clone(),
                 Arc::clone(&headers),

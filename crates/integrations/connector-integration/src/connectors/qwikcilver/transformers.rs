@@ -13,6 +13,7 @@ use domain_types::{
         ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{self, PaymentMethodDataTypes, PaymentMethodDetails, WalletDetails},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -100,7 +101,7 @@ impl<T>
         QwikcilverRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -116,7 +117,7 @@ where
         item: QwikcilverRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -152,7 +153,7 @@ const SESSION_EXPIRY_SECONDS: i64 = 60 * 20;
 impl<F> TryFrom<ResponseRouterData<QwikcilverAuthorizeResponse, Self>>
     for RouterDataV2<
         F,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
     >
@@ -317,7 +318,7 @@ where
             invoice_number,
             amount,
             notes: None,
-            bill_amount: None,
+            bill_amount: Some(amount),
         })
     }
 }

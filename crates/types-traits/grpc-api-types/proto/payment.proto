@@ -507,6 +507,12 @@ enum NotifyEventType {
   // Surcharge events
   SURCHARGE_PAYMENT_SUCCEEDED = 1; // Surcharge payment succeeded
   SURCHARGE_REFUND_SUCCEEDED = 2;  // Surcharge refund succeeded
+
+  // FRM events
+  FRM_PAYMENT_SUCCEEDED = 6;     // Payment authorized/captured — update FRM with outcome
+  FRM_PAYMENT_FAILURE = 7;       // Payment authorized/captured — update FRM with outcome
+  FRM_REFUND_PROCESSED = 8;      // Refund completed — notify FRM of return
+  FRM_CHARGEBACK_RECEIVED = 9;   // Chargeback opened — notify FRM of reversal
 }
 
 // Currency codes (ISO 4217)
@@ -1447,8 +1453,11 @@ message NotifyConnectorRequest {
 // Content of an event
 message NotifyConnectorContent {
   oneof content {
-    // surcharge details 
+    // surcharge details
     SurchargeContent surcharge_content = 1;
+
+    // FRM notification content
+    FrmNotificationContent frm_notification = 2;
   }
 }
 
@@ -1457,6 +1466,57 @@ message NotifyConnectorContent {
 message SurchargeContent {
   // Connector surcharge identifier
   string connector_surcharge_id = 1;
+}
+
+// Risk management decision outcomes from the FRM service
+enum FrmDecision {
+  FRM_DECISION_UNSPECIFIED = 0; // Default, unspecified FRM Decision
+  APPROVE = 1;                  // Transaction is low risk; proceed with payment authorization.
+  REJECT = 2;                   // Transaction is fraudulent or high risk; block the payment.
+  REVIEW = 3;                   // Transaction is suspicious; hold for manual review.
+  ERROR = 4;                    // The FRM check itself failed (network, timeout, misconfiguration).
+}
+
+// Unified FRM notification content.
+// Used for all FRM lifecycle events (payment success, refund, chargeback).
+message FrmNotificationContent {
+  // Merchant-facing identifiers
+  optional string connector_transaction_id = 1;
+  Money amount = 2;
+
+  // Correlation ID from PreRiskCheck, if available
+  optional string frm_transaction_id = 3;
+
+  // The specific notification type — exactly one must be set
+  oneof notification_type {
+    FrmPaymentSuccessDetails payment_success = 4;
+    FrmRefundDetails refund = 5;
+    FrmChargebackDetails chargeback = 6;
+  }
+
+  // Risk assessment outcome
+  optional FrmDecision frm_decision = 7;
+}
+
+// FRM payment success details
+message FrmPaymentSuccessDetails {
+  optional string connector_transaction_id = 1;
+  optional string merchant_transaction_id = 2;
+  PaymentStatus payment_status = 3;
+}
+
+// FRM refund details
+message FrmRefundDetails {
+  optional string connector_refund_id = 1;
+  optional string merchant_refund_id = 2;
+  optional string refund_reason = 3;
+}
+
+// FRM chargeback details
+message FrmChargebackDetails {
+  optional string connector_dispute_id = 1;
+  optional string merchant_dispute_id = 2;
+  optional string chargeback_reason = 3;
 }
 
 // Response for notifying connectors
@@ -1548,6 +1608,38 @@ message CardConnectorResponse {
   optional string domestic_network = 4; // Domestic (co-branded) card network
   optional string auth_code =
       5; // Unique authorisation code generated for the payment
+}
+
+// Additional card information for payment processing
+message AdditionalCardInfo {
+  // The name of issuer of the card
+  optional string card_issuer = 1;
+
+  // Last 4 digits of the card number
+  optional string last4 = 2;
+
+  // The ISIN of the card
+  optional string card_isin = 3;
+
+  // Extended bin of card, contains the first 8 digits of card number
+  optional string card_extended_bin = 4;
+
+  // Card expiry month (sensitive)
+  optional SecretString card_exp_month = 5;
+
+  // Card expiry year (sensitive)
+  optional SecretString card_exp_year = 6;
+
+  // Card holder name (sensitive)
+  optional SecretString card_holder_name = 7;
+
+}
+
+// Additional payment data for various payment methods
+message AdditionalPaymentData {
+  oneof payment_method_data {
+    AdditionalCardInfo card = 1;
+  }
 }
 
 // Additional payment method data for Google Pay
@@ -2166,6 +2258,9 @@ message PaymentServiceAuthorizeResponse {
   optional ConnectorResponseData connector_response = 17;
   optional SecretString connector_feature_data =
       18; // Connector-specific metadata for the transaction
+  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+  // Distinct from network_transaction_id.
+  optional string network_txn_link_id = 19;
 }
 
 // Request message for synchronizing payment status
@@ -2230,8 +2325,8 @@ message PaymentServiceGetResponse {
   // Transaction Details
   optional MandateReference mandate_reference = 6;
   optional string network_transaction_id = 7;
-  // Network-issued link/reference id (Adyen `transactionLinkId`, etc.) chaining
-  // related network transactions. Distinct from network_transaction_id.
+  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+  // Distinct from network_transaction_id.
   optional string network_txn_link_id = 31;
 
   // Payment Details
@@ -2422,6 +2517,8 @@ message PaymentSessionContext {
   Money amount = 1;
   optional SecretString metadata = 2;
   optional BrowserInformation browser_info = 3;
+  optional Customer customer = 4;
+  optional PaymentAddress address = 5;
 }
 
 // Response message for creating a connector session
@@ -2544,6 +2641,9 @@ message PaymentServiceCaptureResponse {
 
   optional SecretString connector_feature_data =
       12; // Connector-specific metadata for the transaction
+
+  // Additional connector response details (e.g. AVS / CVV checks, auth code)
+  optional ConnectorResponseData connector_response = 13;
 }
 
 // Request message for creating an order
@@ -2953,6 +3053,10 @@ message RecurringPaymentServiceChargeRequest {
 
   optional CustomerDocumentDetails customer_document_details =
       32; // Customer identification document
+
+  // Additional payment data for various payment methods
+  optional AdditionalPaymentData additional_payment_data = 33;
+
 }
 
 // Response message for repeat payment operation
@@ -4043,6 +4147,13 @@ message CashfreeConfig {
   optional string base_url = 50;
 }
 
+message CheckoutConfig {
+  SecretString api_key = 1;
+  SecretString api_secret = 2;
+  SecretString processing_channel_id = 3;
+  optional string base_url = 50;
+}
+
 message CryptopayConfig {
   SecretString api_key = 1;
   SecretString api_secret = 2;
@@ -4865,6 +4976,9 @@ message ConnectorSpecificConfig {
     PayconexConfig payconex = 129;
     // QWIKCILVER = 125
     QwikcilverConfig qwikcilver = 130;
+
+    // CHECKOUT = 126
+    CheckoutConfig checkout = 131;
   }
 }
 

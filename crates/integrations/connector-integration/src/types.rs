@@ -169,6 +169,12 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Stripe => Box::new(payout_connectors::StripePayouts::<
                 domain_types::payment_method_data::DefaultPCIHolder,
             >::new()),
+            PayoutConnectorEnum::Worldpayxml => {
+                Box::new(payout_connectors::WorldpayxmlPayouts::new())
+            }
+            PayoutConnectorEnum::Cybersource => {
+                Box::new(payout_connectors::CybersourcePayouts::new())
+            }
         }
     }
 }

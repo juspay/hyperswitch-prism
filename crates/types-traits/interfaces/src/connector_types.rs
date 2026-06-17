@@ -26,6 +26,7 @@ use domain_types::{
         WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::WebhookError,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
@@ -207,6 +208,12 @@ pub trait ValidationTrait: ConnectorCommon {
     ) -> AuthenticationStep {
         AuthenticationStep::Authorize
     }
+
+    /// Returns whether this connector requires Authorize to be called
+    /// after VerifyRedirectResponse in the composite flow.
+    fn requires_authorize_post_redirect(&self) -> bool {
+        false
+    }
 }
 
 pub trait PaymentOrderCreate:
@@ -222,7 +229,7 @@ pub trait PaymentOrderCreate:
 pub trait ServerSessionAuthentication:
     ConnectorIntegrationV2<
     connector_flow::ServerSessionAuthenticationToken,
-    PaymentFlowData,
+    MerchantAuthenticationFlowData,
     ServerSessionAuthenticationTokenRequestData,
     ServerSessionAuthenticationTokenResponseData,
 >
@@ -232,7 +239,7 @@ pub trait ServerSessionAuthentication:
 pub trait ClientAuthentication:
     ConnectorIntegrationV2<
     connector_flow::ClientAuthenticationToken,
-    PaymentFlowData,
+    MerchantAuthenticationFlowData,
     ClientAuthenticationTokenRequestData,
     PaymentsResponseData,
 >
@@ -242,7 +249,7 @@ pub trait ClientAuthentication:
 pub trait ServerAuthentication:
     ConnectorIntegrationV2<
     connector_flow::ServerAuthenticationToken,
-    PaymentFlowData,
+    MerchantAuthenticationFlowData,
     ServerAuthenticationTokenRequestData,
     ServerAuthenticationTokenResponseData,
 >

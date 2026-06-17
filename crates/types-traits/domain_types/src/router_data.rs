@@ -1636,6 +1636,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                     })?,
                 base_url: cashtocode.base_url,
             }),
+            AuthType::Checkout(checkout) => Ok(Self::Checkout {
+                api_key: checkout.api_key.ok_or_else(err)?,
+                api_secret: checkout.api_secret.ok_or_else(err)?,
+                processing_channel_id: checkout.processing_channel_id.ok_or_else(err)?,
+                base_url: checkout.base_url,
+            }),
             AuthType::Cryptopay(cryptopay) => Ok(Self::Cryptopay {
                 api_key: cryptopay.api_key.ok_or_else(err)?,
                 api_secret: cryptopay.api_secret.ok_or_else(err)?,
@@ -3304,6 +3310,34 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Stripe {
                         api_key: api_key.clone(),
                         base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Worldpayxml => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Worldpayxml {
+                        api_username: api_key.clone(),
+                        api_password: key1.clone(),
+                        merchant_code: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Cybersource => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Cybersource {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                        disable_avs: None,
+                        disable_cvn: None,
                     }),
                     _ => Err(err().into()),
                 },
