@@ -186,7 +186,7 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-domain_data: None,
+                    domain_data: None,
 },
                 response: Err(ErrorResponse::default())
 };
@@ -345,7 +345,7 @@ domain_data: None,
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
-domain_data: None,
+                    domain_data: None,
 },
                 response: Err(ErrorResponse::default())
 };

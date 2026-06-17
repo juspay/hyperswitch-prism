@@ -3910,27 +3910,6 @@ impl RecurringMandateData for RecurringMandatePaymentData {
     }
 }
 
-/// Whether the ticket can be refunded.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TicketRefundability {
-    Refundable,
-    NonRefundable,
-}
-
-/// Ticket medium — electronic vs paper.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TicketDeliveryType {
-    Electronic,
-    Paper,
-}
-
-/// Whether the cardholder is among the passengers (fraud signal).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CardholderTravelStatus {
-    Traveling,
-    NotTraveling,
-}
-
 /// Domain-specific data supplied by the merchant (airline today; extensible
 /// to other verticals). Mirrors the proto `DomainData`.
 #[derive(Debug, Clone, Default)]
@@ -3955,9 +3934,9 @@ pub struct AirlineData {
     pub passenger_name: Option<String>,
     pub number_of_passengers: Option<u32>,
     pub document_type: Option<String>,
-    pub refundability: Option<TicketRefundability>,
-    pub ticket_delivery_type: Option<TicketDeliveryType>,
-    pub cardholder_travel_status: Option<CardholderTravelStatus>,
+    pub refundability: Option<common_enums::TicketRefundability>,
+    pub ticket_delivery_type: Option<common_enums::TicketDeliveryType>,
+    pub cardholder_travel_status: Option<common_enums::CardholderTravelStatus>,
     pub ticket_issue_address: Option<AddressDetails>,
     pub booking_system_unique_id: Option<String>,
     // Travel agency

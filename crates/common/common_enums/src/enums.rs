@@ -2412,3 +2412,66 @@ pub enum TaxStatus {
     Taxable,
     Exempt,
 }
+
+/// Whether the ticket can be refunded.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TicketRefundability {
+    Refundable,
+    NonRefundable,
+}
+
+/// Ticket medium — electronic vs paper.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TicketDeliveryType {
+    Electronic,
+    Paper,
+}
+
+/// Whether the cardholder is among the passengers (fraud signal).
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CardholderTravelStatus {
+    Traveling,
+    NotTraveling,
+}
