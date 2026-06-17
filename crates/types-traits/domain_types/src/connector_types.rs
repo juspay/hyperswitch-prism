@@ -1330,6 +1330,7 @@ pub struct PaymentVoidData {
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub metadata: Option<SecretSerdeValue>,
     pub merchant_order_id: Option<String>,
+    pub split_payments: Option<SplitPaymentsRequest>,
 }
 
 impl PaymentVoidData {

@@ -7808,6 +7808,7 @@ impl ForeignTryFrom<PaymentServiceVoidRequest> for PaymentVoidData {
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "connector metadata")))
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
+            split_payments: stripe_split_payment_to_domain(value.stripe_split_payment),
         })
     }
 }
