@@ -1367,20 +1367,21 @@ message AirlineLocation {
 
 message AirlinePassenger {
   optional uint32 sequence_no = 1;              // 1-based passenger order
-  optional string salutation = 2;               // Salutation, e.g. Mr / Ms (matches `Customer.salutation`)
-  optional string first_name = 3;               // Given name
-  optional string middle_name = 4;              // Middle name
-  optional string last_name = 5;                // Family name
-  optional string gender = 6;                   // M / F / X
-  optional SecretString email = 7;              // Passenger email
-  optional SecretString phone_number = 8;       // Passenger phone (incl. country code)
-  optional string date_of_birth = 9;            // Date of birth (yyyy-MM-dd)
-  optional string passenger_type = 10;          // IATA PTC, e.g. ADT
-  optional string frequent_flyer_number = 11;   // Loyalty / frequent-flyer number
-  optional string loyalty_tier = 12;            // Loyalty-program tier
-  optional SecretString passport_number = 13;   // Passport number
-  optional string nationality = 14;             // ISO 3166-1 alpha-2 nationality
-  optional SecretString ticket_number = 15;     // Per-passenger ticket number
+
+  // Identity fields shared with the cardholder/payer model — salutation,
+  // first_name, last_name, email (Secret) and phone_number (Secret).
+  optional Customer customer = 2;
+
+  // Passenger-specific fields not on Customer.
+  optional string middle_name = 3;              // Middle name
+  optional string gender = 4;                   // M / F / X
+  optional string date_of_birth = 5;            // Date of birth (yyyy-MM-dd)
+  optional string passenger_type = 6;           // IATA PTC, e.g. ADT
+  optional string frequent_flyer_number = 7;    // Loyalty / frequent-flyer number
+  optional string loyalty_tier = 8;             // Loyalty-program tier
+  optional SecretString passport_number = 9;    // Passport number
+  optional string nationality = 10;             // ISO 3166-1 alpha-2 nationality
+  optional SecretString ticket_number = 11;     // Per-passenger ticket number
 }
 
 // Redirection response data

@@ -3592,8 +3592,8 @@ impl ForeignTryFrom<grpc_payment_types::AirlineData> for connector_types::Airlin
             passengers: airline_data
                 .passengers
                 .into_iter()
-                .map(connector_types::AirlinePassenger::from)
-                .collect(),
+                .map(connector_types::AirlinePassenger::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
         })
     }
 }
@@ -3649,17 +3649,21 @@ impl From<grpc_payment_types::AirlineLocation> for connector_types::AirlineLocat
     }
 }
 
-impl From<grpc_payment_types::AirlinePassenger> for connector_types::AirlinePassenger {
-    fn from(passenger: grpc_payment_types::AirlinePassenger) -> Self {
-        Self {
+impl ForeignTryFrom<grpc_payment_types::AirlinePassenger> for connector_types::AirlinePassenger {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        passenger: grpc_payment_types::AirlinePassenger,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
             sequence_no: passenger.sequence_no,
-            salutation: passenger.salutation,
-            first_name: passenger.first_name,
+            customer: passenger
+                .customer
+                .as_ref()
+                .map(CustomerInfo::foreign_try_from)
+                .transpose()?,
             middle_name: passenger.middle_name,
-            last_name: passenger.last_name,
             gender: passenger.gender,
-            email: passenger.email,
-            phone_number: passenger.phone_number,
             date_of_birth: passenger.date_of_birth,
             passenger_type: passenger.passenger_type,
             frequent_flyer_number: passenger.frequent_flyer_number,
@@ -3667,7 +3671,7 @@ impl From<grpc_payment_types::AirlinePassenger> for connector_types::AirlinePass
             passport_number: passenger.passport_number,
             nationality: passenger.nationality,
             ticket_number: passenger.ticket_number,
-        }
+        })
     }
 }
 

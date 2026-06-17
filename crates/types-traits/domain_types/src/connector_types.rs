@@ -3990,13 +3990,11 @@ pub struct AirlineLocation {
 #[derive(Debug, Clone, Default)]
 pub struct AirlinePassenger {
     pub sequence_no: Option<u32>,
-    pub salutation: Option<String>,
-    pub first_name: Option<String>,
+    /// Identity fields shared with the payer model — salutation, first_name,
+    /// last_name, email and phone_number are read off here.
+    pub customer: Option<CustomerInfo>,
     pub middle_name: Option<String>,
-    pub last_name: Option<String>,
     pub gender: Option<String>,
-    pub email: Option<Secret<String>>,
-    pub phone_number: Option<Secret<String>>,
     pub date_of_birth: Option<String>,
     pub passenger_type: Option<String>,
     pub frequent_flyer_number: Option<String>,
