@@ -129,7 +129,7 @@ pub(crate) mod headers {
     pub(crate) const X_PAYLOAD_SIGNATURE: &str = "X-PAYLOAD-SIGNATURE";
 }
 
-macros::create_amount_converter_wrapper!(connector_name: Payload, amount_type: FloatMajorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Payload, amount_type: StringMajorUnit);
 macros::create_all_prerequisites!(
     connector_name: Payload,
     generic_type: T,
