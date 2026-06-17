@@ -823,6 +823,7 @@ impl PaymentService for Payments {
         )
         skip(self, request)
     )]
+    #[allow(clippy::large_futures)]
     async fn authorize(
         &self,
         request: tonic::Request<PaymentServiceAuthorizeRequest>,
