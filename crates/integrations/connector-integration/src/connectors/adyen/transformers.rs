@@ -7600,13 +7600,18 @@ fn get_adyen_split_request(
         .unwrap_or_else(|| (adyen_store.clone(), None))
 }
 
+/// Result of building Adyen refund split data: the optional `store` and the optional
+/// per-account `splits` to attach to the outbound refund request.
+type AdyenRefundSplitResult =
+    Result<(Option<String>, Option<Vec<AdyenSplitData>>), error_stack::Report<IntegrationError>>;
+
 /// Builds Adyen refund `store` + `splits` from the merchant-provided split refund data,
 /// mirroring HS `get_adyen_split_request` for the refund flow. The split type string is
 /// parsed into `AdyenSplitType` (PascalCase, identical to the HS-side enum).
 fn build_adyen_refund_split(
     split_data: &AdyenSplitRefundData,
     currency: common_enums::Currency,
-) -> Result<(Option<String>, Option<Vec<AdyenSplitData>>), error_stack::Report<IntegrationError>> {
+) -> AdyenRefundSplitResult {
     use std::str::FromStr;
 
     let splits = split_data

@@ -231,6 +231,10 @@ message CompositeRefundRequest {
 
   // Connector-side identifier for the original payment that this refund targets.
   optional string connector_order_id = 20;
+
+  // Split refund details for marketplace/platform connectors (e.g. Adyen split
+  // refunds). Mirrors the merchant-provided split_refunds on the refund request.
+  optional RefundSplitRequest split_refunds = 21;
 }
 
 // Response message for composite refund flow.
