@@ -4347,6 +4347,13 @@ impl<F> TryFrom<&RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseDat
                         },
                     })
                 }
+                domain_types::connector_types::SplitRefundsRequest::AdyenSplitRefund(_) => {
+                    Err(IntegrationError::InvalidDataFormat {
+                        field_name: "split_refunds",
+                        context: Default::default(),
+                    }
+                    .into())
+                }
             },
         }
     }

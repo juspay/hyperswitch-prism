@@ -8167,7 +8167,29 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
             integrity_object: None,
-            split_refunds: None,
+            split_refunds: value
+                .split_refunds
+                .and_then(|sr| sr.split_refund)
+                .map(|sr| match sr {
+                    grpc_api_types::payments::refund_split_request::SplitRefund::AdyenSplitRefund(
+                        a,
+                    ) => connector_types::SplitRefundsRequest::AdyenSplitRefund(
+                        connector_types::AdyenSplitRefundData {
+                            store: a.store,
+                            split_items: a
+                                .split_items
+                                .into_iter()
+                                .map(|i| connector_types::AdyenSplitRefundItem {
+                                    amount: i.amount.map(common_utils::types::MinorUnit::new),
+                                    split_type: i.split_type,
+                                    account: i.account,
+                                    reference: i.reference,
+                                    description: i.description,
+                                })
+                                .collect(),
+                        },
+                    ),
+                }),
             connector_order_id: value.connector_order_id,
             payment_method_data: value.payment_method.and_then(|pm| {
                 payment_method_data::PaymentMethodData::<

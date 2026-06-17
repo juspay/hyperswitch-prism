@@ -18,6 +18,7 @@ use domain_types::{
     connector_types::{
         AcceptDisputeData,
         AdyenClientAuthenticationResponse as AdyenClientAuthenticationResponseDomain,
+        AdyenSplitRefundData,
         CardDetailUpdate, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse, DisputeDefendData, DisputeFlowData,
         DisputeResponseData, EventType, MandateReference, MandateReferenceId,
@@ -25,7 +26,7 @@ use domain_types::{
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
-        SetupMandateRequestData, SubmitEvidenceData,
+        SetupMandateRequestData, SplitRefundsRequest, SubmitEvidenceData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
@@ -5962,6 +5963,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
 
+        let (store, splits) = match item.router_data.request.split_refunds.as_ref() {
+            Some(SplitRefundsRequest::AdyenSplitRefund(adyen_split_data)) => {
+                build_adyen_refund_split(adyen_split_data, item.router_data.request.currency)?
+            }
+            _ => (None, None),
+        };
+
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             amount: Amount {
@@ -5970,8 +5978,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             merchant_refund_reason: item.router_data.request.reason.clone(),
             reference: item.router_data.request.refund_id.clone(),
-            store: None,
-            splits: None,
+            store,
+            splits,
         })
     }
 }
@@ -7591,6 +7599,37 @@ fn get_adyen_split_request(
             (store, Some(splits))
         })
         .unwrap_or_else(|| (adyen_store.clone(), None))
+}
+
+/// Builds Adyen refund `store` + `splits` from the merchant-provided split refund data,
+/// mirroring HS `get_adyen_split_request` for the refund flow. The split type string is
+/// parsed into `AdyenSplitType` (PascalCase, identical to the HS-side enum).
+fn build_adyen_refund_split(
+    split_data: &AdyenSplitRefundData,
+    currency: common_enums::Currency,
+) -> Result<(Option<String>, Option<Vec<AdyenSplitData>>), error_stack::Report<IntegrationError>> {
+    use std::str::FromStr;
+
+    let splits = split_data
+        .split_items
+        .iter()
+        .map(|split_item| {
+            let split_type = AdyenSplitType::from_str(&split_item.split_type).change_context(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "split_refunds.split_items.split_type",
+                    context: Default::default(),
+                },
+            )?;
+            Ok(AdyenSplitData {
+                amount: split_item.amount.map(|value| Amount { currency, value }),
+                reference: split_item.reference.clone(),
+                split_type,
+                account: split_item.account.clone(),
+                description: split_item.description.clone(),
+            })
+        })
+        .collect::<Result<Vec<AdyenSplitData>, error_stack::Report<IntegrationError>>>()?;
+    Ok((split_data.store.clone(), Some(splits)))
 }
 
 // ---- ClientAuthenticationToken flow types ----

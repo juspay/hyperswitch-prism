@@ -2681,6 +2681,31 @@ message PaymentServiceRefundRequest {
 
   // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
   optional PaymentMethod payment_method = 19;
+
+  // Split refund details for marketplace/platform connectors (e.g. Adyen split
+  // refunds). Mirrors the merchant-provided split_refunds on the refund request.
+  optional RefundSplitRequest split_refunds = 20;
+}
+
+// Split refund details, mirroring the merchant-provided split_refunds.
+message RefundSplitRequest {
+  oneof split_refund {
+    AdyenSplitRefund adyen_split_refund = 1;
+  }
+}
+
+// Adyen split refund data (store + per-account split items).
+message AdyenSplitRefund {
+  optional string store = 1;
+  repeated AdyenRefundSplitItem split_items = 2;
+}
+
+message AdyenRefundSplitItem {
+  optional int64 amount = 1;        // minor-unit amount for this split item
+  string split_type = 2;            // Adyen split type, PascalCase (e.g. "BalanceAccount", "Commission")
+  optional string account = 3;      // account the split amount is allocated to
+  string reference = 4;             // unique reference for the split item
+  optional string description = 5;  // description for the split item
 }
 
 // Response message for a refund operation (unified for both Create and Get)

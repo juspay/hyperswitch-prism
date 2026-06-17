@@ -3857,6 +3857,25 @@ pub struct StripeChargeResponseData {
 #[derive(Debug, serde::Deserialize, Clone)]
 pub enum SplitRefundsRequest {
     StripeSplitRefund(StripeSplitRefund),
+    AdyenSplitRefund(AdyenSplitRefundData),
+}
+
+/// Adyen split refund data (store + per-account split items), carried from the
+/// merchant-provided `split_refunds` on the refund request.
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct AdyenSplitRefundData {
+    pub store: Option<String>,
+    pub split_items: Vec<AdyenSplitRefundItem>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct AdyenSplitRefundItem {
+    pub amount: Option<MinorUnit>,
+    /// Adyen split type, PascalCase (e.g. "BalanceAccount", "Commission").
+    pub split_type: String,
+    pub account: Option<String>,
+    pub reference: String,
+    pub description: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
