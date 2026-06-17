@@ -145,6 +145,7 @@ pub enum ConnectorEnum {
     PinelabsOnline,
     Easebuzz,
     Axisbank,
+    TsysTransit,
     TwocTwopPaco,
     Juspay,
     Payconex,
@@ -389,6 +390,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Easebuzz => Ok(Self::Easebuzz),
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
+            grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
             grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
@@ -1404,6 +1406,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// ```
     pub amount: MinorUnit,
     pub order_tax_amount: Option<MinorUnit>,
+    pub surcharge_amount: Option<Money>,
     pub email: Option<Email>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
     pub customer_name: Option<String>,
@@ -1455,6 +1458,10 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
     pub continue_redirection_url: Option<Url>,
     pub tokenization: Option<common_enums::Tokenization>,
+    /// For CIT (no mandate_id), signals the future intended MIT type.
+    /// For Authorize-as-MIT (mandate_id present), signals the actual MIT
+    /// category being processed. Mirrors `RepeatPaymentData.mit_category`.
+    pub mit_category: Option<common_enums::MitCategory>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -2311,6 +2318,19 @@ pub struct RefundSyncData {
     pub connector_order_id: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct RefundVoidPostRefundData {
+    pub connector_refund_id: String,
+    pub cancellation_reason: Option<String>,
+    pub refund_connector_metadata: Option<SecretSerdeValue>,
+    pub refund_status: common_enums::RefundStatus,
+    pub integrity_object: Option<RefundSyncIntegrityObject>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_feature_data: Option<SecretSerdeValue>,
+    pub refund_money: Option<common_utils::types::Money>,
+    pub connector_order_id: Option<String>,
+}
+
 impl RefundSyncData {
     pub fn get_connector_order_id(&self) -> Result<String, Error> {
         self.connector_order_id
@@ -3091,8 +3111,8 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<SecretSerdeValue>,
-    pub merchant_order_id: Option<String>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub merchant_order_id: Option<String>,
 }
 
 impl PaymentsCaptureData {
@@ -3163,6 +3183,9 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub enable_partial_authorization: Option<bool>,
     pub locale: Option<String>,
     pub connector_testing_data: Option<SecretSerdeValue>,
+    /// Signals the future intended MIT type for this CIT setup (e.g.
+    /// `Recurring`, `Installment`). Mirrors `RepeatPaymentData.mit_category`.
+    pub mit_category: Option<common_enums::MitCategory>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -4879,6 +4902,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
+            AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {
                 Ok(Self::Surcharge(SurchargeConnectorEnum::Interpayments))

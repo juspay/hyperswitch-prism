@@ -146,6 +146,7 @@ mod tests {
                     }),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: Some(email.clone()),
                     customer_name: None,
                     currency: Currency::USD,
@@ -209,6 +210,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+
+                    mit_category: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -339,6 +342,7 @@ mod tests {
                     }),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: None,
                     customer_name: None,
                     currency: Currency::USD,
@@ -381,6 +385,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+
+                    mit_category: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_01".to_string(),
@@ -485,6 +491,7 @@ mod tests {
                     }),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: Some(email),
                     customer_name: None,
                     currency: Currency::USD,
@@ -527,6 +534,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+
+                    mit_category: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_02".to_string(),
@@ -655,6 +664,7 @@ mod tests {
                     }),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: Some(email),
                     customer_name: None,
                     currency: Currency::USD,
@@ -718,6 +728,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+
+                    mit_category: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -1019,6 +1031,7 @@ mod tests {
                 }),
                 amount: MinorUnit::new(1000),
                 order_tax_amount: None,
+                surcharge_amount: None,
                 email: Some(email),
                 customer_name: None,
                 currency: Currency::USD,
@@ -1080,6 +1093,8 @@ mod tests {
                 redirect_response: None,
                 threeds_method_comp_ind: None,
                 tokenization: None,
+
+                mit_category: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1221,6 +1236,7 @@ mod tests {
                 }),
                 amount: MinorUnit::new(1000),
                 order_tax_amount: None,
+                surcharge_amount: None,
                 email: Some(email),
                 customer_name: None,
                 currency: Currency::USD,
@@ -1282,6 +1298,8 @@ mod tests {
                 redirect_response: None,
                 threeds_method_comp_ind: None,
                 tokenization: None,
+
+                mit_category: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1670,6 +1688,7 @@ mod tests {
                     }),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: None,
                     customer_name: None,
                     currency: Currency::USD,
@@ -1712,6 +1731,8 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+
+                    mit_category: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_INVALID".to_string(),

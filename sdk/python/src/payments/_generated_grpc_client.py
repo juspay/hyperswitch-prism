@@ -488,6 +488,13 @@ class GrpcRefundClient:
             "refund/refund_get",
             req, payment_pb2.RefundResponse,
         )
+    def void_post_refund(self, req: payment_pb2.RefundServiceVoidPostRefundRequest) -> payment_pb2.RefundResponse:
+        """RefundService.VoidPostRefund — Void/reverse a refund before processor settlement."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "refund/void_post_refund",
+            req, payment_pb2.RefundResponse,
+        )
 
 class GrpcSurchargeClient:
     """SurchargeService — gRPC sub-client."""

@@ -1,0 +1,703 @@
+{
+  "connector": "tsys_transit",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for tsysTransit"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: billing.address.line1 — Missing required field: billing.address.line1"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://stagegw.transnox.com/servlets/TransNox_API_Server",
+          "method": "Post",
+          "headers": {
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Capture><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionAmount>10.00</transactionAmount><transactionID>probe_connector_txn_001</transactionID><developerID>probe_dev_id</developerID></Capture>"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for tsysTransit"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for tsysTransit"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for tsysTransit"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for tsysTransit"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: billing.address.line1 — Missing required field: billing.address.line1"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by tsysTransit connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for tsysTransit"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for tsysTransit"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://stagegw.transnox.com/servlets/TransNox_API_Server",
+          "method": "Post",
+          "headers": {
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TransactionInquiry><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_connector_txn_001</transactionID><developerID>probe_dev_id</developerID></TransactionInquiry>"
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for tsysTransit"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for tsysTransit"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for tsysTransit"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: billing.address.line1 — Missing required field: billing.address.line1"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: billing.address.line1 — Missing required field: billing.address.line1"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for tsysTransit"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://stagegw.transnox.com/servlets/TransNox_API_Server",
+          "method": "Post",
+          "headers": {
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Return><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionAmount>10.00</transactionAmount><transactionID>probe_connector_txn_001</transactionID><developerID>probe_dev_id</developerID></Return>"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://stagegw.transnox.com/servlets/TransNox_API_Server",
+          "method": "Post",
+          "headers": {
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<TransactionInquiry><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_refund_id_001</transactionID><developerID>probe_dev_id</developerID></TransactionInquiry>"
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for tsysTransit"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: billing.address.line1 — Missing required field: billing.address.line1"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by tsysTransit"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for tsysTransit"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://stagegw.transnox.com/servlets/TransNox_API_Server",
+          "method": "Post",
+          "headers": {
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Void><deviceID>probe_id</deviceID><transactionKey>probe_key</transactionKey><transactionID>probe_connector_txn_001</transactionID><developerID>probe_dev_id</developerID><voidReason>POST_AUTH_USER_DECLINE</voidReason></Void>"
+        }
+      }
+    }
+  }
+}

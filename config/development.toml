@@ -164,6 +164,7 @@ pinelabs_online.base_url = "https://pluraluat.v2.pinepg.in/api/pay/v1"
 easebuzz.base_url = "https://testpay.easebuzz.in"
 easebuzz.secondary_base_url = "https://testdashboard.easebuzz.in"
 axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
+tsys_transit.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Server"
 
 # Generic Events Configuration
 [events]

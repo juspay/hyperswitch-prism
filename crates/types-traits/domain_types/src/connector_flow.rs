@@ -17,6 +17,9 @@ pub struct RSync;
 pub struct Refund;
 
 #[derive(Debug, Clone)]
+pub struct VoidPostRefund;
+
+#[derive(Debug, Clone)]
 pub struct Capture;
 
 #[derive(Debug, Clone)]
@@ -117,6 +120,7 @@ pub struct GetPaymentMethod;
 pub enum FlowName {
     Authorize,
     Refund,
+    VoidPostRefund,
     Rsync,
     Psync,
     Void,

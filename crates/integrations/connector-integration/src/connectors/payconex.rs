@@ -466,6 +466,7 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     // Flows that could be built against PayConex later but are not implemented yet.
     not_implemented: [
+        VoidPostRefund,
         CreateConnectorCustomer,
         CreateOrder,
         MandateRevoke,
