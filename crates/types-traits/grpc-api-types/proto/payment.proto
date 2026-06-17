@@ -2756,8 +2756,7 @@ message RefundResponse {
 message RefundServiceVoidPostRefundRequest {
   // Identification
   optional string merchant_refund_id = 1;
-  string connector_transaction_id = 2;
-  string connector_refund_id = 3;
+  string connector_refund_id = 2;
 
   // Reverse Details
   optional string cancellation_reason = 4;
