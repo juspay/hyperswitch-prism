@@ -3651,7 +3651,7 @@ impl From<grpc_payment_types::AirlinePassenger> for connector_types::AirlinePass
     fn from(p: grpc_payment_types::AirlinePassenger) -> Self {
         Self {
             sequence_no: p.sequence_no,
-            title: p.title,
+            salutation: p.salutation,
             first_name: p.first_name,
             middle_name: p.middle_name,
             last_name: p.last_name,
@@ -9765,7 +9765,7 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
             customer_name: value.name.clone().map(Into::into),
             first_name: value.first_name.clone().map(Into::into),
             last_name: value.last_name.clone().map(Into::into),
-            customer_phone_number: value.phone_number.clone().map(Into::into),
+            customer_phone_number: value.phone_number.clone(),
             customer_phone_country_code: value.phone_country_code.clone(),
             salutation: value.salutation.clone(),
         })
@@ -9815,7 +9815,7 @@ impl ForeignTryFrom<&grpc_api_types::payouts::Customer> for CustomerInfo {
             customer_name: value.name.clone().map(Into::into),
             first_name: value.first_name.clone().map(Into::into),
             last_name: value.last_name.clone().map(Into::into),
-            customer_phone_number: value.phone_number.clone().map(Into::into),
+            customer_phone_number: value.phone_number.clone(),
             customer_phone_country_code: value.phone_country_code.clone(),
             salutation: value.salutation.clone(),
         })
@@ -9832,7 +9832,7 @@ impl ForeignFrom<connector_types::CustomerInfo> for grpc_api_types::payments::Cu
             email: info
                 .customer_email
                 .map(|e| Secret::new(e.expose().expose().to_string())),
-            phone_number: info.customer_phone_number.map(|p| p.expose()),
+            phone_number: info.customer_phone_number,
             phone_country_code: info.customer_phone_country_code,
             salutation: info.salutation,
             ..Default::default()

@@ -4011,20 +4011,20 @@ pub struct AirlineLocation {
 #[derive(Debug, Clone, Default)]
 pub struct AirlinePassenger {
     pub sequence_no: Option<u32>,
-    pub title: Option<String>,
+    pub salutation: Option<String>,
     pub first_name: Option<String>,
     pub middle_name: Option<String>,
     pub last_name: Option<String>,
     pub gender: Option<String>,
-    pub email: Option<String>,
-    pub phone_number: Option<String>,
+    pub email: Option<Secret<String>>,
+    pub phone_number: Option<Secret<String>>,
     pub date_of_birth: Option<String>,
     pub passenger_type: Option<String>,
     pub frequent_flyer_number: Option<String>,
     pub loyalty_tier: Option<String>,
-    pub passport_number: Option<String>,
+    pub passport_number: Option<Secret<String>>,
     pub nationality: Option<String>,
-    pub ticket_number: Option<String>,
+    pub ticket_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Default)]

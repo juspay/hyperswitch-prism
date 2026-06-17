@@ -135,7 +135,7 @@ message Customer {
   optional string id = 3;          // Internal customer ID
   optional string connector_customer_id =
       4;                                  // Customer ID in the connector system
-  optional string phone_number = 5;       // Customer's phone number
+  optional SecretString phone_number = 5; // Customer's phone number
   optional string phone_country_code = 6; // Customer's phone country code
   optional string first_name = 7;       // Customer's first name
   optional string last_name = 8;        // Customer's last name
@@ -1367,20 +1367,20 @@ message AirlineLocation {
 
 message AirlinePassenger {
   optional uint32 sequence_no = 1;              // 1-based passenger order
-  optional string title = 2;                    // Salutation, e.g. Mr / Ms
+  optional string salutation = 2;               // Salutation, e.g. Mr / Ms (matches `Customer.salutation`)
   optional string first_name = 3;               // Given name
   optional string middle_name = 4;              // Middle name
   optional string last_name = 5;                // Family name
   optional string gender = 6;                   // M / F / X
-  optional string email = 7;                    // Passenger email
-  optional string phone_number = 8;             // Passenger phone (incl. country code)
+  optional SecretString email = 7;              // Passenger email
+  optional SecretString phone_number = 8;       // Passenger phone (incl. country code)
   optional string date_of_birth = 9;            // Date of birth (yyyy-MM-dd)
   optional string passenger_type = 10;          // IATA PTC, e.g. ADT
   optional string frequent_flyer_number = 11;   // Loyalty / frequent-flyer number
   optional string loyalty_tier = 12;            // Loyalty-program tier
-  optional string passport_number = 13;         // Passport number
+  optional SecretString passport_number = 13;   // Passport number
   optional string nationality = 14;             // ISO 3166-1 alpha-2 nationality
-  optional string ticket_number = 15;           // Per-passenger ticket number
+  optional SecretString ticket_number = 15;     // Per-passenger ticket number
 }
 
 // Redirection response data
@@ -3950,7 +3950,7 @@ message CustomerServiceCreateRequest {
   // Customer Information
   optional string customer_name = 2; // Name of the customer
   optional SecretString email = 3;   // Email address of the customer
-  optional string phone_number = 4;  // Phone number of the customer
+  optional SecretString phone_number = 4;  // Phone number of the customer
 
   // Address Information
   optional PaymentAddress address = 5;
@@ -4010,7 +4010,7 @@ message CustomerServiceUpdateRequest {
   string connector_customer_id = 2;
   optional string customer_name = 3; // Name of the customer
   optional SecretString email = 4;   // Email address of the customer
-  optional string phone_number = 5;  // Phone number of the customer
+  optional SecretString phone_number = 5;  // Phone number of the customer
 
   // Address Information
   optional PaymentAddress address = 6;
