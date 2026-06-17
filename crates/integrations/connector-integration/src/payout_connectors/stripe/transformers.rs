@@ -729,7 +729,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     external_account_country: country,
                     external_account_currency: currency,
                     external_account_account_holder_name: account_holder_name,
-                    external_account_account_holder_type: STRIPE_ACCOUNT_TYPE_INDIVIDUAL.to_string(),
+                    external_account_account_holder_type: STRIPE_ACCOUNT_TYPE_INDIVIDUAL
+                        .to_string(),
                     external_account_account_number: ach.bank_account_number.clone(),
                     external_account_routing_number: ach.bank_routing_number.clone(),
                 }))
