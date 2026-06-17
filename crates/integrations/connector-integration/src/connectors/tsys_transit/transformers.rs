@@ -1244,10 +1244,17 @@ impl TryFrom<&ConnectorSpecificConfig> for TsysTransitAuthType {
                 transaction_key: transaction_key.to_owned(),
                 developer_id: developer_id.to_owned(),
             }),
-            _ => Err(IntegrationError::FailedToObtainAuthType {
+            _ => Err(error_stack::report!(IntegrationError::FailedToObtainAuthType {
                 context: Default::default(),
-            }
-            .into()),
+            })
+            .attach_printable(
+                "tsys_transit: expected `ConnectorSpecificConfig::TsysTransit` with \
+                 `device_id`, `transaction_key` and `developer_id` populated on the \
+                 merchant connector account. Confirm the MCA is provisioned with the \
+                 TSYS TransIT SignatureKey auth type (deviceID + transactionKey from \
+                 TSYS' GenKey flow, developerID from your TSYS integration credentials). \
+                 See: https://developer.tsys.com/tsys-transit/getting-started/authentication",
+            )),
         }
     }
 }
