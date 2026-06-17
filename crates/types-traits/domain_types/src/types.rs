@@ -7906,11 +7906,8 @@ impl ForeignTryFrom<RefundServiceVoidPostRefundRequest> for RefundVoidPostRefund
     }
 }
 
-/// State metadata persisted on the refund after a VoidPostRefund attempt.
-/// Carries the underlying connector void result while the user-facing
-/// refund status remains `RefundSuccess`. Field names mirror what
-/// `hyperswitch::core::refunds::build_cancel_post_refund_metadata`
-/// expects, so the HS side never has to fall back.
+/// Wire shape consumed by HS-side `build_cancel_post_refund_metadata`;
+/// carries the real connector void status under a `RefundSuccess` envelope.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VoidPostRefundStateMetadata {
     pub status: common_enums::RefundStatus,
@@ -7938,11 +7935,19 @@ pub fn generate_void_post_refund_response(
 
     match refund_response {
         Ok(response) => {
+            // Surface serialization failure — an empty blob looks like a successful void.
             let state_metadata = serde_json::to_string(&VoidPostRefundStateMetadata {
                 status: response.refund_status,
                 connector_refund_id: Some(response.connector_refund_id.clone()),
             })
-            .unwrap_or_default();
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(
+                        "VoidPostRefund: failed to serialise state_metadata.".to_string(),
+                    ),
+                },
+            })?;
 
             Ok(RefundResponse {
                 connector_transaction_id: None,
@@ -8029,7 +8034,17 @@ pub fn generate_void_post_refund_response(
                     status: common_enums::RefundStatus::Failure,
                     connector_refund_id: Some(router_data_v2.request.connector_refund_id.clone()),
                 })
-                .unwrap_or_default(),
+                // Same reasoning as the success arm: don't lose the Failure signal.
+                .change_context(ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: None,
+                        additional_context: Some(
+                            "VoidPostRefund: failed to serialise state_metadata on the \
+                             error path."
+                                .to_string(),
+                        ),
+                    },
+                })?,
             )),
         }),
     }
