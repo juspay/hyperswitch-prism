@@ -25,7 +25,13 @@
           },
           "capture_method": "AUTOMATIC",
           "address": {
-            "billing_address": {}
+            "billing_address": {
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
@@ -45,7 +51,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"payment_method\":{\"type\":\"bank_account\",\"bank_account\":{\"account_number\":\"000123456789\",\"routing_number\":\"110000000\",\"account_type\":\"checking\"},\"account_holder\":\"John Doe\",\"keep_active\":false},\"type\":\"payment\"}"
+          "body": "{\"amount\":\"10.00\",\"payment_method\":{\"type\":\"bank_account\",\"bank_account\":{\"account_class\":null,\"account_currency\":\"USD\",\"account_number\":\"000123456789\",\"account_type\":\"checking\",\"routing_number\":\"110000000\"},\"account_holder\":\"John Doe\",\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":false},\"type\":\"payment\"}"
         }
       },
       "AchBankTransfer": {
@@ -177,7 +183,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"4111111111111111\",\"expiry\":\"03/30\",\"card_code\":\"737\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":false},\"type\":\"payment\"}"
+          "body": "{\"amount\":\"10.00\",\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"4111111111111111\",\"expiry\":\"03/30\",\"card_code\":\"737\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":false},\"type\":\"payment\"}"
         }
       },
       "CashappQr": {
@@ -581,7 +587,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"type\":\"client\",\"intent\":{\"payment_form\":{\"payment\":{\"amount\":10.0,\"description\":\"probe_sdk_session_001\"}}}}"
+          "body": "{\"type\":\"client\",\"intent\":{\"payment_form\":{\"payment\":{\"amount\":\"10.00\",\"description\":\"probe_sdk_session_001\"}}}}"
         }
       }
     },
@@ -768,7 +774,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"{{$card_number}}\",\"expiry\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"card_code\":\"{{$card_cvc}}\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":false},\"type\":\"payment\"}"
+          "body": "{\"amount\":\"10.00\",\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"{{$card_number}}\",\"expiry\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"card_code\":\"{{$card_cvc}}\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":false},\"type\":\"payment\"}"
         }
       }
     },
@@ -820,7 +826,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":0.0,\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"{{$card_number}}\",\"expiry\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"card_code\":\"{{$card_cvc}}\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":true},\"type\":\"payment\"}"
+          "body": "{\"amount\":\"0\",\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"{{$card_number}}\",\"expiry\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"card_code\":\"{{$card_cvc}}\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":true},\"type\":\"payment\"}"
         }
       }
     },
@@ -864,7 +870,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"type\":\"payment\",\"payment_method_id\":\"probe-mandate-123\"}"
+          "body": "{\"amount\":\"10.00\",\"type\":\"payment\",\"payment_method_id\":\"probe-mandate-123\"}"
         }
       }
     },
@@ -902,7 +908,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"type\":\"refund\",\"amount\":10.0,\"ledger\":[{\"assoc_transaction_id\":\"probe_connector_txn_001\"}]}"
+          "body": "{\"type\":\"refund\",\"amount\":\"10.00\",\"ledger\":[{\"assoc_transaction_id\":\"probe_connector_txn_001\"}]}"
         }
       }
     },
@@ -990,7 +996,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":0.0,\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"4111111111111111\",\"expiry\":\"03/30\",\"card_code\":\"737\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":true},\"type\":\"payment\"}"
+          "body": "{\"amount\":\"0\",\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"4111111111111111\",\"expiry\":\"03/30\",\"card_code\":\"737\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":true},\"type\":\"payment\"}"
         }
       }
     },
@@ -1025,7 +1031,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":10.0,\"type\":\"payment\",\"payment_method_id\":\"pm_1AbcXyzStripeTestToken\"}"
+          "body": "{\"amount\":\"10.00\",\"type\":\"payment\",\"payment_method_id\":\"pm_1AbcXyzStripeTestToken\"}"
         }
       }
     },
