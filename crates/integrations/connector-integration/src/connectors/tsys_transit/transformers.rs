@@ -1255,14 +1255,19 @@ pub struct TsysTransitErrorResponse {
 }
 
 fn format_expiration_date(card: &Card<impl PaymentMethodDataTypes>) -> Secret<String> {
-    let month = card.card_exp_month.peek().clone();
-    let year_full = card.card_exp_year.peek().clone();
-    let year_short = if year_full.len() == 4 {
-        year_full[2..].to_string()
+    // TSYS TransIT expects `MM/YY`. Zero-pad both halves so a single-digit
+    // month or a 2-digit year delivered by the upstream caller still
+    // produce a network-valid expiration string (e.g. "3"/"25" -> "03/25",
+    // "12"/"2028" -> "12/28").
+    let month_raw = card.card_exp_month.peek();
+    let year_raw = card.card_exp_year.peek();
+    let month = format!("{month_raw:0>2}");
+    let year_short = if year_raw.len() >= 4 {
+        year_raw[year_raw.len() - 2..].to_string()
     } else {
-        year_full
+        format!("{year_raw:0>2}")
     };
-    Secret::new(format!("{}/{}", month, year_short))
+    Secret::new(format!("{month}/{year_short}"))
 }
 
 fn format_decimal(value: f64) -> String {
