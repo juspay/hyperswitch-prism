@@ -1140,12 +1140,19 @@ fn compute_recurring_context(
     if matches!(mit_category.as_ref(), Some(MitCategory::Installment))
         && (mm.payment_count.is_none() || mm.current_payment_count.is_none())
     {
-        return Err(IntegrationError::MissingRequiredField {
-            field_name:
-                "recurring_mandate_payment_data.mandate_metadata.{payment_count,current_payment_count} required when mit_category=Installment",
+        return Err(error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name: "recurring_mandate_payment_data.mandate_metadata.{payment_count,current_payment_count}",
             context: Default::default(),
-        }
-        .into());
+        })
+        .attach_printable(
+            "tsys_transit: installment MIT requires both `paymentCount` (total number of \
+             scheduled installments, e.g. 12) and `currentPaymentCount` (1-indexed position \
+             of this charge in the schedule, e.g. 3) on the TransIT Sale/Auth request — \
+             without them TSYS rejects the transaction at the gateway. Populate \
+             `recurring_mandate_payment_data.mandate_metadata.payment_count` and \
+             `.current_payment_count` upstream, or pick a non-Installment `mit_category`. \
+             See: https://developer.tsys.com/tsys-transit/api/installment-payments",
+        ));
     }
 
     let discover_family_mit_indicator = match (mit_category.as_ref(), card_network) {
