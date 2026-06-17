@@ -16,7 +16,7 @@ use domain_types::{
         VoidPC,
     },
     connector_types::{
-        AcceptDisputeData,
+        self, AcceptDisputeData,
         AdyenClientAuthenticationResponse as AdyenClientAuthenticationResponseDomain,
         CardDetailUpdate, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse, DisputeDefendData, DisputeFlowData,
@@ -41,8 +41,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_request_types::SyncRequestType,
     router_response_types::RedirectForm,
-    utils as domain_utils,
-    utils::get_timestamp_in_milliseconds,
+    utils::{self as domain_utils, get_timestamp_in_milliseconds},
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
@@ -2257,7 +2256,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let adyen_metadata =
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
-        let store = adyen_metadata.store.clone(); // no split payment support yet
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) => {
+                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+            }
+            _ => (adyen_metadata.store.clone(), None),
+        };
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
         let country_code =
@@ -2361,7 +2365,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_id.clone(),
             store,
-            splits: None,
+            splits,
             device_fingerprint,
             metadata: item
                 .router_data
@@ -5911,9 +5915,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
 
         let (store, splits) = match item.router_data.request.split_refunds.as_ref() {
-            Some(domain_types::connector_types::SplitRefundsRequest::AdyenSplitRefund(
-                adyen_split_data,
-            )) => get_adyen_split_request(adyen_split_data, item.router_data.request.currency),
+            Some(connector_types::SplitRefundsRequest::AdyenSplitRefund(adyen_split_data)) => {
+                get_adyen_split_request(adyen_split_data, item.router_data.request.currency)
+            }
             _ => (
                 item.router_data
                     .request
@@ -6024,6 +6028,7 @@ pub struct AdyenCaptureResponse {
     amount: Amount,
     merchant_reference: Option<String>,
     store: Option<String>,
+    splits: Option<Vec<AdyenSplitData>>,
 }
 
 impl<F> TryFrom<ResponseRouterData<AdyenCaptureResponse, Self>>
@@ -7525,7 +7530,7 @@ impl AdditionalData {
 }
 
 fn get_adyen_split_request(
-    split_request: &domain_types::connector_types::AdyenSplitData,
+    split_request: &connector_types::AdyenSplitData,
     currency: common_enums::enums::Currency,
 ) -> (Option<String>, Option<Vec<AdyenSplitData>>) {
     let splits = split_request

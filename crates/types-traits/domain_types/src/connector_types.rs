@@ -3829,6 +3829,9 @@ pub struct StripeSplitPaymentRequest {
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -3837,6 +3840,8 @@ pub struct StripeSplitPaymentRequest {
 pub enum ConnectorChargeResponseData {
     /// StripeChargeResponseData
     StripeSplitPayment(StripeChargeResponseData),
+    /// AdyenChargeResponseData
+    AdyenSplitPayment(AdyenSplitData),
 }
 
 /// Fee information to be charged on the payment being collected via Stripe
