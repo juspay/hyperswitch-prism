@@ -8170,7 +8170,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
             split_refunds: value
                 .split_refunds
                 .and_then(|sr| sr.split_refund)
-                .map(|sr| match sr {
+                .map(|sr| {
+                    match sr {
                     grpc_api_types::payments::refund_split_request::SplitRefund::AdyenSplitRefund(
                         a,
                     ) => connector_types::SplitRefundsRequest::AdyenSplitRefund(
@@ -8189,6 +8190,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
                                 .collect(),
                         },
                     ),
+                }
                 }),
             connector_order_id: value.connector_order_id,
             payment_method_data: value.payment_method.and_then(|pm| {
