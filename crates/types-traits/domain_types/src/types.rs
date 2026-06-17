@@ -2998,7 +2998,9 @@ fn split_payments_from_grpc(
                         common_enums::StripeChargeType::Destination,
                     )
                 }
-                _ => common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct),
+                _ => {
+                    common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct)
+                }
             };
             Some(connector_types::SplitPaymentsRequest::StripeSplitPayment(
                 connector_types::StripeSplitPaymentRequest {
