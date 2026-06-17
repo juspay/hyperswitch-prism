@@ -139,7 +139,7 @@ macro_rules! default_impl_payment_method_eligibility_v2_single {
 }
 
 #[macro_export]
-macro_rules! default_impl_payment_eligibility_v2 {
+macro_rules! default_impl_payment_method_eligibility_v2 {
     (
         $( not_supported: [ $($ns:ident),* $(,)? ] $(,)? )?
         $( not_implemented: [ $($ni:ident),* $(,)? ] $(,)? )?
@@ -750,7 +750,7 @@ default_impl_get_payment_method_v2!(
     Zift,
 );
 
-default_impl_payment_eligibility_v2!(
+default_impl_payment_method_eligibility_v2!(
     not_supported: [
         Adyen,
         Authorizedotnet,
