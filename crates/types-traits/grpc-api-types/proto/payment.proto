@@ -5185,7 +5185,7 @@ enum AdyenSplitType {
 }
 
 // ============================================================================
-// SPLIT PAYMENT TYPES (for authorize)
+// SPLIT PAYMENT TYPES
 // ============================================================================
 
 // Request for split payments (platform fees, transfers, etc.)
