@@ -1264,30 +1264,26 @@ message L2L3Data {
   optional TaxInfo tax_info = 2;
 }
 
-// Domain-specific data supplied by the merchant. Holds optional, vertical
-// payloads (airline today; lodging/car/etc. can be added later) that
-// connectors map into their own request shapes.
+// Domain-specific data supplied by the merchant.
 message DomainData {
   optional AirlineData airline_data = 1; // Airline / travel itinerary data
 }
 
-// Whether the ticket can be refunded (CyberSource restrictedTicketIndicator,
-// Nuvei restrictedTicketIndicator, Worldpay ticket@restricted).
+// Whether the ticket can be refunded 
 enum TicketRefundability {
   TICKET_REFUNDABILITY_UNSPECIFIED = 0;
   REFUNDABLE = 1;
   NON_REFUNDABLE = 2;
 }
 
-// Ticket medium — electronic vs paper (CyberSource electronicTicketIndicator).
+// Ticket medium — electronic vs paper
 enum TicketDeliveryType {
   TICKET_DELIVERY_TYPE_UNSPECIFIED = 0;
   ELECTRONIC = 1;
   PAPER = 2;
 }
 
-// Whether the cardholder is among the passengers (Nuvei isCardholderTraveling) —
-// a fraud signal.
+// Whether the cardholder is among the passengers a fraud signal.
 enum CardholderTravelStatus {
   CARDHOLDER_TRAVEL_STATUS_UNSPECIFIED = 0;
   CARDHOLDER_TRAVELING = 1;
