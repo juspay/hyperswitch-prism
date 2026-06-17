@@ -3,6 +3,7 @@ use common_utils::errors::ErrorSwitch;
 use domain_types::errors::{
     ApiClientError, ConnectorError, ConnectorFlowError, IntegrationError, WebhookError,
 };
+use domain_types::router_data::ErrorResponse;
 use tonic::Status;
 
 use crate::logger;
@@ -212,5 +213,21 @@ impl IntoGrpcStatus for error_stack::Report<WebhookError> {
             | WebhookError::WebhookAmountConversionFailed { .. }
             | WebhookError::WebhookResponseEncodingFailed => Status::internal(msg),
         }
+    }
+}
+
+/// Extract a structured `ErrorResponse` from a `ConnectorFlowError` report when
+/// the underlying error is a connector-side 4xx/5xx (`ConnectorErrorResponse`).
+///
+/// Returns `None` for all other error variants (transport failures, UCS-side
+/// transformation errors, etc.) — those should still be mapped to `tonic::Status`.
+pub fn extract_connector_error_response(
+    err: &error_stack::Report<ConnectorFlowError>,
+) -> Option<ErrorResponse> {
+    match err.current_context() {
+        ConnectorFlowError::Response(ConnectorError::ConnectorErrorResponse(error_response)) => {
+            Some(error_response.clone())
+        }
+        _ => None,
     }
 }

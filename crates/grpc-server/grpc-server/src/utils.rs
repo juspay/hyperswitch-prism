@@ -587,6 +587,9 @@ macro_rules! implement_connector_operation {
             let specific_request_data = $request_data_constructor((payload.clone(), payment_method_data))
                 .into_grpc_status()?;
 
+            let fallback_request = specific_request_data.clone();
+            let fallback_flow_data = common_flow_data.clone();
+
             // Create router data
             let router_data = domain_types::router_data_v2::RouterDataV2::<
                 $flow_marker,
@@ -631,7 +634,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
             };
-            let response_result = external_services::service::execute_connector_processing_step(
+            let response_result = match external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
                 router_data,
@@ -643,8 +646,19 @@ macro_rules! implement_connector_operation {
                 api_tag,
             )
             .await
-            .switch()
-            .into_grpc_status()?;
+            {
+                Ok(rd) => rd,
+                Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                    Some(error_response) => domain_types::router_data_v2::RouterDataV2 {
+                        flow: std::marker::PhantomData,
+                        resource_common_data: fallback_flow_data,
+                        connector_config: metadata_payload.connector_config.clone(),
+                        request: fallback_request,
+                        response: Err(error_response),
+                    },
+                    None => return Err(ucs_env::error::IntoGrpcStatus::into_grpc_status(err.switch())),
+                },
+            };
 
             // Generate response
             let final_response = $generate_response_fn(response_result)
@@ -737,6 +751,9 @@ macro_rules! implement_connector_operation {
             let common_flow_data = $common_flow_data_constructor((payload.clone(), config.connectors.clone(), &masked_metadata))
                 .into_grpc_status()?;
 
+            let fallback_request = specific_request_data.clone();
+            let fallback_flow_data = common_flow_data.clone();
+
             // Create router data
             let router_data = domain_types::router_data_v2::RouterDataV2::<
                 $flow_marker,
@@ -781,7 +798,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
             };
-            let response_result = external_services::service::execute_connector_processing_step(
+            let response_result = match external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
                 router_data,
@@ -793,7 +810,19 @@ macro_rules! implement_connector_operation {
                 api_tag,
             )
             .await
-            .into_grpc_status()?;
+            {
+                Ok(rd) => rd,
+                Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                    Some(error_response) => domain_types::router_data_v2::RouterDataV2 {
+                        flow: std::marker::PhantomData,
+                        resource_common_data: fallback_flow_data,
+                        connector_config: metadata_payload.connector_config.clone(),
+                        request: fallback_request,
+                        response: Err(error_response),
+                    },
+                    None => return Err(ucs_env::error::IntoGrpcStatus::into_grpc_status(err)),
+                },
+            };
 
             // Generate response
             let final_response = $generate_response_fn(response_result)
@@ -869,6 +898,9 @@ macro_rules! implement_connector_operation {
             let common_flow_data = $common_flow_data_constructor((payload.clone(), config.connectors.clone(), &masked_metadata))
                 .into_grpc_status()?;
 
+            let fallback_request = specific_request_data.clone();
+            let fallback_flow_data = common_flow_data.clone();
+
             // Create router data
             let router_data = domain_types::router_data_v2::RouterDataV2::<
                 $flow_marker,
@@ -912,7 +944,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
             };
-            let response_result = external_services::service::execute_connector_processing_step(
+            let response_result = match external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
                 router_data,
@@ -924,7 +956,19 @@ macro_rules! implement_connector_operation {
                 api_tag,
             )
             .await
-            .into_grpc_status()?;
+            {
+                Ok(rd) => rd,
+                Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                    Some(error_response) => domain_types::router_data_v2::RouterDataV2 {
+                        flow: std::marker::PhantomData,
+                        resource_common_data: fallback_flow_data,
+                        connector_config: metadata_payload.connector_config.clone(),
+                        request: fallback_request,
+                        response: Err(error_response),
+                    },
+                    None => return Err(ucs_env::error::IntoGrpcStatus::into_grpc_status(err)),
+                },
+            };
 
             // Generate response
             let final_response = $generate_response_fn(response_result)

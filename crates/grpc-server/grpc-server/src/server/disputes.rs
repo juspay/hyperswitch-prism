@@ -141,6 +141,9 @@ impl DisputeService for Disputes {
                         DisputeFlowData::foreign_try_from((payload.clone(), connectors))
                             .map_err(|e| e.into_grpc_status())?;
 
+                    let fallback_flow_data = dispute_flow_data.clone();
+                    let fallback_config = connector_config.clone();
+                    let fallback_request = dispute_data.clone();
                     let router_data: RouterDataV2<
                         SubmitEvidence,
                         DisputeFlowData,
@@ -170,7 +173,7 @@ impl DisputeService for Disputes {
                         return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
-                    let response = Box::pin(
+                    let response = match Box::pin(
                         external_services::service::execute_connector_processing_step(
                             &config.proxy,
                             connector_integration,
@@ -184,7 +187,19 @@ impl DisputeService for Disputes {
                         ),
                     )
                     .await
-                    .into_grpc_status()?;
+                    {
+                        Ok(rd) => rd,
+                        Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                            Some(error_response) => RouterDataV2 {
+                                flow: std::marker::PhantomData,
+                                resource_common_data: fallback_flow_data,
+                                connector_config: fallback_config,
+                                request: fallback_request,
+                                response: Err(error_response),
+                            },
+                            None => return Err(IntoGrpcStatus::into_grpc_status(err)),
+                        },
+                    };
 
                     let dispute_response = generate_submit_evidence_response(response)
                         .map_err(|e| e.into_grpc_status())?;
@@ -366,6 +381,9 @@ impl DisputeService for Disputes {
                         DisputeFlowData::foreign_try_from((payload.clone(), connectors))
                             .map_err(|e| e.into_grpc_status())?;
 
+                    let fallback_flow_data = dispute_flow_data.clone();
+                    let fallback_config = connector_config.clone();
+                    let fallback_request = dispute_data.clone();
                     let router_data: RouterDataV2<
                         Accept,
                         DisputeFlowData,
@@ -396,7 +414,7 @@ impl DisputeService for Disputes {
                         return_raw_connector_data: config.common.return_raw_connector_data,
                     };
 
-                    let response = Box::pin(
+                    let response = match Box::pin(
                         external_services::service::execute_connector_processing_step(
                             &config.proxy,
                             connector_integration,
@@ -410,7 +428,19 @@ impl DisputeService for Disputes {
                         ),
                     )
                     .await
-                    .into_grpc_status()?;
+                    {
+                        Ok(rd) => rd,
+                        Err(err) => match ucs_env::error::extract_connector_error_response(&err) {
+                            Some(error_response) => RouterDataV2 {
+                                flow: std::marker::PhantomData,
+                                resource_common_data: fallback_flow_data,
+                                connector_config: fallback_config,
+                                request: fallback_request,
+                                response: Err(error_response),
+                            },
+                            None => return Err(IntoGrpcStatus::into_grpc_status(err)),
+                        },
+                    };
 
                     let dispute_response = generate_accept_dispute_response(response)
                         .map_err(|e| e.into_grpc_status())?;
