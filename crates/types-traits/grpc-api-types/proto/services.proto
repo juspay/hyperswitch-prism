@@ -55,6 +55,9 @@
 //   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
 //   │ PaymentMethodAuthenticationService   │ Execute 3D Secure authentication flows. Verify cardholder identity through  │
 //   │                                      │ frictionless or challenge-based checks to reduce fraud liability.           │
+//   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
+//   │ FraudAndRiskManagementService        │ Evaluate fraud risk before and after payment processing. Analyze            │
+//   │                                      │ transaction details to approve, reject, or flag payments for review.        │
 //   └──────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────┘
 //
 //
@@ -69,6 +72,7 @@ package types;
 import "payment.proto";
 import "payouts.proto";
 import "surcharge.proto";
+import "frm.proto";
 
 option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
@@ -351,5 +355,21 @@ service PayoutService {
 service SurchargeService {
   // Calculate surcharge fees for a payment amount before processing.
   rpc Calculate(SurchargeServiceCalculateRequest) returns (SurchargeServiceCalculateResponse);
+}
+
+// ============================================================================
+// FRAUD AND RISK MANAGEMENT SERVICE -- Evaluates transactions for fraud
+//                                          risk before and after payment processing.
+// ============================================================================
+
+service FraudAndRiskManagementService {
+  // Evaluate fraud risk before payment processing. Analyzes transaction details,
+  // customer behavior, and device fingerprints to determine if the payment
+  // should proceed, be rejected, or flagged for manual review.
+  rpc PreRiskCheck(FrmServicePreRiskCheckRequest) returns (FrmServicePreRiskCheckResponse);
+
+  // Evaluate fraud risk after payment processing. Analyzes payment outcomes
+  // and post-transaction signals to refine risk models and detect chargeback fraud.
+  rpc PostRiskCheck(FrmServicePostRiskCheckRequest) returns (FrmServicePostRiskCheckResponse);
 }
 

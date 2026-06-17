@@ -103,8 +103,8 @@ jest.mock("hyperswitch-prism", () => {
   }
 })
 
-import PrismService from "../../medusa-unified-payment/src/providers/prism"
-import { recordWebhookOutcome } from "../../medusa-unified-payment/src/providers/connector/webhook-common"
+import PrismService from "../../medusa-custom-payments/src/providers/prism"
+import { recordWebhookOutcome } from "../../medusa-custom-payments/src/providers/connector/webhook-common"
 import { ConnectorError, IntegrationError } from "hyperswitch-prism"
 
 describe("PrismService — remaining methods (unit)", () => {
@@ -501,6 +501,88 @@ describe("PrismService — remaining methods (unit)", () => {
       await expect(
         service.cancel({ data: baseData, context: {} } as any)
       ).rejects.toThrow("[Hyperswitch Prism] An error occurred in cancelPayment")
+    })
+
+    it("skips void for an initiated-only paypal session", async () => {
+      const service = buildService("paypal", { apiKey: { value: "sk" } })
+      ;(service as any).paymentClient_ = paymentClientMock
+
+      const data = {
+        id: "sess_1",
+        paypalOrderId: "ORDER1",
+        merchantClientSessionId: "sess_1",
+        connector: "paypal",
+      }
+      const result = await service.cancel({ data, context: {} } as any)
+
+      expect(paymentClientMock.void).not.toHaveBeenCalled()
+      expect(result.data).toEqual(data)
+    })
+
+    it("still voids an authorized paypal session", async () => {
+      const service = buildService("paypal", { apiKey: { value: "sk" } })
+      paymentClientMock.void.mockResolvedValue({} as any)
+      ;(service as any).paymentClient_ = paymentClientMock
+
+      const data = {
+        id: "sess_1",
+        paypalOrderId: "ORDER1",
+        connectorTransactionId: "txn_1",
+        merchantClientSessionId: "sess_1",
+        connector: "paypal",
+      }
+      await service.cancel({ data, context: { idempotency_key: "void_1" } } as any)
+
+      expect(paymentClientMock.void).toHaveBeenCalledWith(
+        expect.objectContaining({ connectorTransactionId: "sess_1" })
+      )
+    })
+
+    it("skips void for an initiated-only adyen session", async () => {
+      const service = buildService("adyen", { apiKey: { value: "sk" } })
+      ;(service as any).paymentClient_ = paymentClientMock
+
+      const data = {
+        id: "client_token_1",
+        merchantClientSessionId: "sess_1",
+        connector: "adyen",
+      }
+      const result = await service.cancel({ data, context: {} } as any)
+
+      expect(paymentClientMock.void).not.toHaveBeenCalled()
+      expect(result.data).toEqual(data)
+    })
+
+    it("skips void for a stripe session that fell back to the session id", async () => {
+      const service = buildService("stripe", { apiKey: { value: "sk" } })
+      ;(service as any).paymentClient_ = paymentClientMock
+
+      const data = {
+        id: "sess_1",
+        merchantClientSessionId: "sess_1",
+        connector: "stripe",
+      }
+      const result = await service.cancel({ data, context: {} } as any)
+
+      expect(paymentClientMock.void).not.toHaveBeenCalled()
+      expect(result.data).toEqual(data)
+    })
+
+    it("still voids a stripe session with a real PaymentIntent id", async () => {
+      const service = buildService("stripe", { apiKey: { value: "sk" } })
+      paymentClientMock.void.mockResolvedValue({} as any)
+      ;(service as any).paymentClient_ = paymentClientMock
+
+      const data = {
+        id: "pi_123",
+        merchantClientSessionId: "sess_1",
+        connector: "stripe",
+      }
+      await service.cancel({ data, context: { idempotency_key: "void_1" } } as any)
+
+      expect(paymentClientMock.void).toHaveBeenCalledWith(
+        expect.objectContaining({ connectorTransactionId: "pi_123" })
+      )
     })
   })
 
