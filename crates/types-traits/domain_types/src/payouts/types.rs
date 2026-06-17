@@ -135,9 +135,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payouts::Customer>
-    for payouts::payouts_types::PayoutCustomer
-{
+impl ForeignTryFrom<grpc_api_types::payouts::Customer> for payouts::payouts_types::PayoutCustomer {
     type Error = IntegrationError;
 
     fn foreign_try_from(
@@ -164,7 +162,9 @@ impl ForeignTryFrom<grpc_api_types::payouts::Customer>
             email,
             merchant_customer_id: customer.id,
             connector_customer_id: customer.connector_customer_id,
-            phone_number: customer.phone_number.map(::hyperswitch_masking::Secret::new),
+            phone_number: customer
+                .phone_number
+                .map(::hyperswitch_masking::Secret::new),
             phone_country_code: customer.phone_country_code,
         })
     }
