@@ -20,6 +20,7 @@ export { AdyenWrapper } from "./connectors/adyen/AdyenWrapper";
 export { StripeWrapper } from "./connectors/stripe/StripeWrapper";
 export { PayPalWrapper } from "./connectors/paypal/PayPalWrapper";
 export { GlobalPayWrapper } from "./connectors/globalpay/GlobalPayWrapper";
+export { MollieWrapper } from "./connectors/mollie/MollieWrapper";
 
 // Payment button components
 export {

@@ -15,20 +15,53 @@ export function createAdminRoutes(credentials?: Record<string, any>) {
     return createPrismService(options)
   }
 
-  // Returns the stored payment session.
-  router.get("/payments/:sessionId", (req, res) => {
+  // Returns the payment session, live-synced (PSync) when a connector
+  // transaction exists — so redirect connectors (e.g. Mollie 3DS) reflect their
+  // final status when the customer returns to the order page. Falls back to the
+  // stored status if the sync fails.
+  router.get("/payments/:sessionId", async (req, res) => {
     const { sessionId } = req.params
     const session = getSession(sessionId)
     if (!session) {
       return res.status(404).json({ error: `Payment session ${sessionId} not found` })
     }
+
+    let status = session.status
+    let data = session.data
+    const txId =
+      session.connectorTransactionId ??
+      ((session.data as any)?.connectorTransactionId as string | undefined)
+    const prismService = getPrismService(session.connector)
+
+    if (txId && prismService) {
+      try {
+        const result = await prismService.getPaymentStatus({
+          data: {
+            connector: session.connector,
+            ...session.data,
+            ...(session.minorAmount !== undefined ? { minorAmount: session.minorAmount } : {}),
+            ...(session.currency ? { currency: session.currency } : {}),
+          },
+        })
+        status = (result.status as string) ?? status
+        data = { ...session.data, ...(result.data as Record<string, unknown>) }
+        updateSession(sessionId, { status, data })
+      } catch (error) {
+        console.error(
+          "[GET /admin/payments/%s] PSync failed, returning stored status: %s",
+          sessionId,
+          (error as Error).message
+        )
+      }
+    }
+
     res.json({
       payment: {
         id: session.id,
         connector: session.connector,
-        status: session.status,
-        connectorTransactionId: session.connectorTransactionId,
-        data: session.data,
+        status,
+        connectorTransactionId: txId,
+        data,
       },
     })
   })

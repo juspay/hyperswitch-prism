@@ -162,6 +162,9 @@ export function createStoreRoutes(credentials?: Record<string, any>) {
 
       res.json({
         type: "order",
+        // Redirect connectors (e.g. Mollie 3DS) return a URL the storefront must
+        // send the customer to before the payment can be finalised.
+        redirectUrl: (resultData as any)?.redirectUrl,
         order: {
           id: `order_${Date.now()}`,
           payment_status: result.status,
