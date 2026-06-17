@@ -1,22 +1,26 @@
+pub mod test;
 pub mod transformers;
 
 use std::{fmt::Debug, sync::LazyLock};
 
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit};
+use common_utils::{
+    errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
+};
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
-        connector_types::{
-        ConnectorSpecifications, ConnectorWebhookSecrets, EventType, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RequestDetails, ResponseId, SupportedPaymentMethodsExt,
+    connector_types::{
+        ConnectorSpecifications, ConnectorWebhookSecrets, EventType, PaymentFlowData,
+        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
+        SupportedPaymentMethodsExt,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
-        self, Connectors, ConnectorInfo, FeatureStatus, PaymentMethodDetails,
+        self, ConnectorInfo, Connectors, FeatureStatus, PaymentMethodDetails,
         SupportedPaymentMethods,
     },
 };
@@ -32,9 +36,8 @@ use interfaces::{
 use serde::Serialize;
 
 use transformers::{
-    AsiapayDirectPayRequest, AsiapayDirectPayResponse, AsiapayPSyncRequest,
-    AsiapayPSyncResponse, AsiapayRefundRequest, AsiapayRefundResponse, AsiapayRSyncRequest,
-    AsiapayRSyncResponse,
+    AsiapayDirectPayRequest, AsiapayDirectPayResponse, AsiapayPSyncRequest, AsiapayPSyncResponse,
+    AsiapayRSyncRequest, AsiapayRSyncResponse, AsiapayRefundRequest, AsiapayRefundResponse,
 };
 
 use super::macros;
@@ -81,7 +84,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         _connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<domain_types::errors::WebhookError>> {
-        let body: transformers::AsiapayWebhookBody = request.body
+        let body: transformers::AsiapayWebhookBody = request
+            .body
             .parse_struct("AsiapayWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -98,12 +102,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: &RequestDetails,
         connector_webhook_secret: &ConnectorWebhookSecrets,
     ) -> Result<Vec<u8>, error_stack::Report<domain_types::errors::WebhookError>> {
-        let body: transformers::AsiapayWebhookBody = request.body
+        let body: transformers::AsiapayWebhookBody = request
+            .body
             .parse_struct("AsiapayWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
         let secret = hyperswitch_masking::Secret::new(
-            String::from_utf8_lossy(&connector_webhook_secret.secret).to_string()
+            String::from_utf8_lossy(&connector_webhook_secret.secret).to_string(),
         );
         let computed = transformers::compute_asiapay_webhook_hash(&body, &secret)
             .change_context(domain_types::errors::WebhookError::WebhookSourceVerificationFailed)?;
@@ -126,26 +131,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         };
 
-        let incoming_signature = self
-            .get_webhook_source_verification_signature(&request, &connector_webhook_secret)?;
+        let incoming_signature =
+            self.get_webhook_source_verification_signature(&request, &connector_webhook_secret)?;
 
-        let computed_message = self
-            .get_webhook_source_verification_message(&request, &connector_webhook_secret)?;
+        let computed_message =
+            self.get_webhook_source_verification_message(&request, &connector_webhook_secret)?;
 
         // Constant-time comparison to prevent timing attacks on webhook signature.
         #[allow(deprecated)]
-        Ok(ring::constant_time::verify_slices_are_equal(
-            &incoming_signature,
-            &computed_message,
+        Ok(
+            ring::constant_time::verify_slices_are_equal(&incoming_signature, &computed_message)
+                .is_ok(),
         )
-        .is_ok())
     }
 
     fn get_event_type(
         &self,
         request: RequestDetails,
     ) -> Result<EventType, error_stack::Report<domain_types::errors::WebhookError>> {
-        let body: transformers::AsiapayWebhookBody = request.body
+        let body: transformers::AsiapayWebhookBody = request
+            .body
             .parse_struct("AsiapayWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
@@ -159,15 +164,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
         _event_context: Option<domain_types::connector_types::EventContext>,
-    ) -> Result<domain_types::connector_types::WebhookDetailsResponse, error_stack::Report<domain_types::errors::WebhookError>> {
+    ) -> Result<
+        domain_types::connector_types::WebhookDetailsResponse,
+        error_stack::Report<domain_types::errors::WebhookError>,
+    > {
         let body_str = String::from_utf8_lossy(&request.body);
-        let body: transformers::AsiapayWebhookBody = request.body
+        let body: transformers::AsiapayWebhookBody = request
+            .body
             .parse_struct("AsiapayWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
 
-        let status = transformers::map_order_status(
-            body.order_status.as_deref().unwrap_or("Pending")
-        );
+        let status =
+            transformers::map_order_status(body.order_status.as_deref().unwrap_or("Pending"));
 
         let (error_code, error_message) = if status == common_enums::AttemptStatus::Failure {
             (body.prc.clone(), body.src.clone())
@@ -176,31 +184,37 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         // Convert base-unit amount to minor units using the numeric currency code.
-        let (amount_captured, minor_amount_captured) =
-            match (&body.amt, &body.cur) {
-                (Some(amt_str), Some(cur_code)) => {
-                    match transformers::get_currency_from_asiapay_code(cur_code) {
-                        Some(currency) => match currency.to_currency_lower_unit(amt_str.clone()) {
-                            Ok(lower) => match lower.parse::<i64>() {
-                                Ok(minor) => (Some(minor), Some(common_utils::types::MinorUnit::new(minor))),
-                                Err(e) => {
-                                    tracing::warn!("AsiaPay webhook: failed to parse amount '{}' to i64: {}", amt_str, e);
-                                    (None, None)
+        let (amount_captured, minor_amount_captured) = match (&body.amt, &body.cur) {
+            (Some(amt_str), Some(cur_code)) => {
+                match transformers::get_currency_from_asiapay_code(cur_code) {
+                    Some(currency) => {
+                        match currency.to_currency_lower_unit(amt_str.clone()) {
+                            Ok(lower) => {
+                                match lower.parse::<i64>() {
+                                    Ok(minor) => (
+                                        Some(minor),
+                                        Some(common_utils::types::MinorUnit::new(minor)),
+                                    ),
+                                    Err(e) => {
+                                        tracing::warn!("AsiaPay webhook: failed to parse amount '{}' to i64: {}", amt_str, e);
+                                        (None, None)
+                                    }
                                 }
-                            },
+                            }
                             Err(e) => {
                                 tracing::warn!("AsiaPay webhook: failed to convert amount '{}' to lower unit for currency {:?}: {:?}", amt_str, currency, e);
                                 (None, None)
                             }
-                        },
-                        None => {
-                            tracing::warn!("AsiaPay webhook: unknown currency code '{}'", cur_code);
-                            (None, None)
                         }
                     }
+                    None => {
+                        tracing::warn!("AsiaPay webhook: unknown currency code '{}'", cur_code);
+                        (None, None)
+                    }
                 }
-                _ => (None, None),
-            };
+            }
+            _ => (None, None),
+        };
 
         Ok(domain_types::connector_types::WebhookDetailsResponse {
             resource_id: body.pay_ref.map(ResponseId::ConnectorTransactionId),
@@ -226,12 +240,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
-    ) -> Result<domain_types::connector_types::RefundWebhookDetailsResponse, error_stack::Report<domain_types::errors::WebhookError>> {
+    ) -> Result<
+        domain_types::connector_types::RefundWebhookDetailsResponse,
+        error_stack::Report<domain_types::errors::WebhookError>,
+    > {
         // AsiaPay does not send refund-specific webhooks.
         // All refund status updates are retrieved via polling (RSync flow).
-        Err(error_stack::report!(domain_types::errors::WebhookError::WebhooksNotImplemented {
-            operation: "process_refund_webhook",
-        }))
+        Err(error_stack::report!(
+            domain_types::errors::WebhookError::WebhooksNotImplemented {
+                operation: "process_refund_webhook",
+            }
+        ))
     }
 
     fn process_dispute_webhook(
@@ -245,16 +264,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     > {
         // AsiaPay does not send dispute/chargeback webhooks.
         // Disputes are managed via the merchant portal, not webhooks.
-        Err(error_stack::report!(domain_types::errors::WebhookError::WebhooksNotImplemented {
-            operation: "process_dispute_webhook",
-        }))
+        Err(error_stack::report!(
+            domain_types::errors::WebhookError::WebhooksNotImplemented {
+                operation: "process_dispute_webhook",
+            }
+        ))
     }
 
     fn get_webhook_resource_object(
         &self,
         request: RequestDetails,
-    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<domain_types::errors::WebhookError>> {
-        let body: transformers::AsiapayWebhookBody = request.body
+    ) -> Result<
+        Box<dyn hyperswitch_masking::ErasedMaskSerialize>,
+        error_stack::Report<domain_types::errors::WebhookError>,
+    > {
+        let body: transformers::AsiapayWebhookBody = request
+            .body
             .parse_struct("AsiapayWebhookBody")
             .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
         Ok(Box::new(body))
@@ -422,13 +447,14 @@ fn preprocess_xml_response(response_str: &str) -> CustomResult<bytes::Bytes, Con
         },
     )?;
 
-    let first_record = records.record.into_iter().next()
-        .ok_or_else(|| ConnectorError::ResponseDeserializationFailed {
+    let first_record = records.record.into_iter().next().ok_or_else(|| {
+        ConnectorError::ResponseDeserializationFailed {
             context: domain_types::errors::ResponseTransformationErrorContext {
                 additional_context: Some("AsiaPay XML response contained no records".to_string()),
                 ..Default::default()
             },
-        })?;
+        }
+    })?;
 
     let normalized = normalize_asiapay_field_names(first_record);
 
@@ -672,9 +698,8 @@ static ASIAPAY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 };
 
 // Supported webhook flows. Currently only payment webhooks are implemented.
-static ASIAPAY_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 1] = [
-    common_enums::EventClass::Payments,
-];
+static ASIAPAY_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 1] =
+    [common_enums::EventClass::Payments];
 
 static ASIAPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods = vec![
@@ -700,12 +725,10 @@ static ASIAPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = La
     methods
 });
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorSpecifications for Asiapay<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
+    for Asiapay<T>
 {
-    fn get_supported_payment_methods(
-        &self,
-    ) -> Option<&'static SupportedPaymentMethods> {
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&*ASIAPAY_SUPPORTED_PAYMENT_METHODS)
     }
 

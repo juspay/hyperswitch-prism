@@ -4,9 +4,8 @@ use common_utils::types::StringMajorUnit;
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
-        EventType, PaymentFlowData, PaymentsAuthorizeData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        EventType, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -82,7 +81,9 @@ impl AsiapayErrorResponse {
 // ===== DIRECT PAY (AUTHORIZE) REQUEST =====
 
 /// Convert a `Currency` to AsiaPay's numeric currency code.
-fn get_asiapay_currency_code(currency: common_enums::Currency) -> Result<String, error_stack::Report<IntegrationError>> {
+pub fn get_asiapay_currency_code(
+    currency: common_enums::Currency,
+) -> Result<String, error_stack::Report<IntegrationError>> {
     let code = match currency {
         common_enums::Currency::AED => "784",
         common_enums::Currency::AUD => "036",
@@ -163,7 +164,12 @@ pub struct AsiapayDirectPayRequest {
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         AsiapayRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for AsiapayDirectPayRequest
@@ -171,29 +177,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         item: AsiapayRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
         let auth = AsiapayAuthType::try_from(&item.router_data.connector_config)?;
         let req = &item.router_data.request;
 
-        let (card_number, exp_month, exp_year, cvc, card_holder_name) = match &req.payment_method_data {
-            PaymentMethodData::Card(card) => (
-                card.card_number.clone(),
-                card.card_exp_month.clone(),
-                card.card_exp_year.clone(),
-                card.card_cvc.clone(),
-                card.card_holder_name.clone(),
-            ),
-            _ => {
-                return Err(IntegrationError::NotImplemented(
-                    "Only card payments are supported for Asiapay".to_string(),
-                    Default::default(),
-                )
-                .into())
-            }
-        };
+        let (card_number, exp_month, exp_year, cvc, card_holder_name) =
+            match &req.payment_method_data {
+                PaymentMethodData::Card(card) => (
+                    card.card_number.clone(),
+                    card.card_exp_month.clone(),
+                    card.card_exp_year.clone(),
+                    card.card_cvc.clone(),
+                    card.card_holder_name.clone(),
+                ),
+                _ => {
+                    return Err(IntegrationError::NotImplemented(
+                        "Only card payments are supported for Asiapay".to_string(),
+                        Default::default(),
+                    )
+                    .into())
+                }
+            };
 
         let amount = item
             .connector
@@ -215,7 +227,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             merchant_id: auth.merchant_id,
-            order_ref: item.router_data.resource_common_data.connector_request_reference_id.clone(),
+            order_ref: item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
             amount,
             curr_code,
             pay_type,
@@ -299,28 +315,95 @@ macro_rules! impl_build_connector_metadata {
     () => {
         pub fn build_connector_metadata(&self) -> Option<serde_json::Value> {
             let mut map = serde_json::Map::new();
-            if let Some(ref v) = self.pay_ref { map.insert("payRef".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.auth_id { map.insert("authId".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.holder { map.insert("holder".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.auth_date { map.insert("authDate".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.capture_date { map.insert("captureDate".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.batch_id { map.insert("batchId".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.settle_date { map.insert("settleDate".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.mer_ref { map.insert("merRef".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.surcharge { map.insert("surcharge".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.mer_request_amt { map.insert("merRequestAmt".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.terminal { map.insert("terminal".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.bank_mid { map.insert("bankMid".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.settle_flag { map.insert("settleFlag".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.bank { map.insert("bank".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.bank_ref { map.insert("bankRef".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.trace_no { map.insert("traceNo".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.account_no { map.insert("accountNo".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.currency { map.insert("currency".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.remark { map.insert("remark".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.original_amt { map.insert("originalAmt".to_string(), serde_json::Value::String(v.clone())); }
-            if let Some(ref v) = self.tx_time { map.insert("txTime".to_string(), serde_json::Value::String(v.clone())); }
-            if map.is_empty() { None } else { Some(serde_json::Value::Object(map)) }
+            if let Some(ref v) = self.pay_ref {
+                map.insert("payRef".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.auth_id {
+                map.insert("authId".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.holder {
+                map.insert("holder".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.auth_date {
+                map.insert("authDate".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.capture_date {
+                map.insert(
+                    "captureDate".to_string(),
+                    serde_json::Value::String(v.clone()),
+                );
+            }
+            if let Some(ref v) = self.batch_id {
+                map.insert("batchId".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.settle_date {
+                map.insert(
+                    "settleDate".to_string(),
+                    serde_json::Value::String(v.clone()),
+                );
+            }
+            if let Some(ref v) = self.mer_ref {
+                map.insert("merRef".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.surcharge {
+                map.insert(
+                    "surcharge".to_string(),
+                    serde_json::Value::String(v.clone()),
+                );
+            }
+            if let Some(ref v) = self.mer_request_amt {
+                map.insert(
+                    "merRequestAmt".to_string(),
+                    serde_json::Value::String(v.clone()),
+                );
+            }
+            if let Some(ref v) = self.terminal {
+                map.insert("terminal".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.bank_mid {
+                map.insert("bankMid".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.settle_flag {
+                map.insert(
+                    "settleFlag".to_string(),
+                    serde_json::Value::String(v.clone()),
+                );
+            }
+            if let Some(ref v) = self.bank {
+                map.insert("bank".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.bank_ref {
+                map.insert("bankRef".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.trace_no {
+                map.insert("traceNo".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.account_no {
+                map.insert(
+                    "accountNo".to_string(),
+                    serde_json::Value::String(v.clone()),
+                );
+            }
+            if let Some(ref v) = self.currency {
+                map.insert("currency".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.remark {
+                map.insert("remark".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if let Some(ref v) = self.original_amt {
+                map.insert(
+                    "originalAmt".to_string(),
+                    serde_json::Value::String(v.clone()),
+                );
+            }
+            if let Some(ref v) = self.tx_time {
+                map.insert("txTime".to_string(), serde_json::Value::String(v.clone()));
+            }
+            if map.is_empty() {
+                None
+            } else {
+                Some(serde_json::Value::Object(map))
+            }
         }
     };
 }
@@ -409,22 +492,29 @@ pub struct AsiapayRefundRequest {
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        AsiapayRouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
+        AsiapayRouterData<
+            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            T,
+        >,
     > for AsiapayRefundRequest
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
-        item: AsiapayRouterData<RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>, T>,
+        item: AsiapayRouterData<
+            RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
+            T,
+        >,
     ) -> Result<Self, Self::Error> {
         let auth = AsiapayAuthType::try_from(&item.router_data.connector_config)?;
         let req = &item.router_data.request;
 
-        let amount = item.connector.amount_converter.convert(
-            req.minor_refund_amount,
-            req.currency,
-        ).change_context(IntegrationError::RequestEncodingFailed {
-            context: Default::default(),
-        })?;
+        let amount = item
+            .connector
+            .amount_converter
+            .convert(req.minor_refund_amount, req.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
 
         Ok(Self {
             merchant_id: auth.merchant_id,
@@ -460,7 +550,10 @@ pub struct AsiapayRefundResponse {
 
 impl AsiapayRefundResponse {
     pub fn is_successful(&self) -> bool {
-        self.result_code.as_deref() == Some("0") || self.success_code.as_deref() == Some("0")
+        self.result_code.as_deref() == Some("0")
+            || self.success_code.as_deref() == Some("0")
+            // Query API omits result_code on success and only populates order_status.
+            || (self.result_code.is_none() && self.order_status.is_some())
     }
 }
 
@@ -497,7 +590,11 @@ impl TryFrom<ResponseRouterData<AsiapayRefundResponse, Self>>
             response: Ok(refunds_response_data),
             resource_common_data: RefundFlowData {
                 status: if response.is_successful() {
-                    response.order_status.as_deref().map(map_refund_status).unwrap_or(RefundStatus::Pending)
+                    response
+                        .order_status
+                        .as_deref()
+                        .map(map_refund_status)
+                        .unwrap_or(RefundStatus::Pending)
                 } else {
                     RefundStatus::Failure
                 },
@@ -521,12 +618,18 @@ pub struct AsiapayPSyncRequest {
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        AsiapayRouterData<RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>, T>,
+        AsiapayRouterData<
+            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+            T,
+        >,
     > for AsiapayPSyncRequest
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
-        item: AsiapayRouterData<RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>, T>,
+        item: AsiapayRouterData<
+            RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
+            T,
+        >,
     ) -> Result<Self, Self::Error> {
         let auth = AsiapayAuthType::try_from(&item.router_data.connector_config)?;
         let req = &item.router_data.request;
@@ -536,8 +639,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             login_id: auth.login_id,
             password: auth.password,
             action_type: "Query".to_string(),
-            pay_ref: req.connector_transaction_id.get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?
+            pay_ref: req
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: Default::default(),
+                })?
                 .to_string(),
         })
     }
@@ -620,37 +727,39 @@ impl TryFrom<ResponseRouterData<AsiapayPSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<AsiapayPSyncResponse, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<AsiapayPSyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
 
         // Convert base-unit amount to minor units using the numeric currency code.
-        let (amount_captured, minor_amount_captured) =
-            match (&response.amt, &response.cur) {
-                (Some(amt_str), Some(cur_code)) => {
-                    match get_currency_from_asiapay_code(cur_code) {
-                        Some(currency) => match currency.to_currency_lower_unit(amt_str.clone()) {
-                            Ok(lower) => match lower.parse::<i64>() {
-                                Ok(minor) => (Some(minor), Some(common_utils::types::MinorUnit::new(minor))),
-                                Err(e) => {
-                                    tracing::warn!("AsiaPay PSync: failed to parse amount '{}' to i64: {}", amt_str, e);
-                                    (None, None)
-                                }
-                            },
-                            Err(e) => {
-                                tracing::warn!("AsiaPay PSync: failed to convert amount '{}' to lower unit for currency {:?}: {:?}", amt_str, currency, e);
-                                (None, None)
-                            }
-                        },
-                        None => {
-                            tracing::warn!("AsiaPay PSync: unknown currency code '{}'", cur_code);
+        let (amount_captured, minor_amount_captured) = match (&response.amt, &response.cur) {
+            (Some(amt_str), Some(cur_code)) => match get_currency_from_asiapay_code(cur_code) {
+                Some(currency) => match currency.to_currency_lower_unit(amt_str.clone()) {
+                    Ok(lower) => match lower.parse::<i64>() {
+                        Ok(minor) => (
+                            Some(minor),
+                            Some(common_utils::types::MinorUnit::new(minor)),
+                        ),
+                        Err(e) => {
+                            tracing::warn!(
+                                "AsiaPay PSync: failed to parse amount '{}' to i64: {}",
+                                amt_str,
+                                e
+                            );
                             (None, None)
                         }
+                    },
+                    Err(e) => {
+                        tracing::warn!("AsiaPay PSync: failed to convert amount '{}' to lower unit for currency {:?}: {:?}", amt_str, currency, e);
+                        (None, None)
                     }
+                },
+                None => {
+                    tracing::warn!("AsiaPay PSync: unknown currency code '{}'", cur_code);
+                    (None, None)
                 }
-                _ => (None, None),
-            };
+            },
+            _ => (None, None),
+        };
 
         let payments_response_data = if !response.is_successful() {
             PaymentsResponseData::TransactionResponse {
@@ -687,7 +796,11 @@ impl TryFrom<ResponseRouterData<AsiapayPSyncResponse, Self>>
             response: Ok(payments_response_data),
             resource_common_data: PaymentFlowData {
                 status: if response.is_successful() {
-                    response.order_status.as_deref().map(map_order_status).unwrap_or(AttemptStatus::Pending)
+                    response
+                        .order_status
+                        .as_deref()
+                        .map(map_order_status)
+                        .unwrap_or(AttemptStatus::Pending)
                 } else {
                     AttemptStatus::Failure
                 },
@@ -718,12 +831,18 @@ pub struct AsiapayRSyncRequest {
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
-        AsiapayRouterData<RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>, T>,
+        AsiapayRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
     > for AsiapayRSyncRequest
 {
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
-        item: AsiapayRouterData<RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>, T>,
+        item: AsiapayRouterData<
+            RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+            T,
+        >,
     ) -> Result<Self, Self::Error> {
         let auth = AsiapayAuthType::try_from(&item.router_data.connector_config)?;
         let req = &item.router_data.request;
@@ -745,9 +864,7 @@ impl TryFrom<ResponseRouterData<AsiapayRSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<AsiapayRSyncResponse, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<AsiapayRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
 
         let refunds_response_data = if !response.is_successful() {
@@ -774,7 +891,11 @@ impl TryFrom<ResponseRouterData<AsiapayRSyncResponse, Self>>
             response: Ok(refunds_response_data),
             resource_common_data: RefundFlowData {
                 status: if response.is_successful() {
-                    response.order_status.as_deref().map(map_refund_status).unwrap_or(RefundStatus::Pending)
+                    response
+                        .order_status
+                        .as_deref()
+                        .map(map_refund_status)
+                        .unwrap_or(RefundStatus::Pending)
                 } else {
                     RefundStatus::Failure
                 },
@@ -794,8 +915,15 @@ pub fn map_order_status(status: &str) -> AttemptStatus {
         "Pending_3D" => AttemptStatus::AuthenticationPending,
         "Capturing" => AttemptStatus::CaptureInitiated,
         "Rejected" => AttemptStatus::Failure,
-        "Cancelled" | "Voided" | "Reverse Auth" | "Reversal Void" | "Reversal-CB" => AttemptStatus::Voided,
-        "Refunded" | "Partial Refunded" | "RequestRefund" | "RequestPartialRefund" | "ChargeBack" | "Partial ChargeBack" => AttemptStatus::AutoRefunded,
+        "Cancelled" | "Voided" | "Reverse Auth" | "Reversal Void" | "Reversal-CB" => {
+            AttemptStatus::Voided
+        }
+        "Refunded"
+        | "Partial Refunded"
+        | "RequestRefund"
+        | "RequestPartialRefund"
+        | "ChargeBack"
+        | "Partial ChargeBack" => AttemptStatus::AutoRefunded,
         _ => AttemptStatus::Failure,
     }
 }

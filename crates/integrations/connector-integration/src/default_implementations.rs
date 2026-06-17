@@ -299,6 +299,7 @@ macro_rules! default_impl_recharge_v2 {
 default_impl_recharge_v2!(
     AbsaSanlam,
     Aci,
+    Asiapay,
     Adyen,
     Airwallex,
     Authipay,
@@ -512,6 +513,7 @@ macro_rules! default_impl_get_payment_method_v2 {
 default_impl_create_payment_method_v2!(
     AbsaSanlam,
     Aci,
+    Asiapay,
     Adyen,
     Airwallex,
     Authipay,
@@ -605,6 +607,7 @@ default_impl_create_payment_method_v2!(
 default_impl_get_payment_method_v2!(
     AbsaSanlam,
     Aci,
+    Asiapay,
     Adyen,
     Airwallex,
     Authipay,
