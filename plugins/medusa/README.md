@@ -2,10 +2,10 @@
 
 Hyperswitch Prism payment integration for Medusa v2. This monorepo contains two packages:
 
-| Package | Description |
-|---------|-------------|
-| [`@juspay-tech/medusa-custom-payments`](./medusa-custom-payments) | Medusa v2 backend payment provider plugin |
-| [`@juspay-tech/medusa-custom-payments-react`](./medusa-custom-payments-react) | React UI components for storefront checkout |
+| Package | npm | Description |
+|---------|-----|-------------|
+| [`@juspay-tech/medusa-custom-payments`](./medusa-custom-payments) | [![npm](https://img.shields.io/npm/v/@juspay-tech/medusa-custom-payments?logo=npm)](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments) | Medusa v2 backend payment provider plugin |
+| [`@juspay-tech/medusa-custom-payments-react`](./medusa-custom-payments-react) | [![npm](https://img.shields.io/npm/v/@juspay-tech/medusa-custom-payments-react?logo=npm)](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments-react) | React UI components for storefront checkout |
 
 ## Supported Connectors
 
@@ -41,6 +41,8 @@ Hyperswitch Prism payment integration for Medusa v2. This monorepo contains two 
 npm install @juspay-tech/medusa-custom-payments
 ```
 
+📦 [View on npm](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments)
+
 See [`medusa-custom-payments/README.md`](./medusa-custom-payments/README.md) for full setup.
 
 ### Storefront
@@ -48,6 +50,8 @@ See [`medusa-custom-payments/README.md`](./medusa-custom-payments/README.md) for
 ```bash
 npm install @juspay-tech/medusa-custom-payments-react
 ```
+
+📦 [View on npm](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments-react)
 
 See [`medusa-custom-payments-react/README.md`](./medusa-custom-payments-react/README.md) for full setup.
 
