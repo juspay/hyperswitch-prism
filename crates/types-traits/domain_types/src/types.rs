@@ -2938,6 +2938,9 @@ pub struct AuthorizationRequest {
     /// `PaymentFlowData::connector_order_id` so the Authorize TryFrom can
     /// attach the payment to the right pre-existing order.
     pub connector_order_id: Option<String>,
+    /// Split-payment / Stripe Connect routing (charge type + connected account +
+    /// platform fee). Carried into `PaymentsAuthorizeData::split_payments`.
+    pub split_payments: Option<connector_types::SplitPaymentsRequest>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -2979,6 +2982,37 @@ pub struct SetupRecurringRequest {
 /// ============================================================================
 /// CONVERSION IMPLEMENTATIONS FOR INTERMEDIATE TYPES
 /// ============================================================================
+
+/// Convert the gRPC `SplitPaymentsRequest` into the domain `SplitPaymentsRequest`.
+/// Only the Stripe Connect variant exists in the contract today; an unset proto
+/// `charge_type` falls back to Direct (the domain default).
+fn split_payments_from_grpc(
+    value: Option<grpc_payment_types::SplitPaymentsRequest>,
+) -> Option<connector_types::SplitPaymentsRequest> {
+    let split = value?.split_payment?;
+    match split {
+        grpc_payment_types::split_payments_request::SplitPayment::StripeSplitPayment(stripe) => {
+            let charge_type = match stripe.charge_type() {
+                grpc_payment_types::StripeChargeType::Destination => {
+                    common_enums::PaymentChargeType::Stripe(
+                        common_enums::StripeChargeType::Destination,
+                    )
+                }
+                _ => common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct),
+            };
+            Some(connector_types::SplitPaymentsRequest::StripeSplitPayment(
+                connector_types::StripeSplitPaymentRequest {
+                    charge_type,
+                    application_fees: stripe
+                        .application_fees
+                        .map(common_utils::types::MinorUnit::new),
+                    transfer_account_id: stripe.transfer_account_id,
+                },
+            ))
+        }
+    }
+}
+
 impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationRequest {
     fn from(req: grpc_payment_types::PaymentServiceAuthorizeRequest) -> Self {
         let tokenization_strategy = req
@@ -3012,6 +3046,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             customer_acceptance: req.customer_acceptance.clone(),
             browser_info: req.browser_info.clone(),
             billing_descriptor: req.billing_descriptor.clone(),
+            split_payments: split_payments_from_grpc(req.split_payments.clone()),
             payment_experience: Some(req.payment_experience()),
             description: req.description.clone(),
             payment_channel: req.payment_channel(),
@@ -3076,6 +3111,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             customer_acceptance: req.customer_acceptance.clone(),
             browser_info: req.browser_info,
             billing_descriptor: req.billing_descriptor,
+            split_payments: None,
             payment_experience: None,
             description: req.description.clone(),
             payment_channel: grpc_payment_types::PaymentChannel::Unspecified,
@@ -3685,7 +3721,7 @@ impl<
             integrity_object: None,
             merchant_config_currency: Some(merchant_config_currency),
             all_keys_required: None, // Field not available in new proto structure
-            split_payments: None,
+            split_payments: value.split_payments.clone(),
             enable_overcapture: None,
             setup_mandate_details: value
                 .setup_mandate_details
@@ -10800,7 +10836,7 @@ impl ForeignTryFrom<PaymentServiceAuthorizeRequest> for ConnectorCustomerData {
             email: email.map(Secret::new),
             name: name_string,
             description: None,
-            split_payments: None,
+            split_payments: split_payments_from_grpc(value.split_payments),
             phone: None,
             preprocessing_id: None,
         })
@@ -11008,7 +11044,7 @@ impl<
             mandate_id: None,
             setup_mandate_details: None,
             integrity_object: None,
-            split_payments: None,
+            split_payments: split_payments_from_grpc(value.split_payments),
             connector_feature_data: value
                 .connector_feature_data
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
@@ -11518,7 +11554,7 @@ impl ForeignTryFrom<grpc_api_types::payments::CustomerServiceCreateRequest>
             email: email.map(Secret::new),
             name: value.customer_name.map(Secret::new),
             description: None, // description field not available in this proto
-            split_payments: None,
+            split_payments: split_payments_from_grpc(value.split_payments),
             phone: None,
             preprocessing_id: None,
         })
@@ -14335,6 +14371,7 @@ pub fn tokenized_authorize_to_base(
         threeds_completion_indicator: None,
         tokenization_strategy: None,
         merchant_request_id: None,
+        split_payments: None,
     }
 }
 
@@ -14506,6 +14543,7 @@ pub fn proxied_authorize_to_base(
         statement_descriptor_suffix: None,
         tokenization_strategy: None,
         merchant_request_id: None,
+        split_payments: None,
     })
 }
 

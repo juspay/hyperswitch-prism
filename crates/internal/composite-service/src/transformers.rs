@@ -74,6 +74,7 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
     fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
         let customer = item.customer.as_ref();
         Self {
+            split_payments: None,
             merchant_customer_id: item
                 .merchant_customer_id
                 .clone()
@@ -158,6 +159,7 @@ impl
             .or_else(|| item.connector_feature_data.clone());
 
         Self {
+            split_payments: None,
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             amount: item.amount,
             order_tax_amount: item.order_tax_amount,
@@ -890,6 +892,7 @@ impl
         });
 
         Self {
+            split_payments: None,
             merchant_transaction_id: request.merchant_transaction_id.clone(),
             merchant_order_id: request.merchant_order_id.clone(),
             amount: request.amount,
