@@ -38,7 +38,15 @@ impl EventPublisher {
         if config.connector_events_topic.is_empty() {
             return Err(error_stack::Report::new(
                 EventPublisherError::InvalidConfiguration {
-                    message: "topic cannot be empty".to_string(),
+                    message: "connector_events_topic cannot be empty".to_string(),
+                },
+            ));
+        }
+
+        if config.ucs_api_events_topic.is_empty() {
+            return Err(error_stack::Report::new(
+                EventPublisherError::InvalidConfiguration {
+                    message: "ucs_api_events_topic cannot be empty".to_string(),
                 },
             ));
         }
@@ -208,13 +216,7 @@ pub fn publish_event_to_kafka(
             let metadata = publisher.build_kafka_metadata(event);
             let topic = match event.stage {
                 EventStage::ConnectorCall => &config.connector_events_topic,
-                EventStage::GrpcRequest => {
-                    if config.ucs_api_events_topic.is_empty() {
-                        &config.connector_events_topic
-                    } else {
-                        &config.ucs_api_events_topic
-                    }
-                }
+                EventStage::GrpcRequest => &config.ucs_api_events_topic,
             };
             let _ = publisher
                 .publish_event_with_metadata(
