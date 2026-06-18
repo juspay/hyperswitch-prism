@@ -94,6 +94,7 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
+            split_payments: item.split_payments.clone(),
         }
     }
 }
@@ -205,6 +206,7 @@ impl
             mit_category: item.mit_category,
             merchant_request_id: item.merchant_request_id.clone(),
             domain_data: item.domain_data.clone(),
+            split_payments: item.split_payments.clone(),
         }
     }
 }
@@ -270,6 +272,7 @@ impl
             payment_experience: item.payment_experience,
             merchant_request_id: item.merchant_request_id.clone(),
             payment_method_type: item.payment_method_type,
+            split_payments: item.split_payments.clone(),
         }
     }
 }
@@ -338,6 +341,7 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             connector_order_id: item.connector_order_id.clone(),
             payment_method: item.payment_method.clone(),
+            split_refunds: item.split_refunds.clone(),
         }
     }
 }
@@ -401,6 +405,7 @@ impl
             refund_amount: item.refund_amount,
             merchant_request_id: item.merchant_request_id.clone(),
             connector_order_id: item.connector_order_id.clone(),
+            split_refunds: item.split_refunds.clone(),
         }
     }
 }
@@ -940,6 +945,7 @@ impl
             connector_order_id: request.connector_order_id.clone(),
             merchant_request_id: request.merchant_request_id.clone(),
             domain_data: None,
+            split_payments: request.split_payments.clone(),
         }
     }
 }

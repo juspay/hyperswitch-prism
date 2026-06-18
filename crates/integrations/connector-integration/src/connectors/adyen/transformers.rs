@@ -16,7 +16,7 @@ use domain_types::{
         VoidPC,
     },
     connector_types::{
-        AcceptDisputeData,
+        self, AcceptDisputeData,
         AdyenClientAuthenticationResponse as AdyenClientAuthenticationResponseDomain,
         CardDetailUpdate, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse, DisputeDefendData, DisputeFlowData,
@@ -25,7 +25,7 @@ use domain_types::{
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
-        SetupMandateRequestData, SubmitEvidenceData,
+        SetupMandateRequestData, SplitPaymentsDetails, SubmitEvidenceData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
@@ -41,8 +41,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
     router_request_types::SyncRequestType,
     router_response_types::RedirectForm,
-    utils as domain_utils,
-    utils::get_timestamp_in_milliseconds,
+    utils::{self as domain_utils, get_timestamp_in_milliseconds},
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface, Secret};
@@ -1057,7 +1056,7 @@ pub enum Channel {
 struct AdyenSplitData {
     amount: Option<Amount>,
     #[serde(rename = "type")]
-    split_type: AdyenSplitType,
+    split_type: common_enums::AdyenSplitType,
     account: Option<String>,
     reference: String,
     description: Option<String>,
@@ -1218,43 +1217,6 @@ impl TryFrom<&common_enums::PaymentMethodType> for PaymentType {
     }
 }
 
-#[derive(
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    serde::Deserialize,
-    serde::Serialize,
-    strum::Display,
-    strum::EnumString,
-)]
-#[strum(serialize_all = "PascalCase")]
-#[serde(rename_all = "PascalCase")]
-pub enum AdyenSplitType {
-    /// Books split amount to the specified account.
-    BalanceAccount,
-    /// The aggregated amount of the interchange and scheme fees.
-    AcquiringFees,
-    /// The aggregated amount of all transaction fees.
-    PaymentFee,
-    /// The aggregated amount of Adyen's commission and markup fees.
-    AdyenFees,
-    ///  The transaction fees due to Adyen under blended rates.
-    AdyenCommission,
-    /// The transaction fees due to Adyen under Interchange ++ pricing.
-    AdyenMarkup,
-    ///  The fees paid to the issuer for each payment made with the card network.
-    Interchange,
-    ///  The fees paid to the card scheme for using their network.
-    SchemeFee,
-    /// Your platform's commission on the payment (specified in amount), booked to your liable balance account.
-    Commission,
-    /// Allows you and your users to top up balance accounts using direct debit, card payments, or other payment methods.
-    TopUp,
-    /// The value-added tax charged on the payment, booked to your platforms liable balance account.
-    Vat,
-}
-
 // Wrapper types for RepeatPayment to avoid duplicate templating structs in macro
 #[derive(Debug, Serialize)]
 #[serde(transparent)]
@@ -1316,24 +1278,6 @@ pub struct SetupMandateRequest<
 pub struct AdyenVoidRequest {
     merchant_account: Secret<String>,
     reference: String,
-}
-
-/// Local struct for Adyen split payment data (extracted from metadata)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct AdyenSplitPaymentRequest {
-    pub store: Option<String>,
-    pub split_items: Vec<AdyenSplitItem>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct AdyenSplitItem {
-    pub amount: Option<MinorUnit>,
-    pub reference: String,
-    pub split_type: AdyenSplitType,
-    pub account: Option<String>,
-    pub description: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2312,7 +2256,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let adyen_metadata =
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
-        let store = adyen_metadata.store.clone(); // no split payment support yet
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
+                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+            }
+            _ => (adyen_metadata.store.clone(), None),
+        };
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
         let country_code =
@@ -2416,7 +2365,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             shopper_ip: item.router_data.request.get_ip_address_as_optional(),
             merchant_order_reference: item.router_data.request.merchant_order_id.clone(),
             store,
-            splits: None,
+            splits,
             device_fingerprint,
             metadata: item
                 .router_data
@@ -3047,11 +2996,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let adyen_metadata =
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
 
-        let (store, splits) = get_adyen_split_request(
-            &item.router_data.request.metadata,
-            &adyen_metadata.store,
-            item.router_data.request.currency,
-        );
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
+                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+            }
+            _ => (adyen_metadata.store.clone(), None),
+        };
         let device_fingerprint = adyen_metadata.device_fingerprint.clone();
         let platform_chargeback_logic = adyen_metadata.platform_chargeback_logic.clone();
 
@@ -3424,11 +3374,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(&item.router_data)?;
 
-        let (store, splits) = get_adyen_split_request(
-            &item.router_data.request.metadata,
-            &adyen_metadata.store,
-            item.router_data.request.currency,
-        );
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
+                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+            }
+            _ => (adyen_metadata.store.clone(), None),
+        };
 
         Ok(Self {
             amount,
@@ -3554,11 +3505,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .get_optional_billing_phone_number();
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(&item.router_data)?;
-        let (store, splits) = get_adyen_split_request(
-            &item.router_data.request.metadata,
-            &adyen_metadata.store,
-            item.router_data.request.currency,
-        );
+        let (store, splits) = match item.router_data.request.split_payments.as_ref() {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
+                get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
+            }
+            _ => (adyen_metadata.store.clone(), None),
+        };
 
         Ok(Self {
             amount,
@@ -5962,6 +5914,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
 
+        let (store, splits) = match item.router_data.request.split_refunds.as_ref() {
+            Some(connector_types::SplitRefundsDetails::AdyenSplitRefund(adyen_split_data)) => {
+                get_adyen_split_request(adyen_split_data, item.router_data.request.currency)
+            }
+            _ => (
+                item.router_data
+                    .request
+                    .refund_connector_metadata
+                    .clone()
+                    .and_then(|metadata| get_store_id(metadata.expose())),
+                None,
+            ),
+        };
+
         Ok(Self {
             merchant_account: auth_type.merchant_account,
             amount: Amount {
@@ -5970,8 +5936,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             merchant_refund_reason: item.router_data.request.reason.clone(),
             reference: item.router_data.request.refund_id.clone(),
-            store: None,
-            splits: None,
+            store,
+            splits,
         })
     }
 }
@@ -6062,6 +6028,7 @@ pub struct AdyenCaptureResponse {
     amount: Amount,
     merchant_reference: Option<String>,
     store: Option<String>,
+    splits: Option<Vec<AdyenSplitData>>,
 }
 
 impl<F> TryFrom<ResponseRouterData<AdyenCaptureResponse, Self>>
@@ -7563,34 +7530,31 @@ impl AdditionalData {
 }
 
 fn get_adyen_split_request(
-    metadata: &Option<SecretSerdeValue>,
-    adyen_store: &Option<String>,
-    currency: common_enums::Currency,
+    split_request: &connector_types::AdyenSplitData,
+    currency: common_enums::enums::Currency,
 ) -> (Option<String>, Option<Vec<AdyenSplitData>>) {
+    let splits = split_request
+        .split_items
+        .iter()
+        .map(|split_item| {
+            let amount = split_item.amount.map(|value| Amount { currency, value });
+            AdyenSplitData {
+                amount,
+                reference: split_item.reference.clone(),
+                split_type: split_item.split_type.clone(),
+                account: split_item.account.clone(),
+                description: split_item.description.clone(),
+            }
+        })
+        .collect();
+    (split_request.store.clone(), Some(splits))
+}
+
+fn get_store_id(metadata: serde_json::Value) -> Option<String> {
     metadata
-        .as_ref()
-        .and_then(|secret| {
-            serde_json::from_value::<AdyenSplitPaymentRequest>(secret.clone().expose()).ok()
-        })
-        .map(|split_request| {
-            let splits: Vec<AdyenSplitData> = split_request
-                .split_items
-                .into_iter()
-                .map(|split_item| {
-                    let amount = split_item.amount.map(|value| Amount { currency, value });
-                    AdyenSplitData {
-                        amount,
-                        reference: split_item.reference,
-                        split_type: split_item.split_type,
-                        account: split_item.account,
-                        description: split_item.description,
-                    }
-                })
-                .collect();
-            let store = split_request.store.clone().or(adyen_store.clone());
-            (store, Some(splits))
-        })
-        .unwrap_or_else(|| (adyen_store.clone(), None))
+        .get("store")
+        .and_then(|store| store.as_str())
+        .map(|store| store.to_string())
 }
 
 // ---- ClientAuthenticationToken flow types ----

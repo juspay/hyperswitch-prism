@@ -386,7 +386,7 @@ macros::macro_connector_implementation!(
             let stripe_split_payment_metadata = stripe::StripeSplitPaymentRequest::try_from(req)?;
 
             // if the request has split payment object, then append the transfer account id in headers in charge_type is Direct
-            if let Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(
+            if let Some(domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(
                 stripe_split_payment,
             )) = &req.request.split_payments
             {
@@ -462,10 +462,14 @@ macros::macro_connector_implementation!(
                 .request
                 .split_payments
                 .as_ref()
-                .map(|split_payments| {
-                    let domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) =
-                        split_payments;
-                    stripe_split_payment
+                .and_then(|split_payments| {
+                    if let domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment) =
+                        split_payments
+                    {
+                        Some(stripe_split_payment)
+                    } else {
+                        None
+                    }
                 })
                 .filter(|stripe_split_payment| {
                     matches!(stripe_split_payment.charge_type, common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct))
@@ -521,10 +525,14 @@ macros::macro_connector_implementation!(
                 .request
                 .split_payments
                 .as_ref()
-                .map(|split_payments| {
-                    let domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) =
-                        split_payments;
-                    stripe_split_payment
+                .and_then(|split_payments| {
+                    if let domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment) =
+                        split_payments
+                    {
+                        Some(stripe_split_payment)
+                    } else {
+                        None
+                    }
                 })
                 .filter(|stripe_split_payment| {
                     matches!(stripe_split_payment.charge_type, common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct))
@@ -621,10 +629,14 @@ macros::macro_connector_implementation!(
                 .request
                 .split_payments
                 .as_ref()
-                .map(|split_payments| {
-                    let domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) =
-                        split_payments;
-                    stripe_split_payment
+                .and_then(|split_payments| {
+                    if let domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment) =
+                        split_payments
+                    {
+                        Some(stripe_split_payment)
+                    } else {
+                        None
+                    }
                 })
                 .filter(|stripe_split_payment| {
                     matches!(stripe_split_payment.charge_type, common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct))
@@ -675,7 +687,7 @@ macros::macro_connector_implementation!(
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
 
-            if let Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(
+            if let Some(domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(
                 stripe_split_payment,
             )) = &req.request.split_payments
             {
@@ -851,7 +863,7 @@ macros::macro_connector_implementation!(
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
 
-            if let Some(domain_types::connector_types::SplitRefundsRequest::StripeSplitRefund(ref stripe_split_refund)) =
+            if let Some(domain_types::connector_types::SplitRefundsDetails::StripeSplitRefund(ref stripe_split_refund)) =
                 req.request.split_refunds.as_ref()
             {
                 match &stripe_split_refund.charge_type {
@@ -903,7 +915,7 @@ macros::macro_connector_implementation!(
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
 
-            if let Some(domain_types::connector_types::SplitRefundsRequest::StripeSplitRefund(ref stripe_refund)) =
+            if let Some(domain_types::connector_types::SplitRefundsDetails::StripeSplitRefund(ref stripe_refund)) =
                 req.request.split_refunds.as_ref()
             {
                 transformers::transform_headers_for_connect_platform(

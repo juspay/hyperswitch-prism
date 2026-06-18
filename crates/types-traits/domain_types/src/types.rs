@@ -2944,6 +2944,7 @@ pub struct AuthorizationRequest {
     pub connector_order_id: Option<String>,
     /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
     pub domain_data: Option<grpc_payment_types::DomainData>,
+    pub split_payments: Option<grpc_payment_types::SplitPaymentsDetails>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -3044,6 +3045,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             merchant_request_id: req.merchant_request_id,
             connector_order_id: req.connector_order_id,
             domain_data: req.domain_data,
+            split_payments: req.split_payments,
         }
     }
 }
@@ -3111,6 +3113,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             merchant_request_id: None,
             connector_order_id: None,
             domain_data: req.domain_data,
+            split_payments: None,
         }
     }
 }
@@ -3894,7 +3897,10 @@ impl<
             integrity_object: None,
             merchant_config_currency: Some(merchant_config_currency),
             all_keys_required: None, // Field not available in new proto structure
-            split_payments: None,
+            split_payments: value
+                .split_payments
+                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .transpose()?,
             enable_overcapture: None,
             setup_mandate_details: value
                 .setup_mandate_details
@@ -4079,6 +4085,7 @@ impl<
             locale: value.locale.clone(),
             mit_category: value.mit_category,
             connector_testing_data,
+            split_payments: None,
         })
     }
 }
@@ -6225,7 +6232,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             integrity_object: None,
             all_keys_required: None, // Field not available in new proto structure
-            split_payments: None,
+            split_payments: value
+                .split_payments
+                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .transpose()?,
             setup_future_usage,
         })
     }
@@ -7161,7 +7171,10 @@ impl ForeignTryFrom<grpc_api_types::payments::RefundServiceGetRequest> for Refun
                 .transpose()?,
             all_keys_required: None, // Field not available in new proto structure
             integrity_object: None,
-            split_refunds: None,
+            split_refunds: value
+                .split_refunds
+                .map(connector_types::SplitRefundsDetails::foreign_try_from)
+                .transpose()?,
             connector_feature_data: value
                 .connector_feature_data
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
@@ -8043,6 +8056,7 @@ impl ForeignTryFrom<PaymentServiceVoidRequest> for PaymentVoidData {
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "connector metadata")))
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
+            split_payments: None,
         })
     }
 }
@@ -8556,6 +8570,278 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payments::AdyenSplitType> for common_enums::AdyenSplitType {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::AdyenSplitType,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_api_types::payments::AdyenSplitType::BalanceAccount => Ok(Self::BalanceAccount),
+            grpc_api_types::payments::AdyenSplitType::AcquiringFees => Ok(Self::AcquiringFees),
+            grpc_api_types::payments::AdyenSplitType::PaymentFee => Ok(Self::PaymentFee),
+            grpc_api_types::payments::AdyenSplitType::AdyenFees => Ok(Self::AdyenFees),
+            grpc_api_types::payments::AdyenSplitType::AdyenCommission => Ok(Self::AdyenCommission),
+            grpc_api_types::payments::AdyenSplitType::AdyenMarkup => Ok(Self::AdyenMarkup),
+            grpc_api_types::payments::AdyenSplitType::Interchange => Ok(Self::Interchange),
+            grpc_api_types::payments::AdyenSplitType::SchemeFee => Ok(Self::SchemeFee),
+            grpc_api_types::payments::AdyenSplitType::Commission => Ok(Self::Commission),
+            grpc_api_types::payments::AdyenSplitType::TopUp => Ok(Self::TopUp),
+            grpc_api_types::payments::AdyenSplitType::Vat => Ok(Self::Vat),
+            grpc_api_types::payments::AdyenSplitType::Unspecified => {
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name: "adyen_split_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Adyen split type must be specified".to_string()),
+                        ..Default::default()
+                    },
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::PaymentChargeType>
+    for common_enums::PaymentChargeType
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::PaymentChargeType,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value {
+            grpc_api_types::payments::PaymentChargeType::StripeDirect => {
+                Ok(Self::Stripe(common_enums::StripeChargeType::Direct))
+            }
+            grpc_api_types::payments::PaymentChargeType::StripeDestination => {
+                Ok(Self::Stripe(common_enums::StripeChargeType::Destination))
+            }
+            grpc_api_types::payments::PaymentChargeType::Unspecified => {
+                Err(IntegrationError::InvalidDataFormat {
+                    field_name: "payment_charge_type",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Payment charge type must be specified".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                }
+                .into())
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::DestinationChargeRefund>
+    for connector_types::DestinationChargeRefund
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::DestinationChargeRefund,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            revert_platform_fee: value.revert_platform_fee,
+            revert_transfer: value.revert_transfer,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::DirectChargeRefund>
+    for connector_types::DirectChargeRefund
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::DirectChargeRefund,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            revert_platform_fee: value.revert_platform_fee,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::ChargeRefundsOptions>
+    for connector_types::ChargeRefundsOptions
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::ChargeRefundsOptions,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value.charge_option {
+            Some(ref opt) => match opt {
+                grpc_api_types::payments::charge_refunds_options::ChargeOption::Destination(d) => {
+                    Ok(connector_types::ChargeRefundsOptions::Destination(
+                        connector_types::DestinationChargeRefund::foreign_try_from(*d)?,
+                    ))
+                }
+                grpc_api_types::payments::charge_refunds_options::ChargeOption::Direct(d) => {
+                    Ok(connector_types::ChargeRefundsOptions::Direct(
+                        connector_types::DirectChargeRefund::foreign_try_from(*d)?,
+                    ))
+                }
+            },
+            None => Err(IntegrationError::MissingRequiredField {
+                field_name: "charge_refunds_options.charge_option",
+                context: IntegrationErrorContext::default(),
+            }
+            .into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::StripeSplitRefundData>
+    for connector_types::StripeSplitRefundData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::StripeSplitRefundData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            charge_id: value.charge_id,
+            transfer_account_id: value.transfer_account_id,
+            charge_type: common_enums::PaymentChargeType::foreign_try_from(
+                grpc_api_types::payments::PaymentChargeType::try_from(value.charge_type)
+                    .unwrap_or_default(),
+            )?,
+            options: {
+                let opts = value
+                    .options
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "stripe_split_refund.options",
+                        context: IntegrationErrorContext::default(),
+                    })?;
+                connector_types::ChargeRefundsOptions::foreign_try_from(opts)?
+            },
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::AdyenSplitItem> for connector_types::AdyenSplitItem {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::AdyenSplitItem,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            amount: value.amount.map(common_utils::types::MinorUnit::new),
+            split_type: common_enums::AdyenSplitType::foreign_try_from(
+                grpc_api_types::payments::AdyenSplitType::try_from(value.split_type)
+                    .unwrap_or_default(),
+            )?,
+            account: value.account,
+            reference: value.reference,
+            description: value.description,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::AdyenSplitData> for connector_types::AdyenSplitData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::AdyenSplitData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            store: value.store,
+            split_items: value
+                .split_items
+                .into_iter()
+                .map(connector_types::AdyenSplitItem::foreign_try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::StripeSplitPaymentData>
+    for connector_types::StripeSplitPaymentData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::StripeSplitPaymentData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            charge_type: common_enums::PaymentChargeType::foreign_try_from(
+                grpc_api_types::payments::PaymentChargeType::try_from(value.charge_type)
+                    .unwrap_or_default(),
+            )?,
+            application_fees: value
+                .application_fees
+                .map(common_utils::types::MinorUnit::new),
+            transfer_account_id: value.transfer_account_id,
+            on_behalf_of: value.on_behalf_of,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitPaymentsDetails>
+    for connector_types::SplitPaymentsDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitPaymentsDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value.split_payment_type {
+            Some(
+                grpc_api_types::payments::split_payments_details::SplitPaymentType::StripeSplitPayment(
+                    s,
+                ),
+            ) => Ok(connector_types::SplitPaymentsDetails::StripeSplitPayment(
+                connector_types::StripeSplitPaymentData::foreign_try_from(s)?,
+            )),
+            Some(
+                grpc_api_types::payments::split_payments_details::SplitPaymentType::AdyenSplitPayment(
+                    a,
+                ),
+            ) => Ok(connector_types::SplitPaymentsDetails::AdyenSplitPayment(
+                connector_types::AdyenSplitData::foreign_try_from(a)?,
+            )),
+            None => Err(IntegrationError::MissingRequiredField {
+                field_name: "split_payments_request",
+                context: IntegrationErrorContext::default(),
+            }
+            .into()),
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::SplitRefundsDetails>
+    for connector_types::SplitRefundsDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::SplitRefundsDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        match value.split_refund_type {
+            Some(
+                grpc_api_types::payments::split_refunds_details::SplitRefundType::StripeSplitRefund(
+                    s,
+                ),
+            ) => Ok(connector_types::SplitRefundsDetails::StripeSplitRefund(
+                connector_types::StripeSplitRefundData::foreign_try_from(s)?,
+            )),
+            Some(
+                grpc_api_types::payments::split_refunds_details::SplitRefundType::AdyenSplitRefund(
+                    a,
+                ),
+            ) => Ok(connector_types::SplitRefundsDetails::AdyenSplitRefund(
+                connector_types::AdyenSplitData::foreign_try_from(a)?,
+            )),
+            None => Err(IntegrationError::MissingRequiredField {
+                field_name: "split_refunds_request",
+                context: IntegrationErrorContext::default(),
+            }
+            .into()),
+        }
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for RefundsData {
     type Error = IntegrationError;
 
@@ -8612,7 +8898,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for R
                 .map(BrowserInformation::foreign_try_from)
                 .transpose()?,
             integrity_object: None,
-            split_refunds: None,
+            split_refunds: value
+                .split_refunds
+                .map(connector_types::SplitRefundsDetails::foreign_try_from)
+                .transpose()?,
             connector_order_id: value.connector_order_id,
             payment_method_data: value.payment_method.and_then(|pm| {
                 payment_method_data::PaymentMethodData::<
@@ -9030,6 +9319,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
             order_tax_amount: value
                 .order_tax_amount
                 .map(|amount| common_utils::types::MinorUnit::new(amount.minor_amount)),
+            split_payments: None,
         })
     }
 }
@@ -9778,6 +10068,7 @@ impl<
                     .map(common_utils::pii::SecretSerdeValue::new)
             }),
             mit_category,
+            split_payments: None,
         })
     }
 }
@@ -11243,7 +11534,10 @@ impl ForeignTryFrom<PaymentServiceAuthorizeRequest> for ConnectorCustomerData {
             email: email.map(Secret::new),
             name: name_string,
             description: None,
-            split_payments: None,
+            split_payments: value
+                .split_payments
+                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .transpose()?,
             phone: None,
             preprocessing_id: None,
         })
@@ -11386,9 +11680,9 @@ impl ForeignTryFrom<PaymentServiceSetupRecurringRequest> for ConnectorCustomerDa
                     email: email.map(Secret::new),
                     name: customer.name.map(Secret::new),
                     description: None,
-                    split_payments: None,
                     phone: None,
                     preprocessing_id: None,
+                    split_payments: None,
                 })
             }
             None => Ok(Self {
@@ -11451,7 +11745,10 @@ impl<
             mandate_id: None,
             setup_mandate_details: None,
             integrity_object: None,
-            split_payments: None,
+            split_payments: value
+                .split_payments
+                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .transpose()?,
             connector_feature_data: value
                 .connector_feature_data
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
@@ -11961,7 +12258,10 @@ impl ForeignTryFrom<grpc_api_types::payments::CustomerServiceCreateRequest>
             email: email.map(Secret::new),
             name: value.customer_name.map(Secret::new),
             description: None, // description field not available in this proto
-            split_payments: None,
+            split_payments: value
+                .split_payments
+                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .transpose()?,
             phone: None,
             preprocessing_id: None,
         })
@@ -12248,7 +12548,10 @@ impl<
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
                 .transpose()?,
             off_session: value.off_session,
-            split_payments: None,
+            split_payments: value
+                .split_payments
+                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .transpose()?,
             recurring_mandate_payment_data: match value.original_payment_authorized_amount {
                 Some(money) => Some(RecurringMandatePaymentData {
                     payment_method_type: None,
@@ -14772,6 +15075,7 @@ pub fn tokenized_authorize_to_base(
         session_token: None,
         setup_mandate_details: None,
         shipping_cost: v.shipping_cost,
+        split_payments: None,
         statement_descriptor_name: None,
         statement_descriptor_suffix: None,
         threeds_completion_indicator: None,
@@ -14948,6 +15252,7 @@ pub fn proxied_authorize_to_base(
         shipping_cost: v.shipping_cost,
         order_tax_amount: None,
         surcharge_amount: None,
+        split_payments: None,
         statement_descriptor_name: None,
         statement_descriptor_suffix: None,
         tokenization_strategy: None,

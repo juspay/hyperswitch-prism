@@ -112,14 +112,17 @@ message CompositeAuthorizeRequest {
   // Domain-specific data (e.g. airline itinerary) for connectors that need it.
   optional DomainData domain_data = 52;
 
+  // Split payment configuration (platform fees, transfers, etc.)
+  optional SplitPaymentsDetails split_payments = 53;
+
   // MIT Category — mirrors PaymentServiceAuthorizeRequest.mit_category. For
   // CIT this signals the future intended MIT type; for Authorize-as-MIT it
   // signals the actual category being processed.
-  optional MitCategory mit_category = 53;
+  optional MitCategory mit_category = 54;
 
   // Surcharge amount to send separately for connectors that support a first-class
   // surcharge field. Mirrors PaymentServiceAuthorizeRequest.surcharge_amount.
-  optional Money surcharge_amount = 54;
+  optional Money surcharge_amount = 55;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -189,6 +192,9 @@ message CompositeGetRequest {
   // Payment method type, supplied by the caller so connectors that need it on
   // sync (e.g. Adyen, to build connector_response) can populate it.
   optional PaymentMethodType payment_method_type = 18;
+
+  // Split payment configuration (platform fees, transfers, etc.)
+  optional SplitPaymentsDetails split_payments = 19;
 }
 
 // Response message for composite get flow.
@@ -243,6 +249,9 @@ message CompositeRefundRequest {
 
   // Connector-side identifier for the original payment that this refund targets.
   optional string connector_order_id = 20;
+
+  // Split refund data for platform fee reversals and transfers
+  optional SplitRefundsDetails split_refunds = 21;
 }
 
 // Response message for composite refund flow.
@@ -296,6 +305,9 @@ message CompositeRefundGetRequest {
 
   // Connector-side identifier for the original payment that this refund sync targets. 
   optional string connector_order_id = 17;
+
+  // Split refund data for platform fee reversals and transfers
+  optional SplitRefundsDetails split_refunds = 18;
 }
 
 // Response message for composite refund get/sync flow.
@@ -631,12 +643,15 @@ message CompositeVerifyRedirectResponseRequest {
   // Connector-agnostic domain-specific data (airline, lodging, etc.).
   optional DomainData domain_data = 49;
 
+  // Split payment configuration (platform fees, transfers, etc.)
+  optional SplitPaymentsDetails split_payments = 50;
+
   // MIT Category — mirrors PaymentServiceAuthorizeRequest.mit_category.
-  optional MitCategory mit_category = 50;
+  optional MitCategory mit_category = 51;
 
   // Surcharge amount to send separately for connectors that support a first-class
   // surcharge field. Mirrors PaymentServiceAuthorizeRequest.surcharge_amount.
-  optional Money surcharge_amount = 51;
+  optional Money surcharge_amount = 52;
 }
 
 // Response message for composite verify redirect response flow.

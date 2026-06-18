@@ -2354,15 +2354,18 @@ message PaymentServiceAuthorizeRequest {
   // connectors that need it. Connectors map from this into their own payloads.
   optional DomainData domain_data = 46;
 
+  // Split payment configuration (platform fees, transfers, etc.)
+  optional SplitPaymentsDetails split_payments = 47;
+
   // MIT Category — for CIT (this request) it signals the future intended MIT
   // type; for Authorize-as-MIT (with mandate_id set) it signals the actual
   // MIT category being processed. Mirrors the field on
   // RecurringPaymentServiceChargeRequest.
-  optional MitCategory mit_category = 47;
+  optional MitCategory mit_category = 48;
 
   // Surcharge amount to send separately for connectors that support a first-class
   // surcharge field. This does not change the transaction amount.
-  optional Money surcharge_amount = 48;
+  optional Money surcharge_amount = 49;
 }
 
 // Response message for a payment authorization
@@ -2451,6 +2454,9 @@ message PaymentServiceGetRequest {
   // Payment method type, supplied by the caller so connectors that need it on
   // sync (e.g. Adyen, to build connector_response) can populate it.
   optional PaymentMethodType payment_method_type = 16;
+
+  // Split payment configuration (platform fees, transfers, etc.)
+  optional SplitPaymentsDetails split_payments = 17;
 }
 
 // Response message for a payment status synchronization
@@ -2887,6 +2893,9 @@ message PaymentServiceRefundRequest {
 
   // Optional typed payment method (e.g. wallet number for direct-wallet refunds).
   optional PaymentMethod payment_method = 19;
+
+  // Split refund data for platform fee reversals and transfers
+  optional SplitRefundsDetails split_refunds = 20;
 }
 
 // Response message for a refund operation (unified for both Create and Get)
@@ -3242,6 +3251,8 @@ message RecurringPaymentServiceChargeRequest {
   // Additional payment data for various payment methods
   optional AdditionalPaymentData additional_payment_data = 33;
 
+  // Split payment configuration (platform fees, transfers, etc.)
+  optional SplitPaymentsDetails split_payments = 34;
 }
 
 // Response message for repeat payment operation
@@ -3745,6 +3756,9 @@ message RefundServiceGetRequest {
 
   // Connector-side identifier for the original payment that this refund sync targets. 
   optional string connector_order_id = 17;
+
+  // Split refund data for platform fee reversals and transfers
+  optional SplitRefundsDetails split_refunds = 18;
 }
 
 // ============================================================================
@@ -3887,6 +3901,9 @@ message PaymentMethodServiceTokenizeRequest {
 
   // State Information
   optional ConnectorState state = 10;
+
+  // Split payment configuration (platform fees, transfers, etc.)
+  optional SplitPaymentsDetails split_payments = 11;
 }
 
 // Response message for tokenizing a payment method
@@ -4087,6 +4104,9 @@ message CustomerServiceCreateRequest {
 
   // Environment Configuration
   optional bool test_mode = 8;
+
+  // Split payment configuration (platform fees, transfers, etc.)
+  optional SplitPaymentsDetails split_payments = 9;
 }
 
 // Response message for creating a customer
@@ -5295,4 +5315,101 @@ message PaymentServiceProxySetupRecurringRequest {
   // Order Details
   optional string order_category = 16; // Category of the order/service
   optional string description = 17; // Description of the mandate setup
+}
+
+// ============================================================================
+// SPLIT REFUND TYPES
+// ============================================================================
+
+// Request for split refunds (platform fee reversals, transfers, etc.)
+message SplitRefundsDetails {
+  oneof split_refund_type {
+    StripeSplitRefundData stripe_split_refund = 1;
+    AdyenSplitData adyen_split_refund = 2;
+  }
+}
+
+// Stripe-specific split refund data
+message StripeSplitRefundData {
+  string charge_id = 1;
+  string transfer_account_id = 2;
+  PaymentChargeType charge_type = 3;
+  ChargeRefundsOptions options = 4;
+}
+
+// Type of charge for Stripe split refunds
+enum PaymentChargeType {
+  PAYMENT_CHARGE_TYPE_UNSPECIFIED = 0;
+  STRIPE_DIRECT = 1;
+  STRIPE_DESTINATION = 2;
+}
+
+// Options for charge refunds (destination vs direct)
+message ChargeRefundsOptions {
+  oneof charge_option {
+    DestinationChargeRefund destination = 1;
+    DirectChargeRefund direct = 2;
+  }
+}
+
+// Destination charge refund options
+message DestinationChargeRefund {
+  bool revert_platform_fee = 1;
+  bool revert_transfer = 2;
+}
+
+// Direct charge refund options
+message DirectChargeRefund {
+  bool revert_platform_fee = 1;
+}
+
+// Adyen-specific split refund data
+message AdyenSplitData {
+  optional string store = 1;
+  repeated AdyenSplitItem split_items = 2;
+}
+
+// Individual split item for Adyen
+message AdyenSplitItem {
+  optional int64 amount = 1;
+  AdyenSplitType split_type = 2;
+  optional string account = 3;
+  string reference = 4;
+  optional string description = 5;
+}
+
+// Adyen split type enumeration
+enum AdyenSplitType {
+  ADYEN_SPLIT_TYPE_UNSPECIFIED = 0;
+  BALANCE_ACCOUNT = 1;
+  ACQUIRING_FEES = 2;
+  PAYMENT_FEE = 3;
+  ADYEN_FEES = 4;
+  ADYEN_COMMISSION = 5;
+  ADYEN_MARKUP = 6;
+  INTERCHANGE = 7;
+  SCHEME_FEE = 8;
+  COMMISSION = 9;
+  TOP_UP = 10;
+  VAT = 11;
+}
+
+// ============================================================================
+// SPLIT PAYMENT TYPES
+// ============================================================================
+
+// Request for split payments (platform fees, transfers, etc.)
+message SplitPaymentsDetails {
+  oneof split_payment_type {
+    StripeSplitPaymentData stripe_split_payment = 1;
+    AdyenSplitData adyen_split_payment = 2;
+  }
+}
+
+// Stripe-specific split payment data
+message StripeSplitPaymentData {
+  PaymentChargeType charge_type = 1;
+  optional int64 application_fees = 2;
+  string transfer_account_id = 3;
+  optional string on_behalf_of = 4;
 }
