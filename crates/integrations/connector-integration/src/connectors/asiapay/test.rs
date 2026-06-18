@@ -769,10 +769,7 @@ mod tests {
 
         let connector = Asiapay::<DefaultPCIHolder>::new();
         assert_eq!(connector.id(), "asiapay");
-        assert!(matches!(
-            connector.get_currency_unit(),
-            CurrencyUnit::Base
-        ));
+        assert!(matches!(connector.get_currency_unit(), CurrencyUnit::Base));
     }
 
     #[test]
