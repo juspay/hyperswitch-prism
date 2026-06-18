@@ -22,6 +22,8 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
+    PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceEligibilityResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -78,6 +80,7 @@ use grpc_api_types::surcharge::{
 use crate::services::payments::{
     accept_req_transformer, accept_res_transformer,
     authenticate_req_transformer, authenticate_res_transformer,
+    eligibility_req_transformer, eligibility_res_transformer,
     authorize_req_transformer, authorize_res_transformer,
     capture_req_transformer, capture_res_transformer,
     charge_req_transformer, charge_res_transformer,
@@ -186,6 +189,8 @@ impl_flow_handlers!(surcharge_calculate, SurchargeServiceCalculateRequest, Surch
 impl_flow_handlers!(token_authorize, PaymentServiceTokenAuthorizeRequest, PaymentServiceAuthorizeResponse, token_authorize_req_transformer, token_authorize_res_transformer, domain_types::connector_types::ConnectorEnum);
 // token_setup_recurring: PaymentService.TokenSetupRecurring — Setup a recurring mandate using a connector token.
 impl_flow_handlers!(token_setup_recurring, PaymentServiceTokenSetupRecurringRequest, PaymentServiceSetupRecurringResponse, token_setup_recurring_req_transformer, token_setup_recurring_res_transformer, domain_types::connector_types::ConnectorEnum);
+// eligibility: PaymentMethodService.Eligibility — Check payment method eligibility with the connector. Determines if a given payment method is eligible for processing based on merchant and customer context.
+impl_flow_handlers!(eligibility, PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse, eligibility_req_transformer, eligibility_res_transformer, domain_types::connector_types::ConnectorEnum);
 // tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
 impl_flow_handlers!(tokenize, PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse, tokenize_req_transformer, tokenize_res_transformer, domain_types::connector_types::ConnectorEnum);
 // void: PaymentService.Void — Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.

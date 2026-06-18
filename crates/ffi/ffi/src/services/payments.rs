@@ -17,7 +17,8 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceEligibilityResponse, PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
     PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
@@ -37,7 +38,8 @@ use domain_types::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
         CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
+        MandateRevoke, PSync, PaymentMethodEligibility, PaymentMethodToken, PostAuthenticate,
+        PreAuthenticate, RSync, Refund,
         RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
         SubmitEvidence, Void, VoidPC,
     },
@@ -46,6 +48,7 @@ use domain_types::{
         ConnectorCustomerResponse, ConnectorWebhookSecrets, DisputeDefendData, DisputeFlowData,
         DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
@@ -477,6 +480,36 @@ res_transformer!(
     connector_data_type: domain_types::payment_method_data::DefaultPCIHolder,
     request_data_fn: |p: &PaymentMethodServiceTokenizeRequest| {
         domain_types::types::build_request_data_with_required_pmd(p.payment_method.clone(), p.clone())
+    },
+);
+
+// eligibility (payment method eligibility) request transformer
+req_transformer!(
+    fn_name: eligibility_req_transformer,
+    request_type: PaymentMethodServiceEligibilityRequest,
+    flow_marker: PaymentMethodEligibility,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: PaymentMethodEligibilityData,
+    response_data_type: PaymentMethodEligibilityResponse,
+    connector_data_type: T,
+    request_data_fn: |p: &PaymentMethodServiceEligibilityRequest| {
+        domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+);
+
+// eligibility (payment method eligibility) response transformer
+res_transformer!(
+    fn_name: eligibility_res_transformer,
+    request_type: PaymentMethodServiceEligibilityRequest,
+    response_type: PaymentMethodServiceEligibilityResponse,
+    flow_marker: PaymentMethodEligibility,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: PaymentMethodEligibilityData,
+    response_data_type: PaymentMethodEligibilityResponse,
+    generate_response_fn: generate_payment_method_eligibility_response,
+    connector_data_type: T,
+    request_data_fn: |p: &PaymentMethodServiceEligibilityRequest| {
+        domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
     },
 );
 

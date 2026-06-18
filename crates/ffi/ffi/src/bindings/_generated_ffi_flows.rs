@@ -12,6 +12,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
+    PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceTokenizeRequest,
     PaymentServiceAuthorizeRequest,
     PaymentServiceCaptureRequest,
@@ -47,6 +48,7 @@ use grpc_api_types::surcharge::{
 use crate::handlers::payments::{
     accept_req_handler, accept_res_handler,
     authenticate_req_handler, authenticate_res_handler,
+    eligibility_req_handler, eligibility_res_handler,
     authorize_req_handler, authorize_res_handler,
     capture_req_handler, capture_res_handler,
     charge_req_handler, charge_res_handler,
@@ -151,6 +153,8 @@ define_ffi_flow!(surcharge_calculate, SurchargeServiceCalculateRequest, surcharg
 define_ffi_flow!(token_authorize, PaymentServiceTokenAuthorizeRequest, token_authorize_req_handler, token_authorize_res_handler);
 // token_setup_recurring: PaymentService.TokenSetupRecurring — Setup a recurring mandate using a connector token.
 define_ffi_flow!(token_setup_recurring, PaymentServiceTokenSetupRecurringRequest, token_setup_recurring_req_handler, token_setup_recurring_res_handler);
+// eligibility: PaymentMethodService.Eligibility — Check payment method eligibility with the connector. Determines if a given payment method is eligible for processing based on merchant and customer context.
+define_ffi_flow!(eligibility, PaymentMethodServiceEligibilityRequest, eligibility_req_handler, eligibility_res_handler);
 // tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
 define_ffi_flow!(tokenize, PaymentMethodServiceTokenizeRequest, tokenize_req_handler, tokenize_res_handler);
 // void: PaymentService.Void — Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
