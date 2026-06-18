@@ -392,7 +392,7 @@ impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent> for FrmPay
         let frm_decision = value.frm_decision.and_then(|d| {
             grpc_api_types::frm::FrmDecision::try_from(d)
                 .ok()
-                .map(|decision| FrmDecision::foreign_from(decision))
+                .map(FrmDecision::foreign_from)
         });
 
         Ok(Self {
@@ -461,7 +461,7 @@ impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent>
         let frm_decision = value.frm_decision.and_then(|d| {
             grpc_api_types::frm::FrmDecision::try_from(d)
                 .ok()
-                .map(|decision| FrmDecision::foreign_from(decision))
+                .map(FrmDecision::foreign_from)
         });
 
         Ok(Self {
@@ -527,7 +527,7 @@ impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent>
         let frm_decision = value.frm_decision.and_then(|d| {
             grpc_api_types::frm::FrmDecision::try_from(d)
                 .ok()
-                .map(|decision| FrmDecision::foreign_from(decision))
+                .map(FrmDecision::foreign_from)
         });
 
         Ok(Self {

@@ -2,6 +2,7 @@ use axum::{extract::Request, http};
 use common_utils::consts;
 use external_services::shared_metrics as metrics;
 use grpc_api_types::{
+    frm::fraud_and_risk_management_service_server,
     health_check::health_server,
     payments::{
         composite_event_service_server, composite_payment_method_service_server,
@@ -12,7 +13,6 @@ use grpc_api_types::{
     },
     payouts::payout_service_server,
     surcharge::surcharge_service_server,
-    frm::fraud_and_risk_management_service_server,
 };
 use std::{future::Future, net, sync::Arc};
 use tokio::{

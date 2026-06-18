@@ -1,6 +1,7 @@
 use std::{future::Future, sync::Arc};
 
 use grpc_api_types::{
+    frm::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient,
     health_check::health_client::HealthClient,
     payments::{
         customer_service_client::CustomerServiceClient,
@@ -16,7 +17,6 @@ use grpc_api_types::{
         payout_service_client::PayoutServiceClient, payout_service_server::PayoutServiceServer,
     },
     surcharge::surcharge_service_client::SurchargeServiceClient,
-    frm::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient,
 };
 use http::Uri;
 use hyper_util::rt::TokioIo; // Add this import
