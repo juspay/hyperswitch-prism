@@ -188,6 +188,7 @@ mod tests {
                     threeds_method_comp_ind: None,
                     tokenization: None,
                     mit_category: None,
+                    domain_data: None,
 },
                 response: Err(ErrorResponse::default())
 };
@@ -348,6 +349,7 @@ mod tests {
                     threeds_method_comp_ind: None,
                     tokenization: None,
                     mit_category: None,
+                    domain_data: None,
 },
                 response: Err(ErrorResponse::default())
 };

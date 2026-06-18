@@ -173,6 +173,7 @@ mod tests {
 
                     mit_category: None,
                     payment_channel: None,
+                    domain_data: None,
                 },
                 response: Err(ErrorResponse::default()),
             };
@@ -330,6 +331,7 @@ mod tests {
 
                     mit_category: None,
                     payment_channel: None,
+                    domain_data: None,
                 },
                 response: Err(ErrorResponse::default()),
             };

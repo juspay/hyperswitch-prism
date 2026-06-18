@@ -204,6 +204,7 @@ impl
             connector_order_id: item.connector_order_id.clone(),
             mit_category: item.mit_category,
             merchant_request_id: item.merchant_request_id.clone(),
+            domain_data: item.domain_data.clone(),
         }
     }
 }
@@ -938,6 +939,7 @@ impl
             l2_l3_data: request.l2_l3_data.clone(),
             connector_order_id: request.connector_order_id.clone(),
             merchant_request_id: request.merchant_request_id.clone(),
+            domain_data: None,
         }
     }
 }

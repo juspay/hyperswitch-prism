@@ -93,7 +93,7 @@ message CompositeAuthorizeRequest {
   optional string customer_name = 44;
   optional SecretString email = 45;
   optional string merchant_customer_id = 46;
-  optional string phone_number = 47;
+  optional SecretString phone_number = 47;
 
   // Level 2 / Level 3 data for enhanced payment processing
   optional L2L3Data l2_l3_data = 48;
@@ -117,6 +117,9 @@ message CompositeAuthorizeRequest {
   // Surcharge amount to send separately for connectors that support a first-class
   // surcharge field. Mirrors PaymentServiceAuthorizeRequest.surcharge_amount.
   optional Money surcharge_amount = 53;
+
+  // Domain-specific data (e.g. airline itinerary) for connectors that need it.
+  optional DomainData domain_data = 54;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -631,6 +634,9 @@ message CompositeVerifyRedirectResponseRequest {
   // Surcharge amount to send separately for connectors that support a first-class
   // surcharge field. Mirrors PaymentServiceAuthorizeRequest.surcharge_amount.
   optional Money surcharge_amount = 50;
+
+  // Connector-agnostic domain-specific data (airline, lodging, etc.).
+  optional DomainData domain_data = 51;
 }
 
 // Response message for composite verify redirect response flow.
