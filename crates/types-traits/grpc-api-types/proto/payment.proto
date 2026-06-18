@@ -2350,19 +2350,19 @@ message PaymentServiceAuthorizeRequest {
   // Required by some connectors for authorize requests.
   optional string merchant_request_id = 45;
 
+  // Domain-specific data (e.g. airline itinerary) the merchant supplies for
+  // connectors that need it. Connectors map from this into their own payloads.
+  optional DomainData domain_data = 46;
+
   // MIT Category — for CIT (this request) it signals the future intended MIT
   // type; for Authorize-as-MIT (with mandate_id set) it signals the actual
   // MIT category being processed. Mirrors the field on
   // RecurringPaymentServiceChargeRequest.
-  optional MitCategory mit_category = 46;
+  optional MitCategory mit_category = 47;
 
   // Surcharge amount to send separately for connectors that support a first-class
   // surcharge field. This does not change the transaction amount.
-  optional Money surcharge_amount = 47;
-
-  // Domain-specific data (e.g. airline itinerary) the merchant supplies for
-  // connectors that need it. Connectors map from this into their own payloads.
-  optional DomainData domain_data = 48;
+  optional Money surcharge_amount = 48;
 }
 
 // Response message for a payment authorization
