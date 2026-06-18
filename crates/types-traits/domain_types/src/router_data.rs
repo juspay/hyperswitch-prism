@@ -1636,6 +1636,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                     })?,
                 base_url: cashtocode.base_url,
             }),
+            AuthType::Checkout(checkout) => Ok(Self::Checkout {
+                api_key: checkout.api_key.ok_or_else(err)?,
+                api_secret: checkout.api_secret.ok_or_else(err)?,
+                processing_channel_id: checkout.processing_channel_id.ok_or_else(err)?,
+                base_url: checkout.base_url,
+            }),
             AuthType::Cryptopay(cryptopay) => Ok(Self::Cryptopay {
                 api_key: cryptopay.api_key.ok_or_else(err)?,
                 api_secret: cryptopay.api_secret.ok_or_else(err)?,

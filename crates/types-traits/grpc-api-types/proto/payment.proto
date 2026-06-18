@@ -135,7 +135,7 @@ message Customer {
   optional string id = 3;          // Internal customer ID
   optional string connector_customer_id =
       4;                                  // Customer ID in the connector system
-  optional string phone_number = 5;       // Customer's phone number
+  optional SecretString phone_number = 5; // Customer's phone number
   optional string phone_country_code = 6; // Customer's phone country code
   optional string first_name = 7;       // Customer's first name
   optional string last_name = 8;        // Customer's last name
@@ -1270,6 +1270,126 @@ message L2L3Data {
   optional TaxInfo tax_info = 2;
 }
 
+// Domain-specific data supplied by the merchant.
+message DomainData {
+  optional AirlineData airline_data = 1; // Airline / travel itinerary data
+}
+
+// Whether the ticket can be refunded 
+enum TicketRefundability {
+  TICKET_REFUNDABILITY_UNSPECIFIED = 0;
+  REFUNDABLE = 1;
+  NON_REFUNDABLE = 2;
+}
+
+// Ticket medium — electronic vs paper
+enum TicketDeliveryType {
+  TICKET_DELIVERY_TYPE_UNSPECIFIED = 0;
+  ELECTRONIC = 1;
+  PAPER = 2;
+}
+
+// Whether the cardholder is among the passengers a fraud signal.
+enum CardholderTravelStatus {
+  CARDHOLDER_TRAVEL_STATUS_UNSPECIFIED = 0;
+  CARDHOLDER_TRAVELING = 1;
+  CARDHOLDER_NOT_TRAVELING = 2;
+}
+
+// Connector-agnostic airline / travel itinerary data. The union of fields
+// across processors (2C2P PACO, CyberSource, Adyen, Worldpay, Checkout.com,
+// Nuvei); every field is optional so each connector enforces its own required
+// subset. Amounts use Money (minor units + currency); dates are strings since
+// processors disagree on format.
+message AirlineData {
+  // ---- Booking / ticket level ----
+  optional string pnr_code = 1;                 // PNR / reservation-system code
+  optional string booking_reference = 2;        // Merchant booking / customer reference
+  optional string ticket_number = 3;            // Airline ticket number
+  optional string ticket_issue_date = 4;        // Date the ticket was issued
+  optional string booking_date_time = 5;        // Booking timestamp (RFC 3339)
+  optional string flight_date = 6;              // Departure date of the first leg
+  optional string issuing_carrier_code = 7;     // IATA code of the ticket issuer
+  optional string airline_code = 8;             // IATA numeric accounting code
+  optional string passenger_name = 9;           // Primary passenger name
+  optional uint32 number_of_passengers = 10;    // Passenger count on the ticket
+  optional string document_type = 11;           // Travel document type code
+  TicketRefundability refundability = 12;       // Refundable / non-refundable
+  TicketDeliveryType ticket_delivery_type = 13; // Electronic vs paper ticket
+  CardholderTravelStatus cardholder_travel_status = 14; // Is the cardholder a passenger
+  optional Address ticket_issue_address = 15;   // Address of the issuing agency
+  optional string booking_system_unique_id = 16; // Booking-system unique identifier
+
+  // Travel agency
+  optional string agency_code = 20;             // IATA / ARC travel agency code
+  optional string agency_name = 21;             // Travel agency name
+  optional string agency_invoice_number = 22;   // Agency-issued invoice number
+  optional string agency_plan_name = 23;        // Agency plan identifier
+
+  // Ticket-level amounts (each carries its own currency)
+  optional Money total_fare = 30;               // Total ticket fare
+  optional Money total_taxes = 31;              // Total taxes on the ticket
+  optional Money total_fee = 32;                // Total fees on the ticket
+  optional Money boarding_fee = 33;             // Chargeable boarding fee
+
+  repeated AirlineSegment flight_segments = 40; // Flight legs, in itinerary order
+  repeated AirlinePassenger passengers = 41;    // Passengers on the ticket
+}
+
+// One flight leg. departure/arrival reuse the shared AirlineLocation, mirroring
+// how Address is reused for billing/shipping.
+message AirlineSegment {
+  optional uint32 sequence_no = 1;              // 1-based leg order
+  optional string carrier_code = 2;             // Marketing carrier IATA-2
+  optional string flight_number = 3;            // Flight number
+  optional string flight_type = 4;              // "Domestic" / "International"
+  optional string class_of_service = 5;         // F / J / Y / W
+  optional string fare_basis_code = 6;          // Fare basis code
+  optional string stopover_code = 7;            // O = stopover allowed / X = not
+  AirlineLocation departure = 8;                // Departure endpoint
+  AirlineLocation arrival = 9;                  // Arrival endpoint
+
+  // Per-leg amounts (each carries its own currency)
+  optional Money fare_amount = 10;              // Fare for this leg
+  optional Money fee_amount = 11;               // Fee for this leg
+  optional Money tax_amount = 12;               // Departure tax for this leg
+
+  // Exchange / coupon details
+  optional string exchange_ticket_number = 13;  // New ticket number on exchange
+  optional string conjunction_ticket = 14;      // Conjunction ticket for >4 legs
+  optional string coupon_number = 15;           // Coupon number for this leg
+  optional string endorsements_restrictions = 16; // Endorsements / restrictions
+}
+
+// A flight endpoint, reused for both departure and arrival.
+message AirlineLocation {
+  optional string airport_code = 1;             // IATA-3 airport code
+  optional string city_code = 2;                // IATA-3 city code
+  optional string city_name = 3;                // City name
+  optional string country_code = 4;             // ISO 3166-1 numeric-3 country code
+  optional string country_name = 5;             // Country name
+  optional string date_time = 6;                // Local scheduled time (RFC 3339)
+}
+
+message AirlinePassenger {
+  optional uint32 sequence_no = 1;              // 1-based passenger order
+
+  // Identity fields shared with the cardholder/payer model — salutation,
+  // first_name, last_name, email (Secret) and phone_number (Secret).
+  optional Customer customer = 2;
+
+  // Passenger-specific fields not on Customer.
+  optional string middle_name = 3;              // Middle name
+  optional string gender = 4;                   // M / F / X
+  optional string date_of_birth = 5;            // Date of birth (yyyy-MM-dd)
+  optional string passenger_type = 6;           // IATA PTC, e.g. ADT
+  optional string frequent_flyer_number = 7;    // Loyalty / frequent-flyer number
+  optional string loyalty_tier = 8;             // Loyalty-program tier
+  optional SecretString passport_number = 9;    // Passport number
+  optional string nationality = 10;             // ISO 3166-1 alpha-2 nationality
+  optional SecretString ticket_number = 11;     // Per-passenger ticket number
+}
+
 // Redirection response data
 message RedirectionResponse {
   optional string params = 1;
@@ -2220,6 +2340,10 @@ message PaymentServiceAuthorizeRequest {
   // Request ID generated by the caller system for payment gateway requests.
   // Required by some connectors for authorize requests.
   optional string merchant_request_id = 45;
+
+  // Domain-specific data (e.g. airline itinerary) the merchant supplies for
+  // connectors that need it. Connectors map from this into their own payloads.
+  optional DomainData domain_data = 46;
 }
 
 // Response message for a payment authorization
@@ -2258,6 +2382,9 @@ message PaymentServiceAuthorizeResponse {
   optional ConnectorResponseData connector_response = 17;
   optional SecretString connector_feature_data =
       18; // Connector-specific metadata for the transaction
+  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+  // Distinct from network_transaction_id.
+  optional string network_txn_link_id = 19;
 }
 
 // Request message for synchronizing payment status
@@ -2322,8 +2449,8 @@ message PaymentServiceGetResponse {
   // Transaction Details
   optional MandateReference mandate_reference = 6;
   optional string network_transaction_id = 7;
-  // Network-issued link/reference id (Adyen `transactionLinkId`, etc.) chaining
-  // related network transactions. Distinct from network_transaction_id.
+  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+  // Distinct from network_transaction_id.
   optional string network_txn_link_id = 31;
 
   // Payment Details
@@ -3887,7 +4014,7 @@ message CustomerServiceCreateRequest {
   // Customer Information
   optional string customer_name = 2; // Name of the customer
   optional SecretString email = 3;   // Email address of the customer
-  optional string phone_number = 4;  // Phone number of the customer
+  optional SecretString phone_number = 4;  // Phone number of the customer
 
   // Address Information
   optional PaymentAddress address = 5;
@@ -3947,7 +4074,7 @@ message CustomerServiceUpdateRequest {
   string connector_customer_id = 2;
   optional string customer_name = 3; // Name of the customer
   optional SecretString email = 4;   // Email address of the customer
-  optional string phone_number = 5;  // Phone number of the customer
+  optional SecretString phone_number = 5;  // Phone number of the customer
 
   // Address Information
   optional PaymentAddress address = 6;
@@ -4141,6 +4268,13 @@ message BluesnapConfig {
 message CashfreeConfig {
   SecretString app_id = 1;
   SecretString secret_key = 2;
+  optional string base_url = 50;
+}
+
+message CheckoutConfig {
+  SecretString api_key = 1;
+  SecretString api_secret = 2;
+  SecretString processing_channel_id = 3;
   optional string base_url = 50;
 }
 
@@ -4966,6 +5100,9 @@ message ConnectorSpecificConfig {
     PayconexConfig payconex = 129;
     // QWIKCILVER = 125
     QwikcilverConfig qwikcilver = 130;
+
+    // CHECKOUT = 126
+    CheckoutConfig checkout = 131;
   }
 }
 
@@ -5063,6 +5200,9 @@ message PaymentServiceProxyAuthorizeRequest {
   // authorize
   optional string connector_order_id = 26;
   optional int64 shipping_cost = 27;    // Cost of shipping for the order
+
+  // Domain-specific data (e.g. airline itinerary) for connectors that need it.
+  optional DomainData domain_data = 28;
 }
 
 message PaymentServiceProxySetupRecurringRequest {

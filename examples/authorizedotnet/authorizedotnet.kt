@@ -264,7 +264,7 @@ fun customerCreate(txnId: String, config: ConnectorConfig = _defaultConfig) {
         merchantCustomerId = "cust_probe_123"  // Identification.
         customerName = "John Doe"  // Name of the customer.
         emailBuilder.value = "test@example.com"  // Email address of the customer.
-        phoneNumber = "4155552671"  // Phone number of the customer.
+        phoneNumberBuilder.value = "4155552671"  // Phone number of the customer.
     }.build()
     val response = client.customer_create(request)
     println("Customer: ${response.connectorCustomerId}")

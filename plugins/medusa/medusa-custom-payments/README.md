@@ -1,5 +1,7 @@
 # @juspay-tech/medusa-custom-payments
 
+[![npm](https://img.shields.io/npm/v/@juspay-tech/medusa-custom-payments?logo=npm)](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments)
+
 Custom payments provider plugin for Medusa v2. Enables payment processing through multiple connectors — Stripe, Adyen, PayPal, GlobalPay, Braintree, Cybersource, and Mollie — via a single Prism-powered provider.
 
 Powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism), an open-source unified connector service (UCS) that abstracts connector-specific APIs behind a single interface.
@@ -17,6 +19,8 @@ Powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism), an 
 ```bash
 npm install @juspay-tech/medusa-custom-payments
 ```
+
+📦 [View on npm](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments)
 
 ## Setup
 
