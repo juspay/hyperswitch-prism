@@ -724,6 +724,9 @@ impl Connectors {
             ConnectorEnum::TwocTwopPaco => {
                 patched.twoc_twop_paco.apply(params_patch);
             }
+            ConnectorEnum::Flywire => {
+                patched.flywire.apply(params_patch);
+            }
             _ => {
                 // Connector not supported for URL patching - return error
                 return Err(IntegrationError::InvalidDataFormat {

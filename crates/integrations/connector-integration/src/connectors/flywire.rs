@@ -280,6 +280,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn requires_verify_redirect_response(&self) -> bool {
         true
     }
+
+    fn requires_authorize_post_redirect(&self) -> bool {
+        true
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
