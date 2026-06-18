@@ -3518,6 +3518,32 @@ impl ForeignTryFrom<grpc_payment_types::DomainData> for connector_types::DomainD
     }
 }
 
+impl ForeignTryFrom<grpc_payment_types::PartnerMerchantIdentifierDetails>
+    for connector_types::PartnerMerchantIdentifierDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        details: grpc_payment_types::PartnerMerchantIdentifierDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            partner_details: details.partner_details.map(|p| {
+                connector_types::PartnerApplicationDetails {
+                    name: p.name,
+                    version: p.version,
+                    integrator: p.integrator,
+                }
+            }),
+            merchant_details: details.merchant_details.map(|m| {
+                connector_types::MerchantApplicationDetails {
+                    name: m.name,
+                    version: m.version,
+                }
+            }),
+        })
+    }
+}
+
 impl ForeignTryFrom<grpc_payment_types::AirlineData> for connector_types::AirlineData {
     type Error = IntegrationError;
 
@@ -3922,7 +3948,10 @@ impl<
                 .domain_data
                 .map(connector_types::DomainData::foreign_try_from)
                 .transpose()?,
-            partner_merchant_identifier_details: value.partner_merchant_identifier_details,
+            partner_merchant_identifier_details: value
+                .partner_merchant_identifier_details
+                .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -12338,7 +12367,10 @@ impl<
             additional_payment_data: value
                 .additional_payment_data
                 .and_then(Option::<AdditionalPaymentData>::foreign_from),
-            partner_merchant_identifier_details: value.partner_merchant_identifier_details,
+            partner_merchant_identifier_details: value
+                .partner_merchant_identifier_details
+                .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
