@@ -7,9 +7,10 @@ pub use ucs_interface_common::metadata::*;
 use common_utils::{
     consts::{self, Env},
     errors::CustomResult,
-    events::{Event, EventStage, ExecutionMode, FlowName, MaskedSerdeValue},
+    events::{Event, EventStage, FlowName, MaskedSerdeValue},
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
+    types::ExecutionMode,
 };
 use domain_types::{
     connector_types, errors::IntegrationError, router_data::ConnectorSpecificConfig,

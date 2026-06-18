@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::errors::EventPublisherError;
+use crate::types::ExecutionMode;
 use crate::{
     global_id::{
         customer::GlobalCustomerId,
@@ -425,27 +426,6 @@ impl EventStage {
     }
 }
 
-/// Primary execution or shadow mirror.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ExecutionMode {
-    /// Real execution whose result is used.
-    Primary,
-    /// Shadow mirror whose result is discarded (validation only).
-    Shadow,
-}
-
-impl ExecutionMode {
-    /// Map the boolean shadow flag (from the `x-shadow-mode` metadata) to an execution mode.
-    pub fn from_shadow_flag(shadow_mode: bool) -> Self {
-        if shadow_mode {
-            Self::Shadow
-        } else {
-            Self::Primary
-        }
-    }
-}
-
 /// Configuration for events system
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct EventConfig {
@@ -456,8 +436,8 @@ pub struct EventConfig {
     #[serde(alias = "topic")]
     pub connector_events_topic: String,
     /// Topic for inbound requests UCS serves over any transport — gRPC or HTTP
-    /// (`GrpcRequest` stage -> the `ucs_api_events` table). Falls back to
-    /// `connector_events_topic` when empty.
+    /// (`GrpcRequest` stage -> the `ucs_api_events` table). Single-topic deployments set
+    /// this equal to `connector_events_topic`.
     #[serde(default)]
     pub ucs_api_events_topic: String,
     pub brokers: Vec<String>,
