@@ -544,7 +544,7 @@ pub struct PaymentsSyncData {
     pub amount: MinorUnit,
     pub all_keys_required: Option<bool>,
     pub integrity_object: Option<PaymentSynIntegrityObject>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<SplitPaymentsDetails>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
 }
 
@@ -1330,6 +1330,7 @@ pub struct PaymentVoidData {
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub metadata: Option<SecretSerdeValue>,
     pub merchant_order_id: Option<String>,
+    pub split_payments: Option<SplitPaymentsDetails>,
 }
 
 impl PaymentVoidData {
@@ -1461,7 +1462,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub request_incremental_authorization: Option<bool>,
     pub metadata: Option<SecretSerdeValue>,
     pub authentication_data: Option<router_request_types::AuthenticationData>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<SplitPaymentsDetails>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
@@ -1866,7 +1867,7 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
     pub setup_mandate_details: Option<MandateData>,
     pub mandate_id: Option<MandateIds>,
     pub integrity_object: Option<PaymentMethodTokenIntegrityObject>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<SplitPaymentsDetails>,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
 }
 
@@ -2290,7 +2291,7 @@ pub struct ConnectorCustomerData {
     pub description: Option<String>,
     pub phone: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<SplitPaymentsDetails>,
 }
 
 impl ConnectorCustomerData {
@@ -2336,7 +2337,7 @@ pub struct RefundSyncData {
     pub integrity_object: Option<RefundSyncIntegrityObject>,
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
-    pub split_refunds: Option<SplitRefundsRequest>,
+    pub split_refunds: Option<SplitRefundsDetails>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub refund_money: Option<common_utils::types::Money>,
     /// Connector-side identifier for the original payment that this refund sync targets.
@@ -3053,7 +3054,7 @@ pub struct RefundsData {
     pub integrity_object: Option<RefundIntegrityObject>,
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
-    pub split_refunds: Option<SplitRefundsRequest>,
+    pub split_refunds: Option<SplitRefundsDetails>,
     /// Connector-side identifier for the original payment that this refund targets.
     pub connector_order_id: Option<String>,
     pub payment_method_data:
@@ -3125,6 +3126,7 @@ pub struct PaymentsCaptureData {
     pub metadata: Option<SecretSerdeValue>,
     pub merchant_order_id: Option<String>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub split_payments: Option<SplitPaymentsDetails>,
 }
 
 impl PaymentsCaptureData {
@@ -3195,6 +3197,7 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub enable_partial_authorization: Option<bool>,
     pub locale: Option<String>,
     pub connector_testing_data: Option<SecretSerdeValue>,
+    pub split_payments: Option<SplitPaymentsDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -3268,7 +3271,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub off_session: Option<bool>,
     pub router_return_url: Option<String>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<SplitPaymentsDetails>,
     pub recurring_mandate_payment_data: Option<router_data::RecurringMandatePaymentData>,
     pub shipping_cost: Option<MinorUnit>,
     pub mit_category: Option<common_enums::MitCategory>,
@@ -3842,15 +3845,17 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 /// Fee information for Split Payments to be charged on the payment being collected
-pub enum SplitPaymentsRequest {
+pub enum SplitPaymentsDetails {
     /// StripeSplitPayment
-    StripeSplitPayment(StripeSplitPaymentRequest),
+    StripeSplitPayment(StripeSplitPaymentData),
+    /// AdyenSplitPayment
+    AdyenSplitPayment(AdyenSplitData),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 /// Fee information for Split Payments to be charged on the payment being collected for Stripe
-pub struct StripeSplitPaymentRequest {
+pub struct StripeSplitPaymentData {
     /// Stripe's charge type
     pub charge_type: common_enums::PaymentChargeType,
 
@@ -3859,6 +3864,9 @@ pub struct StripeSplitPaymentRequest {
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -3867,6 +3875,8 @@ pub struct StripeSplitPaymentRequest {
 pub enum ConnectorChargeResponseData {
     /// StripeChargeResponseData
     StripeSplitPayment(StripeChargeResponseData),
+    /// AdyenChargeResponseData
+    AdyenSplitPayment(AdyenSplitData),
 }
 
 /// Fee information to be charged on the payment being collected via Stripe
@@ -3887,12 +3897,39 @@ pub struct StripeChargeResponseData {
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
-pub enum SplitRefundsRequest {
-    StripeSplitRefund(StripeSplitRefund),
+pub enum SplitRefundsDetails {
+    StripeSplitRefund(StripeSplitRefundData),
+    AdyenSplitRefund(AdyenSplitData),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+/// Fee information for Split Payments to be charged on the payment being collected for Adyen
+pub struct AdyenSplitData {
+    /// The store identifier
+    pub store: Option<String>,
+    /// Data for the split items
+    pub split_items: Vec<AdyenSplitItem>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+/// Data for the split items
+pub struct AdyenSplitItem {
+    /// The amount of the split item
+    pub amount: Option<MinorUnit>,
+    /// Defines type of split item
+    pub split_type: common_enums::AdyenSplitType,
+    /// The unique identifier of the account to which the split amount is allocated.
+    pub account: Option<String>,
+    /// Unique Identifier for the split item
+    pub reference: String,
+    /// Description for the part of the payment that will be allocated to the specified account.
+    pub description: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
-pub struct StripeSplitRefund {
+pub struct StripeSplitRefundData {
     pub charge_id: String,
     pub transfer_account_id: String,
     pub charge_type: common_enums::PaymentChargeType,
