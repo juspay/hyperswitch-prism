@@ -525,6 +525,12 @@
         "error": "submit_evidence flow not supported by tamara connector"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: customer. Customer details are required for Tamara eligibility check — Missing required field: customer. Customer details are required for Tamara eligibility check"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

@@ -875,6 +875,12 @@
         "error": "This feature is not implemented: submit_evidence flow for multisafepay"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by multisafepay connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

@@ -564,6 +564,12 @@
         "error": "submit_evidence flow not supported by authipay connector"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by authipay connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

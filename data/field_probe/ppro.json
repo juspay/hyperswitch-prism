@@ -814,6 +814,12 @@
         "error": "This feature is not implemented: submit_evidence flow for ppro"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by ppro connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

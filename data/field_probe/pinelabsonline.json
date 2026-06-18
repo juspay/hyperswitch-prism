@@ -517,6 +517,12 @@
         "error": "submit_evidence flow not supported by pinelabs_online connector"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by pinelabs_online connector"
+      }
+    },
     "get": {
       "default": {
         "status": "error",

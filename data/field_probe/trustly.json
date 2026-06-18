@@ -508,6 +508,12 @@
         "error": "submit_evidence flow not supported by trustly connector"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by trustly connector"
+      }
+    },
     "get": {
       "default": {
         "status": "not_implemented",

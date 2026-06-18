@@ -508,6 +508,12 @@
         "error": "submit_evidence flow not supported by twoc_twop_paco connector"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by twoc_twop_paco connector"
+      }
+    },
     "get": {
       "default": {
         "status": "error",

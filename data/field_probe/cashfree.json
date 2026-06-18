@@ -546,6 +546,12 @@
         "error": "This feature is not implemented: submit_evidence flow for cashfree"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by cashfree connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

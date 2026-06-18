@@ -883,6 +883,12 @@
         "error": "submit_evidence flow not supported by cybersource connector"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by cybersource connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

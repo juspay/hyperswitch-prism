@@ -508,6 +508,12 @@
         "error": "This feature is not implemented: submit_evidence flow for axisbank"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by axisbank connector"
+      }
+    },
     "get": {
       "default": {
         "status": "error",

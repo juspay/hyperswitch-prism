@@ -529,6 +529,12 @@
         "error": "This feature is not implemented: submit_evidence flow for dlocal"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by dlocal connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

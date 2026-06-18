@@ -540,6 +540,12 @@
         "error": "This feature is not implemented: submit_evidence flow for finix"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by finix connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

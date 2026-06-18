@@ -669,6 +669,12 @@
         "error": "This feature is not implemented: submit_evidence flow for checkout"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by checkout connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

@@ -642,6 +642,12 @@
         "error": "This feature is not implemented: submit_evidence flow for shift4"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by shift4 connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

@@ -834,6 +834,12 @@
         "error": "submit_evidence flow not supported by nuvei connector"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by nuvei connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

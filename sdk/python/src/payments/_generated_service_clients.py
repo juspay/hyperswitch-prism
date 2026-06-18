@@ -70,6 +70,10 @@ class PaymentMethodAuthenticationClient(_ConnectorClientBase):
 class PaymentMethodClient(_ConnectorClientBase):
     """PaymentMethodService flows"""
 
+    def eligibility(self, request, options=None):
+        """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
+        return self._execute_flow("eligibility", request, _pb2.PaymentMethodServiceEligibilityResponse, options)
+
     def tokenize(self, request, options=None):
         """PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing."""
         return self._execute_flow("tokenize", request, _pb2.PaymentMethodServiceTokenizeResponse, options)

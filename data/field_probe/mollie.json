@@ -560,6 +560,12 @@
         "error": "submit_evidence flow not supported by mollie connector"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by mollie connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

@@ -508,6 +508,12 @@
         "error": "This feature is not implemented: submit_evidence flow for calida"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by calida connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

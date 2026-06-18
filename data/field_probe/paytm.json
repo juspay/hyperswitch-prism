@@ -603,6 +603,12 @@
         "error": "This feature is not implemented: submit_evidence flow for paytm"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by paytm connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

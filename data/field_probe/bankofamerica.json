@@ -662,6 +662,12 @@
         "error": "This feature is not implemented: submit_evidence flow for bankofamerica"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by bankofamerica connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

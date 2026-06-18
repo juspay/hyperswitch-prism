@@ -568,6 +568,12 @@
         "error": "This feature is not implemented: submit_evidence flow for placetopay"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by placetopay connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

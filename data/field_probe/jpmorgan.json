@@ -642,6 +642,12 @@
         "error": "This feature is not implemented: submit_evidence flow for jpmorgan"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by jpmorgan connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

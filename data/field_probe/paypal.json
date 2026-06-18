@@ -962,6 +962,12 @@
         "error": "This feature is not implemented: submit_evidence flow for paypal"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by paypal connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

@@ -2297,6 +2297,12 @@
         }
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by adyen connector"
+      }
+    },
     "get": {
       "default": {
         "status": "not_implemented"

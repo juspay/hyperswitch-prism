@@ -80,7 +80,6 @@ use grpc_api_types::surcharge::{
 use crate::services::payments::{
     accept_req_transformer, accept_res_transformer,
     authenticate_req_transformer, authenticate_res_transformer,
-    eligibility_req_transformer, eligibility_res_transformer,
     authorize_req_transformer, authorize_res_transformer,
     capture_req_transformer, capture_res_transformer,
     charge_req_transformer, charge_res_transformer,
@@ -90,6 +89,7 @@ use crate::services::payments::{
     create_server_session_authentication_token_req_transformer, create_server_session_authentication_token_res_transformer,
     customer_create_req_transformer, customer_create_res_transformer,
     defend_req_transformer, defend_res_transformer,
+    eligibility_req_transformer, eligibility_res_transformer,
     get_req_transformer, get_res_transformer,
     incremental_authorization_req_transformer, incremental_authorization_res_transformer,
     post_authenticate_req_transformer, post_authenticate_res_transformer,
@@ -143,6 +143,8 @@ impl_flow_handlers!(create_server_session_authentication_token, MerchantAuthenti
 impl_flow_handlers!(customer_create, CustomerServiceCreateRequest, CustomerServiceCreateResponse, customer_create_req_transformer, customer_create_res_transformer, domain_types::connector_types::ConnectorEnum);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 impl_flow_handlers!(defend, DisputeServiceDefendRequest, DisputeServiceDefendResponse, defend_req_transformer, defend_res_transformer, domain_types::connector_types::ConnectorEnum);
+// eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+impl_flow_handlers!(eligibility, PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse, eligibility_req_transformer, eligibility_res_transformer, domain_types::connector_types::ConnectorEnum);
 // get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
 impl_flow_handlers!(get, PaymentServiceGetRequest, PaymentServiceGetResponse, get_req_transformer, get_res_transformer, domain_types::connector_types::ConnectorEnum);
 // incremental_authorization: PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
@@ -189,8 +191,6 @@ impl_flow_handlers!(surcharge_calculate, SurchargeServiceCalculateRequest, Surch
 impl_flow_handlers!(token_authorize, PaymentServiceTokenAuthorizeRequest, PaymentServiceAuthorizeResponse, token_authorize_req_transformer, token_authorize_res_transformer, domain_types::connector_types::ConnectorEnum);
 // token_setup_recurring: PaymentService.TokenSetupRecurring — Setup a recurring mandate using a connector token.
 impl_flow_handlers!(token_setup_recurring, PaymentServiceTokenSetupRecurringRequest, PaymentServiceSetupRecurringResponse, token_setup_recurring_req_transformer, token_setup_recurring_res_transformer, domain_types::connector_types::ConnectorEnum);
-// eligibility: PaymentMethodService.Eligibility — Check payment method eligibility with the connector. Determines if a given payment method is eligible for processing based on merchant and customer context.
-impl_flow_handlers!(eligibility, PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse, eligibility_req_transformer, eligibility_res_transformer, domain_types::connector_types::ConnectorEnum);
 // tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
 impl_flow_handlers!(tokenize, PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse, tokenize_req_transformer, tokenize_res_transformer, domain_types::connector_types::ConnectorEnum);
 // void: PaymentService.Void — Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.

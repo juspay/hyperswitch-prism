@@ -1527,6 +1527,12 @@
         "error": "This feature is not implemented: submit_evidence flow for rapyd"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by rapyd connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

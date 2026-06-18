@@ -685,6 +685,12 @@
         "error": "submit_evidence flow not supported by iatapay connector"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by iatapay connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

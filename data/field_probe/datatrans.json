@@ -576,6 +576,12 @@
         "error": "This feature is not implemented: submit_evidence flow for datatrans"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by datatrans connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

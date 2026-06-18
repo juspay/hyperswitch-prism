@@ -574,6 +574,12 @@
         "error": "submit_evidence flow not supported by payme connector"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by payme connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",

@@ -517,6 +517,12 @@
         "error": "submit_evidence flow not supported by truelayer connector"
       }
     },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by truelayer connector"
+      }
+    },
     "get": {
       "default": {
         "status": "supported",
