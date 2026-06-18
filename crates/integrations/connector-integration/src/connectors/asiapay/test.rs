@@ -771,7 +771,7 @@ mod tests {
         assert_eq!(connector.id(), "asiapay");
         assert!(matches!(
             connector.get_currency_unit(),
-            common_enums::CurrencyUnit::Base
+            CurrencyUnit::Base
         ));
     }
 
