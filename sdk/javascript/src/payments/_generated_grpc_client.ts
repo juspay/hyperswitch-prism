@@ -461,7 +461,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   StripeSplitRefund: { "options": "ChargeRefundsOptions" },
   ChargeRefundsOptions: { "destination": "DestinationChargeRefund", "direct": "DirectChargeRefund" },
   AdyenSplitData: { "splitItems": "AdyenSplitItem" },
-  SplitPaymentsRequest: { "stripeSplitPayment": "StripeSplitPaymentRequest", "adyenSplitPayment": "AdyenSplitData" },
+  SplitPaymentsRequest: { "stripeSplitPayment": "StripeSplitPayment", "adyenSplitPayment": "AdyenSplitData" },
   FrmServicePreRiskCheckRequest: { "amount": "Money", "customerInfo": "CustomerInfo", "paymentMethod": "PaymentMethod", "browserInfo": "BrowserInformation", "orderDetails": "OrderDetailsWithAmount", "address": "Address", "state": "ConnectorState" },
   FrmServicePreRiskCheckResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   FrmServicePostRiskCheckRequest: { "amount": "Money", "customerInfo": "CustomerInfo", "paymentMethod": "PaymentMethod", "orderDetails": "OrderDetailsWithAmount", "state": "ConnectorState" },
