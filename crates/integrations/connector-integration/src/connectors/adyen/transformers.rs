@@ -2402,7 +2402,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
-            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -2562,7 +2567,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
-            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -2684,7 +2694,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
-            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -2825,7 +2840,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
-            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -2979,7 +2999,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity,
-            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -3094,7 +3119,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value))),
             platform_chargeback_logic,
             session_validity: None,
-            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -3202,7 +3232,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
-            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -3344,7 +3379,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
-            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -3466,7 +3506,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             session_validity: None,
-            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -3589,7 +3634,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
-            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -3822,7 +3872,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
                         platform_chargeback_logic,
                         session_validity: None,
-                        application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
+                        application_info: get_application_info(
+                            item.router_data
+                                .request
+                                .partner_merchant_identifier_details
+                                .as_ref(),
+                        ),
                     })
                 }
                 PaymentMethodData::Crypto(_)
@@ -5800,7 +5855,8 @@ fn get_additional_data<
                 // For manual capture, capture_delay_hours should be None
                 if metadata_capture_delay.is_some() {
                     return Err(IntegrationError::InvalidDataFormat {
-                        field_name: "metadata.capture_delay_hours should be None for manual capture",
+                        field_name:
+                            "metadata.capture_delay_hours should be None for manual capture",
                         context: Default::default(),
                     }
                     .into());
@@ -6831,7 +6887,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
-            application_info: get_application_info(item.router_data.request.partner_merchant_identifier_details.as_ref()),
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         }))
     }
 }
