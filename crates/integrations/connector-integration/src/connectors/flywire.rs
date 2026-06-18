@@ -173,9 +173,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 )
                 .map_err(|e| e.change_context(WebhookError::WebhookSourceVerificationFailed))?;
 
-                // Sandbox-tolerant: when no shared secret is configured, skip verification.
+                // No shared secret configured — merchant has not set up webhook verification.
+                // Return source_verified=false rather than blindly trusting the webhook.
                 let Some(shared_secret) = auth.shared_secret else {
-                    return Ok(true);
+                    return Ok(false);
                 };
 
                 ConnectorWebhookSecrets {
