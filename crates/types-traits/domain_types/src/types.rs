@@ -12338,6 +12338,7 @@ impl<
             additional_payment_data: value
                 .additional_payment_data
                 .and_then(Option::<AdditionalPaymentData>::foreign_from),
+            partner_merchant_identifier_details: value.partner_merchant_identifier_details,
         })
     }
 }

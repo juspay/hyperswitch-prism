@@ -5778,6 +5778,33 @@ fn get_application_info<
         })
 }
 
+/// Repeat/MIT-flow variant of [`get_application_info`]: hyperswitch reuses the
+/// Authorize builder for MIT charges, so applicationInfo must be emitted on
+/// repeat payments too (proto `partner_merchant_identifier_details`).
+fn get_application_info_for_repeat<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    item: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+) -> Option<ApplicationInfo> {
+    item.request
+        .partner_merchant_identifier_details
+        .as_ref()
+        .map(|details| ApplicationInfo {
+            external_platform: details.partner_details.as_ref().map(|p| ExternalPlatform {
+                name: p.name.clone(),
+                version: p.version.clone(),
+                integrator: p.integrator.clone(),
+            }),
+            merchant_application: details
+                .merchant_details
+                .as_ref()
+                .map(|m| MerchantApplication {
+                    name: m.name.clone(),
+                    version: m.version.clone(),
+                }),
+        })
+}
+
 fn get_additional_data<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
@@ -6841,7 +6868,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
-            application_info: None,
+            application_info: get_application_info_for_repeat(&item.router_data),
         }))
     }
 }

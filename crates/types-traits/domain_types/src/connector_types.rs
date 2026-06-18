@@ -3257,6 +3257,9 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_configured_currency: Option<Currency>,
     pub additional_payment_data: Option<AdditionalPaymentData>,
+    /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
+    pub partner_merchant_identifier_details:
+        Option<grpc_api_types::payments::PartnerMerchantIdentifierDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
