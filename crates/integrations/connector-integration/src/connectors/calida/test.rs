@@ -170,6 +170,7 @@ mod tests {
                     threeds_method_comp_ind: None,
                     tokenization: None,
                     payment_channel: None,
+                    domain_data: None,
                 },
                 response: Err(ErrorResponse::default()),
             };
@@ -324,6 +325,7 @@ mod tests {
                     threeds_method_comp_ind: None,
                     tokenization: None,
                     payment_channel: None,
+                    domain_data: None,
                 },
                 response: Err(ErrorResponse::default()),
             };

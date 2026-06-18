@@ -25,7 +25,7 @@ use domain_types::{
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
-        SetupMandateRequestData, SplitPaymentsRequest, SubmitEvidenceData,
+        SetupMandateRequestData, SplitPaymentsDetails, SubmitEvidenceData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
@@ -2257,7 +2257,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let adyen_metadata =
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
-            Some(SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) => {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
                 get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
             }
             _ => (adyen_metadata.store.clone(), None),
@@ -2997,7 +2997,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
 
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
-            Some(SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) => {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
                 get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
             }
             _ => (adyen_metadata.store.clone(), None),
@@ -3375,7 +3375,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_recurring_processing_model(&item.router_data)?;
 
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
-            Some(SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) => {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
                 get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
             }
             _ => (adyen_metadata.store.clone(), None),
@@ -3506,7 +3506,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(&item.router_data)?;
         let (store, splits) = match item.router_data.request.split_payments.as_ref() {
-            Some(SplitPaymentsRequest::AdyenSplitPayment(adyen_split_payment)) => {
+            Some(SplitPaymentsDetails::AdyenSplitPayment(adyen_split_payment)) => {
                 get_adyen_split_request(adyen_split_payment, item.router_data.request.currency)
             }
             _ => (adyen_metadata.store.clone(), None),
@@ -5915,7 +5915,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
 
         let (store, splits) = match item.router_data.request.split_refunds.as_ref() {
-            Some(connector_types::SplitRefundsRequest::AdyenSplitRefund(adyen_split_data)) => {
+            Some(connector_types::SplitRefundsDetails::AdyenSplitRefund(adyen_split_data)) => {
                 get_adyen_split_request(adyen_split_data, item.router_data.request.currency)
             }
             _ => (

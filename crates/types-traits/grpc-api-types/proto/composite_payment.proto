@@ -93,7 +93,7 @@ message CompositeAuthorizeRequest {
   optional string customer_name = 44;
   optional SecretString email = 45;
   optional string merchant_customer_id = 46;
-  optional string phone_number = 47;
+  optional SecretString phone_number = 47;
 
   // Level 2 / Level 3 data for enhanced payment processing
   optional L2L3Data l2_l3_data = 48;
@@ -109,8 +109,11 @@ message CompositeAuthorizeRequest {
   // Server Session Token Information
   optional string merchant_server_session_id = 51; // Server session identifier for tracking
 
+  // Domain-specific data (e.g. airline itinerary) for connectors that need it.
+  optional DomainData domain_data = 52;
+
   // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsRequest split_payments = 52;
+  optional SplitPaymentsDetails split_payments = 53;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -182,7 +185,7 @@ message CompositeGetRequest {
   optional PaymentMethodType payment_method_type = 18;
 
   // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsRequest split_payments = 19;
+  optional SplitPaymentsDetails split_payments = 19;
 }
 
 // Response message for composite get flow.
@@ -239,7 +242,7 @@ message CompositeRefundRequest {
   optional string connector_order_id = 20;
 
   // Split refund data for platform fee reversals and transfers
-  optional SplitRefundsRequest split_refunds = 21;
+  optional SplitRefundsDetails split_refunds = 21;
 }
 
 // Response message for composite refund flow.
@@ -295,7 +298,7 @@ message CompositeRefundGetRequest {
   optional string connector_order_id = 17;
 
   // Split refund data for platform fee reversals and transfers
-  optional SplitRefundsRequest split_refunds = 18;
+  optional SplitRefundsDetails split_refunds = 18;
 }
 
 // Response message for composite refund get/sync flow.
@@ -628,8 +631,11 @@ message CompositeVerifyRedirectResponseRequest {
   // Required by some connectors for authorize requests.
   optional string merchant_request_id = 48;
 
+  // Connector-agnostic domain-specific data (airline, lodging, etc.).
+  optional DomainData domain_data = 49;
+
   // Split payment configuration (platform fees, transfers, etc.)
-  optional SplitPaymentsRequest split_payments = 49;
+  optional SplitPaymentsDetails split_payments = 50;
 }
 
 // Response message for composite verify redirect response flow.
