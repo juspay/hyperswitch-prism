@@ -660,8 +660,8 @@ async fn test_repeat_payment() {
         let mut repeat_grpc_request = Request::new(repeat_request);
         add_payload_metadata(&mut repeat_grpc_request);
 
-        let repeat_response = recurring_client
-            .charge(repeat_grpc_request)
+        let repeat_response = Box::pin(recurring_client
+            .charge(repeat_grpc_request))
             .await
             .expect("gRPC charge call failed")
             .into_inner();

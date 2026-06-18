@@ -210,6 +210,7 @@ mod tests {
                     threeds_method_comp_ind: None,
                     tokenization: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -383,6 +384,7 @@ mod tests {
                     threeds_method_comp_ind: None,
                     tokenization: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_01".to_string(),
@@ -530,6 +532,7 @@ mod tests {
                     threeds_method_comp_ind: None,
                     tokenization: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_02".to_string(),
@@ -722,6 +725,7 @@ mod tests {
                     threeds_method_comp_ind: None,
                     tokenization: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -1085,6 +1089,7 @@ mod tests {
                 threeds_method_comp_ind: None,
                 tokenization: None,
                 domain_data: None,
+                partner_merchant_identifier_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1288,6 +1293,7 @@ mod tests {
                 threeds_method_comp_ind: None,
                 tokenization: None,
                 domain_data: None,
+                partner_merchant_identifier_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1719,6 +1725,7 @@ mod tests {
                     threeds_method_comp_ind: None,
                     tokenization: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_INVALID".to_string(),

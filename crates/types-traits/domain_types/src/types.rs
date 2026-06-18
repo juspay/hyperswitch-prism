@@ -3524,22 +3524,22 @@ impl ForeignTryFrom<grpc_payment_types::PartnerMerchantIdentifierDetails>
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        details: grpc_payment_types::PartnerMerchantIdentifierDetails,
+        partner_merchant_identifier_details: grpc_payment_types::PartnerMerchantIdentifierDetails,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
-            partner_details: details.partner_details.map(|p| {
-                connector_types::PartnerApplicationDetails {
-                    name: p.name,
-                    version: p.version,
-                    integrator: p.integrator,
-                }
-            }),
-            merchant_details: details.merchant_details.map(|m| {
-                connector_types::MerchantApplicationDetails {
-                    name: m.name,
-                    version: m.version,
-                }
-            }),
+            partner_details: partner_merchant_identifier_details.partner_details.map(
+                |partner_app| connector_types::PartnerApplicationDetails {
+                    name: partner_app.name,
+                    version: partner_app.version,
+                    integrator: partner_app.integrator,
+                },
+            ),
+            merchant_details: partner_merchant_identifier_details.merchant_details.map(
+                |merchant_app| connector_types::MerchantApplicationDetails {
+                    name: merchant_app.name,
+                    version: merchant_app.version,
+                },
+            ),
         })
     }
 }

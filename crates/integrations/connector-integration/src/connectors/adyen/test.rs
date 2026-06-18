@@ -187,6 +187,7 @@ mod tests {
                     threeds_method_comp_ind: None,
                     tokenization: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
 },
                 response: Err(ErrorResponse::default())
 };
@@ -346,6 +347,7 @@ mod tests {
                     threeds_method_comp_ind: None,
                     tokenization: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
 },
                 response: Err(ErrorResponse::default())
 };

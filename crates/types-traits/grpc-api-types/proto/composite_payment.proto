@@ -114,6 +114,9 @@ message CompositeAuthorizeRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 53;
+
+  // Information identifying partner and merchant application initiating the request
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 54;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
