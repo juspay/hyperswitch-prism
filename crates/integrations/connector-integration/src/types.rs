@@ -124,6 +124,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Payconex => Box::new(connectors::Payconex::<T>::new()),
             ConnectorEnum::Tamara => Box::new(connectors::Tamara::<T>::new()),
             ConnectorEnum::Asiapay => Box::new(connectors::Asiapay::<T>::new()),
+            ConnectorEnum::Hyperswitch => Box::new(connectors::Hyperswitch::<T>::new()),
             ConnectorEnum::Qwikcilver => Box::new(connectors::Qwikcilver::<T>::new()),
         }
     }

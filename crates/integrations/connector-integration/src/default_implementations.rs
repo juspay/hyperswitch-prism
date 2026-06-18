@@ -222,6 +222,7 @@ default_impl_verify_webhook_source_v2!(
         Zift,
         Juspay,
         Payconex,
+        Hyperswitch,
     ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -375,6 +376,7 @@ default_impl_recharge_v2!(
     Stax,
     Stripe,
     Tamara,
+    Hyperswitch,
     Truelayer,
     Trustly,
     Trustpay,
@@ -589,6 +591,7 @@ default_impl_create_payment_method_v2!(
     Stax,
     Stripe,
     Tamara,
+    Hyperswitch,
     Truelayer,
     Trustly,
     Trustpay,
@@ -683,6 +686,7 @@ default_impl_get_payment_method_v2!(
     Stax,
     Stripe,
     Tamara,
+    Hyperswitch,
     Truelayer,
     Trustly,
     Trustpay,

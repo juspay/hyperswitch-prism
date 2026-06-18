@@ -271,5 +271,7 @@ pub use self::tamara::Tamara;
 pub mod asiapay;
 pub use self::asiapay::Asiapay;
 
+pub mod hyperswitch;
+pub use self::hyperswitch::Hyperswitch;
 pub mod qwikcilver;
 pub use self::qwikcilver::Qwikcilver;

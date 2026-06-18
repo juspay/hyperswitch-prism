@@ -19,6 +19,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.18.1
+
+### Features
+
+- **connector:** Add Hyperswitch connector (PSync, RepeatPayment + incoming webhooks) ([#1507](https://github.com/juspay/connector-service/pull/1507)) ([`e3b943e`](https://github.com/juspay/connector-service/commit/e3b943e1aed4ea7c65084d2207a888c1a54531ef))
+- **proto:** Add domain_data with unified airline data to authorize flows ([#1519](https://github.com/juspay/connector-service/pull/1519)) ([`47558b9`](https://github.com/juspay/connector-service/commit/47558b995faa5996de591e83ba676de922abb5ba))
+
+### Bug Fixes
+
+- **framework:** Added split payment and Split Refund Support ([#1565](https://github.com/juspay/connector-service/pull/1565)) ([`f3d040c`](https://github.com/juspay/connector-service/commit/f3d040c56e1ee16a4173c9bd67c4def3e375c7f5))
+
+### Miscellaneous Tasks
+
+- Update hyperswitch version ([#1577](https://github.com/juspay/connector-service/pull/1577)) ([`9899332`](https://github.com/juspay/connector-service/commit/9899332924ba87bf777a55231d5cc4242c4a92d0))
+
+**Full Changelog:** [`2026.06.18.0...2026.06.18.1`](https://github.com/juspay/connector-service/compare/2026.06.18.0...2026.06.18.1)
+
+- - -
+
+## 2026.06.18.0
+
+### Features
+
+- **proto:** Add API contract for FRM service ([#1520](https://github.com/juspay/connector-service/pull/1520)) ([`053e305`](https://github.com/juspay/connector-service/commit/053e3053561a76ed9cade34529faecbf6b5b7faa))
+
+### Bug Fixes
+
+- **connector:** [checkout] populate network_txn_link_id from payments response ([#1509](https://github.com/juspay/connector-service/pull/1509)) ([`4d81b80`](https://github.com/juspay/connector-service/commit/4d81b8063531f6d1058f7c2eec6a6a719f047fc5))
+
+### Miscellaneous Tasks
+
+- Update sdk license ([#1562](https://github.com/juspay/connector-service/pull/1562)) ([`552285e`](https://github.com/juspay/connector-service/commit/552285e18c804d690018d7ff3fbf2686056e8a1a))
+
+**Full Changelog:** [`2026.06.17.0...2026.06.18.0`](https://github.com/juspay/connector-service/compare/2026.06.17.0...2026.06.18.0)
+
+- - -
+
 ## 2026.06.17.0
 
 ### Features

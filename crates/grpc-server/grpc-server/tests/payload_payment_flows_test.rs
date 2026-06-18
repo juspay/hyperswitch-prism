@@ -184,7 +184,7 @@ fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServ
         connector_order_reference_id: None,
         test_mode: None,
         payment_experience: None,
-
+        split_payments: None,
         merchant_request_id: None,
         payment_method_type: None,
     }
@@ -537,7 +537,7 @@ async fn test_authorize_capture_refund_rsync() {
             connector_order_reference_id: None,
             test_mode: None,
             payment_experience: None,
-
+            split_payments: None,
             merchant_request_id: None,
             payment_method_type: None,
         };
