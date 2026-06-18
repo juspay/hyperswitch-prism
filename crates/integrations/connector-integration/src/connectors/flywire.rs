@@ -626,7 +626,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // RSync re-queries the parent payment; Flywire has no per-refund GET endpoint.
+            // Re-queries the parent payment; Flywire has no per-refund GET endpoint.
             let refund_id = req.request.connector_refund_id.clone();
             let base_url = self.connector_base_url_refund(req);
             Ok(format!("{base_url}/payments/v1/payments/{refund_id}"))

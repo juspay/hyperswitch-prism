@@ -20,40 +20,40 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-// Iframe + postMessage wrapper around the Flywire hosted form URL.
+// Iframe wrapper around the Flywire hosted form URL.
 // `__FLYWIRE_IFRAME_SRC__` is replaced at runtime with the live session URL;
 // `__FLYWIRE_RETURN_URL__` is replaced with the merchant's return_url.
+// Flywire postMessage event spec: https://developers.flywire.com/docs/hosted-checkout-js-sdk
 const FLYWIRE_HOSTED_TEMPLATE: &str = r#"<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Flywire Payment Listener</title>
+  <title>Flywire Payment</title>
   <style>
-    body { margin: 0; font-family: Arial, sans-serif; }
-    h2 { text-align: center; padding: 16px; }
-    iframe { width: 100%; height: calc(100vh - 70px); border: none; }
+    body, html { margin: 0; height: 100%; }
+    iframe { width: 100%; height: 100%; border: none; }
   </style>
 </head>
 <body>
-  <h2>Flywire Payment</h2>
-  <iframe id="flywireFrame" src="__FLYWIRE_IFRAME_SRC__" allow="payment"></iframe>
+  <iframe src="__FLYWIRE_IFRAME_SRC__" allow="payment"></iframe>
   <script>
-    window.addEventListener("message", (event) => {
-      console.log("Received message:", event);
-      if (!event.origin.endsWith(".flywire.com")) {
-        console.warn("Unauthorized origin:", event.origin);
-        return;
-      }
-      const result = event.data;
-      console.log("Flywire Result:", result);
-      if (result.success) {
-        console.log("Payment Success");
-        window.location.href = "__FLYWIRE_RETURN_URL__";
-      } else if (result.success === false) {
-        console.log("Payment Failed");
-        window.location.href = "__FLYWIRE_RETURN_URL__";
-      }
+    // Flywire's iframe emits many non-completion messages (focus, validation,
+    // resize); a false positive here interrupts customer input mid-entry.
+    function isCompletion(d) {
+      if (!d || typeof d !== 'object') return false;
+      if (d.success === true || d.success === false) return true;
+      var t = ((d.type || d.event) || '').toString().toUpperCase();
+      if (t === 'PAYMENT_COMPLETED' || t === 'PAYMENT_SUCCESS' ||
+          t === 'PAYMENT_FAILED'    || t === 'PAYMENT_CANCELLED') return true;
+      var s = (d.status || '').toString().toLowerCase();
+      return s === 'completed' || s === 'succeeded' ||
+             s === 'failed'    || s === 'cancelled';
+    }
+    window.addEventListener('message', function (e) {
+      if (!e.origin || !e.origin.endsWith('.flywire.com')) return;
+      if (!isCompletion(e.data)) return;
+      window.location.href = '__FLYWIRE_RETURN_URL__';
     });
   </script>
 </body>
@@ -398,7 +398,9 @@ impl FlywirePaymentStatus {
             Self::Authorized | Self::Adjusted => AttemptStatus::Authorized,
             Self::Cancelled | Self::Failed | Self::Expired => AttemptStatus::Failure,
             Self::Reversed => AttemptStatus::AutoRefunded,
-            Self::Initiated | Self::Processed | Self::Pending | Self::Unknown => {
+            Self::Initiated | Self::Processed | Self::Pending => AttemptStatus::Pending,
+            Self::Unknown => {
+                tracing::warn!("Flywire returned unrecognized payment status; treating as Pending");
                 AttemptStatus::Pending
             }
         }
