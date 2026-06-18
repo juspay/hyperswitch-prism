@@ -3068,6 +3068,9 @@ message RecurringPaymentServiceChargeRequest {
   // Additional payment data for various payment methods
   optional AdditionalPaymentData additional_payment_data = 33;
 
+  // Stripe Connect split-payment data. Carries the connected-account id used to
+  // emit the `Stripe-Account` header on the repeat/MIT charge for direct charges.
+  optional StripeSplitPaymentRequest stripe_split_payment = 34;
 }
 
 // Response message for repeat payment operation

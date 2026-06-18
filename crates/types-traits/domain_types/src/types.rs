@@ -11844,7 +11844,7 @@ impl<
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
                 .transpose()?,
             off_session: value.off_session,
-            split_payments: None,
+            split_payments: stripe_split_payment_to_domain(value.stripe_split_payment),
             recurring_mandate_payment_data: match value.original_payment_authorized_amount {
                 Some(money) => Some(RecurringMandatePaymentData {
                     payment_method_type: None,
