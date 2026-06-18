@@ -639,6 +639,9 @@ message CompositeVerifyRedirectResponseRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 50;
+
+  // Information identifying partner and merchant application initiating the request
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 51;
 }
 
 // Response message for composite verify redirect response flow.
