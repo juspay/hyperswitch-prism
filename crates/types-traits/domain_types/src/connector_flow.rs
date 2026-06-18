@@ -118,6 +118,15 @@ pub struct PreRiskCheck;
 #[derive(Debug, Clone)]
 pub struct PostRiskCheck;
 
+#[derive(Debug, Clone)]
+pub struct FrmPaymentOutcome;
+
+#[derive(Debug, Clone)]
+pub struct FrmRefundProcessed;
+
+#[derive(Debug, Clone)]
+pub struct FrmChargebackReceived;
+
 #[derive(strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum FlowName {

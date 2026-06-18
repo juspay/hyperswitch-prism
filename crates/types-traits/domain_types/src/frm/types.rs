@@ -141,3 +141,102 @@ pub fn generate_post_risk_check_response(
     };
     Ok(response)
 }
+
+pub fn generate_frm_payment_outcome_response(
+    router_data_v2: crate::router_data_v2::RouterDataV2<
+        crate::connector_flow::FrmPaymentOutcome,
+        super::frm_types::FrmFlowData,
+        super::frm_types::FrmPaymentOutcomeRequest,
+        super::frm_types::FrmPaymentOutcomeResponse,
+    >,
+) -> Result<
+    grpc_api_types::payments::NotifyConnectorResponse,
+    error_stack::Report<crate::errors::ConnectorError>,
+> {
+    match router_data_v2.response {
+        Ok(response) => Ok(grpc_api_types::payments::NotifyConnectorResponse {
+            status_code: response.status_code.into(),
+            error: None,
+        }),
+        Err(e) => Ok(grpc_api_types::payments::NotifyConnectorResponse {
+            status_code: e.status_code.into(),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(e.code),
+                    message: Some(e.message.clone()),
+                    reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: None,
+                }),
+                issuer_details: None,
+            }),
+        }),
+    }
+}
+
+pub fn generate_frm_refund_processed_response(
+    router_data_v2: crate::router_data_v2::RouterDataV2<
+        crate::connector_flow::FrmRefundProcessed,
+        super::frm_types::FrmFlowData,
+        super::frm_types::FrmRefundProcessedRequest,
+        super::frm_types::FrmRefundProcessedResponse,
+    >,
+) -> Result<
+    grpc_api_types::payments::NotifyConnectorResponse,
+    error_stack::Report<crate::errors::ConnectorError>,
+> {
+    match router_data_v2.response {
+        Ok(response) => Ok(grpc_api_types::payments::NotifyConnectorResponse {
+            status_code: response.status_code.into(),
+            error: None,
+        }),
+        Err(e) => Ok(grpc_api_types::payments::NotifyConnectorResponse {
+            status_code: e.status_code.into(),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(e.code),
+                    message: Some(e.message.clone()),
+                    reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: None,
+                }),
+                issuer_details: None,
+            }),
+        }),
+    }
+}
+
+pub fn generate_frm_chargeback_received_response(
+    router_data_v2: crate::router_data_v2::RouterDataV2<
+        crate::connector_flow::FrmChargebackReceived,
+        super::frm_types::FrmFlowData,
+        super::frm_types::FrmChargebackReceivedRequest,
+        super::frm_types::FrmChargebackReceivedResponse,
+    >,
+) -> Result<
+    grpc_api_types::payments::NotifyConnectorResponse,
+    error_stack::Report<crate::errors::ConnectorError>,
+> {
+    match router_data_v2.response {
+        Ok(response) => Ok(grpc_api_types::payments::NotifyConnectorResponse {
+            status_code: response.status_code.into(),
+            error: None,
+        }),
+        Err(e) => Ok(grpc_api_types::payments::NotifyConnectorResponse {
+            status_code: e.status_code.into(),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(e.code),
+                    message: Some(e.message.clone()),
+                    reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: None,
+                }),
+                issuer_details: None,
+            }),
+        }),
+    }
+}

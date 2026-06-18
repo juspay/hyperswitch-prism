@@ -1489,7 +1489,7 @@ message FrmNotificationContent {
 
   // The specific notification type — exactly one must be set
   oneof notification_type {
-    FrmPaymentSuccessDetails payment_success = 4;
+    FrmPaymentDetails payment_success = 4;
     FrmRefundDetails refund = 5;
     FrmChargebackDetails chargeback = 6;
   }
@@ -1499,7 +1499,7 @@ message FrmNotificationContent {
 }
 
 // FRM payment success details
-message FrmPaymentSuccessDetails {
+message FrmPaymentDetails {
   optional string connector_transaction_id = 1;
   optional string merchant_transaction_id = 2;
   PaymentStatus payment_status = 3;
