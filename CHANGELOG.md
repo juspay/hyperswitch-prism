@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.18.0
+
+### Features
+
+- **proto:** Add API contract for FRM service ([#1520](https://github.com/juspay/connector-service/pull/1520)) ([`053e305`](https://github.com/juspay/connector-service/commit/053e3053561a76ed9cade34529faecbf6b5b7faa))
+
+### Bug Fixes
+
+- **connector:** [checkout] populate network_txn_link_id from payments response ([#1509](https://github.com/juspay/connector-service/pull/1509)) ([`4d81b80`](https://github.com/juspay/connector-service/commit/4d81b8063531f6d1058f7c2eec6a6a719f047fc5))
+
+### Miscellaneous Tasks
+
+- Update sdk license ([#1562](https://github.com/juspay/connector-service/pull/1562)) ([`552285e`](https://github.com/juspay/connector-service/commit/552285e18c804d690018d7ff3fbf2686056e8a1a))
+
+**Full Changelog:** [`2026.06.17.0...2026.06.18.0`](https://github.com/juspay/connector-service/compare/2026.06.17.0...2026.06.18.0)
+
+- - -
+
 ## 2026.06.17.0
 
 ### Features
