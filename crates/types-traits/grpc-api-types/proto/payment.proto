@@ -2379,7 +2379,8 @@ message PaymentServiceAuthorizeResponse {
   // Payment Details
   optional int64 captured_amount = 13;
   optional int64 capturable_amount = 14;
-  optional int64 authorized_amount = 15;
+  optional int64 authorized_amount = 15 [deprecated = true]; // use amount instead (will be removed in a future release)
+  optional Money amount = 20; // populated from AuthoriseIntegrityObject for integrity check
 
   // Mandate and Connector Response
   optional MandateReference mandate_reference = 16;
