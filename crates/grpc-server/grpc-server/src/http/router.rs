@@ -117,7 +117,7 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::payments::verify_redirect_response),
         )
         .route(
-            "/payments/eligibility",
+            "/payment_method/eligibility",
             post(handlers::payments::eligibility),
         )
         // EventService routes
