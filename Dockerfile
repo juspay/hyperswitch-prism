@@ -69,10 +69,12 @@ FROM public.ecr.aws/docker/library/debian:bookworm-slim AS runtime
 WORKDIR /app
 
 # Install only runtime dependencies and clean up
+# curl: probe outbound connector reachability from inside the pod.
 RUN apt-get update \
     && apt-get install -y \
        libpq-dev \
        ca-certificates \
+       curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
