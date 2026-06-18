@@ -8225,21 +8225,21 @@ impl ForeignTryFrom<grpc_api_types::payments::ChargeRefundsOptions>
     fn foreign_try_from(
         value: grpc_api_types::payments::ChargeRefundsOptions,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        match value.option {
+        match value.charge_option {
             Some(ref opt) => match opt {
-                grpc_api_types::payments::charge_refunds_options::Option::Destination(d) => {
+                grpc_api_types::payments::charge_refunds_options::ChargeOption::Destination(d) => {
                     Ok(connector_types::ChargeRefundsOptions::Destination(
                         connector_types::DestinationChargeRefund::foreign_try_from(*d)?,
                     ))
                 }
-                grpc_api_types::payments::charge_refunds_options::Option::Direct(d) => {
+                grpc_api_types::payments::charge_refunds_options::ChargeOption::Direct(d) => {
                     Ok(connector_types::ChargeRefundsOptions::Direct(
                         connector_types::DirectChargeRefund::foreign_try_from(*d)?,
                     ))
                 }
             },
             None => Err(IntegrationError::MissingRequiredField {
-                field_name: "charge_refunds_options",
+                field_name: "charge_refunds_options.charge_option",
                 context: IntegrationErrorContext::default(),
             }
             .into()),
@@ -8311,13 +8311,13 @@ impl ForeignTryFrom<grpc_api_types::payments::AdyenSplitData> for connector_type
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::StripeSplitPaymentRequest>
-    for connector_types::StripeSplitPaymentRequest
+impl ForeignTryFrom<grpc_api_types::payments::StripeSplitPayment>
+    for connector_types::StripeSplitPayment
 {
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        value: grpc_api_types::payments::StripeSplitPaymentRequest,
+        value: grpc_api_types::payments::StripeSplitPayment,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             charge_type: common_enums::PaymentChargeType::foreign_try_from(
@@ -8347,7 +8347,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitPaymentsRequest>
                     s,
                 ),
             ) => Ok(connector_types::SplitPaymentsRequest::StripeSplitPayment(
-                connector_types::StripeSplitPaymentRequest::foreign_try_from(s)?,
+                connector_types::StripeSplitPayment::foreign_try_from(s)?,
             )),
             Some(
                 grpc_api_types::payments::split_payments_request::SplitPaymentType::AdyenSplitPayment(

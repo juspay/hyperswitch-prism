@@ -3812,7 +3812,7 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 /// Fee information for Split Payments to be charged on the payment being collected
 pub enum SplitPaymentsRequest {
     /// StripeSplitPayment
-    StripeSplitPayment(StripeSplitPaymentRequest),
+    StripeSplitPayment(StripeSplitPayment),
     /// AdyenSplitPayment
     AdyenSplitPayment(AdyenSplitData),
 }
@@ -3820,7 +3820,7 @@ pub enum SplitPaymentsRequest {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 /// Fee information for Split Payments to be charged on the payment being collected for Stripe
-pub struct StripeSplitPaymentRequest {
+pub struct StripeSplitPayment {
     /// Stripe's charge type
     pub charge_type: common_enums::PaymentChargeType,
 

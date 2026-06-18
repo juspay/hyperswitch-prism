@@ -5149,7 +5149,7 @@ enum PaymentChargeType {
 
 // Options for charge refunds (destination vs direct)
 message ChargeRefundsOptions {
-  oneof option {
+  oneof charge_option {
     DestinationChargeRefund destination = 1;
     DirectChargeRefund direct = 2;
   }
@@ -5204,13 +5204,13 @@ enum AdyenSplitType {
 // Request for split payments (platform fees, transfers, etc.)
 message SplitPaymentsRequest {
   oneof split_payment_type {
-    StripeSplitPaymentRequest stripe_split_payment = 1;
+    StripeSplitPayment stripe_split_payment = 1;
     AdyenSplitData adyen_split_payment = 2;
   }
 }
 
 // Stripe-specific split payment data
-message StripeSplitPaymentRequest {
+message StripeSplitPayment {
   PaymentChargeType charge_type = 1;
   optional int64 application_fees = 2;
   string transfer_account_id = 3;
