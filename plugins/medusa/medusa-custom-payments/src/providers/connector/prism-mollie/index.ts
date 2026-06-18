@@ -84,6 +84,10 @@ export async function reInitiatePayment({
 export type MollieAuthorizeDeps = {
   options: HyperswitchPrismOptions
   paymentClient: PaymentClient
+  // Status-sync (PSync) used on the post-3DS retry — see authorizePayment.
+  getPaymentStatus: (
+    input: AuthorizePaymentInput
+  ) => Promise<AuthorizePaymentOutput>
 }
 
 // Authorize a Mollie card payment with the client-tokenized cardToken (Mollie
@@ -92,9 +96,24 @@ export type MollieAuthorizeDeps = {
 // data.redirectUrl (redirectionData.form.endpoint) for the storefront to follow.
 export async function authorizePayment(
   input: AuthorizePaymentInput,
-  { options, paymentClient }: MollieAuthorizeDeps
+  { options, paymentClient, getPaymentStatus }: MollieAuthorizeDeps
 ): Promise<AuthorizePaymentOutput> {
   const data = input.data as any
+
+  // Idempotency: the first authorize creates the Mollie payment and consumes the
+  // single-use cardToken. Medusa re-runs authorizePayment on every cart.complete
+  // retry (e.g. after the customer returns from the 3DS redirect), so a repeat
+  // call must NOT re-authorize — it must status-sync (PSync) the existing payment
+  // and report its final status (`paid` -> CAPTURED). `data.id` was set to the
+  // Mollie reference on the first authorize so the sync targets the right payment.
+  if (data?.connectorTransactionId) {
+    logger.error(
+      "[PrismService.authorizePayment] mollie: existing payment %s — syncing status instead of re-authorizing",
+      data.connectorTransactionId
+    )
+    return await getPaymentStatus(input)
+  }
+
   const cardToken = data?.cardToken as string | undefined
   if (!cardToken) {
     logger.error(
@@ -130,12 +149,32 @@ export async function authorizePayment(
       (res?.status as number | undefined) ??
       types.PaymentStatus.PAYMENT_STATUS_UNSPECIFIED
     const redirect = res?.redirectionData
+    // Mollie's hosted checkout is a GET URL with the token as query params
+    // (its `_links.checkout.href`). The connector models it as a `form`
+    // (endpoint + formFields); a bare GET to `form.endpoint` 404s and a POST is
+    // also rejected — the fields must be appended as query params. Reconstruct
+    // that GET URL here. `uri.uri` (used by other connectors) is a ready GET URL.
+    const form = redirect?.form
+    const formUrl = ((): string | undefined => {
+      if (!form?.endpoint) return undefined
+      const fields = (form.formFields ?? {}) as Record<string, unknown>
+      const params = new URLSearchParams(
+        Object.entries(fields).map(([k, v]) => [k, String(v)])
+      ).toString()
+      return params ? `${form.endpoint}?${params}` : form.endpoint
+    })()
     const redirectUrl: string | undefined =
-      redirect?.form?.endpoint ?? redirect?.uri?.uri ?? undefined
+      redirect?.uri?.uri ?? formUrl ?? undefined
 
     return {
       data: {
         ...data,
+        // Adopt the Mollie reference (tr_…) as both `id` and
+        // `connectorTransactionId` so the post-3DS PSync (getTransactionId reads
+        // `data.id`) targets the real payment, not the Medusa session id.
+        ...(res?.connectorTransactionId
+          ? { id: res.connectorTransactionId }
+          : {}),
         connectorTransactionId: res?.connectorTransactionId,
         prismStatus: rawStatus,
         ...(redirectUrl ? { redirectUrl } : {}),

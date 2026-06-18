@@ -299,6 +299,7 @@ class PrismService {
       return connectors.mollie.authorizePayment(input, {
         options: this.options_,
         paymentClient: this.paymentClient_,
+        getPaymentStatus: (i) => this.getPaymentStatus(i),
       })
     }
 
