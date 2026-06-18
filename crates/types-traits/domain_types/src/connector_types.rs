@@ -1455,6 +1455,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
     pub continue_redirection_url: Option<Url>,
     pub tokenization: Option<common_enums::Tokenization>,
+    /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
+    pub domain_data: Option<DomainData>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -3906,6 +3908,100 @@ impl RecurringMandateData for RecurringMandatePaymentData {
         self.original_payment_authorized_currency
             .ok_or_else(missing_field_err("original_payment_authorized_currency"))
     }
+}
+
+/// Domain-specific data supplied by the merchant (airline today; extensible
+/// to other verticals). Mirrors the proto `DomainData`.
+#[derive(Debug, Clone, Default)]
+pub struct DomainData {
+    pub airline_data: Option<AirlineData>,
+}
+
+/// Connector-agnostic airline / travel itinerary data — the union of fields
+/// across processors. Every field is optional; each connector enforces its own
+/// required subset. Amounts are minor units as strings; dates are strings.
+#[derive(Debug, Clone, Default)]
+pub struct AirlineData {
+    // Booking / ticket level
+    pub pnr_code: Option<String>,
+    pub booking_reference: Option<String>,
+    pub ticket_number: Option<String>,
+    pub ticket_issue_date: Option<String>,
+    pub booking_date_time: Option<String>,
+    pub flight_date: Option<String>,
+    pub issuing_carrier_code: Option<String>,
+    pub airline_code: Option<String>,
+    pub passenger_name: Option<String>,
+    pub number_of_passengers: Option<u32>,
+    pub document_type: Option<String>,
+    pub refundability: Option<common_enums::TicketRefundability>,
+    pub ticket_delivery_type: Option<common_enums::TicketDeliveryType>,
+    pub cardholder_travel_status: Option<common_enums::CardholderTravelStatus>,
+    pub ticket_issue_address: Option<AddressDetails>,
+    pub booking_system_unique_id: Option<String>,
+    // Travel agency
+    pub agency_code: Option<String>,
+    pub agency_name: Option<String>,
+    pub agency_invoice_number: Option<String>,
+    pub agency_plan_name: Option<String>,
+    // Ticket-level amounts (each carries its own currency)
+    pub total_fare: Option<common_utils::types::Money>,
+    pub total_taxes: Option<common_utils::types::Money>,
+    pub total_fee: Option<common_utils::types::Money>,
+    pub boarding_fee: Option<common_utils::types::Money>,
+    pub flight_segments: Vec<AirlineSegment>,
+    pub passengers: Vec<AirlinePassenger>,
+}
+
+/// One flight leg. `departure`/`arrival` reuse the shared [`AirlineLocation`].
+#[derive(Debug, Clone, Default)]
+pub struct AirlineSegment {
+    pub sequence_no: Option<u32>,
+    pub carrier_code: Option<String>,
+    pub flight_number: Option<String>,
+    pub flight_type: Option<String>,
+    pub class_of_service: Option<String>,
+    pub fare_basis_code: Option<String>,
+    pub stopover_code: Option<String>,
+    pub departure: Option<AirlineLocation>,
+    pub arrival: Option<AirlineLocation>,
+    // Per-leg amounts (each carries its own currency)
+    pub fare_amount: Option<common_utils::types::Money>,
+    pub fee_amount: Option<common_utils::types::Money>,
+    pub tax_amount: Option<common_utils::types::Money>,
+    // Exchange / coupon details
+    pub exchange_ticket_number: Option<String>,
+    pub conjunction_ticket: Option<String>,
+    pub coupon_number: Option<String>,
+    pub endorsements_restrictions: Option<String>,
+}
+
+/// A flight endpoint, reused for both departure and arrival.
+#[derive(Debug, Clone, Default)]
+pub struct AirlineLocation {
+    pub airport_code: Option<String>,
+    pub city_code: Option<String>,
+    pub city_name: Option<String>,
+    pub country_code: Option<String>,
+    pub country_name: Option<String>,
+    pub date_time: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AirlinePassenger {
+    pub sequence_no: Option<u32>,
+    /// Identity fields shared with the payer model — salutation, first_name,
+    /// last_name, email and phone_number are read off here.
+    pub customer: Option<CustomerInfo>,
+    pub middle_name: Option<String>,
+    pub gender: Option<String>,
+    pub date_of_birth: Option<String>,
+    pub passenger_type: Option<String>,
+    pub frequent_flyer_number: Option<String>,
+    pub loyalty_tier: Option<String>,
+    pub passport_number: Option<Secret<String>>,
+    pub nationality: Option<String>,
+    pub ticket_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Default)]
