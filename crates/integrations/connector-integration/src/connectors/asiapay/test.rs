@@ -165,6 +165,7 @@ mod tests {
             redirect_response: None,
             threeds_method_comp_ind: None,
             tokenization: None,
+            domain_data: None,
         }
     }
 
