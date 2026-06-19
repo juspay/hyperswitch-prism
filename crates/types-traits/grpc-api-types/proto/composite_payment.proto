@@ -627,3 +627,35 @@ message CompositeVerifyRedirectResponseResponse {
   optional MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse session_token_response = 3;
   optional PaymentServiceAuthorizeResponse authorize_response = 4;
 }
+
+// Generic composite notify request that includes access token bootstrapping.
+// Used by composite event service for FRM notification flows.
+message CompositeNotifyRequest {
+  // Merchant identification
+  string merchant_id = 1;
+
+  // Unique event identifier
+  string event_id = 2;
+
+  // Event type
+  NotifyEventType event_type = 3;
+
+  // Event content with notify connector content 
+  NotifyConnectorContent content = 4;
+
+  // Timestamp when the event occurred (Unix timestamp in seconds)
+  int64 timestamp = 5;
+
+  // Connector state for access token management (optional)
+  optional ConnectorState state = 6;
+}
+
+// Generic composite notify response that includes access token response.
+// Used by composite event service for FRM notification flows.
+message CompositeNotifyResponse {
+  // The underlying notify connector response (always populated)
+  NotifyConnectorResponse notify_response = 1;
+
+  // Access token generation result (populated only when bootstrapped)
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 2;
+}

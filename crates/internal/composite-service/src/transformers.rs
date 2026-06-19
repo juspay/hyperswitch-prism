@@ -937,3 +937,208 @@ impl
         }
     }
 }
+
+// ============================================================================
+// FRM COMPOSITE REQUESTS
+// ============================================================================
+
+impl
+    ForeignFrom<(
+        &grpc_api_types::frm::CompositeFrmPreRiskCheckRequest,
+        &ConnectorEnum,
+    )> for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+{
+    fn foreign_from(
+        (item, connector): (
+            &grpc_api_types::frm::CompositeFrmPreRiskCheckRequest,
+            &ConnectorEnum,
+        ),
+    ) -> Self {
+        Self {
+            merchant_access_token_id: None,
+            connector: grpc_connector_from_connector_enum(connector),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+            merchant_request_id: None,
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &grpc_api_types::frm::CompositeFrmPostRiskCheckRequest,
+        &ConnectorEnum,
+    )> for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+{
+    fn foreign_from(
+        (item, connector): (
+            &grpc_api_types::frm::CompositeFrmPostRiskCheckRequest,
+            &ConnectorEnum,
+        ),
+    ) -> Self {
+        Self {
+            merchant_access_token_id: None,
+            connector: grpc_connector_from_connector_enum(connector),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+            merchant_request_id: None,
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &grpc_api_types::frm::CompositeFrmPreRiskCheckRequest,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+    )> for grpc_api_types::frm::FrmServicePreRiskCheckRequest
+{
+    fn foreign_from(
+        (item, access_token_response): (
+            &grpc_api_types::frm::CompositeFrmPreRiskCheckRequest,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        ),
+    ) -> Self {
+        let access_token_from_req = item
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.clone());
+        let access_token = access_token_from_req.or_else(|| {
+            access_token_response.and_then(|r| {
+                r.access_token
+                    .clone()
+                    .map(|token| grpc_api_types::frm::AccessToken {
+                        token: Some(token),
+                        token_type: r.token_type.clone(),
+                        expires_in_seconds: r.expires_in_seconds,
+                    })
+            })
+        });
+
+        let connector_customer_id = item
+            .state
+            .as_ref()
+            .and_then(|state| state.connector_customer_id.clone());
+
+        let resolved_state = Some(grpc_api_types::frm::ConnectorState {
+            access_token,
+            connector_customer_id,
+        });
+
+        Self {
+            amount: item.amount,
+            customer_info: item.customer_info.clone(),
+            payment_method: item.payment_method.clone(),
+            browser_info: item.browser_info.clone(),
+            merchant_transaction_id: item.merchant_transaction_id.clone(),
+            order_details: item.order_details.clone(),
+            address: item.address.clone(),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+            state: resolved_state,
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &grpc_api_types::frm::CompositeFrmPostRiskCheckRequest,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+    )> for grpc_api_types::frm::FrmServicePostRiskCheckRequest
+{
+    fn foreign_from(
+        (item, access_token_response): (
+            &grpc_api_types::frm::CompositeFrmPostRiskCheckRequest,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        ),
+    ) -> Self {
+        let access_token_from_req = item
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.clone());
+        let access_token = access_token_from_req.or_else(|| {
+            access_token_response.and_then(|r| {
+                r.access_token
+                    .clone()
+                    .map(|token| grpc_api_types::frm::AccessToken {
+                        token: Some(token),
+                        token_type: r.token_type.clone(),
+                        expires_in_seconds: r.expires_in_seconds,
+                    })
+            })
+        });
+
+        let connector_customer_id = item
+            .state
+            .as_ref()
+            .and_then(|state| state.connector_customer_id.clone());
+
+        let resolved_state = Some(grpc_api_types::frm::ConnectorState {
+            access_token,
+            connector_customer_id,
+        });
+
+        Self {
+            amount: item.amount,
+            customer_info: item.customer_info.clone(),
+            payment_method: item.payment_method.clone(),
+            merchant_transaction_id: item.merchant_transaction_id.clone(),
+            order_details: item.order_details.clone(),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+            payment_status: item.payment_status,
+            connector_transaction_id: item.connector_transaction_id.clone(),
+            payment_connector: item.payment_connector,
+            state: resolved_state,
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &grpc_api_types::payments::CompositeNotifyRequest,
+        &ConnectorEnum,
+    )> for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+{
+    fn foreign_from(
+        (_item, connector): (
+            &grpc_api_types::payments::CompositeNotifyRequest,
+            &ConnectorEnum,
+        ),
+    ) -> Self {
+        Self {
+            merchant_access_token_id: None,
+            connector: grpc_connector_from_connector_enum(connector),
+            metadata: None,
+            connector_feature_data: None,
+            test_mode: None,
+            merchant_request_id: None,
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &grpc_api_types::payments::CompositeNotifyRequest,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+    )> for grpc_api_types::payments::NotifyConnectorRequest
+{
+    fn foreign_from(
+        (item, _access_token_response): (
+            &grpc_api_types::payments::CompositeNotifyRequest,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        ),
+    ) -> Self {
+        Self {
+            merchant_id: item.merchant_id.clone(),
+            event_id: item.event_id.clone(),
+            event_type: item.event_type,
+            content: item.content.clone(),
+            timestamp: item.timestamp,
+            state: item.state.clone(),
+        }
+    }
+}

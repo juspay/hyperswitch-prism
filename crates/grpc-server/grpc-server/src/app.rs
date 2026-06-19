@@ -110,10 +110,16 @@ pub struct Service {
         crate::server::refunds::Refunds,
         crate::server::payments::PaymentMethodAuthentication,
     >,
-    pub composite_event_service:
-        composite_service::events::CompositeEvents<crate::server::events::EventServiceImpl>,
+    pub composite_event_service: composite_service::events::CompositeEvents<
+        crate::server::events::EventServiceImpl,
+        crate::server::payments::MerchantAuthentication,
+    >,
     pub composite_payment_method_service: composite_service::payment_methods::PaymentMethods<
         crate::server::payments::PaymentMethod,
+        crate::server::payments::MerchantAuthentication,
+    >,
+    pub composite_frm_service: composite_service::frm::Frm<
+        crate::server::frm::FrmServiceImpl,
         crate::server::payments::MerchantAuthentication,
     >,
     pub payments_service: crate::server::payments::Payments,
@@ -173,8 +179,10 @@ impl Service {
         );
 
         let event_service = crate::server::events::EventServiceImpl;
-        let composite_event_service =
-            composite_service::events::CompositeEvents::new(event_service.clone());
+        let composite_event_service = composite_service::events::CompositeEvents::new(
+            event_service.clone(),
+            merchant_authentication_service.clone(),
+        );
 
         let payment_method_service = crate::server::payments::PaymentMethod;
         let composite_payment_method_service =
@@ -183,11 +191,17 @@ impl Service {
                 merchant_authentication_service.clone(),
             );
 
+        let composite_frm_service = composite_service::frm::Frm::new(
+            crate::server::frm::FrmServiceImpl,
+            merchant_authentication_service.clone(),
+        );
+
         Self {
             health_check_service: crate::server::health_check::HealthCheck,
             composite_payments_service,
             composite_event_service,
             composite_payment_method_service,
+            composite_frm_service,
             payments_service,
             refunds_service,
             disputes_service: crate::server::disputes::Disputes,
@@ -238,6 +252,7 @@ impl Service {
             self.composite_payments_service,
             self.composite_event_service,
             self.composite_payment_method_service,
+            self.composite_frm_service,
             self.payments_service,
             self.refunds_service,
             self.disputes_service,
@@ -370,6 +385,11 @@ impl Service {
             .add_service(
                 fraud_and_risk_management_service_server::FraudAndRiskManagementServiceServer::new(
                     self.frm_service,
+                ),
+            )
+            .add_service(
+                grpc_api_types::frm::composite_fraud_and_risk_management_service_server::CompositeFraudAndRiskManagementServiceServer::new(
+                    self.composite_frm_service,
                 ),
             )
             .serve_with_shutdown(socket, shutdown_signal)

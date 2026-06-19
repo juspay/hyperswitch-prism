@@ -1447,6 +1447,9 @@ message NotifyConnectorRequest {
 
   // Timestamp when the event occurred (Unix timestamp in seconds)
   int64 timestamp = 5;
+
+  // Connector state for access token management (optional)
+  optional ConnectorState state = 6;
 }
 
 

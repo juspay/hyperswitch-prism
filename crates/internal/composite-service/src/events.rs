@@ -1,8 +1,22 @@
+use connector_integration::types::ConnectorData;
+use domain_types::{
+    connector_types::{ConnectorEnum, ServerAuthenticationTokenResponseData},
+    payment_method_data::DefaultPCIHolder,
+    utils::ForeignTryFrom as _,
+};
 use grpc_api_types::payments::{
     composite_event_service_server::CompositeEventService, event_service_server::EventService,
-    CompositeEventHandleRequest, CompositeEventHandleResponse, EventServiceHandleRequest,
-    EventServiceParseRequest,
+    merchant_authentication_service_server::MerchantAuthenticationService,
+    CompositeEventHandleRequest, CompositeEventHandleResponse, CompositeNotifyRequest,
+    CompositeNotifyResponse, ConnectorState, EventServiceHandleRequest, EventServiceParseRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, NotifyConnectorRequest,
 };
+use ucs_env::error::ResultExtGrpc;
+
+use crate::payments::CompositeAccessTokenRequest;
+use crate::transformers::ForeignFrom;
+use crate::utils::connector_from_composite_authorize_metadata;
 
 /// Composite implementation of [`CompositeEventService`].
 ///
@@ -10,23 +24,111 @@ use grpc_api_types::payments::{
 /// 1. `ParseEvent`  — stateless reference + event-type extraction.
 /// 2. `HandleEvent` — source verification + unified event content.
 ///
+/// Also provides a composite Notify endpoint for FRM notifications with access token bootstrapping.
+///
 /// Metadata and extensions are forwarded to each sub-call so that connector routing,
 /// config injection, and tracing all work transparently through the granular handlers.
 #[derive(Debug, Clone)]
-pub struct CompositeEvents<E> {
+pub struct CompositeEvents<E, MA>
+where
+    E: EventService + Clone + Send + Sync + 'static,
+    MA: MerchantAuthenticationService + Clone + Send + Sync + 'static,
+{
     event_service: E,
+    merchant_authentication_service: MA,
 }
 
-impl<E> CompositeEvents<E> {
-    pub fn new(event_service: E) -> Self {
-        Self { event_service }
+impl CompositeAccessTokenRequest for CompositeNotifyRequest {
+    fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
+        None
+    }
+
+    fn state(&self) -> Option<&ConnectorState> {
+        self.state.as_ref()
+    }
+
+    fn build_access_token_request(
+        &self,
+        connector: &ConnectorEnum,
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
+    }
+}
+
+impl<E, MA> CompositeEvents<E, MA>
+where
+    E: EventService + Clone + Send + Sync + 'static,
+    MA: MerchantAuthenticationService + Clone + Send + Sync + 'static,
+{
+    pub fn new(event_service: E, merchant_authentication_service: MA) -> Self {
+        Self {
+            event_service,
+            merchant_authentication_service,
+        }
+    }
+
+    /// Bootstrap the connector's access token if (a) the connector requires
+    /// one and (b) the caller didn't already pass one via
+    /// `state.access_token`. Returns `None` otherwise so the response's
+    /// `access_token_response` slot stays unset.
+    async fn create_server_authentication_token<R: CompositeAccessTokenRequest>(
+        &self,
+        connector: &ConnectorEnum,
+        payload: &R,
+        metadata: &tonic::metadata::MetadataMap,
+        extensions: &tonic::Extensions,
+    ) -> Result<
+        Option<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        tonic::Status,
+    > {
+        let should_do_access_token = {
+            let payment_method = payload
+                .payment_method()
+                .map(common_enums::PaymentMethod::foreign_try_from)
+                .transpose()
+                .into_grpc_status()?;
+            let connector_data =
+                ConnectorData::<DefaultPCIHolder>::get_connector_by_name(connector);
+            connector_data
+                .connector
+                .should_do_access_token(payment_method)
+        };
+
+        let payload_access_token = payload
+            .state()
+            .and_then(|state| state.access_token.as_ref())
+            .and_then(|token| ServerAuthenticationTokenResponseData::foreign_try_from(token).ok());
+        let should_create_access_token = should_do_access_token && payload_access_token.is_none();
+
+        let access_token_response = match should_create_access_token {
+            true => {
+                let access_token_payload = payload.build_access_token_request(connector);
+                let mut access_token_request = tonic::Request::new(access_token_payload);
+                *access_token_request.metadata_mut() = metadata.clone();
+                *access_token_request.extensions_mut() = extensions.clone();
+
+                let access_token_response = self
+                    .merchant_authentication_service
+                    .create_server_authentication_token(access_token_request)
+                    .await?
+                    .into_inner();
+
+                Some(access_token_response)
+            }
+            false => None,
+        };
+
+        Ok(access_token_response)
     }
 }
 
 #[tonic::async_trait]
-impl<E> CompositeEventService for CompositeEvents<E>
+impl<E, MA> CompositeEventService for CompositeEvents<E, MA>
 where
     E: EventService + Clone + Send + Sync + 'static,
+    MA: MerchantAuthenticationService + Clone + Send + Sync + 'static,
 {
     async fn handle_event(
         &self,
@@ -69,6 +171,40 @@ where
             source_verified: handle_resp.source_verified,
             merchant_event_id: handle_resp.merchant_event_id,
             event_ack_response: handle_resp.event_ack_response,
+        }))
+    }
+
+    /// FRM Notify endpoint with access token bootstrapping.
+    /// Delegates to EventService.NotifyConnector for actual event handling.
+    async fn notify(
+        &self,
+        request: tonic::Request<CompositeNotifyRequest>,
+    ) -> Result<tonic::Response<CompositeNotifyResponse>, tonic::Status> {
+        let (metadata, extensions, payload) = request.into_parts();
+
+        let connector =
+            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+
+        let access_token_response = self
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .await?;
+
+        // Build the underlying NotifyConnectorRequest using ForeignFrom
+        let inner =
+            NotifyConnectorRequest::foreign_from((&payload, access_token_response.as_ref()));
+        let mut inner_request = tonic::Request::new(inner);
+        *inner_request.metadata_mut() = metadata;
+        *inner_request.extensions_mut() = extensions;
+
+        let notify_response = self
+            .event_service
+            .notify_connector(inner_request)
+            .await?
+            .into_inner();
+
+        Ok(tonic::Response::new(CompositeNotifyResponse {
+            notify_response: Some(notify_response),
+            access_token_response,
         }))
     }
 }
