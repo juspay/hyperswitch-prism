@@ -44,7 +44,7 @@ use domain_types::{
         DefendDisputeIntegrityObject, GetPaymentMethodIntegrityObject,
         IncrementalAuthorizationIntegrityObject, MandateRevokeIntegrityObject,
         PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
-        PaymentVoidPostCaptureIntegrityObject, PaymentsEligibilityIntegrityObject,
+        PaymentVoidPostCaptureIntegrityObject, PaymentMethodEligibilityIntegrityObject,
         PostAuthenticateIntegrityObject, PreAuthenticateIntegrityObject, RechargeIntegrityObject,
         RefundIntegrityObject, RefundSyncIntegrityObject, RepeatPaymentIntegrityObject,
         SessionTokenIntegrityObject, SetupMandateIntegrityObject, SubmitEvidenceIntegrityObject,
@@ -410,13 +410,13 @@ impl GetIntegrityObject<MandateRevokeIntegrityObject> for MandateRevokeRequestDa
     }
 }
 
-impl GetIntegrityObject<PaymentsEligibilityIntegrityObject> for PaymentMethodEligibilityData {
-    fn get_response_integrity_object(&self) -> Option<PaymentsEligibilityIntegrityObject> {
+impl GetIntegrityObject<PaymentMethodEligibilityIntegrityObject> for PaymentMethodEligibilityData {
+    fn get_response_integrity_object(&self) -> Option<PaymentMethodEligibilityIntegrityObject> {
         None
     }
 
-    fn get_request_integrity_object(&self) -> PaymentsEligibilityIntegrityObject {
-        PaymentsEligibilityIntegrityObject {}
+    fn get_request_integrity_object(&self) -> PaymentMethodEligibilityIntegrityObject {
+        PaymentMethodEligibilityIntegrityObject {}
     }
 }
 
@@ -978,7 +978,7 @@ impl FlowIntegrity for MandateRevokeIntegrityObject {
     }
 }
 
-impl FlowIntegrity for PaymentsEligibilityIntegrityObject {
+impl FlowIntegrity for PaymentMethodEligibilityIntegrityObject {
     type IntegrityObject = Self;
 
     fn compare(

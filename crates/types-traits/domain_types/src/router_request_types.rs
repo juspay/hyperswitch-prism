@@ -478,4 +478,4 @@ pub struct CreatePaymentMethodIntegrityObject {}
 pub struct GetPaymentMethodIntegrityObject {}
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct PaymentsEligibilityIntegrityObject {}
+pub struct PaymentMethodEligibilityIntegrityObject {}
