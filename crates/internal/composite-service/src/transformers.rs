@@ -947,7 +947,9 @@ impl
             merchant_request_id: request.merchant_request_id.clone(),
             domain_data: None,
             split_payments: request.split_payments.clone(),
-            partner_merchant_identifier_details: request.partner_merchant_identifier_details.clone(),
+            partner_merchant_identifier_details: request
+                .partner_merchant_identifier_details
+                .clone(),
         }
     }
 }
