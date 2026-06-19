@@ -2062,6 +2062,17 @@ macro_rules! expand_flow_status_impl {
             response: ::domain_types::connector_types::RefundsResponseData,
         );
     };
+    (connector: $c:ident, flow: VoidPostRefund, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::RefundVoidPostRefundV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::VoidPostRefund,
+            flow_name: "void_post_refund",
+            flow_common_data: ::domain_types::connector_types::RefundFlowData,
+            request: ::domain_types::connector_types::RefundVoidPostRefundData,
+            response: ::domain_types::connector_types::RefundsResponseData,
+        );
+    };
     (connector: $c:ident, flow: RSync, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
         impl<$g: $($b)*> ::interfaces::connector_types::RefundSyncV2 for $c<$g> {}
         $crate::connectors::macros::flow_status_emit!(

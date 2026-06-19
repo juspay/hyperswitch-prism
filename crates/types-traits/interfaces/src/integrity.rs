@@ -14,7 +14,7 @@ use domain_types::connector_types::{
     PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
     PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
     PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsSyncData,
-    RechargeRequestData, RefundSyncData, RefundsData, RepeatPaymentData,
+    RechargeRequestData, RefundSyncData, RefundVoidPostRefundData, RefundsData, RepeatPaymentData,
     ServerAuthenticationTokenRequestData, ServerSessionAuthenticationTokenRequestData,
     SetupMandateRequestData, SubmitEvidenceData,
 };
@@ -181,6 +181,7 @@ impl_check_integrity!(PaymentsCaptureData);
 impl_check_integrity!(AcceptDisputeData);
 impl_check_integrity!(DisputeDefendData);
 impl_check_integrity!(RefundSyncData);
+impl_check_integrity!(RefundVoidPostRefundData);
 impl_check_integrity!(ServerSessionAuthenticationTokenRequestData);
 impl_check_integrity!(ServerAuthenticationTokenRequestData);
 impl_check_integrity!(PaymentMethodTokenizationData<S>);
@@ -353,6 +354,19 @@ impl GetIntegrityObject<RefundSyncIntegrityObject> for RefundSyncData {
     fn get_request_integrity_object(&self) -> RefundSyncIntegrityObject {
         RefundSyncIntegrityObject {
             connector_transaction_id: self.connector_transaction_id.clone(),
+            connector_refund_id: self.connector_refund_id.clone(),
+        }
+    }
+}
+
+impl GetIntegrityObject<RefundSyncIntegrityObject> for RefundVoidPostRefundData {
+    fn get_response_integrity_object(&self) -> Option<RefundSyncIntegrityObject> {
+        self.integrity_object.clone()
+    }
+
+    fn get_request_integrity_object(&self) -> RefundSyncIntegrityObject {
+        RefundSyncIntegrityObject {
+            connector_transaction_id: String::new(),
             connector_refund_id: self.connector_refund_id.clone(),
         }
     }

@@ -18,7 +18,7 @@ use domain_types::{
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
         PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RechargeRequestData,
-        RechargeResponseData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
+        RechargeResponseData, RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundVoidPostRefundData,
         RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
         RequestDetails, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
@@ -99,6 +99,7 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + PaymentVoidPostCaptureV2
     + IncomingWebhook
     + RefundV2
+    + RefundVoidPostRefundV2
     + PaymentCapture
     + SetupMandateV2<T>
     + RepeatPaymentV2<T>
@@ -339,6 +340,16 @@ pub trait PaymentSyncV2:
 
 pub trait RefundV2:
     ConnectorIntegrationV2<connector_flow::Refund, RefundFlowData, RefundsData, RefundsResponseData>
+{
+}
+
+pub trait RefundVoidPostRefundV2:
+    ConnectorIntegrationV2<
+    connector_flow::VoidPostRefund,
+    RefundFlowData,
+    RefundVoidPostRefundData,
+    RefundsResponseData,
+>
 {
 }
 

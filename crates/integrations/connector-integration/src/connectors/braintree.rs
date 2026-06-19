@@ -781,4 +781,7 @@ macros::macro_connector_flow_status_impls!(
         Authenticate,
         PostAuthenticate,
     ],
+    not_supported: [
+        VoidPostRefund,
+    ],
 );

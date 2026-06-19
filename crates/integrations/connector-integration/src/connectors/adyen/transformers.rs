@@ -59,7 +59,7 @@ use crate::{
     },
 };
 use domain_types::errors::ConnectorError;
-use domain_types::errors::{IntegrationError, WebhookError};
+use domain_types::errors::{IntegrationError, IntegrationErrorContext, WebhookError};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub enum Currency {
@@ -922,6 +922,7 @@ pub struct AdditionalData {
     #[serde(flatten)]
     riskdata: Option<RiskData>,
     sca_exemption: Option<AdyenExemptionValues>,
+    capture_delay_hours: Option<u64>,
     pub auth_code: Option<String>,
 }
 
@@ -1265,6 +1266,32 @@ pub struct AdyenPaymentRequest<
     platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     session_validity: Option<PrimitiveDateTime>,
+    application_info: Option<ApplicationInfo>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplicationInfo {
+    external_platform: Option<ExternalPlatform>,
+    merchant_application: Option<MerchantApplication>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExternalPlatform {
+    name: Option<String>,
+    version: Option<String>,
+    integrator: Option<String>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Clone, Default, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MerchantApplication {
+    name: Option<String>,
+    version: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2252,7 +2279,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .get_optional_billing_full_name());
 
-        let additional_data = get_additional_data(&item.router_data);
+        let additional_data = get_additional_data(&item.router_data)?;
 
         let adyen_metadata =
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
@@ -2375,6 +2402,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -2418,7 +2451,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(&item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
-        let additional_data = get_additional_data(&item.router_data);
+        let additional_data = get_additional_data(&item.router_data)?;
 
         let adyen_metadata =
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
@@ -2534,6 +2567,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -2574,7 +2613,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (recurring_processing_model, store_payment_method, shopper_reference) =
             get_recurring_processing_model(&item.router_data)?;
         let browser_info = get_browser_info(&item.router_data)?;
-        let additional_data = get_additional_data(&item.router_data);
+        let additional_data = get_additional_data(&item.router_data)?;
         let return_url = item.router_data.request.get_router_return_url()?;
         let payment_method = PaymentMethod::AdyenPaymentMethod(Box::new(
             AdyenPaymentMethod::try_from((bank_redirect_data, &item.router_data))?,
@@ -2655,6 +2694,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -2700,7 +2745,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             get_address_info(item.router_data.resource_common_data.get_optional_billing())
                 .and_then(Result::ok);
 
-        let additional_data = get_additional_data(&item.router_data);
+        let additional_data = get_additional_data(&item.router_data)?;
 
         let adyen_metadata = get_adyen_metadata(
             item.router_data
@@ -2795,6 +2840,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -2948,6 +2999,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity,
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -3062,6 +3119,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value))),
             platform_chargeback_logic,
             session_validity: None,
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -3169,6 +3232,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -3220,7 +3289,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .get_optional_billing_full_name();
 
-        let additional_data = get_additional_data(&item.router_data);
+        let additional_data = get_additional_data(&item.router_data)?;
 
         let adyen_metadata =
             get_adyen_metadata(item.router_data.request.metadata.clone().expose_option());
@@ -3310,6 +3379,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -3349,7 +3424,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth_type = AdyenAuthType::try_from(&item.router_data.connector_config)?;
         let shopper_interaction = AdyenShopperInteraction::from(&item.router_data);
         let return_url = item.router_data.request.get_router_return_url()?;
-        let additional_data = get_additional_data(&item.router_data);
+        let additional_data = get_additional_data(&item.router_data)?;
         let payment_method_wrapper = PaymentMethod::AdyenPaymentMethod(Box::new(payment_method));
         let billing_address = get_address_info(
             item.router_data
@@ -3431,6 +3506,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .clone()
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             session_validity: None,
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -3525,7 +3606,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             shopper_interaction,
             recurring_processing_model,
             browser_info: get_browser_info(&item.router_data)?,
-            additional_data: get_additional_data(&item.router_data),
+            additional_data: get_additional_data(&item.router_data)?,
             mpi_data: None,
             telephone_number,
             shopper_name,
@@ -3553,6 +3634,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         })
     }
 }
@@ -3708,7 +3795,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         item.router_data.resource_common_data.get_optional_billing(),
                     )
                     .and_then(Result::ok);
-                    let additional_data = get_additional_data(&item.router_data);
+                    let additional_data = get_additional_data(&item.router_data)?;
                     let adyen_metadata = get_adyen_metadata(
                         item.router_data.request.metadata.clone().expose_option(),
                     );
@@ -3785,6 +3872,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
                         platform_chargeback_logic,
                         session_validity: None,
+                        application_info: get_application_info(
+                            item.router_data
+                                .request
+                                .partner_merchant_identifier_details
+                                .as_ref(),
+                        ),
                     })
                 }
                 PaymentMethodData::Crypto(_)
@@ -5701,11 +5794,33 @@ pub fn get_address_info(
     })
 }
 
+/// Mirror hyperswitch: map request.partner_merchant_identifier_details to Adyen `applicationInfo`.
+/// Shared by Authorize and repeat/MIT flows (hyperswitch reuses the Authorize builder for MIT).
+fn get_application_info(
+    partner_merchant_identifier_details: Option<&connector_types::PartnerMerchantIdentifierDetails>,
+) -> Option<ApplicationInfo> {
+    partner_merchant_identifier_details.map(|details| ApplicationInfo {
+        merchant_application: details.merchant_details.as_ref().map(|merchant_details| {
+            MerchantApplication {
+                name: merchant_details.name.clone(),
+                version: merchant_details.version.clone(),
+            }
+        }),
+        external_platform: details.partner_details.as_ref().map(|platform_details| {
+            ExternalPlatform {
+                name: platform_details.name.clone(),
+                version: platform_details.version.clone(),
+                integrator: platform_details.integrator.clone(),
+            }
+        }),
+    })
+}
+
 fn get_additional_data<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
     item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
-) -> Option<AdditionalData> {
+) -> Result<Option<AdditionalData>, Error> {
     let (authorisation_type, manual_capture) = match item.request.capture_method {
         Some(common_enums::CaptureMethod::Manual)
         | Some(common_enums::CaptureMethod::ManualMultiple) => {
@@ -5729,10 +5844,74 @@ fn get_additional_data<
         Some("false".to_string())
     };
 
-    Some(AdditionalData {
+    // Mirror hyperswitch: metadata.capture_delay_hours -> additionalData.captureDelayHours.
+    let capture_delay_hours = {
+        let metadata_capture_delay =
+            get_adyen_metadata(item.request.metadata.clone().map(|m| m.expose()))
+                .capture_delay_hours;
+
+        let capture_method = item.request.capture_method.unwrap_or_default();
+        match capture_method {
+            common_enums::CaptureMethod::Manual | common_enums::CaptureMethod::ManualMultiple => {
+                // For manual capture, capture_delay_hours should be None
+                if let Some(hours) = metadata_capture_delay {
+                    return Err(IntegrationError::InvalidDataFormat {
+                        field_name: "metadata.capture_delay_hours",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(format!(
+                                "Adyen does not accept capture_delay_hours for manual capture \
+                                 (capture_method = {capture_method:?}), but metadata supplied {hours}"
+                            )),
+                            suggested_action: Some(
+                                "Remove capture_delay_hours from metadata when capture_method is \
+                                 Manual/ManualMultiple, or switch to automatic capture"
+                                    .to_string(),
+                            ),
+                            doc_url: Some(
+                                "https://docs.adyen.com/online-payments/capture/".to_string(),
+                            ),
+                        },
+                    }
+                    .into());
+                }
+                None
+            }
+            // For automatic capture, only 0 (or None) is valid
+            common_enums::CaptureMethod::Automatic
+            | common_enums::CaptureMethod::Scheduled
+            | common_enums::CaptureMethod::SequentialAutomatic => match metadata_capture_delay {
+                None => None,
+                Some(0) => Some(0),
+                Some(hours) => {
+                    return Err(IntegrationError::InvalidDataFormat {
+                        field_name: "metadata.capture_delay_hours",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(format!(
+                                "Adyen only accepts capture_delay_hours of 0 (or unset) for \
+                                 automatic capture (capture_method = {capture_method:?}), but \
+                                 metadata supplied {hours}"
+                            )),
+                            suggested_action: Some(
+                                "Set metadata.capture_delay_hours to 0 (or omit it) for automatic \
+                                 capture"
+                                    .to_string(),
+                            ),
+                            doc_url: Some(
+                                "https://docs.adyen.com/online-payments/capture/".to_string(),
+                            ),
+                        },
+                    }
+                    .into());
+                }
+            },
+        }
+    };
+
+    Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
         execute_three_d,
+        capture_delay_hours,
         network_tx_reference: None,
         recurring_detail_reference: None,
         recurring_shopper_reference: None,
@@ -5744,7 +5923,7 @@ fn get_additional_data<
                 .and_then(to_adyen_exemption)
         }),
         ..AdditionalData::default()
-    })
+    }))
 }
 
 pub fn get_risk_data(metadata: serde_json::Value) -> Option<RiskData> {
@@ -6224,6 +6403,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             metadata: None,
             platform_chargeback_logic,
             session_validity: None,
+            application_info: None,
         }))
     }
 }
@@ -6735,6 +6915,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|value| Secret::new(filter_adyen_metadata(value.expose()))),
             platform_chargeback_logic,
             session_validity: None,
+            application_info: get_application_info(
+                item.router_data
+                    .request
+                    .partner_merchant_identifier_details
+                    .as_ref(),
+            ),
         }))
     }
 }
@@ -7244,6 +7430,8 @@ struct AdyenMetadata {
     pub store: Option<String>,
     #[serde(alias = "platform_chargeback_logic")]
     pub platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
+    #[serde(alias = "capture_delay_hours")]
+    pub capture_delay_hours: Option<u64>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -7279,6 +7467,10 @@ fn filter_adyen_metadata(metadata: serde_json::Value) -> serde_json::Value {
         map.remove("platform_chargeback_logic");
         map.remove("platformChargebackLogic");
         map.remove("store");
+        // hyperswitch strips capture_delay_hours from the request-body metadata
+        // (it is mapped to additionalData.captureDelayHours instead); mirror that.
+        map.remove("capture_delay_hours");
+        map.remove("captureDelayHours");
 
         serde_json::Value::Object(map)
     } else {

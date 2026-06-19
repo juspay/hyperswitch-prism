@@ -6,6 +6,7 @@ import {
   AdyenWrapper,
   PayPalWrapper,
   GlobalPayWrapper,
+  MollieWrapper,
 } from "@juspay-tech/medusa-custom-payments-react";
 
 // The Stripe publishable key and Adyen client key are delivered by the server
@@ -18,9 +19,10 @@ const CONNECTOR_LABELS: Record<string, string> = {
   adyen: "Adyen",
   paypal: "PayPal",
   globalpay: "GlobalPay",
+  mollie: "Mollie",
 };
 
-const SUPPORTED = ["stripe", "adyen", "paypal", "globalpay"];
+const SUPPORTED = ["stripe", "adyen", "paypal", "globalpay", "mollie"];
 
 type SessionState = {
   collectionId: string;
@@ -213,6 +215,51 @@ function ConnectorUI({ connector, sessionId, sessionData, onComplete, onError }:
             await onComplete();
           }}
           onError={onError}
+        />
+      );
+
+    case "mollie":
+      // Mollie Components: card fields are entered in-page and tokenized to a
+      // single-use cardToken. We persist it on the session (reinitiate), then
+      // authorize (cart complete). One-off cards still return a 3DS redirect,
+      // which we follow; on return, /order/:id PSyncs the final status.
+      return (
+        <MollieWrapper
+          profileId={sessionData.profileId ?? ""}
+          testmode
+          onError={onError}
+          onSubmit={async ({ cardToken }) => {
+            // 1. store the card token + storefront return URL on the session
+            await fetch(`/store/payment-sessions/${sessionId}/reinitiate`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                data: {
+                  cardToken,
+                  id: sessionData.id,
+                  returnUrl: `${window.location.origin}/order/${sessionId}`,
+                },
+              }),
+            });
+
+            // 2. authorize the payment (cart complete)
+            const res = await fetch(`/store/carts/${CART.cartId}/complete`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({}),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              throw new Error(body.error ?? `Authorize failed (${res.status})`);
+            }
+
+            // 3. follow the 3DS redirect if present; else go to the order page
+            if (body.redirectUrl) {
+              window.location.assign(body.redirectUrl);
+              return;
+            }
+            window.location.assign(`/order/${sessionId}`);
+          }}
         />
       );
 

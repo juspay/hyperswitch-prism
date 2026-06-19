@@ -4,10 +4,12 @@ import React from "react"
 import { AdyenWrapper } from "../connectors/adyen/AdyenWrapper"
 import { PayPalWrapper } from "../connectors/paypal/PayPalWrapper"
 import { GlobalPayWrapper } from "../connectors/globalpay/GlobalPayWrapper"
+import { MollieWrapper } from "../connectors/mollie/MollieWrapper"
 import {
   isHyperswitchPrismAdyen,
   isHyperswitchPrismPaypal,
   isHyperswitchPrismGlobalpay,
+  isHyperswitchPrismMollie,
 } from "../utils/predicates"
 
 interface HyperswitchPrismConnectorPanelProps {
@@ -21,11 +23,13 @@ interface HyperswitchPrismConnectorPanelProps {
    */
   adyenClientKey?: string
   /**
-   * Called after GlobalPay tokenization — store the paymentReference in the
-   * Medusa payment session before the user clicks Place Order.
-   * Receives `{ paymentReference, id }` so the host can call initiatePaymentSession.
+   * Called after the connector produces session data that must be persisted on
+   * the Medusa payment session before Place Order. The host forwards `data`
+   * straight to `initiatePaymentSession(cart, { provider_id, data })`.
+   * - GlobalPay passes `{ paymentReference, id }` (tokenized card reference).
+   * - Mollie passes `{ ...sessionData, cardToken, returnUrl }` (tokenized card).
    */
-  onInitiateSession: (data: { paymentReference: string; id: string }) => Promise<void>
+  onInitiateSession: (data: Record<string, unknown>) => Promise<void>
   /** Called when Adyen reports an authorised result — use to advance to the next step */
   onPaymentCompleted?: (result?: any) => void
   onError: (error: Error) => void
@@ -40,6 +44,16 @@ interface HyperswitchPrismConnectorPanelProps {
    * Must match the provider's `connectorConfig.includeCustomerData`.
    */
   includeCustomerData?: boolean
+  /**
+   * Mollie only: the full URL Mollie redirects to after 3DS. The host builds it
+   * (e.g. `${origin}/[cc]/checkout/mollie-return`) and renders a route there
+   * that finalises the order (see `MollieReturnHandler`).
+   */
+  mollieReturnUrl?: string
+  /** Mollie only: test mode for Mollie Components (default true). */
+  mollieTestmode?: boolean
+  /** Mollie only: locale for Mollie Components (default en_US). */
+  mollieLocale?: string
 }
 
 /**
@@ -60,6 +74,9 @@ export function HyperswitchPrismConnectorPanel({
   environment = "sandbox",
   includeShippingData = false,
   includeCustomerData = false,
+  mollieReturnUrl,
+  mollieTestmode = true,
+  mollieLocale,
 }: HyperswitchPrismConnectorPanelProps) {
   if (!sessionData) return null
 
@@ -119,6 +136,31 @@ export function HyperswitchPrismConnectorPanel({
           await onInitiateSession({
             paymentReference: paymentData.paymentReference,
             id: sessionData.id,
+          })
+          onPaymentCompleted?.()
+        }}
+        onError={onError}
+      />
+    )
+  }
+
+  if (isHyperswitchPrismMollie(providerId)) {
+    // Mollie Components need the public profile id; render nothing until it
+    // arrives in the session data.
+    if (!sessionData.profileId) return null
+    return (
+      <MollieWrapper
+        profileId={sessionData.profileId as string}
+        testmode={mollieTestmode}
+        locale={mollieLocale}
+        onSubmit={async ({ cardToken }) => {
+          // Persist the tokenized card + 3DS return URL on the session, then
+          // advance — the host's place-order button authorizes, Mollie redirects
+          // to `mollieReturnUrl`, and the return handler finalises the order.
+          await onInitiateSession({
+            ...sessionData,
+            cardToken,
+            returnUrl: mollieReturnUrl,
           })
           onPaymentCompleted?.()
         }}

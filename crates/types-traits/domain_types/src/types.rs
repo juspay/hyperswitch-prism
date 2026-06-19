@@ -46,6 +46,7 @@ use grpc_api_types::payments::{
     PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
     PaymentServiceSetupRecurringResponse, PaymentServiceVoidRequest, PaymentServiceVoidResponse,
     RecurringPaymentServiceRevokeRequest, RecurringPaymentServiceRevokeResponse, RefundResponse,
+    RefundServiceVoidPostRefundRequest,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -259,7 +260,7 @@ use crate::{
         CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization, PSync,
         PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
         ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence,
-        Void, VoidPC,
+        Void, VoidPC, VoidPostRefund,
     },
     connector_types::{
         AcceptDisputeData, ApplePayPaymentRequest, ApplePaySessionResponse, BillingDescriptor,
@@ -275,9 +276,9 @@ use crate::{
         PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
         PaymentsSyncData, PaypalFlow, PaypalTransactionInfo, RawConnectorRequestResponse,
-        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
-        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundVoidPostRefundData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData, TaxInfo, WebhookDetailsResponse,
     },
@@ -403,6 +404,7 @@ pub struct Connectors {
     pub easebuzz: ConnectorParams,
     pub imerchantsolutions: ConnectorParams,
     pub axisbank: ConnectorParams,
+    pub tsys_transit: ConnectorParams,
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
     pub juspay: ConnectorParams,
@@ -2887,6 +2889,7 @@ pub struct AuthorizationRequest {
     // Amount Information
     pub amount: Option<grpc_payment_types::Money>,
     pub order_tax_amount: Option<i64>,
+    pub surcharge_amount: Option<grpc_payment_types::Money>,
     pub shipping_cost: Option<i64>,
     // Payment Method and Capture Settings
     pub payment_method: Option<grpc_payment_types::PaymentMethod>,
@@ -2937,6 +2940,7 @@ pub struct AuthorizationRequest {
     pub tokenization_strategy: Option<grpc_payment_types::Tokenization>,
     pub test_mode: Option<bool>,
     pub payment_method_token: Option<Secret<String>>,
+    pub mit_category: Option<common_enums::MitCategory>,
     pub merchant_request_id: Option<String>,
     /// Connector-side order identifier when a `CreateOrder` has already been
     /// performed (e.g. Juspay's merchant `order_id`). Propagated to
@@ -2946,6 +2950,9 @@ pub struct AuthorizationRequest {
     /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
     pub domain_data: Option<grpc_payment_types::DomainData>,
     pub split_payments: Option<grpc_payment_types::SplitPaymentsDetails>,
+    /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
+    pub partner_merchant_identifier_details:
+        Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -2982,6 +2989,7 @@ pub struct SetupRecurringRequest {
     pub merchant_order_id: Option<String>,
     pub connector_testing_data: Option<Secret<String>>,
     pub l2_l3_data: Option<grpc_payment_types::L2l3Data>,
+    pub mit_category: Option<common_enums::MitCategory>,
 }
 
 /// ============================================================================
@@ -2992,10 +3000,15 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
         let tokenization_strategy = req
             .tokenization_strategy
             .map(|_| req.tokenization_strategy());
+        let mit_category = match req.mit_category() {
+            grpc_payment_types::MitCategory::Unspecified => None,
+            other => Some(common_enums::MitCategory::foreign_from(other)),
+        };
         Self {
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
             order_tax_amount: req.order_tax_amount,
+            surcharge_amount: req.surcharge_amount,
             shipping_cost: req.shipping_cost,
             payment_method: req.payment_method.clone(),
             capture_method: req.capture_method(),
@@ -3036,10 +3049,12 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             order_details: Some(req.order_details),
             test_mode: req.test_mode,
             payment_method_token: None,
+            mit_category,
             merchant_request_id: req.merchant_request_id,
             connector_order_id: req.connector_order_id,
             domain_data: req.domain_data,
             split_payments: req.split_payments,
+            partner_merchant_identifier_details: req.partner_merchant_identifier_details,
         }
     }
 }
@@ -3062,6 +3077,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             merchant_transaction_id: req.merchant_transaction_id.clone(),
             amount: req.amount,
             order_tax_amount: None,
+            surcharge_amount: None,
             shipping_cost: req.shipping_cost,
             payment_method,
             capture_method: req.capture_method(),
@@ -3102,16 +3118,22 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             tokenization_strategy: None,
             test_mode: req.test_mode,
             payment_method_token: None,
+            mit_category: None,
             merchant_request_id: None,
             connector_order_id: None,
             domain_data: req.domain_data,
             split_payments: None,
+            partner_merchant_identifier_details: None,
         }
     }
 }
 
 impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecurringRequest {
     fn from(req: grpc_payment_types::PaymentServiceSetupRecurringRequest) -> Self {
+        let mit_category = match req.mit_category() {
+            grpc_payment_types::MitCategory::Unspecified => None,
+            other => Some(common_enums::MitCategory::foreign_from(other)),
+        };
         Self {
             auth_type: req.auth_type(),
             setup_future_usage: req.setup_future_usage(),
@@ -3146,6 +3168,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             merchant_order_id: req.merchant_order_id,
             connector_testing_data: req.connector_testing_data,
             l2_l3_data: req.l2_l3_data,
+            mit_category,
         }
     }
 }
@@ -3194,6 +3217,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             merchant_order_id: None,
             connector_testing_data: None,
             l2_l3_data: None,
+            mit_category: None,
         }
     }
 }
@@ -3514,6 +3538,32 @@ impl ForeignTryFrom<grpc_payment_types::DomainData> for connector_types::DomainD
                 .airline_data
                 .map(connector_types::AirlineData::foreign_try_from)
                 .transpose()?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_payment_types::PartnerMerchantIdentifierDetails>
+    for connector_types::PartnerMerchantIdentifierDetails
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        partner_merchant_identifier_details: grpc_payment_types::PartnerMerchantIdentifierDetails,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            partner_details: partner_merchant_identifier_details.partner_details.map(
+                |partner_app| connector_types::PartnerApplicationDetails {
+                    name: partner_app.name,
+                    version: partner_app.version,
+                    integrator: partner_app.integrator,
+                },
+            ),
+            merchant_details: partner_merchant_identifier_details.merchant_details.map(
+                |merchant_app| connector_types::MerchantApplicationDetails {
+                    name: merchant_app.name,
+                    version: merchant_app.version,
+                },
+            ),
         })
     }
 }
@@ -3874,6 +3924,10 @@ impl<
             order_tax_amount: value
                 .order_tax_amount
                 .map(common_utils::types::MinorUnit::new),
+            surcharge_amount: value
+                .surcharge_amount
+                .map(common_utils::types::Money::foreign_try_from)
+                .transpose()?,
             shipping_cost,
             merchant_account_id,
             integrity_object: None,
@@ -3918,9 +3972,14 @@ impl<
                 connector_types::ThreeDsCompletionIndicator::foreign_try_from(i).ok()
             }),
             tokenization,
+            mit_category: value.mit_category,
             domain_data: value
                 .domain_data
                 .map(connector_types::DomainData::foreign_try_from)
+                .transpose()?,
+            partner_merchant_identifier_details: value
+                .partner_merchant_identifier_details
+                .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -4064,6 +4123,7 @@ impl<
             payment_channel,
             enable_partial_authorization: value.enable_partial_authorization,
             locale: value.locale.clone(),
+            mit_category: value.mit_category,
             connector_testing_data,
             split_payments: None,
         })
@@ -4495,10 +4555,12 @@ impl ForeignTryFrom<grpc_api_types::payments::OrderDetailsWithAmount> for OrderD
                     common_enums::ProductType::foreign_from(grpc_product_type)
                 }),
             product_tax_code: item.product_tax_code,
-            commodity_code: None,
-            sku: None,
-            upc: None,
-            unit_discount_amount: None,
+            commodity_code: item.commodity_code,
+            sku: item.sku,
+            upc: item.upc,
+            unit_discount_amount: item
+                .unit_discount_amount
+                .map(common_utils::types::MinorUnit::new),
             total_amount: None,
         })
     }
@@ -7380,6 +7442,55 @@ impl
 
 impl
     ForeignTryFrom<(
+        RefundServiceVoidPostRefundRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for RefundFlowData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, connectors, metadata): (
+            RefundServiceVoidPostRefundRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let state_access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
+        let connector_feature_data = value
+            .connector_feature_data
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
+            .transpose()?;
+
+        let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+        Ok(Self {
+            merchant_id: merchant_id_from_header,
+            status: common_enums::RefundStatus::Success,
+            refund_id: Some(value.connector_refund_id.clone()),
+            connectors,
+            connector_request_reference_id: extract_connector_request_reference_id(
+                &value.merchant_refund_id,
+            ),
+            raw_connector_response: None,
+            connector_response_headers: None,
+            raw_connector_request: None,
+            access_token: state_access_token,
+            connector_feature_data,
+            test_mode: value.test_mode,
+            payment_method: None,
+            merchant_request_id: value.merchant_request_id.clone(),
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
         grpc_api_types::payments::PaymentServiceRefundRequest,
         Connectors,
         &MaskedMetadata,
@@ -7934,6 +8045,7 @@ pub fn generate_refund_sync_response(
                 state: None,
                 raw_connector_request,
                 acquirer_reference_number: None,
+                state_metadata: None,
             })
         }
         Err(e) => {
@@ -7978,6 +8090,7 @@ pub fn generate_refund_sync_response(
                 state: None,
                 raw_connector_request,
                 acquirer_reference_number: None,
+                state_metadata: None,
             })
         }
     }
@@ -8215,6 +8328,180 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceReverseRequest>
             raw_connector_response: None,
             integrity_object: None,
         })
+    }
+}
+
+impl ForeignTryFrom<RefundServiceVoidPostRefundRequest> for RefundVoidPostRefundData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: RefundServiceVoidPostRefundRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let connector_feature_data = value
+            .connector_feature_data
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
+            .transpose()?;
+        Ok(Self {
+            browser_info: value
+                .browser_info
+                .map(BrowserInformation::foreign_try_from)
+                .transpose()?,
+            connector_refund_id: value.connector_refund_id,
+            cancellation_reason: value.cancellation_reason,
+            refund_connector_metadata: value
+                .refund_metadata
+                .map(|m| ForeignTryFrom::foreign_try_from((m, "refund metadata")))
+                .transpose()?,
+            refund_status: common_enums::RefundStatus::Success,
+            connector_feature_data,
+            refund_money: None,
+            connector_order_id: value.connector_order_id,
+            integrity_object: None,
+        })
+    }
+}
+
+/// Wire shape consumed by HS-side `build_cancel_post_refund_metadata`;
+/// carries the real connector void status under a `RefundSuccess` envelope.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct VoidPostRefundStateMetadata {
+    pub status: common_enums::RefundStatus,
+    pub connector_refund_id: Option<String>,
+}
+
+pub fn generate_void_post_refund_response(
+    router_data_v2: RouterDataV2<
+        VoidPostRefund,
+        RefundFlowData,
+        RefundVoidPostRefundData,
+        RefundsResponseData,
+    >,
+) -> Result<RefundResponse, error_stack::Report<ConnectorError>> {
+    let refund_response = router_data_v2.response;
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+    let response_headers = router_data_v2
+        .resource_common_data
+        .get_connector_response_headers_as_map();
+
+    match refund_response {
+        Ok(response) => {
+            // Surface serialization failure — an empty blob looks like a successful void.
+            let state_metadata = serde_json::to_string(&VoidPostRefundStateMetadata {
+                status: response.refund_status,
+                connector_refund_id: Some(response.connector_refund_id.clone()),
+            })
+            .change_context(ConnectorError::ResponseHandlingFailed {
+                context: ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(
+                        "VoidPostRefund: failed to serialise state_metadata.".to_string(),
+                    ),
+                },
+            })?;
+
+            Ok(RefundResponse {
+                connector_transaction_id: None,
+                connector_refund_id: response.connector_refund_id,
+                status: grpc_api_types::payments::RefundStatus::RefundSuccess as i32,
+                merchant_refund_id: Some(
+                    router_data_v2
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                ),
+                error: None,
+                refund_amount: None,
+                payment_amount: None,
+                refund_reason: router_data_v2.request.cancellation_reason.clone(),
+                created_at: None,
+                updated_at: None,
+                processed_at: None,
+                customer_name: None,
+                email: None,
+                merchant_order_id: None,
+                metadata: None,
+                refund_metadata: None,
+                raw_connector_response,
+                status_code: response.status_code as u32,
+                response_headers,
+                state: Some(ConnectorState {
+                    access_token: router_data_v2
+                        .resource_common_data
+                        .access_token
+                        .as_ref()
+                        .map(|token_data| grpc_api_types::payments::AccessToken {
+                            token: Some(token_data.access_token.clone()),
+                            expires_in_seconds: token_data.expires_in,
+                            token_type: token_data.token_type.clone(),
+                        }),
+                    connector_customer_id: None,
+                }),
+                raw_connector_request,
+                acquirer_reference_number: None,
+                state_metadata: Some(Secret::new(state_metadata)),
+            })
+        }
+        Err(e) => Ok(RefundResponse {
+            connector_transaction_id: e.connector_transaction_id.clone(),
+            connector_refund_id: router_data_v2.request.connector_refund_id.clone(),
+            status: grpc_api_types::payments::RefundStatus::RefundSuccess as i32,
+            merchant_refund_id: Some(
+                router_data_v2
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    message: Some(e.message.clone()),
+                    code: Some(e.code.clone()),
+                    reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: None,
+                }),
+                issuer_details: None,
+            }),
+            refund_amount: None,
+            payment_amount: None,
+            refund_reason: router_data_v2.request.cancellation_reason.clone(),
+            created_at: None,
+            updated_at: None,
+            processed_at: None,
+            customer_name: None,
+            email: None,
+            raw_connector_response,
+            merchant_order_id: None,
+            metadata: None,
+            refund_metadata: None,
+            status_code: e.status_code as u32,
+            response_headers,
+            state: None,
+            raw_connector_request,
+            acquirer_reference_number: None,
+            state_metadata: Some(Secret::new(
+                serde_json::to_string(&VoidPostRefundStateMetadata {
+                    status: common_enums::RefundStatus::Failure,
+                    connector_refund_id: Some(router_data_v2.request.connector_refund_id.clone()),
+                })
+                // Same reasoning as the success arm: don't lose the Failure signal.
+                .change_context(ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: None,
+                        additional_context: Some(
+                            "VoidPostRefund: failed to serialise state_metadata on the \
+                             error path."
+                                .to_string(),
+                        ),
+                    },
+                })?,
+            )),
+        }),
     }
 }
 
@@ -8482,6 +8769,7 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
             state: None,
             raw_connector_request: None,
             acquirer_reference_number: None,
+            state_metadata: None,
         })
     }
 }
@@ -9066,6 +9354,7 @@ pub fn generate_refund_response(
                 state,
                 raw_connector_request,
                 acquirer_reference_number: None,
+                state_metadata: None,
             })
         }
         Err(e) => {
@@ -9109,6 +9398,7 @@ pub fn generate_refund_response(
                 state,
                 raw_connector_request,
                 acquirer_reference_number: None,
+                state_metadata: None,
             })
         }
     }
@@ -9926,13 +10216,6 @@ impl<
 
         let setup_future_usage = value.setup_future_usage();
 
-        let payment_channel = match value.payment_channel() {
-            grpc_payment_types::PaymentChannel::Unspecified => None,
-            _ => Some(common_enums::PaymentChannel::foreign_try_from(
-                value.payment_channel(),
-            )?),
-        };
-
         let setup_mandate_details = MandateData {
             update_mandate_id: None,
             customer_acceptance: Some(mandates::CustomerAcceptance::foreign_try_from(
@@ -9953,6 +10236,18 @@ impl<
                     statement_descriptor_suffix: descriptor.statement_descriptor_suffix.clone(),
                     reference: descriptor.reference.clone(),
                 });
+
+        let payment_channel = match value.payment_channel() {
+            grpc_payment_types::PaymentChannel::Unspecified => None,
+            _ => Some(common_enums::PaymentChannel::foreign_try_from(
+                value.payment_channel(),
+            )?),
+        };
+
+        let mit_category = match value.mit_category() {
+            grpc_payment_types::MitCategory::Unspecified => None,
+            other => Some(common_enums::MitCategory::foreign_from(other)),
+        };
 
         Ok(Self {
             currency: amount.currency,
@@ -10021,6 +10316,7 @@ impl<
                     .ok()
                     .map(common_utils::pii::SecretSerdeValue::new)
             }),
+            mit_category,
             split_payments: None,
         })
     }
@@ -10516,33 +10812,23 @@ impl ForeignTryFrom<grpc_api_types::payments::FutureUsage> for common_enums::Fut
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::MitCategory> for common_enums::MitCategory {
-    type Error = IntegrationError;
-    fn foreign_try_from(
-        value: grpc_api_types::payments::MitCategory,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
+impl ForeignFrom<grpc_api_types::payments::MitCategory> for common_enums::MitCategory {
+    fn foreign_from(value: grpc_api_types::payments::MitCategory) -> Self {
         match value {
             grpc_api_types::payments::MitCategory::RecurringMit => {
-                Ok(common_enums::MitCategory::Recurring)
+                common_enums::MitCategory::Recurring
             }
             grpc_api_types::payments::MitCategory::InstallmentMit => {
-                Ok(common_enums::MitCategory::Installment)
+                common_enums::MitCategory::Installment
             }
             grpc_api_types::payments::MitCategory::UnscheduledMit => {
-                Ok(common_enums::MitCategory::Unscheduled)
+                common_enums::MitCategory::Unscheduled
             }
             grpc_api_types::payments::MitCategory::ResubmissionMit => {
-                Ok(common_enums::MitCategory::Resubmission)
+                common_enums::MitCategory::Resubmission
             }
             grpc_api_types::payments::MitCategory::Unspecified => {
-                Err(IntegrationError::InvalidDataFormat {
-                    field_name: "unknown",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Mit category must be specified".to_string()),
-                        ..Default::default()
-                    },
-                }
-                .into())
+                common_enums::MitCategory::Unscheduled
             }
         }
     }
@@ -12381,9 +12667,7 @@ impl<
         };
         let mit_category = match value.mit_category() {
             grpc_payment_types::MitCategory::Unspecified => None,
-            _ => Some(common_enums::MitCategory::foreign_try_from(
-                value.mit_category(),
-            )?),
+            other => Some(common_enums::MitCategory::foreign_from(other)),
         };
         let payment_method_type =
             <Option<PaymentMethodType>>::foreign_try_from(value.payment_method_type())?;
@@ -12546,6 +12830,10 @@ impl<
             additional_payment_data: value
                 .additional_payment_data
                 .and_then(Option::<AdditionalPaymentData>::foreign_from),
+            partner_merchant_identifier_details: value
+                .partner_merchant_identifier_details
+                .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -15033,6 +15321,7 @@ pub fn tokenized_authorize_to_base(
         order_category: None,
         order_details: Vec::new(),
         order_tax_amount: None,
+        surcharge_amount: None,
         redirection_response: None,
         request_extended_authorization: None,
         request_incremental_authorization: None,
@@ -15044,8 +15333,10 @@ pub fn tokenized_authorize_to_base(
         statement_descriptor_suffix: None,
         threeds_completion_indicator: None,
         tokenization_strategy: None,
+        mit_category: None,
         merchant_request_id: None,
         domain_data: None,
+        partner_merchant_identifier_details: None,
     }
 }
 
@@ -15122,6 +15413,7 @@ pub fn tokenized_setup_recurring_to_base(
         request_incremental_authorization: false,
         session_token: None,
         shipping_cost: None,
+        mit_category: None,
     }
 }
 
@@ -15213,12 +15505,15 @@ pub fn proxied_authorize_to_base(
         session_token: None,
         shipping_cost: v.shipping_cost,
         order_tax_amount: None,
+        surcharge_amount: None,
         split_payments: None,
         statement_descriptor_name: None,
         statement_descriptor_suffix: None,
         tokenization_strategy: None,
+        mit_category: None,
         merchant_request_id: None,
         domain_data: None,
+        partner_merchant_identifier_details: None,
     })
 }
 
@@ -15332,6 +15627,7 @@ pub fn proxied_setup_recurring_to_base(
         request_incremental_authorization: false,
         session_token: None,
         shipping_cost: None,
+        mit_category: None,
     })
 }
 

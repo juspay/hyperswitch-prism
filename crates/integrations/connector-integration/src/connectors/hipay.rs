@@ -685,6 +685,7 @@ macros::macro_connector_flow_status_impls!(
         Accept,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         PreAuthenticate,
         VoidPC,
