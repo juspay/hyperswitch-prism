@@ -5582,7 +5582,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                         )),
                     });
 
-                let amount = router_data_v2
+                let authorized_money = router_data_v2
                     .request
                     .integrity_object
                     .as_ref()
@@ -5617,7 +5617,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                         .resource_common_data
                         .minor_amount_authorized
                         .map(|amount_authorized| amount_authorized.get_amount_as_i64()),
-                    amount,
+                    authorized_money,
                     connector_response,
                     network_txn_link_id,
                 }
@@ -5680,7 +5680,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 captured_amount: None,
                 capturable_amount: None,
                 authorized_amount: None,
-                amount: None,
+                authorized_money: None,
                 connector_response,
                 network_txn_link_id: None,
             }
