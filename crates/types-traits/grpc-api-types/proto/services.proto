@@ -207,6 +207,10 @@ service RefundService {
   // Retrieve refund status from the payment processor. Tracks refund progress
   // through processor settlement for accurate customer communication.
   rpc Get(RefundServiceGetRequest) returns (RefundResponse);
+
+  // Void/reverse a refund before processor settlement.
+  rpc VoidPostRefund(RefundServiceVoidPostRefundRequest)
+      returns (RefundResponse);
 }
 
 // ============================================================================

@@ -873,4 +873,7 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
         CreateConnectorCustomer,
     ],
+    not_supported: [
+        VoidPostRefund,
+    ],
 );

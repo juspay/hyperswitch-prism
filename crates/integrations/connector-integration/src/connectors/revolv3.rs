@@ -554,6 +554,7 @@ macros::macro_connector_flow_status_impls!(
         SubmitEvidence,
     ],
     not_supported: [
+        VoidPostRefund,
         Authenticate,
         PostAuthenticate,
         PreAuthenticate,
