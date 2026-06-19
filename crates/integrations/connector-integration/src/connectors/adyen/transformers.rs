@@ -59,7 +59,7 @@ use crate::{
     },
 };
 use domain_types::errors::ConnectorError;
-use domain_types::errors::{IntegrationError, WebhookError};
+use domain_types::errors::{IntegrationError, IntegrationErrorContext, WebhookError};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub enum Currency {
@@ -5850,14 +5850,25 @@ fn get_additional_data<
             get_adyen_metadata(item.request.metadata.clone().map(|m| m.expose()))
                 .capture_delay_hours;
 
-        match item.request.capture_method.unwrap_or_default() {
+        let capture_method = item.request.capture_method.unwrap_or_default();
+        match capture_method {
             common_enums::CaptureMethod::Manual | common_enums::CaptureMethod::ManualMultiple => {
                 // For manual capture, capture_delay_hours should be None
-                if metadata_capture_delay.is_some() {
+                if let Some(hours) = metadata_capture_delay {
                     return Err(IntegrationError::InvalidDataFormat {
-                        field_name:
-                            "metadata.capture_delay_hours should be None for manual capture",
-                        context: Default::default(),
+                        field_name: "metadata.capture_delay_hours",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(format!(
+                                "Adyen does not accept capture_delay_hours for manual capture \
+                                 (capture_method = {capture_method:?}), but metadata supplied {hours}"
+                            )),
+                            suggested_action: Some(
+                                "Remove capture_delay_hours from metadata when capture_method is \
+                                 Manual/ManualMultiple, or switch to automatic capture"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                        },
                     }
                     .into());
                 }
@@ -5867,11 +5878,22 @@ fn get_additional_data<
             _ => match metadata_capture_delay {
                 None => None,
                 Some(0) => Some(0),
-                Some(_) => {
+                Some(hours) => {
                     return Err(IntegrationError::InvalidDataFormat {
-                        field_name:
-                            "metadata.capture_delay_hours should be 0 or None for automatic capture",
-                        context: Default::default(),
+                        field_name: "metadata.capture_delay_hours",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(format!(
+                                "Adyen only accepts capture_delay_hours of 0 (or unset) for \
+                                 automatic capture (capture_method = {capture_method:?}), but \
+                                 metadata supplied {hours}"
+                            )),
+                            suggested_action: Some(
+                                "Set metadata.capture_delay_hours to 0 (or omit it) for automatic \
+                                 capture"
+                                    .to_string(),
+                            ),
+                            doc_url: None,
+                        },
                     }
                     .into());
                 }
