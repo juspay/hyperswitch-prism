@@ -374,6 +374,7 @@ fn get_payments_response(connector_response: TsysResponse, http_code: u16) -> Pa
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: Some(connector_response.transaction_id),
         incremental_authorization_allowed: None,
         status_code: http_code,
@@ -714,6 +715,7 @@ fn get_payments_sync_response(
         mandate_reference: None,
         connector_metadata: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: Some(
             connector_response
                 .transaction_details
@@ -1164,6 +1166,7 @@ fn get_setup_mandate_response(
         })),
         connector_metadata: None,
         network_txn_id: Some(transaction_id.clone()),
+        network_txn_link_id: None,
         connector_response_reference_id: Some(transaction_id),
         incremental_authorization_allowed: None,
         status_code: http_code,

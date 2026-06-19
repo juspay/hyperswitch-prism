@@ -677,7 +677,8 @@ fn wallet_to_juspay(
         | WalletData::MbWay(_)
         | WalletData::Satispay(_)
         | WalletData::Wero(_)
-        | WalletData::Paze(_) => Err(error_stack::report!(
+        | WalletData::Paze(_)
+        | WalletData::QwikcilverWalletDirect(_) => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!("Juspay wallet variant not supported: {wallet:?}"),
                 Default::default(),
@@ -862,6 +863,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.txn_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -976,6 +978,7 @@ impl TryFrom<ResponseRouterData<JuspayOrderStatusResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .txn_id
                     .clone()
@@ -1069,6 +1072,7 @@ impl TryFrom<ResponseRouterData<JuspayCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.txn_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -1315,6 +1319,7 @@ impl TryFrom<ResponseRouterData<JuspayVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: response.txn_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,

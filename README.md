@@ -237,6 +237,17 @@ If you wish to learn more about routing logic and smart retries, you can checkou
 
 ---
 
+## 🔌 Plugins
+
+Ready-made integrations for popular platforms.
+
+| Platform | Package | Description |
+|----------|---------|-------------|
+| [Medusa](./plugins/medusa) | [`@juspay-tech/medusa-custom-payments`](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments) | Medusa v2 backend payment provider |
+| [Medusa](./plugins/medusa) | [`@juspay-tech/medusa-custom-payments-react`](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments-react) | React storefront checkout components |
+
+---
+
 ## 🛠️ Development
 
 ### Prerequisites
@@ -257,6 +268,18 @@ cargo build --release
 # Run tests
 cargo test
 ```
+
+### Grace workspace (TypeScript dashboard + checkpoint engine)
+
+For the grace/ TypeScript workspace (parity dashboard, AI-assisted connector integration), bootstrap with:
+
+```bash
+make grace-workspace
+```
+
+This auto-installs pnpm via corepack if needed, then runs the full prereq probe, install, build, and interactive `.env` scaffold. See [`grace/grace-workspace/README.md`](./grace/grace-workspace/README.md) for the full setup story including LLM auth modes (Anthropic OAuth, bare API key, LiteLLM gateway) and runner choice (claude-code vs opencode).
+
+Don't want Node + claude + gh on your host? Use the containerized path instead: `make grace-workspace-docker` builds a self-contained image and starts the supervisor + dashboard + opencode-serve sidecar via docker-compose. Requires `TENXGRACE_PROJECT_ROOT` exported. Full prereqs and limitations in the workspace README's "Docker (alternative entry)" section.
 
 ---
 

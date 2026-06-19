@@ -18,7 +18,7 @@ use domain_types::{
     errors::ApiErrorResponse,
     router_data_v2::RouterDataV2,
     router_response_types::Response,
-    types::Proxy,
+    types::{Proxy, ProxyConfig},
     ConnectorError,
 };
 #[cfg(feature = "injector-client")]
@@ -182,6 +182,22 @@ impl AdditionalHeaders for domain_types::surcharge::surcharge_types::SurchargeFl
         None
     }
 }
+
+impl ConnectorRequestReference
+    for domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData
+{
+    fn get_connector_request_reference_id(&self) -> &str {
+        &self.connector_request_reference_id
+    }
+}
+
+impl AdditionalHeaders
+    for domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData
+{
+    fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
+        None
+    }
+}
 use common_utils::events::{Event, EventConfig, FlowName};
 #[cfg(feature = "injector-client")]
 // TokenData is now imported from hyperswitch_injector
@@ -215,6 +231,64 @@ pub async fn publish_to_kafka(
     Err(KafkaClientError::NotEnabled)?
 }
 
+/// Exposes a flow's outcome as a unified [`FlowStatus`], so the generic connector
+/// response handler can record the payment-outcome metric for any flow without
+/// knowing the concrete status type. Flows without a payment-style status return
+/// `None`.
+pub trait GetFlowStatus {
+    /// The flow's current outcome as a unified `FlowStatus`, if it has one.
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus>;
+}
+
+impl GetFlowStatus for domain_types::connector_types::PaymentFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        Some(domain_types::router_data::FlowStatus::Payment(self.status))
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::RefundFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        Some(domain_types::router_data::FlowStatus::Refund(self.status))
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::DisputeFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::VerifyWebhookSourceFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::payouts::payouts_types::PayoutFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::surcharge::surcharge_types::SurchargeFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus
+    for domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData
+{
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+
+/// Stringify a unified `FlowStatus` into a bounded metric label (e.g. `payment_charged`).
+#[cfg(feature = "otel")]
+fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> String {
+    use domain_types::router_data::FlowStatus;
+    match flow_status {
+        FlowStatus::Payment(status) => format!("payment_{status}"),
+        FlowStatus::Refund(status) => format!("refund_{status}"),
+        FlowStatus::Dispute(status) => format!("dispute_{status}"),
+    }
+}
+
 /// Handles the connector response, processing both successful and error responses
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
@@ -231,7 +305,8 @@ where
     F: Clone + 'static,
     Req: Clone + 'static + std::fmt::Debug,
     Resp: Clone + 'static + std::fmt::Debug,
-    ResourceCommonData: Clone + RawConnectorRequestResponse + ConnectorResponseHeaders,
+    ResourceCommonData:
+        Clone + RawConnectorRequestResponse + ConnectorResponseHeaders + GetFlowStatus,
 {
     let return_raw = event_params.is_none_or(|p| p.return_raw_connector_data);
     match response {
@@ -287,6 +362,18 @@ where
                                 body.status_code.to_string().as_str(),
                             ])
                             .inc();
+                        #[cfg(feature = "otel")]
+                        crate::otel_metrics::record_external_error(
+                            method,
+                            params.service_name,
+                            params.connector_name,
+                            if params.shadow_mode {
+                                "shadow"
+                            } else {
+                                "primary"
+                            },
+                            body.status_code.to_string().as_str(),
+                        );
                     }
 
                     if all_keys_required.unwrap_or(true) && return_raw {
@@ -322,11 +409,46 @@ where
                         "response.status_code",
                         tracing::field::display(error_response.status_code),
                     );
+                    // Additive: record the connector flow outcome (FlowStatus) so a
+                    // decline is visible even though the gRPC call "succeeded".
+                    #[cfg(feature = "otel")]
+                    if let (Some(params), Some(flow_status)) =
+                        (event_params, error_response.attempt_status.as_ref())
+                    {
+                        crate::otel_metrics::record_payment_status(
+                            params.connector_name,
+                            params.flow_name.as_str(),
+                            if params.shadow_mode {
+                                "shadow"
+                            } else {
+                                "primary"
+                            },
+                            &flow_status_label(flow_status),
+                        );
+                    }
                     Err(error_stack::report!(
                         ConnectorError::ConnectorErrorResponse(error_response)
                     ))?
                 }
             };
+            // Centralised success-path payment outcome: every connector flow returns
+            // through here, so the final status is recorded once without per-handler
+            // code. Additive, feature-gated.
+            #[cfg(feature = "otel")]
+            if let (Some(params), Some(flow_status)) =
+                (event_params, response.resource_common_data.flow_status())
+            {
+                crate::otel_metrics::record_payment_status(
+                    params.connector_name,
+                    params.flow_name.as_str(),
+                    if params.shadow_mode {
+                        "shadow"
+                    } else {
+                        "primary"
+                    },
+                    &flow_status_label(&flow_status),
+                );
+            }
             Ok(response)
         }
         Err(err) => {
@@ -366,6 +488,8 @@ pub struct EventProcessingParams<'a> {
     pub reference_id: &'a Option<String>,
     pub resource_id: &'a Option<String>,
     pub shadow_mode: bool,
+    /// Explicit proxy name from `x-proxy-name` header. If None, falls back to shadow_mode heuristic.
+    pub proxy_name: Option<&'a str>,
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
@@ -390,7 +514,7 @@ pub struct EventProcessingParams<'a> {
 )]
 #[allow(clippy::too_many_arguments)]
 pub async fn execute_connector_processing_step<T, F, ResourceCommonData, Req, Resp>(
-    proxy: &Proxy,
+    proxy: &ProxyConfig,
     connector: BoxedConnectorIntegrationV2<'static, F, ResourceCommonData, Req, Resp>,
     router_data: RouterDataV2<F, ResourceCommonData, Req, Resp>,
     all_keys_required: Option<bool>,
@@ -410,9 +534,11 @@ where
         + RawConnectorRequestResponse
         + ConnectorResponseHeaders
         + ConnectorRequestReference
-        + AdditionalHeaders,
+        + AdditionalHeaders
+        + GetFlowStatus,
 {
     let start = tokio::time::Instant::now();
+    let proxy_name = event_params.proxy_name.unwrap_or("primary");
     let transport_type = connector.get_transport_type();
     let result = match (call_connector_action, transport_type) {
         // handle_response removed from proto (PaymentServiceGetRequest field 5 reserved)
@@ -510,6 +636,17 @@ where
                             event_params.connector_name,
                         ])
                         .inc();
+                    #[cfg(feature = "otel")]
+                    crate::otel_metrics::record_external_call(
+                        &method.to_string(),
+                        event_params.service_name,
+                        event_params.connector_name,
+                        if event_params.shadow_mode {
+                            "shadow"
+                        } else {
+                            "primary"
+                        },
+                    );
                     let external_service_start_latency = tokio::time::Instant::now();
                     tracing::Span::current().record("request.url", tracing::field::display(&url));
                     tracing::Span::current()
@@ -561,11 +698,6 @@ where
                         // Parse vault metadata and build injector request
                         let vault_headers =
                             updated_router_data.resource_common_data.get_vault_headers();
-                        let backup_proxy_url = proxy
-                            .https_url
-                            .as_ref()
-                            .or(proxy.http_url.as_ref())
-                            .map(|url| Secret::new(url.clone()));
                         let injector_request = build_injector_request(
                             Url::parse(&request.url).change_context(ConnectorFlowError::from(
                                 IntegrationError::RequestEncodingFailed {
@@ -576,7 +708,10 @@ where
                             template,
                             token_data,
                             headers,
-                            backup_proxy_url,
+                            proxy
+                                .effective_https_url(proxy_name)
+                                .or(proxy.effective_http_url(proxy_name))
+                                .map(|url| Secret::new(url.to_string())),
                             vault_headers,
                         );
 
@@ -637,6 +772,7 @@ where
                             request,
                             "execute_connector_processing_step",
                             test_mode,
+                            event_params.proxy_name,
                         )
                         .await
                         .map_err(report_common_api_client_to_flow)
@@ -658,6 +794,18 @@ where
                             event_params.connector_name,
                         ])
                         .observe(external_service_elapsed.as_secs_f64());
+                    #[cfg(feature = "otel")]
+                    crate::otel_metrics::record_external_latency(
+                        &method.to_string(),
+                        event_params.service_name,
+                        event_params.connector_name,
+                        if event_params.shadow_mode {
+                            "shadow"
+                        } else {
+                            "primary"
+                        },
+                        external_service_elapsed.as_secs_f64(),
+                    );
                     // Extract status code BEFORE creating event - one liner
                     let status_code = response.as_ref().ok().map(|result| match result {
                         Ok(body) | Err(body) => i32::from(body.status_code),
@@ -711,6 +859,17 @@ where
                             event_params.connector_name,
                         ])
                         .inc();
+                    #[cfg(feature = "otel")]
+                    crate::otel_metrics::record_external_call(
+                        "PUBLISH",
+                        event_params.service_name,
+                        event_params.connector_name,
+                        if event_params.shadow_mode {
+                            "shadow"
+                        } else {
+                            "primary"
+                        },
+                    );
                     let external_service_start_latency = tokio::time::Instant::now();
 
                     let topic = record.topic.clone();
@@ -747,6 +906,18 @@ where
                             event_params.connector_name,
                         ])
                         .observe(external_service_elapsed.as_secs_f64());
+                    #[cfg(feature = "otel")]
+                    crate::otel_metrics::record_external_latency(
+                        "PUBLISH",
+                        event_params.service_name,
+                        event_params.connector_name,
+                        if event_params.shadow_mode {
+                            "shadow"
+                        } else {
+                            "primary"
+                        },
+                        external_service_elapsed.as_secs_f64(),
+                    );
                     tracing::info!(?response, "response from connector");
 
                     // Extract status code BEFORE creating event - one liner
@@ -885,18 +1056,22 @@ pub type RouterResult<T> = CustomResult<T, ApiErrorResponse>;
 pub type RouterResponse<T> = CustomResult<ApplicationResponse<T>, ApiErrorResponse>;
 
 pub async fn call_connector_api(
-    proxy: &Proxy,
+    proxy: &ProxyConfig,
     request: Request,
     _flow_name: &str,
     test_mode: bool,
+    header_proxy_name: Option<&str>,
 ) -> CustomResult<Result<Response, Response>, ApiClientError> {
     let url = Url::parse(&request.url).change_context(ApiClientError::UrlEncodingFailed)?;
 
-    let should_bypass_proxy = proxy.bypass_proxy_urls.contains(&url.to_string());
+    let should_bypass_proxy = proxy.bypass_urls.contains(&url.to_string());
+
+    let proxy_name = header_proxy_name.unwrap_or("primary");
 
     let client = create_client(
         proxy,
         should_bypass_proxy,
+        proxy_name,
         request.certificate,
         request.certificate_key,
         test_mode,
@@ -1053,15 +1228,17 @@ pub async fn call_connector_api(
 }
 
 pub fn create_client(
-    proxy_config: &Proxy,
+    proxy_config: &ProxyConfig,
     should_bypass_proxy: bool,
+    proxy_name: &str,
     client_certificate: Option<Secret<String>>,
     client_certificate_key: Option<Secret<String>>,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
     match (client_certificate.clone(), client_certificate_key.clone()) {
         (Some(encoded_certificate), Some(encoded_certificate_key)) => {
-            let client_builder = get_client_builder(proxy_config, should_bypass_proxy, test_mode)?;
+            let client_builder =
+                get_client_builder(proxy_config, should_bypass_proxy, proxy_name, test_mode)?;
 
             let identity = create_identity_from_certificate_and_key(
                 encoded_certificate.clone(),
@@ -1080,18 +1257,19 @@ pub fn create_client(
                 .change_context(ApiClientError::ClientConstructionFailed)
                 .attach_printable("Failed to construct client with certificate and certificate key")
         }
-        _ => get_base_client(proxy_config, should_bypass_proxy, test_mode),
+        _ => get_base_client(proxy_config, should_bypass_proxy, proxy_name, test_mode),
     }
 }
 
 static DEFAULT_CLIENT: OnceCell<Client> = OnceCell::new();
-static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<Proxy, Client>>> = OnceCell::new();
+static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<(Proxy, String), Client>>> = OnceCell::new();
 
 fn get_or_create_proxy_client(
-    cache: &RwLock<HashMap<Proxy, Client>>,
-    cache_key: Proxy,
-    proxy_config: &Proxy,
+    cache: &RwLock<HashMap<(Proxy, String), Client>>,
+    cache_key: (Proxy, String),
+    proxy_config: &ProxyConfig,
     should_bypass_proxy: bool,
+    proxy_name: &str,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
     let read_result = cache
@@ -1120,11 +1298,15 @@ fn get_or_create_proxy_client(
                 None => {
                     tracing::info!("Creating new proxy client for config: {:?}", cache_key);
 
-                    let new_client =
-                        get_client_builder(proxy_config, should_bypass_proxy, test_mode)?
-                            .build()
-                            .change_context(ApiClientError::ClientConstructionFailed)
-                            .attach_printable("Failed to construct proxy client")?;
+                    let new_client = get_client_builder(
+                        proxy_config,
+                        should_bypass_proxy,
+                        proxy_name,
+                        test_mode,
+                    )?
+                    .build()
+                    .change_context(ApiClientError::ClientConstructionFailed)
+                    .attach_printable("Failed to construct proxy client")?;
 
                     write_lock.insert(cache_key.clone(), new_client.clone());
                     tracing::debug!("Cached new proxy client for config: {:?}", cache_key);
@@ -1138,12 +1320,12 @@ fn get_or_create_proxy_client(
 }
 
 fn get_base_client(
-    proxy_config: &Proxy,
+    proxy_config: &ProxyConfig,
     should_bypass_proxy: bool,
+    proxy_name: &str,
     test_mode: bool,
 ) -> CustomResult<Client, ApiClientError> {
-    // Check if proxy configuration is provided using cache_key extract_raw_connector_request
-    if let Some(cache_key) = proxy_config.cache_key(should_bypass_proxy) {
+    if let Some(cache_key) = proxy_config.cache_key(should_bypass_proxy, proxy_name) {
         tracing::debug!(
             "Using proxy-specific client cache with key: {:?}",
             cache_key
@@ -1156,6 +1338,7 @@ fn get_base_client(
             cache_key,
             proxy_config,
             should_bypass_proxy,
+            proxy_name,
             test_mode,
         )?;
 
@@ -1163,11 +1346,10 @@ fn get_base_client(
     } else {
         tracing::debug!("No proxy configuration detected, using DEFAULT_CLIENT");
 
-        // Use DEFAULT_CLIENT for non-proxy scenarios
         let client = DEFAULT_CLIENT
             .get_or_try_init(|| {
                 tracing::info!("Initializing DEFAULT_CLIENT (no proxy configuration)");
-                get_client_builder(proxy_config, should_bypass_proxy, test_mode)?
+                get_client_builder(proxy_config, should_bypass_proxy, proxy_name, test_mode)?
                     .build()
                     .change_context(ApiClientError::ClientConstructionFailed)
                     .attach_printable("Failed to construct default client")
@@ -1190,8 +1372,9 @@ fn load_custom_ca_certificate_from_content(
 }
 
 fn get_client_builder(
-    proxy_config: &Proxy,
+    proxy_config: &ProxyConfig,
     should_bypass_proxy: bool,
+    proxy_name: &str,
     test_mode: bool,
 ) -> CustomResult<reqwest::ClientBuilder, ApiClientError> {
     let mut client_builder = Client::builder()
@@ -1212,18 +1395,21 @@ fn get_client_builder(
         return Ok(client_builder);
     }
 
-    // Attach MITM certificate if enabled
-    if proxy_config.mitm_proxy_enabled {
-        if let Some(cert_content) = &proxy_config.mitm_ca_cert {
-            if !cert_content.trim().is_empty() {
-                client_builder =
-                    load_custom_ca_certificate_from_content(client_builder, cert_content.trim())?;
-            }
-        }
+    if !proxy_name.is_empty() && !proxy_config.proxies.contains_key(proxy_name) {
+        tracing::warn!(
+            proxy_name,
+            "x-proxy-name header refers to unknown proxy — falling back to direct connection"
+        );
     }
 
-    // Proxy all HTTPS traffic through the configured HTTPS proxy
-    if let Some(url) = proxy_config.https_url.as_ref() {
+    if let Some(cert) = proxy_config
+        .get(proxy_name)
+        .and_then(|p| p.active_ca_cert())
+    {
+        client_builder = load_custom_ca_certificate_from_content(client_builder, cert)?;
+    }
+
+    if let Some(url) = proxy_config.effective_https_url(proxy_name) {
         client_builder = client_builder.proxy(
             reqwest::Proxy::https(url)
                 .change_context(ApiClientError::InvalidProxyConfiguration)
@@ -1236,8 +1422,7 @@ fn get_client_builder(
         );
     }
 
-    // Proxy all HTTP traffic through the configured HTTP proxy
-    if let Some(url) = proxy_config.http_url.as_ref() {
+    if let Some(url) = proxy_config.effective_http_url(proxy_name) {
         client_builder = client_builder.proxy(
             reqwest::Proxy::http(url)
                 .change_context(ApiClientError::InvalidProxyConfiguration)

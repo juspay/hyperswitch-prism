@@ -108,11 +108,11 @@ class GrpcCustomerClient:
         self._ffi    = ffi
         self._config = config
 
-    def create(self, req: payment_pb2.CustomerServiceCreateRequest) -> payment_pb2.CustomerServiceCreateResponse:
+    def customer_create(self, req: payment_pb2.CustomerServiceCreateRequest) -> payment_pb2.CustomerServiceCreateResponse:
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
         return _call_grpc(
             self._ffi, self._config,
-            "customer/create",
+            "customer/customer_create",
             req, payment_pb2.CustomerServiceCreateResponse,
         )
 
@@ -179,6 +179,28 @@ class GrpcEventClient:
             self._ffi, self._config,
             "event/notify_connector",
             req, payment_pb2.NotifyConnectorResponse,
+        )
+
+class GrpcFraudAndRiskManagementClient:
+    """FraudAndRiskManagementService — gRPC sub-client."""
+
+    def __init__(self, ffi: _GrpcFfi, config: GrpcConfig) -> None:
+        self._ffi    = ffi
+        self._config = config
+
+    def pre_risk_check(self, req: payment_pb2.FrmServicePreRiskCheckRequest) -> payment_pb2.FrmServicePreRiskCheckResponse:
+        """FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "fraud_and_risk_management/pre_risk_check",
+            req, payment_pb2.FrmServicePreRiskCheckResponse,
+        )
+    def post_risk_check(self, req: payment_pb2.FrmServicePostRiskCheckRequest) -> payment_pb2.FrmServicePostRiskCheckResponse:
+        """FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "fraud_and_risk_management/post_risk_check",
+            req, payment_pb2.FrmServicePostRiskCheckResponse,
         )
 
 class GrpcMerchantAuthenticationClient:
@@ -253,12 +275,26 @@ class GrpcPaymentMethodClient:
             "payment_method/tokenize",
             req, payment_pb2.PaymentMethodServiceTokenizeResponse,
         )
-    def eligibility(self, req: payment_pb2.PayoutMethodEligibilityRequest) -> payment_pb2.PayoutMethodEligibilityResponse:
-        """PaymentMethodService.Eligibility — Check if the payout method is eligible for the transaction"""
+    def create(self, req: payment_pb2.PaymentMethodServiceCreateRequest) -> payment_pb2.PaymentMethodServiceCreateResponse:
+        """PaymentMethodService.Create — Create payment method at connector. Establishes a new payment method and returns connector-specific details."""
         return _call_grpc(
             self._ffi, self._config,
-            "payment_method/eligibility",
-            req, payment_pb2.PayoutMethodEligibilityResponse,
+            "payment_method/create",
+            req, payment_pb2.PaymentMethodServiceCreateResponse,
+        )
+    def payment_method_get(self, req: payment_pb2.PaymentMethodServiceGetRequest) -> payment_pb2.PaymentMethodServiceGetResponse:
+        """PaymentMethodService.Get — Retrieve payment method details from the payment processor."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/payment_method_get",
+            req, payment_pb2.PaymentMethodServiceGetResponse,
+        )
+    def recharge(self, req: payment_pb2.PaymentMethodServiceRechargeRequest) -> payment_pb2.PaymentMethodServiceRechargeResponse:
+        """PaymentMethodService.Recharge — Recharge a payment method (wallet, gift card, prepaid card) with funds."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/recharge",
+            req, payment_pb2.PaymentMethodServiceRechargeResponse,
         )
 
 class GrpcPaymentClient:
@@ -430,6 +466,13 @@ class GrpcPayoutClient:
             "payout/enroll_disburse_account",
             req, payment_pb2.PayoutServiceEnrollDisburseAccountResponse,
         )
+    def eligibility(self, req: payment_pb2.PayoutMethodEligibilityRequest) -> payment_pb2.PayoutMethodEligibilityResponse:
+        """PayoutService.Eligibility — Check if the payout method is eligible for the transaction"""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payout/eligibility",
+            req, payment_pb2.PayoutMethodEligibilityResponse,
+        )
 
 class GrpcRecurringPaymentClient:
     """RecurringPaymentService — gRPC sub-client."""
@@ -499,15 +542,16 @@ class GrpcClient:
             connector = "stripe",
             connector_config = {"config": {"Stripe": {"api_key": "sk_test_..."}}},
         ))
-        res = client.customer.create(...)
+        res = client.customer.customer_create(...)
         res = client.dispute.submit_evidence(...)
         res = client.event.parse_event(...)
-        res = client.merchant_authentication.create_server_authentication_token(...)
+        res = client.fraud_and_risk_management.pre_risk_check(...)
     """
 
     customer: GrpcCustomerClient
     dispute: GrpcDisputeClient
     event: GrpcEventClient
+    fraud_and_risk_management: GrpcFraudAndRiskManagementClient
     merchant_authentication: GrpcMerchantAuthenticationClient
     payment_method_authentication: GrpcPaymentMethodAuthenticationClient
     payment_method: GrpcPaymentMethodClient
@@ -522,6 +566,7 @@ class GrpcClient:
         self.customer = GrpcCustomerClient(ffi, config)
         self.dispute = GrpcDisputeClient(ffi, config)
         self.event = GrpcEventClient(ffi, config)
+        self.fraud_and_risk_management = GrpcFraudAndRiskManagementClient(ffi, config)
         self.merchant_authentication = GrpcMerchantAuthenticationClient(ffi, config)
         self.payment_method_authentication = GrpcPaymentMethodAuthenticationClient(ffi, config)
         self.payment_method = GrpcPaymentMethodClient(ffi, config)

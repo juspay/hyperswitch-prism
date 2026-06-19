@@ -124,6 +124,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -208,6 +209,7 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    domain_data: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -318,6 +320,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -379,6 +382,7 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    domain_data: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_01".to_string(),
@@ -463,6 +467,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -524,6 +529,7 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    domain_data: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_02".to_string(),
@@ -630,6 +636,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -714,6 +721,7 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    domain_data: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -995,6 +1003,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                customer_document_details: None,
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
@@ -1075,6 +1084,7 @@ mod tests {
                 redirect_response: None,
                 threeds_method_comp_ind: None,
                 tokenization: None,
+                domain_data: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1196,6 +1206,7 @@ mod tests {
                 base_url: None,
             },
             request: PaymentsAuthorizeData {
+                customer_document_details: None,
                 payment_channel: None,
                 authentication_data: None,
                 connector_testing_data: None,
@@ -1276,6 +1287,7 @@ mod tests {
                 redirect_response: None,
                 threeds_method_comp_ind: None,
                 tokenization: None,
+                domain_data: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1644,6 +1656,7 @@ mod tests {
                     base_url: None,
                 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -1705,6 +1718,7 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    domain_data: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_INVALID".to_string(),

@@ -426,6 +426,41 @@ pub enum BankNames {
     IndianOverseasBank,
     CentralBankOfIndia,
     Absa,
+    AccessBank,
+    Albaraka,
+    ChinaConstructionBank,
+    Discovery,
+    EnlBank,
+    FirstNationalBank,
+    GotymeBank,
+    HabibOverseas,
+    HbzBank,
+    Investec,
+    JpMorganChase,
+    MtnBanking,
+    Olympus,
+    OldMutual,
+    PermanentBank,
+    SocieteGenerale,
+    StandardBank,
+    StateBankOfIndia,
+    Ubank,
+    VbsMutualBank,
+    BankZero,
+    BidvestBank,
+    BidvestBankAlliances,
+    FbcFidelityBank,
+    FinbondEpe,
+    FinbondMutualBank,
+    Ithala,
+    PeoplesBankPepBank,
+    PeoplesBank,
+    PostBank,
+    Nedbank,
+    Capitec,
+    CapitecBusiness,
+    AfricanBank,
+    AfricanBankBusiness,
 }
 
 /// Specifies the regulated name for a card network, primarily used for US debit card routing regulations.
@@ -1084,6 +1119,7 @@ pub enum PaymentMethodType {
     IndonesianBankTransfer,
     Skrill,
     Paysera,
+    QwikcilverWallet,
 }
 
 impl PaymentMethodType {
@@ -1143,6 +1179,71 @@ pub enum RefundStatus {
     Success,
     #[serde(alias = "TransactionFailure")]
     TransactionFailure,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RechargeStatus {
+    Success,
+    Failure,
+    #[default]
+    Pending,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+pub enum WalletStatus {
+    #[default]
+    Unspecified,
+    Active,
+    Inactive,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+pub enum WalletItemStatus {
+    #[default]
+    Unspecified,
+    Active,
+    Inactive,
+    Depleted,
+    Expired,
 }
 
 #[derive(
@@ -2310,4 +2411,105 @@ pub enum Tokenization {
 pub enum TaxStatus {
     Taxable,
     Exempt,
+}
+
+/// Whether the ticket can be refunded.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TicketRefundability {
+    Refundable,
+    NonRefundable,
+}
+
+/// Ticket medium — electronic vs paper.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TicketDeliveryType {
+    Electronic,
+    Paper,
+}
+
+/// Whether the cardholder is among the passengers (fraud signal).
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CardholderTravelStatus {
+    Traveling,
+    NotTraveling,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "PascalCase")]
+#[serde(rename_all = "PascalCase")]
+pub enum AdyenSplitType {
+    /// Books split amount to the specified account.
+    BalanceAccount,
+    /// The aggregated amount of the interchange and scheme fees.
+    AcquiringFees,
+    /// The aggregated amount of all transaction fees.
+    PaymentFee,
+    /// The aggregated amount of Adyen's commission and markup fees.
+    AdyenFees,
+    ///  The transaction fees due to Adyen under blended rates.
+    AdyenCommission,
+    /// The transaction fees due to Adyen under Interchange ++ pricing.
+    AdyenMarkup,
+    ///  The fees paid to the issuer for each payment made with the card network.
+    Interchange,
+    ///  The fees paid to the card scheme for using their network.
+    SchemeFee,
+    /// Your platform's commission on the payment (specified in amount), booked to your liable balance account.
+    Commission,
+    /// Allows you and your users to top up balance accounts using direct debit, card payments, or other payment methods.
+    TopUp,
+    /// The value-added tax charged on the payment, booked to your platforms liable balance account.
+    Vat,
 }

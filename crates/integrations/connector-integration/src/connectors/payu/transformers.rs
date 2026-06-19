@@ -11,6 +11,7 @@ use domain_types::{
         ServerSessionAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, UpiData, WalletData,
     },
@@ -1044,6 +1045,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(transaction_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -1092,7 +1094,8 @@ impl TryFrom<ResponseRouterData<PayuSyncResponse, Self>>
                             redirection_data: None,
                             mandate_reference: None,
                             connector_metadata: None,
-                            network_txn_id: txn_detail.field1.clone(), // UPI transaction ID
+                            network_txn_id: txn_detail.field1.clone(),
+                            network_txn_link_id: None, // UPI transaction ID
                             connector_response_reference_id: txn_detail.mihpayid.clone(),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
@@ -1390,6 +1393,7 @@ impl TryFrom<ResponseRouterData<PayuCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(connector_transaction_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -1573,6 +1577,7 @@ impl TryFrom<ResponseRouterData<PayuVoidResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(connector_transaction_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -2015,7 +2020,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         super::PayuRouterData<
             RouterDataV2<
                 ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerSessionAuthenticationTokenRequestData,
                 ServerSessionAuthenticationTokenResponseData,
             >,
@@ -2029,7 +2034,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: super::PayuRouterData<
             RouterDataV2<
                 ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerSessionAuthenticationTokenRequestData,
                 ServerSessionAuthenticationTokenResponseData,
             >,
@@ -2055,7 +2060,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
     for RouterDataV2<
         ServerSessionAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData,
     >
@@ -2085,10 +2090,6 @@ impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
                     network_advice_code: None,
                     network_decline_code: None,
                 }),
-                resource_common_data: PaymentFlowData {
-                    status: AttemptStatus::Failure,
-                    ..item.router_data.resource_common_data
-                },
                 ..item.router_data
             });
         }
@@ -2112,10 +2113,6 @@ impl TryFrom<ResponseRouterData<PayuSessionTokenResponse, Self>>
             response: Ok(ServerSessionAuthenticationTokenResponseData {
                 session_token: session_token.clone(),
             }),
-            resource_common_data: PaymentFlowData {
-                session_token: Some(session_token),
-                ..item.router_data.resource_common_data
-            },
             ..item.router_data
         })
     }

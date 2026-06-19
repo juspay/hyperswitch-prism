@@ -8,6 +8,7 @@ use domain_types::{
         ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, UpiData},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -389,7 +390,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         PinelabsOnlineRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -403,7 +404,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         item: PinelabsOnlineRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -422,7 +423,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
 // ========== TryFrom: AccessToken Response ==========
 
 impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineAccessTokenResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
+    for RouterDataV2<F, MerchantAuthenticationFlowData, T, ServerAuthenticationTokenResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -888,6 +889,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PinelabsOnlineResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.data.merchant_order_reference,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
@@ -954,6 +956,7 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineCaptureResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.data.merchant_order_reference,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
@@ -1019,6 +1022,7 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineVoidResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.data.merchant_order_reference,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,

@@ -9,6 +9,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankRedirectData, PaymentMethodData, PaymentMethodDataTypes, RealTimePaymentData, UpiData,
     },
@@ -411,6 +412,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_reference: None,
                     connector_metadata,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.merchant_payment_id.clone(),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
@@ -425,6 +427,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: response.merchant_payment_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
@@ -490,6 +493,7 @@ impl TryFrom<ResponseRouterData<IatapaySyncResponse, Self>>
             mandate_reference: None,
             connector_metadata,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: response.merchant_payment_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
@@ -715,7 +719,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         crate::connectors::iatapay::IatapayRouterData<
             RouterDataV2<
                 domain_types::connector_flow::ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 domain_types::connector_types::ServerAuthenticationTokenRequestData,
                 domain_types::connector_types::ServerAuthenticationTokenResponseData,
             >,
@@ -729,7 +733,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: crate::connectors::iatapay::IatapayRouterData<
             RouterDataV2<
                 domain_types::connector_flow::ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 domain_types::connector_types::ServerAuthenticationTokenRequestData,
                 domain_types::connector_types::ServerAuthenticationTokenResponseData,
             >,
@@ -743,7 +747,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<IatapayAuthUpdateResponse, Self>>
     for RouterDataV2<
         domain_types::connector_flow::ServerAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         domain_types::connector_types::ServerAuthenticationTokenRequestData,
         domain_types::connector_types::ServerAuthenticationTokenResponseData,
     >

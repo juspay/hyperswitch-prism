@@ -592,6 +592,7 @@ pub fn handle_authorize_response<
             connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(payload.merchant_request_id.clone()),
             incremental_authorization_allowed: None,
             status_code: http_code,
@@ -614,6 +615,7 @@ pub fn handle_authorize_response<
             connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: http_code,
@@ -689,6 +691,7 @@ pub fn handle_psync_response(
         connector_metadata: None,
         mandate_reference: None,
         network_txn_id: None,
+        network_txn_link_id: None,
         connector_response_reference_id: response
             .payload
             .as_ref()

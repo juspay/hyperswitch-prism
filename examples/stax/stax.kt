@@ -25,7 +25,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.StaxConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "create_customer", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "customer_create", "get", "recurring_charge", "refund", "refund_get", "token_authorize", "token_setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -94,15 +94,15 @@ fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
 }
 
 // Flow: CustomerService.Create
-fun createCustomer(txnId: String, config: ConnectorConfig = _defaultConfig) {
+fun customerCreate(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = CustomerClient(config)
     val request = CustomerServiceCreateRequest.newBuilder().apply {
         merchantCustomerId = "cust_probe_123"  // Identification.
         customerName = "John Doe"  // Name of the customer.
         emailBuilder.value = "test@example.com"  // Email address of the customer.
-        phoneNumber = "4155552671"  // Phone number of the customer.
+        phoneNumberBuilder.value = "4155552671"  // Phone number of the customer.
     }.build()
-    val response = client.create(request)
+    val response = client.customer_create(request)
     println("Customer: ${response.connectorCustomerId}")
 }
 
@@ -240,7 +240,7 @@ fun main(args: Array<String>) {
     val flow = args.firstOrNull() ?: "capture"
     when (flow) {
         "capture" -> capture(txnId)
-        "createCustomer" -> createCustomer(txnId)
+        "customerCreate" -> customerCreate(txnId)
         "get" -> get(txnId)
         "recurringCharge" -> recurringCharge(txnId)
         "refund" -> refund(txnId)
@@ -248,6 +248,6 @@ fun main(args: Array<String>) {
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "tokenSetupRecurring" -> tokenSetupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, createCustomer, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, customerCreate, get, recurringCharge, refund, refundGet, tokenAuthorize, tokenSetupRecurring, void")
     }
 }

@@ -33,8 +33,25 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::composite::payments::capture),
         )
         .route(
+            "/composite/payments/verify_redirect_response",
+            post(handlers::composite::payments::verify_redirect_response),
+        )
+        .route(
             "/composite/events/handle",
             post(handlers::composite::events::handle_event),
+        )
+        // Composite Payment Method Service routes
+        .route(
+            "/composite/payment_methods/create",
+            post(handlers::composite::payment_methods::create),
+        )
+        .route(
+            "/composite/payment_methods/get",
+            post(handlers::composite::payment_methods::get),
+        )
+        .route(
+            "/composite/payment_methods/recharge",
+            post(handlers::composite::payment_methods::recharge),
         )
         .route("/payments/authorize", post(handlers::payments::authorize))
         // .route(

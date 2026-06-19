@@ -95,6 +95,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -185,6 +186,7 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    domain_data: None,
 },
                 response: Err(ErrorResponse::default())
 };
@@ -294,6 +296,7 @@ mod tests {
                     endpoint_prefix: None
 },
                 request: PaymentsAuthorizeData {
+                    customer_document_details: None,
                     payment_channel: None,
                     authentication_data: None,
                     connector_testing_data: None,
@@ -342,6 +345,7 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    domain_data: None,
 },
                 response: Err(ErrorResponse::default())
 };

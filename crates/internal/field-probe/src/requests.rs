@@ -204,14 +204,14 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
     }
 }
 
-pub(crate) fn base_create_customer_request() -> CustomerServiceCreateRequest {
-    // create_customer is explicitly about registering a customer — pre-populate
+pub(crate) fn base_customer_create_request() -> CustomerServiceCreateRequest {
+    // customer_create is explicitly about registering a customer — pre-populate
     // all standard customer fields so connectors get a complete customer record.
     CustomerServiceCreateRequest {
         merchant_customer_id: Some("cust_probe_123".to_string()),
         customer_name: Some("John Doe".to_string()),
         email: Some(Secret::new("test@example.com".to_string())),
-        phone_number: Some("4155552671".to_string()),
+        phone_number: Some(Secret::new("4155552671".to_string())),
         ..Default::default()
     }
 }

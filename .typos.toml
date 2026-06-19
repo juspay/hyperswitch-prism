@@ -22,6 +22,7 @@ HashiCorp = "HashiCorp" # HashiCorp company name
 caf = "caf" # part of café (URL-encoding / Unicode examples)
 Automatico = "Automatico" # Brazilian Portuguese — Globalgetnet's PIX_AUTOMATICO API method
 AUTOMATICO = "AUTOMATICO" # Brazilian Portuguese — Globalgetnet's PIX_AUTOMATICO API method
+UE = "UE" # Hyperswitch internal error code prefix (e.g. UE_9000)
 
 [default.extend-identifiers]
 ACI = "ACI" # Name of a connector

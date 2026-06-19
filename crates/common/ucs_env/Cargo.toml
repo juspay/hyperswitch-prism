@@ -18,6 +18,11 @@ config_patch_derive = { path = "../config_patch_derive" }
 hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
 tracing-kafka = { path = "../tracing-kafka", optional = true }
 
+# OpenTelemetry (OTLP metrics push) — optional, enabled via the `otel` feature.
+opentelemetry = { version = "0.27", optional = true, default-features = false, features = ["metrics"] }
+opentelemetry-otlp = { version = "0.27", optional = true, default-features = false, features = ["grpc-tonic", "metrics"] }
+opentelemetry_sdk = { version = "0.27", optional = true, default-features = false, features = ["rt-tokio-current-thread", "metrics"] }
+
 # Third-party dependencies
 config = "0.14.0"
 error-stack = "0.4.1"
@@ -61,6 +66,7 @@ build_info = { git = "https://github.com/juspay/framework-libs-rs", rev = "24356
 [features]
 default = []
 kafka = ["tracing-kafka"]
+otel = ["dep:opentelemetry", "dep:opentelemetry-otlp", "dep:opentelemetry_sdk"]
 
 [lints]
 workspace = true

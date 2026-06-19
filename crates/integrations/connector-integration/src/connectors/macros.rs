@@ -1930,7 +1930,7 @@ macro_rules! expand_flow_status_impl {
             connector: $c, status: $st, generic_type: $g, [$($b)*],
             flow: ::domain_types::connector_flow::ClientAuthenticationToken,
             flow_name: "client_authentication_token",
-            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            flow_common_data: ::domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData,
             request: ::domain_types::connector_types::ClientAuthenticationTokenRequestData,
             response: ::domain_types::connector_types::PaymentsResponseData,
         );
@@ -1941,7 +1941,7 @@ macro_rules! expand_flow_status_impl {
             connector: $c, status: $st, generic_type: $g, [$($b)*],
             flow: ::domain_types::connector_flow::ServerAuthenticationToken,
             flow_name: "server_authentication_token",
-            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            flow_common_data: ::domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData,
             request: ::domain_types::connector_types::ServerAuthenticationTokenRequestData,
             response: ::domain_types::connector_types::ServerAuthenticationTokenResponseData,
         );
@@ -1952,7 +1952,7 @@ macro_rules! expand_flow_status_impl {
             connector: $c, status: $st, generic_type: $g, [$($b)*],
             flow: ::domain_types::connector_flow::ServerSessionAuthenticationToken,
             flow_name: "server_session_authentication_token",
-            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            flow_common_data: ::domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData,
             request: ::domain_types::connector_types::ServerSessionAuthenticationTokenRequestData,
             response: ::domain_types::connector_types::ServerSessionAuthenticationTokenResponseData,
         );

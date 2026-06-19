@@ -1,4 +1,15 @@
 {
+  "Hyperswitch": [
+    "https://raw.githubusercontent.com/juspay/hyperswitch/connector-integration-hs/api-reference/v1/openapi_spec_v1.json",
+    "https://api-reference.hyperswitch.io/introduction",
+    "https://github.com/juspay/hyperswitch/tree/connector-integration-hs"
+  ],
+  "Payconex": [
+    "https://developers.bluefin.com/payconex/docs/qsapi-transaction",
+    "https://developers.bluefin.com/payconex/docs/process-transactions-ach-updates",
+    "https://developers.bluefin.com/payconex/docs/tsapi-request-response-formats",
+    "https://developers.bluefin.com/payconex/docs/introduction"
+  ],
   "Barclaycard": [
     "https://developer.smartpayfuse.barclaycard/docs/barclays/en-us/payments/developer/all/rest/payments/MITs.html",
     "https://developer.smartpayfuse.barclaycard/api-reference-assets/index.html",
