@@ -1548,6 +1548,7 @@ pub enum EligibilityStatus {
     #[default]
     Ineligible,
     Eligible,
+    Unknown,
 }
 
 /// Indicates the card network.

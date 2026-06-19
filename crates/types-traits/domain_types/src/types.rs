@@ -5558,6 +5558,7 @@ impl ForeignFrom<EligibilityStatus> for grpc_api_types::payments::EligibilitySta
         match value {
             EligibilityStatus::Eligible => Self::Eligible,
             EligibilityStatus::Ineligible => Self::Ineligible,
+            EligibilityStatus::Unknown => Self::Unspecified,
         }
     }
 }
@@ -5595,7 +5596,7 @@ pub fn generate_payment_method_eligibility_response(
         }),
         Err(err) => Ok(PaymentMethodServiceEligibilityResponse {
             eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(
-                EligibilityStatus::Ineligible,
+                EligibilityStatus::Unknown,
             )
             .into(),
             status_code: err.status_code as u32,
