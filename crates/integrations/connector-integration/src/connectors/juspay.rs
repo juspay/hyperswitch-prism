@@ -558,6 +558,7 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
         SetupMandate
     ],
     not_supported: [
+        VoidPostRefund,
         Accept,
         DefendDispute,
         SubmitEvidence,

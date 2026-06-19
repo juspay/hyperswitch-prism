@@ -476,6 +476,7 @@ macros::macro_connector_flow_status_impls!(
         VoidPC,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         CreateOrder,
         ServerSessionAuthenticationToken,

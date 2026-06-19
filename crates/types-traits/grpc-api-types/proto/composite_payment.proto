@@ -115,8 +115,17 @@ message CompositeAuthorizeRequest {
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 53;
 
+  // MIT Category — mirrors PaymentServiceAuthorizeRequest.mit_category. For
+  // CIT this signals the future intended MIT type; for Authorize-as-MIT it
+  // signals the actual category being processed.
+  optional MitCategory mit_category = 54;
+
+  // Surcharge amount to send separately for connectors that support a first-class
+  // surcharge field. Mirrors PaymentServiceAuthorizeRequest.surcharge_amount.
+  optional Money surcharge_amount = 55;
+
   // Information identifying partner and merchant application initiating the request
-  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 54;
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 56;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -640,8 +649,15 @@ message CompositeVerifyRedirectResponseRequest {
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 50;
 
+  // MIT Category — mirrors PaymentServiceAuthorizeRequest.mit_category.
+  optional MitCategory mit_category = 51;
+
+  // Surcharge amount to send separately for connectors that support a first-class
+  // surcharge field. Mirrors PaymentServiceAuthorizeRequest.surcharge_amount.
+  optional Money surcharge_amount = 52;
+
   // Information identifying partner and merchant application initiating the request
-  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 51;
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 53;
 }
 
 // Response message for composite verify redirect response flow.

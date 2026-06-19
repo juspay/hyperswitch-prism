@@ -610,6 +610,7 @@ macros::macro_connector_flow_status_impls!(
         CreateConnectorCustomer,
     ],
     not_supported: [
+        VoidPostRefund,
         Accept,
         DefendDispute,
         SubmitEvidence,
