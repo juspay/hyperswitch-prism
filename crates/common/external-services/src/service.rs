@@ -199,8 +199,6 @@ impl AdditionalHeaders
     }
 }
 use common_utils::events::{Event, EventConfig, FlowName};
-// Only the injector-client build compiles `create_event` (the outbound connector
-// call path), which is the sole user of these event-dimension enums.
 #[cfg(feature = "injector-client")]
 use common_utils::types::ExecutionMode;
 #[cfg(feature = "injector-client")]

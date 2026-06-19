@@ -430,14 +430,13 @@ impl EventStage {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct EventConfig {
     pub enabled: bool,
-    /// Topic for outbound payment-connector calls (`ConnectorCall` stage -> the
-    /// `connector_events` table). Accepts the legacy key `topic` for backward compatibility.
+    /// Topic for outbound connector-call events. Accepts the legacy key `topic`
+    /// for backward compatibility.
     // TODO: remove the `topic` alias once configs use `connector_events_topic`.
     #[serde(alias = "topic")]
     pub connector_events_topic: String,
-    /// Topic for inbound requests UCS serves over any transport — gRPC or HTTP
-    /// (`GrpcRequest` stage -> the `ucs_api_events` table). Single-topic deployments set
-    /// this equal to `connector_events_topic`.
+    /// Topic for inbound request events. Single-topic deployments set this equal to
+    /// `connector_events_topic`.
     #[serde(default)]
     pub ucs_api_events_topic: String,
     pub brokers: Vec<String>,
