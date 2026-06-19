@@ -1261,6 +1261,9 @@ pub fn create_client(
     }
 }
 
+/// Default total timeout (seconds) for a single connector API call.
+const DEFAULT_CONNECTOR_REQUEST_TIMEOUT_SECS: u64 = 30;
+
 static DEFAULT_CLIENT: OnceCell<Client> = OnceCell::new();
 static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<(Proxy, String), Client>>> = OnceCell::new();
 
@@ -1383,6 +1386,11 @@ fn get_client_builder(
             proxy_config
                 .idle_pool_connection_timeout
                 .unwrap_or_default(),
+        ))
+        .timeout(Duration::from_secs(
+            proxy_config
+                .connector_request_timeout
+                .unwrap_or(DEFAULT_CONNECTOR_REQUEST_TIMEOUT_SECS),
         ));
 
     // Disable automatic gzip decompression in test mode
