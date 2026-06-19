@@ -287,8 +287,6 @@ pub struct PacoBillingAddress {
     pub bill_addr_line3: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bill_addr_post_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub bill_addr_state: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -306,8 +304,6 @@ pub struct PacoShippingAddress {
     pub ship_addr_line3: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ship_addr_post_code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ship_addr_state: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -540,7 +536,6 @@ where
             bill_addr_line2: a.line2.as_ref().map(|s| s.peek().clone()),
             bill_addr_line3: a.line3.as_ref().map(|s| s.peek().clone()),
             bill_addr_post_code: a.zip.as_ref().map(|s| s.peek().clone()),
-            bill_addr_state: a.state.as_ref().map(|s| s.peek().clone()),
         });
 
     let shipping_address = item
@@ -554,7 +549,6 @@ where
             ship_addr_line2: a.line2.as_ref().map(|s| s.peek().clone()),
             ship_addr_line3: a.line3.as_ref().map(|s| s.peek().clone()),
             ship_addr_post_code: a.zip.as_ref().map(|s| s.peek().clone()),
-            ship_addr_state: a.state.as_ref().map(|s| s.peek().clone()),
         });
 
     match &item.request.payment_method_data {
