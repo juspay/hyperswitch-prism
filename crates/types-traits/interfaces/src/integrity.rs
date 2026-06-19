@@ -1263,6 +1263,7 @@ fn check_integrity_result(
     connector_transaction_id: Option<String>,
 ) -> Result<(), IntegrityCheckError> {
     if mismatched_fields.is_empty() {
+        tracing::info!("Integrity check passed");
         Ok(())
     } else {
         let field_names = mismatched_fields.join(", ");
