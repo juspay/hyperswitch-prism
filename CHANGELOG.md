@@ -19,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.19.0
+
+### Features
+
+- **connector:** Add tsys_transit XML connector with VoidPostRefund flow ([#1508](https://github.com/juspay/connector-service/pull/1508)) ([`caa52b3`](https://github.com/juspay/connector-service/commit/caa52b3cede74b1eb8831f52dc7953ce5856a58e))
+- **medusa:** Mollie Components in-page checkout with 3DS ([#1578](https://github.com/juspay/connector-service/pull/1578)) ([`9f54f19`](https://github.com/juspay/connector-service/commit/9f54f195f5d9418fe78cf0b56c4218e8e3ef626c))
+
+### Bug Fixes
+
+- **connector:** [Adyen] captureDelayHours + applicationInfo + metadata parity ([#16707](https://github.com/juspay/connector-service/pull/16707)) ([#1537](https://github.com/juspay/connector-service/pull/1537)) ([`f53043e`](https://github.com/juspay/connector-service/commit/f53043edac6b61a3b2574b91fd5624527ffec893))
+
+### Miscellaneous Tasks
+
+- **docker:** Add curl to probe outbound connector reachability ([#1576](https://github.com/juspay/connector-service/pull/1576)) ([`5dbf089`](https://github.com/juspay/connector-service/commit/5dbf089e74cc27ea2a41e5cd2a61be76889e0a1d))
+
+**Full Changelog:** [`2026.06.18.1...2026.06.19.0`](https://github.com/juspay/connector-service/compare/2026.06.18.1...2026.06.19.0)
+
+- - -
+
 ## 2026.06.18.1
 
 ### Features
