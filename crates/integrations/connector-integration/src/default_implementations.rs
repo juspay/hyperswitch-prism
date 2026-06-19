@@ -840,6 +840,7 @@ default_impl_payment_method_eligibility_v2!(
         Stripe,
         Trustpayments,
         Tsys,
+        TsysTransit,
         TwocTwopPaco,
         Volt,
         Wellsfargo,
