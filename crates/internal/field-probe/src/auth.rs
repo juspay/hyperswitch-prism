@@ -665,6 +665,12 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             juspay_public_key: s(),
             base_url: None,
         },
+        ConnectorEnum::TsysTransit => ConnectorSpecificConfig::TsysTransit {
+            device_id: id(),
+            transaction_key: k(),
+            developer_id: s(),
+            base_url: None,
+        },
         ConnectorEnum::TwocTwopPaco => ConnectorSpecificConfig::TwocTwopPaco {
             access_token: s(),
             office_id: s(),

@@ -122,6 +122,10 @@ pub fn create_router(state: AppState) -> Router {
         // RefundService routes
         .route("/refunds/get", post(handlers::refunds::get_refund))
         .route(
+            "/refunds/void_post_refund",
+            post(handlers::refunds::void_post_refund),
+        )
+        .route(
             "/refunds/transform",
             post(handlers::refunds::transform_refund),
         )
