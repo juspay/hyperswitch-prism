@@ -18,11 +18,12 @@ use domain_types::{
     connector_types::{
         self, AcceptDisputeData,
         AdyenClientAuthenticationResponse as AdyenClientAuthenticationResponseDomain,
-        CardDetailUpdate, ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse, DisputeDefendData, DisputeFlowData,
-        DisputeResponseData, EventType, MandateReference, MandateReferenceId,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodUpdate,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        AdyenSplitItem, CardDetailUpdate, ClientAuthenticationTokenData,
+        ClientAuthenticationTokenRequestData, ConnectorSpecificClientAuthenticationResponse,
+        ConnectorSplitResponseData, DisputeDefendData, DisputeFlowData, DisputeResponseData,
+        EventType, MandateReference, MandateReferenceId, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodUpdate, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
         SetupMandateRequestData, SplitPaymentsDetails, SubmitEvidenceData,
@@ -3925,6 +3926,7 @@ pub struct AdyenResponse {
     refusal_reason: Option<String>,
     refusal_reason_code: Option<String>,
     additional_data: Option<AdditionalData>,
+    splits: Option<Vec<AdyenSplitData>>,
     store: Option<String>,
 }
 
@@ -3947,6 +3949,7 @@ pub struct RedirectionResponse {
     psp_reference: Option<String>,
     merchant_reference: Option<String>,
     store: Option<String>,
+    splits: Option<Vec<AdyenSplitData>>,
     additional_data: Option<AdditionalData>,
 }
 
@@ -4021,6 +4024,7 @@ pub struct PresentToShopperResponse {
     refusal_reason_code: Option<String>,
     merchant_reference: Option<String>,
     store: Option<String>,
+    splits: Option<Vec<AdyenSplitData>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -4046,6 +4050,7 @@ pub struct QrCodeResponseResponse {
     merchant_reference: Option<String>,
     store: Option<String>,
     additional_data: Option<QrCodeAdditionalData>,
+    splits: Option<Vec<AdyenSplitData>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -4427,6 +4432,7 @@ impl TryFrom<ResponseRouterData<AdyenVoidResponse, Self>>
             incremental_authorization_allowed: None,
             mandate_reference: None,
             status_code: http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -4635,6 +4641,11 @@ pub fn get_adyen_response(
         .as_ref()
         .and_then(|additional_data| additional_data.transaction_link_id.clone());
 
+    let splits = match &response.splits {
+        Some(split_items) => Some(construct_charge_response(response.store, split_items)),
+        None => None,
+    };
+
     let payments_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::ConnectorTransactionId(response.psp_reference),
         redirection_data: None,
@@ -4645,6 +4656,7 @@ pub fn get_adyen_response(
         incremental_authorization_allowed: None,
         mandate_reference: mandate_reference.map(Box::new),
         status_code,
+        splits,
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -4718,6 +4730,14 @@ pub fn get_present_to_shopper_response(
 
     let connector_metadata = get_present_to_shopper_metadata(&response)?;
 
+    let splits = match &response.splits {
+        Some(split_items) => Some(construct_charge_response(
+            response.store.clone(),
+            split_items,
+        )),
+        None => None,
+    };
+
     // We don't get connector transaction id for redirections in Adyen.
     let payments_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: match response.psp_reference.as_ref() {
@@ -4735,6 +4755,7 @@ pub fn get_present_to_shopper_response(
         incremental_authorization_allowed: None,
         mandate_reference: None,
         status_code,
+        splits,
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -4809,6 +4830,7 @@ pub fn get_redirection_error_response(
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
         status_code,
+        splits: None,
     };
 
     Ok(AdyenPaymentsResponseData {
@@ -4855,6 +4877,14 @@ pub fn get_qr_code_response(
     // Generate QR metadata matching Hyperswitch implementation
     let connector_metadata = get_qr_metadata(&response)?;
 
+    let splits = match &response.splits {
+        Some(split_items) => Some(construct_charge_response(
+            response.store.clone(),
+            split_items,
+        )),
+        None => None,
+    };
+
     let payments_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: match response.psp_reference.as_ref() {
             Some(psp) => ResponseId::ConnectorTransactionId(psp.to_string()),
@@ -4871,6 +4901,7 @@ pub fn get_qr_code_response(
         incremental_authorization_allowed: None,
         mandate_reference: None,
         status_code,
+        splits,
     };
 
     Ok(AdyenPaymentsResponseData {
@@ -5011,6 +5042,7 @@ pub fn get_webhook_response(
             connector_response_reference_id: Some(response.merchant_reference_id),
             incremental_authorization_allowed: None,
             status_code,
+            splits: None,
         };
 
         Ok(AdyenPaymentsResponseData {
@@ -5147,6 +5179,11 @@ pub fn get_redirection_response(
 
     let connector_metadata = get_wait_screen_metadata(&response)?;
 
+    let splits = match &response.splits {
+        Some(split_items) => Some(construct_charge_response(response.store, split_items)),
+        None => None,
+    };
+
     let payments_response_data = PaymentsResponseData::TransactionResponse {
         resource_id: match response.psp_reference.as_ref() {
             Some(psp) => ResponseId::ConnectorTransactionId(psp.to_string()),
@@ -5163,6 +5200,7 @@ pub fn get_redirection_response(
             .or(response.psp_reference),
         incremental_authorization_allowed: None,
         status_code,
+        splits,
     };
 
     let txn_amount = response.amount.map(|amount| amount.value);
@@ -6047,7 +6085,15 @@ impl<F> TryFrom<ResponseRouterData<AdyenCaptureResponse, Self>>
         let connector_transaction_id = if is_multiple_capture_psync_flow {
             response.psp_reference.clone()
         } else {
-            response.payment_psp_reference
+            response.payment_psp_reference.clone()
+        };
+
+        let splits = match &response.splits {
+            Some(split_items) => Some(construct_charge_response(
+                response.store.clone(),
+                split_items,
+            )),
+            None => None,
         };
 
         Ok(Self {
@@ -6061,6 +6107,7 @@ impl<F> TryFrom<ResponseRouterData<AdyenCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: http_code,
+                splits,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Pending,
@@ -7921,4 +7968,25 @@ impl TryFrom<ResponseRouterData<AdyenIncrementalAuthResponse, Self>>
             ..item.router_data
         })
     }
+}
+
+fn construct_charge_response(
+    store: Option<String>,
+    split_item: &[AdyenSplitData],
+) -> ConnectorSplitResponseData {
+    let splits: Vec<AdyenSplitItem> = split_item
+        .iter()
+        .map(|split_item| AdyenSplitItem {
+            amount: split_item.amount.as_ref().map(|amount| amount.value),
+            reference: split_item.reference.clone(),
+            split_type: split_item.split_type.clone(),
+            account: split_item.account.clone(),
+            description: split_item.description.clone(),
+        })
+        .collect();
+
+    ConnectorSplitResponseData::AdyenSplitPayment(connector_types::AdyenSplitData {
+        store,
+        split_items: splits,
+    })
 }

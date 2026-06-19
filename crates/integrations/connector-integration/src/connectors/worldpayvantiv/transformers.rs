@@ -1391,6 +1391,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         connector_response_reference_id: Some(sale_response.order_id.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     };
 
                     Ok(Self {
@@ -1444,6 +1445,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         connector_response_reference_id: Some(auth_response.order_id.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     };
 
                     Ok(Self {
@@ -1788,6 +1790,7 @@ impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
                 .and_then(|detail| detail.merchant_txn_id.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -2260,6 +2263,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     connector_response_reference_id: Some(capture_response.id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 };
 
                 Ok(Self {
@@ -2399,6 +2403,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     connector_response_reference_id: Some(auth_reversal_response.id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 };
 
                 Ok(Self {
@@ -2449,6 +2454,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     connector_response_reference_id: Some(void_response.id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 };
 
                 Ok(Self {

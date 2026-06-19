@@ -771,6 +771,7 @@ impl<T: PaymentMethodDataTypes>
                 connector_response_reference_id: txn.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -889,6 +890,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1195,6 +1197,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubVoidResponse, Self>>
                 connector_response_reference_id: txn.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1429,6 +1432,7 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 network_txn_link_id: None,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1623,6 +1627,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservcommercehubRepe
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 network_txn_link_id: None,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1833,6 +1838,7 @@ where
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 network_txn_link_id: None,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
