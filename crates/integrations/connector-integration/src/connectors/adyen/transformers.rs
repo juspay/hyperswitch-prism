@@ -5867,7 +5867,9 @@ fn get_additional_data<
                                  Manual/ManualMultiple, or switch to automatic capture"
                                     .to_string(),
                             ),
-                            doc_url: None,
+                            doc_url: Some(
+                                "https://docs.adyen.com/online-payments/capture/".to_string(),
+                            ),
                         },
                     }
                     .into());
@@ -5892,7 +5894,9 @@ fn get_additional_data<
                                  capture"
                                     .to_string(),
                             ),
-                            doc_url: None,
+                            doc_url: Some(
+                                "https://docs.adyen.com/online-payments/capture/".to_string(),
+                            ),
                         },
                     }
                     .into());
