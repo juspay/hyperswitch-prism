@@ -386,7 +386,7 @@ examples_python: none
 connector_id: mollie
 doc: docs/connectors/mollie.md
 scenarios: checkout_autocapture, refund, void_payment, get_payment
-payment_methods: Card
+payment_methods: Card, Klarna
 flows: authorize, create_client_authentication_token, get, proxy_authorize, refund, refund_get, token_authorize, void
 examples_python: examples/mollie/mollie.py
 

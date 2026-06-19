@@ -272,12 +272,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         field_name: "billing_address",
                         context: Default::default(),
                     })?;
-                let address = billing.address.as_ref().ok_or(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "billing_address.address",
-                        context: Default::default(),
-                    },
-                )?;
+                let address =
+                    billing
+                        .address
+                        .as_ref()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "billing_address.address",
+                            context: Default::default(),
+                        })?;
 
                 let line1 = address
                     .line1
@@ -325,12 +327,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .peek()
                         .to_string(),
                     region: None,
-                    country: address.country.ok_or(
-                        IntegrationError::MissingRequiredField {
+                    country: address
+                        .country
+                        .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "billing_address.country",
                             context: Default::default(),
-                        },
-                    )?,
+                        })?,
                     given_name: address.first_name.clone().ok_or(
                         IntegrationError::MissingRequiredField {
                             field_name: "billing_address.first_name",
