@@ -5877,7 +5877,9 @@ fn get_additional_data<
                 None
             }
             // For automatic capture, only 0 (or None) is valid
-            _ => match metadata_capture_delay {
+            common_enums::CaptureMethod::Automatic
+            | common_enums::CaptureMethod::Scheduled
+            | common_enums::CaptureMethod::SequentialAutomatic => match metadata_capture_delay {
                 None => None,
                 Some(0) => Some(0),
                 Some(hours) => {
