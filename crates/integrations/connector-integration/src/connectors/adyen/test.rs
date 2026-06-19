@@ -189,6 +189,7 @@ mod tests {
                     tokenization: None,
                     mit_category: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
 },
                 response: Err(ErrorResponse::default())
 };
@@ -350,6 +351,7 @@ mod tests {
                     tokenization: None,
                     mit_category: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
 },
                 response: Err(ErrorResponse::default())
 };

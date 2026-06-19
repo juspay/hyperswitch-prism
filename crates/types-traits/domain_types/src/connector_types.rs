@@ -1467,6 +1467,8 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub mit_category: Option<common_enums::MitCategory>,
     /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
     pub domain_data: Option<DomainData>,
+    /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
+    pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -3280,6 +3282,8 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_configured_currency: Option<Currency>,
     pub additional_payment_data: Option<AdditionalPaymentData>,
+    /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
+    pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
@@ -3974,6 +3978,32 @@ impl RecurringMandateData for RecurringMandatePaymentData {
         self.original_payment_authorized_currency
             .ok_or_else(missing_field_err("original_payment_authorized_currency"))
     }
+}
+
+/// Partner / external-platform application details (domain mirror of the proto
+/// `PartnerApplicationDetails`).
+#[derive(Debug, Clone, Default)]
+pub struct PartnerApplicationDetails {
+    pub name: Option<String>,
+    pub version: Option<String>,
+    pub integrator: Option<String>,
+}
+
+/// Merchant application details (domain mirror of the proto
+/// `MerchantApplicationDetails`).
+#[derive(Debug, Clone, Default)]
+pub struct MerchantApplicationDetails {
+    pub name: Option<String>,
+    pub version: Option<String>,
+}
+
+/// Partner and merchant application identifiers initiating the request (domain
+/// mirror of the proto `PartnerMerchantIdentifierDetails`; e.g. Adyen
+/// `applicationInfo`).
+#[derive(Debug, Clone, Default)]
+pub struct PartnerMerchantIdentifierDetails {
+    pub partner_details: Option<PartnerApplicationDetails>,
+    pub merchant_details: Option<MerchantApplicationDetails>,
 }
 
 /// Domain-specific data supplied by the merchant (airline today; extensible

@@ -123,6 +123,9 @@ message CompositeAuthorizeRequest {
   // Surcharge amount to send separately for connectors that support a first-class
   // surcharge field. Mirrors PaymentServiceAuthorizeRequest.surcharge_amount.
   optional Money surcharge_amount = 55;
+
+  // Information identifying partner and merchant application initiating the request
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 56;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
@@ -652,6 +655,9 @@ message CompositeVerifyRedirectResponseRequest {
   // Surcharge amount to send separately for connectors that support a first-class
   // surcharge field. Mirrors PaymentServiceAuthorizeRequest.surcharge_amount.
   optional Money surcharge_amount = 52;
+
+  // Information identifying partner and merchant application initiating the request
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 53;
 }
 
 // Response message for composite verify redirect response flow.
