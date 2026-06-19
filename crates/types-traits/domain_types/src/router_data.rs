@@ -780,6 +780,10 @@ pub enum ConnectorSpecificConfig {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
+    Hyperswitch {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
     Qwikcilver {
         // Long-lived Bearer used only on the `/authorize` bootstrap call.
         bootstrap_bearer_token: Secret<String>,
@@ -1115,6 +1119,7 @@ impl ConnectorSpecificConfig {
                 account_id
             },
             Tamara { api_key },
+            Hyperswitch { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1547,6 +1552,7 @@ impl ConnectorSpecificConfig {
                     account_id
                 },
                 Tamara { api_key },
+                Hyperswitch { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2112,6 +2118,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Tamara(tamara) => Ok(Self::Tamara {
                 api_key: tamara.api_key.ok_or_else(err)?,
                 base_url: tamara.base_url,
+            }),
+            AuthType::Hyperswitch(hyperswitch) => Ok(Self::Hyperswitch {
+                api_key: hyperswitch.api_key.ok_or_else(err)?,
+                base_url: hyperswitch.base_url,
             }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
@@ -3219,6 +3229,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
                         api_key: api_key.clone(),
                         account_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Hyperswitch => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Hyperswitch {
+                        api_key: api_key.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

@@ -318,6 +318,14 @@ payment_methods: Card
 flows: authorize, get, proxy_authorize, refund, refund_get
 examples_python: examples/hyperpg/hyperpg.py
 
+## Hyperswitch
+connector_id: hyperswitch
+doc: docs/connectors/hyperswitch.md
+scenarios: none
+payment_methods: none
+flows: get, handle_event, parse_event
+examples_python: none
+
 ## Iatapay
 connector_id: iatapay
 doc: docs/connectors/iatapay.md

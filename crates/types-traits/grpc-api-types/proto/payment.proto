@@ -809,7 +809,8 @@ enum Connector {
   TAMARA = 123;
   PAYCONEX = 124;
   QWIKCILVER = 125;
-  TSYS_TRANSIT = 126;
+  HYPERSWITCH = 126;
+  TSYS_TRANSIT = 127;
 }
 
 // Payment method types
@@ -4904,6 +4905,11 @@ message PayconexConfig {
   optional string base_url = 50;
 }
 
+message HyperswitchConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -5188,11 +5194,12 @@ message ConnectorSpecificConfig {
     PayconexConfig payconex = 129;
     // QWIKCILVER = 125
     QwikcilverConfig qwikcilver = 130;
-
     // CHECKOUT = 126
     CheckoutConfig checkout = 131;
-    // TSYS_TRANSIT = 126
-    TsysTransitConfig tsys_transit = 132;
+    // HYPERSWITCH = 126
+    HyperswitchConfig hyperswitch = 132;
+    // TSYS_TRANSIT = 127
+    TsysTransitConfig tsys_transit = 133;
   }
 }
 
