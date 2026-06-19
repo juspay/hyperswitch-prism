@@ -123,10 +123,12 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Easebuzz => Box::new(connectors::Easebuzz::new()),
             ConnectorEnum::Imerchantsolutions => Box::new(connectors::Imerchantsolutions::new()),
             ConnectorEnum::Axisbank => Box::new(connectors::Axisbank::new()),
+            ConnectorEnum::TsysTransit => Box::new(connectors::TsysTransit::new()),
             ConnectorEnum::TwocTwopPaco => Box::new(connectors::TwocTwopPaco::new()),
             ConnectorEnum::Juspay => Box::new(connectors::Juspay::<T>::new()),
             ConnectorEnum::Payconex => Box::new(connectors::Payconex::<T>::new()),
             ConnectorEnum::Tamara => Box::new(connectors::Tamara::<T>::new()),
+            ConnectorEnum::Hyperswitch => Box::new(connectors::Hyperswitch::<T>::new()),
             ConnectorEnum::Qwikcilver => Box::new(connectors::Qwikcilver::<T>::new()),
         }
     }

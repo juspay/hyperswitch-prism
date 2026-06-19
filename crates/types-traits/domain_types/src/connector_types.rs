@@ -145,10 +145,12 @@ pub enum ConnectorEnum {
     PinelabsOnline,
     Easebuzz,
     Axisbank,
+    TsysTransit,
     TwocTwopPaco,
     Juspay,
     Payconex,
     Tamara,
+    Hyperswitch,
     Qwikcilver,
 }
 
@@ -434,10 +436,12 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Easebuzz => Ok(Self::Easebuzz),
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
+            grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
             grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
             grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
+            grpc_api_types::payments::Connector::Hyperswitch => Ok(Self::Hyperswitch),
             grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -589,7 +593,7 @@ pub struct PaymentsSyncData {
     pub amount: MinorUnit,
     pub all_keys_required: Option<bool>,
     pub integrity_object: Option<PaymentSynIntegrityObject>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<SplitPaymentsDetails>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
 }
 
@@ -1375,6 +1379,7 @@ pub struct PaymentVoidData {
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub metadata: Option<SecretSerdeValue>,
     pub merchant_order_id: Option<String>,
+    pub split_payments: Option<SplitPaymentsDetails>,
 }
 
 impl PaymentVoidData {
@@ -1449,6 +1454,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// ```
     pub amount: MinorUnit,
     pub order_tax_amount: Option<MinorUnit>,
+    pub surcharge_amount: Option<Money>,
     pub email: Option<Email>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
     pub customer_name: Option<String>,
@@ -1476,7 +1482,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub request_incremental_authorization: Option<bool>,
     pub metadata: Option<SecretSerdeValue>,
     pub authentication_data: Option<router_request_types::AuthenticationData>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<SplitPaymentsDetails>,
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     /// Merchant's identifier for the payment/invoice. This will be sent to the connector
@@ -1500,6 +1506,14 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
     pub continue_redirection_url: Option<Url>,
     pub tokenization: Option<common_enums::Tokenization>,
+    /// For CIT (no mandate_id), signals the future intended MIT type.
+    /// For Authorize-as-MIT (mandate_id present), signals the actual MIT
+    /// category being processed. Mirrors `RepeatPaymentData.mit_category`.
+    pub mit_category: Option<common_enums::MitCategory>,
+    /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
+    pub domain_data: Option<DomainData>,
+    /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
+    pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -1879,7 +1893,7 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
     pub setup_mandate_details: Option<MandateData>,
     pub mandate_id: Option<MandateIds>,
     pub integrity_object: Option<PaymentMethodTokenIntegrityObject>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<SplitPaymentsDetails>,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
 }
 
@@ -2303,7 +2317,7 @@ pub struct ConnectorCustomerData {
     pub description: Option<String>,
     pub phone: Option<Secret<String>>,
     pub preprocessing_id: Option<String>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<SplitPaymentsDetails>,
 }
 
 impl ConnectorCustomerData {
@@ -2349,10 +2363,23 @@ pub struct RefundSyncData {
     pub integrity_object: Option<RefundSyncIntegrityObject>,
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
-    pub split_refunds: Option<SplitRefundsRequest>,
+    pub split_refunds: Option<SplitRefundsDetails>,
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub refund_money: Option<common_utils::types::Money>,
     /// Connector-side identifier for the original payment that this refund sync targets.
+    pub connector_order_id: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RefundVoidPostRefundData {
+    pub connector_refund_id: String,
+    pub cancellation_reason: Option<String>,
+    pub refund_connector_metadata: Option<SecretSerdeValue>,
+    pub refund_status: common_enums::RefundStatus,
+    pub integrity_object: Option<RefundSyncIntegrityObject>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_feature_data: Option<SecretSerdeValue>,
+    pub refund_money: Option<common_utils::types::Money>,
     pub connector_order_id: Option<String>,
 }
 
@@ -3066,7 +3093,7 @@ pub struct RefundsData {
     pub integrity_object: Option<RefundIntegrityObject>,
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
-    pub split_refunds: Option<SplitRefundsRequest>,
+    pub split_refunds: Option<SplitRefundsDetails>,
     /// Connector-side identifier for the original payment that this refund targets.
     pub connector_order_id: Option<String>,
     pub payment_method_data:
@@ -3136,8 +3163,9 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<SecretSerdeValue>,
-    pub merchant_order_id: Option<String>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub merchant_order_id: Option<String>,
+    pub split_payments: Option<SplitPaymentsDetails>,
 }
 
 impl PaymentsCaptureData {
@@ -3208,6 +3236,10 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub enable_partial_authorization: Option<bool>,
     pub locale: Option<String>,
     pub connector_testing_data: Option<SecretSerdeValue>,
+    /// Signals the future intended MIT type for this CIT setup (e.g.
+    /// `Recurring`, `Installment`). Mirrors `RepeatPaymentData.mit_category`.
+    pub mit_category: Option<common_enums::MitCategory>,
+    pub split_payments: Option<SplitPaymentsDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
@@ -3281,7 +3313,7 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub off_session: Option<bool>,
     pub router_return_url: Option<String>,
-    pub split_payments: Option<SplitPaymentsRequest>,
+    pub split_payments: Option<SplitPaymentsDetails>,
     pub recurring_mandate_payment_data: Option<router_data::RecurringMandatePaymentData>,
     pub shipping_cost: Option<MinorUnit>,
     pub mit_category: Option<common_enums::MitCategory>,
@@ -3294,6 +3326,8 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_configured_currency: Option<Currency>,
     pub additional_payment_data: Option<AdditionalPaymentData>,
+    /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
+    pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
@@ -3855,15 +3889,17 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 /// Fee information for Split Payments to be charged on the payment being collected
-pub enum SplitPaymentsRequest {
+pub enum SplitPaymentsDetails {
     /// StripeSplitPayment
-    StripeSplitPayment(StripeSplitPaymentRequest),
+    StripeSplitPayment(StripeSplitPaymentData),
+    /// AdyenSplitPayment
+    AdyenSplitPayment(AdyenSplitData),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 /// Fee information for Split Payments to be charged on the payment being collected for Stripe
-pub struct StripeSplitPaymentRequest {
+pub struct StripeSplitPaymentData {
     /// Stripe's charge type
     pub charge_type: common_enums::PaymentChargeType,
 
@@ -3872,6 +3908,9 @@ pub struct StripeSplitPaymentRequest {
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
@@ -3880,6 +3919,8 @@ pub struct StripeSplitPaymentRequest {
 pub enum ConnectorChargeResponseData {
     /// StripeChargeResponseData
     StripeSplitPayment(StripeChargeResponseData),
+    /// AdyenChargeResponseData
+    AdyenSplitPayment(AdyenSplitData),
 }
 
 /// Fee information to be charged on the payment being collected via Stripe
@@ -3900,12 +3941,39 @@ pub struct StripeChargeResponseData {
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
-pub enum SplitRefundsRequest {
-    StripeSplitRefund(StripeSplitRefund),
+pub enum SplitRefundsDetails {
+    StripeSplitRefund(StripeSplitRefundData),
+    AdyenSplitRefund(AdyenSplitData),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+/// Fee information for Split Payments to be charged on the payment being collected for Adyen
+pub struct AdyenSplitData {
+    /// The store identifier
+    pub store: Option<String>,
+    /// Data for the split items
+    pub split_items: Vec<AdyenSplitItem>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+/// Data for the split items
+pub struct AdyenSplitItem {
+    /// The amount of the split item
+    pub amount: Option<MinorUnit>,
+    /// Defines type of split item
+    pub split_type: common_enums::AdyenSplitType,
+    /// The unique identifier of the account to which the split amount is allocated.
+    pub account: Option<String>,
+    /// Unique Identifier for the split item
+    pub reference: String,
+    /// Description for the part of the payment that will be allocated to the specified account.
+    pub description: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
-pub struct StripeSplitRefund {
+pub struct StripeSplitRefundData {
     pub charge_id: String,
     pub transfer_account_id: String,
     pub charge_type: common_enums::PaymentChargeType,
@@ -3951,6 +4019,126 @@ impl RecurringMandateData for RecurringMandatePaymentData {
         self.original_payment_authorized_currency
             .ok_or_else(missing_field_err("original_payment_authorized_currency"))
     }
+}
+
+/// Partner / external-platform application details (domain mirror of the proto
+/// `PartnerApplicationDetails`).
+#[derive(Debug, Clone, Default)]
+pub struct PartnerApplicationDetails {
+    pub name: Option<String>,
+    pub version: Option<String>,
+    pub integrator: Option<String>,
+}
+
+/// Merchant application details (domain mirror of the proto
+/// `MerchantApplicationDetails`).
+#[derive(Debug, Clone, Default)]
+pub struct MerchantApplicationDetails {
+    pub name: Option<String>,
+    pub version: Option<String>,
+}
+
+/// Partner and merchant application identifiers initiating the request (domain
+/// mirror of the proto `PartnerMerchantIdentifierDetails`; e.g. Adyen
+/// `applicationInfo`).
+#[derive(Debug, Clone, Default)]
+pub struct PartnerMerchantIdentifierDetails {
+    pub partner_details: Option<PartnerApplicationDetails>,
+    pub merchant_details: Option<MerchantApplicationDetails>,
+}
+
+/// Domain-specific data supplied by the merchant (airline today; extensible
+/// to other verticals). Mirrors the proto `DomainData`.
+#[derive(Debug, Clone, Default)]
+pub struct DomainData {
+    pub airline_data: Option<AirlineData>,
+}
+
+/// Connector-agnostic airline / travel itinerary data — the union of fields
+/// across processors. Every field is optional; each connector enforces its own
+/// required subset. Amounts are minor units as strings; dates are strings.
+#[derive(Debug, Clone, Default)]
+pub struct AirlineData {
+    // Booking / ticket level
+    pub pnr_code: Option<String>,
+    pub booking_reference: Option<String>,
+    pub ticket_number: Option<String>,
+    pub ticket_issue_date: Option<String>,
+    pub booking_date_time: Option<String>,
+    pub flight_date: Option<String>,
+    pub issuing_carrier_code: Option<String>,
+    pub airline_code: Option<String>,
+    pub passenger_name: Option<String>,
+    pub number_of_passengers: Option<u32>,
+    pub document_type: Option<String>,
+    pub refundability: Option<common_enums::TicketRefundability>,
+    pub ticket_delivery_type: Option<common_enums::TicketDeliveryType>,
+    pub cardholder_travel_status: Option<common_enums::CardholderTravelStatus>,
+    pub ticket_issue_address: Option<AddressDetails>,
+    pub booking_system_unique_id: Option<String>,
+    // Travel agency
+    pub agency_code: Option<String>,
+    pub agency_name: Option<String>,
+    pub agency_invoice_number: Option<String>,
+    pub agency_plan_name: Option<String>,
+    // Ticket-level amounts (each carries its own currency)
+    pub total_fare: Option<common_utils::types::Money>,
+    pub total_taxes: Option<common_utils::types::Money>,
+    pub total_fee: Option<common_utils::types::Money>,
+    pub boarding_fee: Option<common_utils::types::Money>,
+    pub flight_segments: Vec<AirlineSegment>,
+    pub passengers: Vec<AirlinePassenger>,
+}
+
+/// One flight leg. `departure`/`arrival` reuse the shared [`AirlineLocation`].
+#[derive(Debug, Clone, Default)]
+pub struct AirlineSegment {
+    pub sequence_no: Option<u32>,
+    pub carrier_code: Option<String>,
+    pub flight_number: Option<String>,
+    pub flight_type: Option<String>,
+    pub class_of_service: Option<String>,
+    pub fare_basis_code: Option<String>,
+    pub stopover_code: Option<String>,
+    pub departure: Option<AirlineLocation>,
+    pub arrival: Option<AirlineLocation>,
+    // Per-leg amounts (each carries its own currency)
+    pub fare_amount: Option<common_utils::types::Money>,
+    pub fee_amount: Option<common_utils::types::Money>,
+    pub tax_amount: Option<common_utils::types::Money>,
+    // Exchange / coupon details
+    pub exchange_ticket_number: Option<String>,
+    pub conjunction_ticket: Option<String>,
+    pub coupon_number: Option<String>,
+    pub endorsements_restrictions: Option<String>,
+}
+
+/// A flight endpoint, reused for both departure and arrival.
+#[derive(Debug, Clone, Default)]
+pub struct AirlineLocation {
+    pub airport_code: Option<String>,
+    pub city_code: Option<String>,
+    pub city_name: Option<String>,
+    pub country_code: Option<String>,
+    pub country_name: Option<String>,
+    pub date_time: Option<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct AirlinePassenger {
+    pub sequence_no: Option<u32>,
+    /// Identity fields shared with the payer model — salutation, first_name,
+    /// last_name, email and phone_number are read off here.
+    pub customer: Option<CustomerInfo>,
+    pub middle_name: Option<String>,
+    pub gender: Option<String>,
+    pub date_of_birth: Option<String>,
+    pub passenger_type: Option<String>,
+    pub frequent_flyer_number: Option<String>,
+    pub loyalty_tier: Option<String>,
+    pub passport_number: Option<Secret<String>>,
+    pub nationality: Option<String>,
+    pub ticket_number: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -4820,6 +5008,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Bluesnap(_) => Ok(Self::Payment(ConnectorEnum::Bluesnap)),
             AuthType::Braintree(_) => Ok(Self::Payment(ConnectorEnum::Braintree)),
             AuthType::Cashtocode(_) => Ok(Self::Payment(ConnectorEnum::Cashtocode)),
+            AuthType::Checkout(_) => Ok(Self::Payment(ConnectorEnum::Checkout)),
             AuthType::Cryptopay(_) => Ok(Self::Payment(ConnectorEnum::Cryptopay)),
             AuthType::Cybersource(_) => Ok(Self::Payment(ConnectorEnum::Cybersource)),
             AuthType::Datatrans(_) => Ok(Self::Payment(ConnectorEnum::Datatrans)),
@@ -4923,7 +5112,9 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
             AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
+            AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
+            AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {
                 Ok(Self::Surcharge(SurchargeConnectorEnum::Interpayments))

@@ -211,7 +211,7 @@ pub(crate) fn base_customer_create_request() -> CustomerServiceCreateRequest {
         merchant_customer_id: Some("cust_probe_123".to_string()),
         customer_name: Some("John Doe".to_string()),
         email: Some(Secret::new("test@example.com".to_string())),
-        phone_number: Some("4155552671".to_string()),
+        phone_number: Some(Secret::new("4155552671".to_string())),
         ..Default::default()
     }
 }

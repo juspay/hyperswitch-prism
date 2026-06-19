@@ -315,6 +315,14 @@ export async function initiatePayment({
   }
 }
 
+// A session that was only initiated (a PayPal order was created but never
+// authorized) has a `paypalOrderId` but no real `connectorTransactionId`, so
+// there is nothing to void when it is deleted (e.g. the shopper switches payment
+// methods).
+export function shouldSkipVoid(data: Record<string, unknown> | undefined): boolean {
+  return !(data as any)?.connectorTransactionId && Boolean((data as any)?.paypalOrderId)
+}
+
 export async function authorizePayment(
   input: AuthorizePaymentInput,
   { options, paymentClient, authClient }: PaypalDeps

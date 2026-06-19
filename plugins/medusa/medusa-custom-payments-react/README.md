@@ -1,5 +1,7 @@
 # @juspay-tech/medusa-custom-payments-react
 
+[![npm](https://img.shields.io/npm/v/@juspay-tech/medusa-custom-payments-react?logo=npm)](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments-react)
+
 React UI components for Hyperswitch Prism payment connectors. Ships two layers of API:
 
 - **High-level Medusa components** — drop-in components for a Medusa v2 Next.js storefront checkout
@@ -13,9 +15,9 @@ React UI components for Hyperswitch Prism payment connectors. Ships two layers o
 | `paypal` | ✅ | ✅ | CAPTURED |
 | `stripe` | — | ✅ | AUTHORIZED |
 | `globalpay` | ✅ | ✅ | CAPTURED |
+| `mollie` | ✅ | ✅ | CAPTURED (after 3DS) |
 | `braintree` | ○ | ○ | — |
 | `cybersource` | ○ | ○ | — |
-| `mollie` | ○ | ○ | — |
 
 **Legend**
 
@@ -38,6 +40,8 @@ npm install @juspay-tech/medusa-custom-payments-react
 # peer dependencies
 npm install @adyen/adyen-web @stripe/react-stripe-js @stripe/stripe-js
 ```
+
+📦 [View on npm](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments-react)
 
 **Local development** (linked to this repo):
 ```json
@@ -63,23 +67,30 @@ NEXT_PUBLIC_ADYEN_CLIENT_KEY=test_...
 
 | Export | Type | Description |
 |--------|------|-------------|
-| `HyperswitchPrismConnectorPanel` | Component | Renders the correct connector UI (Adyen/PayPal/GlobalPay) for a selected payment method |
+| `HyperswitchPrismConnectorPanel` | Component | Renders the correct connector UI (Adyen/PayPal/GlobalPay/Mollie) for a selected payment method |
 | `HyperswitchPrismPaymentButton` | Component | Auto-dispatches to the correct place-order button based on `providerId` |
+| `MollieReturnHandler` | Component | Finalises the order on the Mollie 3DS return route (retry-polls the host's place-order action) |
 | `AdyenWrapper` | Component | Low-level Adyen Web v6 drop-in wrapper |
 | `PayPalWrapper` | Component | Low-level PayPal Buttons SDK wrapper |
 | `GlobalPayWrapper` | Component | Low-level GlobalPay hosted card fields wrapper |
 | `StripeWrapper` | Component | Low-level Stripe Payment Element wrapper |
+| `MollieWrapper` | Component | Low-level Mollie Components (in-page card tokenization) wrapper |
 | `StripePaymentButton` | Component | Place-order button for Stripe |
 | `AdyenPaymentButton` | Component | Place-order button for Adyen |
 | `PayPalPaymentButton` | Component | Place-order button for PayPal |
 | `GlobalPayPaymentButton` | Component | Place-order button for GlobalPay |
+| `MolliePaymentButton` | Component | Place-order button for Mollie (handles the 3DS redirect) |
 | `ManualTestPaymentButton` | Component | Dev-only button for manual/test payment providers |
 | `isHyperswitchPrism` | Utility | Returns `true` for any Hyperswitch Prism provider ID |
 | `isHyperswitchPrismStripe` | Utility | Matches Stripe provider IDs (short and legacy forms) |
 | `isHyperswitchPrismAdyen` | Utility | Matches Adyen provider IDs |
 | `isHyperswitchPrismPaypal` | Utility | Matches PayPal provider IDs |
 | `isHyperswitchPrismGlobalpay` | Utility | Matches GlobalPay provider IDs |
+| `isHyperswitchPrismMollie` | Utility | Matches Mollie provider IDs |
+| `isHyperswitchPrismPanel` | Utility | Matches every Prism connector with a client panel (adyen/paypal/globalpay/mollie — all except Stripe) |
 | `HYPERSWITCH_PRISM_PROVIDER_IDS` | Constant | Map of connector name → canonical provider ID |
+
+> The predicates are also exported from the **server-safe** subpath `@juspay-tech/medusa-custom-payments-react/predicates` — import them from there in Next.js server components.
 
 ---
 
@@ -146,24 +157,53 @@ import { HyperswitchPrismPaymentButton } from "@juspay-tech/medusa-custom-paymen
 
 ### Storefront predicates
 
-Define these **inline** in your `src/lib/constants.tsx` — do **not** re-export from this package, as it causes a `createContext` error in Next.js server components.
+Import the predicates from the **server-safe subpath** `@juspay-tech/medusa-custom-payments-react/predicates` (pure, no `"use client"`), which is safe to use in Next.js **server** components. Do **not** import them from the package root in a server component — the root barrel pulls in client components and triggers a `createContext` error.
 
 ```ts
-const matchesPrismConnector = (id: string | undefined, connector: string) =>
-  id === `pp_hyperswitch-prism_${connector}` ||
-  id === `pp_hyperswitch-prism_hyperswitch-prism-${connector}`
-
-export const isHyperswitchPrismStripe   = (id?: string) => matchesPrismConnector(id, "stripe")
-export const isHyperswitchPrismAdyen    = (id?: string) => matchesPrismConnector(id, "adyen")
-export const isHyperswitchPrismPaypal   = (id?: string) => matchesPrismConnector(id, "paypal")
-export const isHyperswitchPrismGlobalpay = (id?: string) => matchesPrismConnector(id, "globalpay")
-
-export const isHyperswitchPrism = (id?: string) =>
-  isHyperswitchPrismStripe(id) || isHyperswitchPrismAdyen(id) ||
-  isHyperswitchPrismPaypal(id) || isHyperswitchPrismGlobalpay(id)
+// safe in server OR client components
+import {
+  isHyperswitchPrism,
+  isHyperswitchPrismStripe,
+  isHyperswitchPrismMollie,
+  isHyperswitchPrismPanel, // adyen | paypal | globalpay | mollie (everything except stripe)
+} from "@juspay-tech/medusa-custom-payments-react/predicates"
 ```
 
-The dual-match pattern handles both canonical short IDs (`pp_hyperswitch-prism_stripe`) and legacy long IDs (`pp_hyperswitch-prism_hyperswitch-prism-stripe`) for backward compatibility with older backend configurations.
+`isHyperswitchPrismPanel` is the union to drive both `HyperswitchPrismConnectorPanel` and `HyperswitchPrismPaymentButton` (all Prism connectors that have a client panel — i.e. all except Stripe, which uses your own Stripe Elements). The predicates match both canonical short IDs (`pp_hyperswitch-prism_stripe`) and legacy long IDs for backward compatibility.
+
+### Mollie (3DS) — panel, button, and return handler
+
+Mollie cards complete via a 3DS redirect, so three pieces work together:
+
+```tsx
+// 1) Panel renders Mollie Components and persists the tokenized card + return URL
+<HyperswitchPrismConnectorPanel
+  providerId={providerId}
+  sessionData={session?.data}
+  mollieReturnUrl={`${window.location.origin}/[cc]/checkout/mollie-return`}
+  onInitiateSession={(data) => initiatePaymentSession(cart, { provider_id, data })}
+  onPaymentCompleted={() => router.push("...?step=review")}
+  onError={(e) => setError(e.message)}
+/>
+
+// 2) Button places the order; on `requires_more` it follows Mollie's 3DS redirect
+<HyperswitchPrismPaymentButton
+  providerId={providerId} cart={cart} notReady={notReady}
+  onPlaceOrder={placeOrder} buttonComponent={Button}
+  backendUrl={process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}
+  publishableKey={process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY}
+/>
+
+// 3) The route Mollie returns to (e.g. app/[cc]/checkout/mollie-return/page.tsx)
+//    finalises the order by polling the place-order action until it succeeds.
+<MollieReturnHandler
+  onFinalize={async () => { await placeOrder() }}
+  backHref="/checkout?step=payment"
+  linkComponent={LocalizedClientLink}
+/>
+```
+
+> **Note:** `onInitiateSession` is `(data: Record<string, unknown>) => Promise<void>` (≥ 0.0.5) — GlobalPay passes `{ paymentReference, id }`, Mollie passes `{ ...sessionData, cardToken, returnUrl }`; forward `data` straight to `initiatePaymentSession`.
 
 ---
 

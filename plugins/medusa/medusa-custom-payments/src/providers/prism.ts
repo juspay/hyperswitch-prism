@@ -39,6 +39,7 @@ import {
   mapPrismStatus,
   mapRefundStatus,
   buildError,
+  extractValue,
 } from "./utils"
 import { logger } from "./utils/logger"
 import * as connectors from "./connector"
@@ -157,6 +158,35 @@ class PrismService {
       })
     }
 
+    // Mollie Components: in-page card fields tokenize client-side. Skip the hosted
+    // client-auth (which would create an orphan redirect payment). The first init
+    // returns the public profileId for mollie.js; reinitiate stores the cardToken.
+    if (this.options_.connector === "mollie") {
+      if ((data as any)?.cardToken) {
+        return connectors.mollie.reInitiatePayment({
+          data,
+          merchantClientSessionId,
+          currencyCode: currency_code,
+          minorAmount,
+        })
+      }
+      const profileId = extractValue(
+        (this.options_.connectorConfig as any)?.profileToken
+      )
+      return {
+        id: merchantClientSessionId,
+        data: {
+          id: merchantClientSessionId,
+          profileId,
+          currency: currency_code,
+          minorAmount,
+          connector: "mollie",
+          merchantClientSessionId,
+        },
+        status: PaymentSessionStatus.PENDING,
+      }
+    }
+
     try {
       const req: any = {
         merchantClientSessionId,
@@ -213,8 +243,8 @@ class PrismService {
           return connectors.globalpay.initiatePayment(ctx)
         case "cybersource":
           return connectors.cybersource.initiatePayment(ctx)
-        case "mollie":
-          return connectors.mollie.initiatePayment(ctx)
+        // Mollie is handled by the Components short-circuit above (before the
+        // hosted client-auth), so it never reaches this switch.
         default:
           // Fallback for any other connector — pass through raw session data
           return {
@@ -262,6 +292,14 @@ class PrismService {
         options: this.options_,
         paymentClient: this.paymentClient_,
         authClient: this.authClient_,
+      })
+    }
+
+    if (connector === "mollie") {
+      return connectors.mollie.authorizePayment(input, {
+        options: this.options_,
+        paymentClient: this.paymentClient_,
+        getPaymentStatus: (i) => this.getPaymentStatus(i),
       })
     }
 
@@ -409,10 +447,24 @@ class PrismService {
       return { data }
     }
 
-    if (
-      this.options_.connector === "globalpay" &&
-      connectors.globalpay.shouldSkipVoid(data)
-    ) {
+    // A session that was only initiated (never authorized) has no real connector
+    // transaction to void. The "never authorized" marker differs per connector,
+    // so each connector module owns its own shouldSkipVoid check. Skipping here
+    // (rather than letting the void fail) keeps Medusa's delete-session flow —
+    // run when a shopper switches payment methods — from aborting with a 500.
+    const shouldSkipVoid: Record<
+      string,
+      (data: Record<string, unknown> | undefined) => boolean
+    > = {
+      paypal: connectors.paypal.shouldSkipVoid,
+      adyen: connectors.adyen.shouldSkipVoid,
+      braintree: connectors.braintree.shouldSkipVoid,
+      cybersource: connectors.cybersource.shouldSkipVoid,
+      globalpay: connectors.globalpay.shouldSkipVoid,
+      stripe: connectors.stripe.shouldSkipVoid,
+      mollie: connectors.mollie.shouldSkipVoid,
+    }
+    if (shouldSkipVoid[this.options_.connector]?.(data)) {
       return { data }
     }
 

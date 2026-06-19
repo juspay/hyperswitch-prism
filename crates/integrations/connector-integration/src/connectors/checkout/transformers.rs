@@ -1567,6 +1567,8 @@ pub struct PaymentsResponse {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentProcessingDetails {
+    /// A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+    pub scheme_transaction_link_id: Option<String>,
     /// The Merchant Advice Code (MAC) provided by Mastercard, which contains additional information about the transaction.
     pub partner_merchant_advice_code: Option<String>,
     /// The original authorization response code sent by the scheme.
@@ -1680,7 +1682,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
-            network_txn_link_id: None,
+            network_txn_link_id: item
+                .response
+                .processing
+                .clone()
+                .and_then(|processing| processing.scheme_transaction_link_id.clone()),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -1910,7 +1916,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
-            network_txn_link_id: None,
+            network_txn_link_id: item
+                .response
+                .processing
+                .and_then(|processing| processing.scheme_transaction_link_id.clone()),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -2011,7 +2020,10 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: None,
             network_txn_id: item.response.scheme_id.clone(),
-            network_txn_link_id: None,
+            network_txn_link_id: item
+                .response
+                .processing
+                .and_then(|processing| processing.scheme_transaction_link_id.clone()),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),

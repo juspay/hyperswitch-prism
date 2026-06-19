@@ -1,5 +1,7 @@
 # @juspay-tech/medusa-custom-payments
 
+[![npm](https://img.shields.io/npm/v/@juspay-tech/medusa-custom-payments?logo=npm)](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments)
+
 Custom payments provider plugin for Medusa v2. Enables payment processing through multiple connectors — Stripe, Adyen, PayPal, GlobalPay, Braintree, Cybersource, and Mollie — via a single Prism-powered provider.
 
 Powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism), an open-source unified connector service (UCS) that abstracts connector-specific APIs behind a single interface.
@@ -17,6 +19,8 @@ Powered by [Hyperswitch Prism](https://github.com/juspay/hyperswitch-prism), an 
 ```bash
 npm install @juspay-tech/medusa-custom-payments
 ```
+
+📦 [View on npm](https://www.npmjs.com/package/@juspay-tech/medusa-custom-payments)
 
 ## Setup
 
@@ -155,7 +159,7 @@ npx medusa develop
 | `globalpay` | `appId`, `appKey` |
 | `braintree` | `publicKey`, `privateKey` |
 | `cybersource` | `apiKey`, `merchantAccount`, `apiSecret` |
-| `mollie` | `apiKey` |
+| `mollie` | `apiKey`, `profileToken` (public profile id `pfl_…` — surfaced to the storefront for Mollie Components) |
 
 Each credential value is provided as `{ value: string }` to support secret manager integrations.
 
@@ -169,7 +173,7 @@ Each credential value is provided as `{ value: string }` to support secret manag
 | `globalpay` | — | ✅ | ✅ | ✅ | ○ |
 | `braintree` | ✅ | ✅ | ✅ | ✅ | ○ |
 | `cybersource` | ✅ | ✅ | ✅ | ✅ | ○ |
-| `mollie` | ✅ | ✅ | ✅ | ✅ | ○ |
+| `mollie` | — | ✅ | ✅ | ✅ | ○ |
 
 **Legend**
 
@@ -180,8 +184,8 @@ Each credential value is provided as `{ value: string }` to support secret manag
 | — | Not a separate step: connector captures funds immediately at authorize time (`CaptureMethod.AUTOMATIC`); payment goes straight to **CAPTURED** so only Refund is available afterward |
 
 > **Authorize result by connector**
-> - `adyen`, `stripe`, `braintree`, `cybersource`, `mollie` → payment lands as **AUTHORIZED** (funds reserved; Capture or Void available next)
-> - `paypal`, `globalpay` → payment lands as **CAPTURED** (funds collected immediately; Refund only)
+> - `adyen`, `stripe`, `braintree`, `cybersource` → payment lands as **AUTHORIZED** (funds reserved; Capture or Void available next)
+> - `paypal`, `globalpay`, `mollie` → payment lands as **CAPTURED** (funds collected immediately via `CaptureMethod.AUTOMATIC`; Refund only). For `mollie` this is reached after the customer completes the 3DS redirect.
 
 > **Note:** All flows in the matrix above are tested and verified under the **sandbox / test environment** of each connector. Production behavior should be validated separately before go-live.
 
@@ -300,6 +304,14 @@ Note: Adyen refunds are asynchronous — the REFUND webhook is the settlement co
 | Card Number | Expiry | CVV |
 |-------------|--------|-----|
 | `4032 0366 9170 5063` | `10/2028` | `901` |
+
+### Mollie
+
+| Card Number | Expiry | CVV |
+|-------------|--------|-----|
+| `4111 1111 1111 1111` | `12/2030` | `123` |
+
+> In Mollie **test mode** you then pick the outcome (Paid / Failed / …) on Mollie's hosted test screen. Choose **Paid** to drive the payment to `CAPTURED`.
 
 ## Storefront Integration
 

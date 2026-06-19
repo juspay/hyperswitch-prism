@@ -321,6 +321,7 @@ impl Event {
 pub enum FlowName {
     Authorize,
     Refund,
+    VoidPostRefund,
     Capture,
     Void,
     VoidPostCapture,
@@ -368,6 +369,7 @@ impl FlowName {
         match self {
             Self::Authorize => "Authorize",
             Self::Refund => "Refund",
+            Self::VoidPostRefund => "VoidPostRefund",
             Self::Capture => "Capture",
             Self::Void => "Void",
             Self::VoidPostCapture => "VoidPostCapture",
