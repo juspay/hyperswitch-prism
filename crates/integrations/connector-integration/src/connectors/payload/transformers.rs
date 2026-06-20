@@ -19,7 +19,7 @@ use domain_types::{
         PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{
@@ -294,13 +294,25 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
                 postal_code: billing_addr.zip.clone().ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "billing.address.zip",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "payload bank_debit authorize: billing address postal_code (zip) is required by the Payload /transactions API"
+                                    .to_owned(),
+                            ),
+                            ..Default::default()
+                        },
                     },
                 )?,
                 state_province: billing_addr.state.clone().ok_or(
                     IntegrationError::MissingRequiredField {
                         field_name: "billing.address.state",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "payload bank_debit authorize: billing address state is required by the Payload /transactions API"
+                                    .to_owned(),
+                            ),
+                            ..Default::default()
+                        },
                     },
                 )?,
                 street_address: resource_common_data.get_billing_line1()?,
