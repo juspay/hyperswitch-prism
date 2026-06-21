@@ -5227,9 +5227,6 @@ message ConnectorSpecificConfig {
 
     // QWIKCILVER = 125
     QwikcilverConfig qwikcilver = 130;
-    
-    // ASIAPAY = 133
-    AsiapayConfig asiapay = 133;
 
     // CHECKOUT = 126
     CheckoutConfig checkout = 131;
@@ -5237,6 +5234,9 @@ message ConnectorSpecificConfig {
     HyperswitchConfig hyperswitch = 132;
     // TSYS_TRANSIT = 127
     TsysTransitConfig tsys_transit = 133;
+
+    // ASIAPAY = 134
+    AsiapayConfig asiapay = 134;
   }
 }
 
