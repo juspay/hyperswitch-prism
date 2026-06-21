@@ -713,6 +713,7 @@ where
                                 .or(proxy.effective_http_url(proxy_name))
                                 .map(|url| Secret::new(url.to_string())),
                             vault_headers,
+                            event_params.tenant_id,
                         );
 
                         // New injector handles HTTP request internally and returns enhanced response
@@ -1663,6 +1664,7 @@ fn parse_external_vault_config(
 fn apply_vault_config_to_injector(
     injector_request: &mut injector::InjectorRequest,
     vault_cfg: ExternalVaultProxyConfig,
+    tenant_id: &str,
 ) {
     tracing::info!(
         vault_connector_type = ?vault_cfg.vault_connector_type,
@@ -1704,6 +1706,11 @@ fn apply_vault_config_to_injector(
                     api_key: hsv.vault_auth_data.api_key,
                     profile_id: hsv.vault_auth_data.profile_id,
                 });
+            // The HyperswitchVault `/proxy` endpoint is a self-loop into the multi-tenant
+            // Hyperswitch service, which rejects untenanted calls (HE_05). Forward the
+            // tenant so the injector emits x-tenant-id. VGS targets leave this `None`.
+            injector_request.connection_config.tenant_id =
+                Some(Secret::new(tenant_id.to_string()));
         }
     }
 }
@@ -1722,6 +1729,7 @@ fn build_injector_request(
     headers: HashMap<String, Secret<String>>,
     backup_proxy_url: Option<Secret<String>>,
     vault_headers: Option<&HashMap<String, Secret<String>>>,
+    tenant_id: &str,
 ) -> injector::InjectorRequest {
     let mut injector_request = injector::InjectorRequest::new(
         endpoint,
@@ -1736,7 +1744,7 @@ fn build_injector_request(
     );
 
     if let Some(vault_cfg) = parse_external_vault_config(vault_headers) {
-        apply_vault_config_to_injector(&mut injector_request, vault_cfg);
+        apply_vault_config_to_injector(&mut injector_request, vault_cfg, tenant_id);
     }
 
     injector_request

@@ -18,7 +18,8 @@ hyperswitch_masking = { version = "0.0.1", default-features = false, features = 
     "time",
 ] }
 # TODO! update to latest Hyperswitch Tag once hyperswitch_masking crate changes are merged to hyperswitch main
-router_derive = { git = "https://github.com/juspay/hyperswitch", tag = "2026.06.18.0" }
+# Pinned to the same branch commit as injector so router_derive resolves to a single hyperswitch source. Swap to the release tag in U1.
+router_derive = { git = "https://github.com/juspay/hyperswitch", rev = "7b9130c4953ae1bdbdba9eaa1af3d18f3ceb0ebe" }
 
 #third party dependencies
 thiserror = { workspace = true }
