@@ -162,6 +162,7 @@ impl
             merchant_transaction_id: item.merchant_transaction_id.clone(),
             amount: item.amount,
             order_tax_amount: item.order_tax_amount,
+            surcharge_amount: None,
             shipping_cost: item.shipping_cost,
             payment_method: item.payment_method.clone(),
             capture_method: item.capture_method,
@@ -202,9 +203,11 @@ impl
             continue_redirection_url: item.continue_redirection_url.clone(),
             l2_l3_data: item.l2_l3_data.clone(),
             connector_order_id: item.connector_order_id.clone(),
+            mit_category: item.mit_category,
             merchant_request_id: item.merchant_request_id.clone(),
             domain_data: item.domain_data.clone(),
             split_payments: item.split_payments.clone(),
+            partner_merchant_identifier_details: item.partner_merchant_identifier_details.clone(),
         }
     }
 }
@@ -900,6 +903,8 @@ impl
             merchant_order_id: request.merchant_order_id.clone(),
             amount: request.amount,
             order_tax_amount: request.order_tax_amount,
+            surcharge_amount: None,
+            mit_category: None,
             shipping_cost: request.shipping_cost,
             payment_method: request.payment_method.clone(),
             capture_method: request.capture_method,
@@ -942,6 +947,9 @@ impl
             merchant_request_id: request.merchant_request_id.clone(),
             domain_data: None,
             split_payments: request.split_payments.clone(),
+            partner_merchant_identifier_details: request
+                .partner_merchant_identifier_details
+                .clone(),
         }
     }
 }

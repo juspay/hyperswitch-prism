@@ -620,6 +620,12 @@ pub enum ConnectorSpecificConfig {
         developer_id: Secret<String>,
         base_url: Option<String>,
     },
+    TsysTransit {
+        device_id: Secret<String>,
+        transaction_key: Secret<String>,
+        developer_id: Secret<String>,
+        base_url: Option<String>,
+    },
     Wellsfargo {
         api_key: Secret<String>,
         merchant_account: Secret<String>,
@@ -1011,6 +1017,11 @@ impl ConnectorSpecificConfig {
                 site_reference
             },
             Tsys {
+                device_id,
+                transaction_key,
+                developer_id
+            },
+            TsysTransit {
                 device_id,
                 transaction_key,
                 developer_id
@@ -1439,6 +1450,11 @@ impl ConnectorSpecificConfig {
                     site_reference
                 },
                 Tsys {
+                    device_id,
+                    transaction_key,
+                    developer_id
+                },
+                TsysTransit {
                     device_id,
                     transaction_key,
                     developer_id
@@ -2127,6 +2143,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
                 merchant_id: imerchantsolutions.merchant_id,
                 base_url: imerchantsolutions.base_url,
+            }),
+            AuthType::TsysTransit(tsys_transit) => Ok(Self::TsysTransit {
+                device_id: tsys_transit.device_id.ok_or_else(err)?,
+                transaction_key: tsys_transit.transaction_key.ok_or_else(err)?,
+                developer_id: tsys_transit.developer_id.ok_or_else(err)?,
+                base_url: tsys_transit.base_url,
             }),
             AuthType::Interpayments(interpayments) => Ok(Self::Interpayments {
                 api_key: interpayments.api_key.ok_or_else(err)?,
@@ -3261,6 +3283,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Juspay {
                         api_key: api_key.clone(),
                         merchant_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::TsysTransit => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::TsysTransit {
+                        device_id: key1.clone(),
+                        transaction_key: api_key.clone(),
+                        developer_id: api_secret.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),

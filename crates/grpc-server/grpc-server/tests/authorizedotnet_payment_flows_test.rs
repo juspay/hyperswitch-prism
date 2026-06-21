@@ -252,8 +252,8 @@ async fn test_repeat_everything() {
         add_authorizenet_metadata(&mut repeat_grpc_request);
 
         // Send the repeat payment request
-        let repeat_response = recurring_client
-            .charge(repeat_grpc_request)
+        let repeat_response = Box::pin(recurring_client
+            .charge(repeat_grpc_request))
             .await
             .expect("gRPC recurring_client::charge call failed")
             .into_inner();

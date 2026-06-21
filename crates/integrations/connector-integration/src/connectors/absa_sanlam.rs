@@ -357,6 +357,7 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
     ],
     not_supported: [
+        VoidPostRefund,
         Void,
         CreateOrder,
         SubmitEvidence,

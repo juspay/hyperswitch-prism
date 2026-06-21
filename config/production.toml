@@ -131,6 +131,7 @@ pinelabs_online.base_url = "https://api.pluralpay.in/api/pay/v1"
 easebuzz.base_url = "https://pay.easebuzz.in"
 easebuzz.secondary_base_url = "https://dashboard.easebuzz.in"
 axisbank.base_url = "https://upisdk.axisbank.co.in/api/b2/"
+tsys_transit.base_url = "https://gwapi.transit-pass.com/"
 
 # Generic Events Configuration
 [events]

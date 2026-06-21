@@ -632,6 +632,7 @@ macros::macro_connector_flow_status_impls!(
         MandateRevoke,
     ],
     not_supported: [
+        VoidPostRefund,
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,

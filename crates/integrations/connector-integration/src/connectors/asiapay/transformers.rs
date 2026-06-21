@@ -142,6 +142,25 @@ pub fn get_currency_from_asiapay_code(code: &str) -> Option<common_enums::Curren
         _ => None,
     }
 }
+
+/// AsiaPay pay type for capture method.
+#[derive(Debug, Serialize)]
+pub enum AsiapayPayType {
+    /// Normal / Automatic capture
+    N,
+    /// Hold / Manual capture
+    H,
+}
+
+impl AsiapayPayType {
+    pub fn from_capture_method(method: Option<common_enums::CaptureMethod>) -> Self {
+        match method {
+            Some(common_enums::CaptureMethod::Automatic) => Self::N,
+            _ => Self::H,
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AsiapayDirectPayRequest {
@@ -149,7 +168,7 @@ pub struct AsiapayDirectPayRequest {
     pub order_ref: String,
     pub amount: StringMajorUnit,
     pub curr_code: String,
-    pub pay_type: String,
+    pub pay_type: AsiapayPayType,
     pub lang: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub p_method: Option<String>,
@@ -219,11 +238,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             })?;
         let curr_code = get_asiapay_currency_code(req.currency)?;
 
-        let pay_type = match req.capture_method {
-            Some(common_enums::CaptureMethod::Automatic) => "N",
-            _ => "H",
-        }
-        .to_string();
+        let pay_type = AsiapayPayType::from_capture_method(req.capture_method);
 
         Ok(Self {
             merchant_id: auth.merchant_id,
@@ -250,7 +265,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 #[derive(Debug, Default, Clone, Deserialize, Serialize)]
 pub struct AsiapayDirectPayResponse {
     #[serde(alias = "successCode", alias = "SuccessCode")]
-    pub success_code: Option<String>,
+    pub success_code: String,
     #[serde(alias = "ref", alias = "Ref", alias = "orderRef", alias = "OrderRef")]
     pub order_ref: Option<String>,
     #[serde(alias = "payRef", alias = "PayRef")]
@@ -264,9 +279,9 @@ pub struct AsiapayDirectPayResponse {
     #[serde(alias = "orderStatus", alias = "OrderStatus")]
     pub order_status: Option<String>,
     #[serde(alias = "prc", alias = "Prc")]
-    pub prc: Option<String>,
+    pub prc: String,
     #[serde(alias = "src", alias = "Src")]
-    pub src: Option<String>,
+    pub src: String,
     #[serde(alias = "authId", alias = "AuthId")]
     pub auth_id: Option<String>,
     #[serde(alias = "Holder", alias = "holder")]
@@ -309,111 +324,127 @@ pub struct AsiapayDirectPayResponse {
     pub tx_time: Option<String>,
 }
 
-/// Shared implementation for building connector metadata from AsiaPay response fields.
-/// Both `AsiapayDirectPayResponse` and `AsiapayPSyncResponse` use identical field lists.
-macro_rules! impl_build_connector_metadata {
-    () => {
-        pub fn build_connector_metadata(&self) -> Option<serde_json::Value> {
-            let mut map = serde_json::Map::new();
-            if let Some(ref v) = self.pay_ref {
-                map.insert("payRef".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.auth_id {
-                map.insert("authId".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.holder {
-                map.insert("holder".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.auth_date {
-                map.insert("authDate".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.capture_date {
-                map.insert(
-                    "captureDate".to_string(),
-                    serde_json::Value::String(v.clone()),
-                );
-            }
-            if let Some(ref v) = self.batch_id {
-                map.insert("batchId".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.settle_date {
-                map.insert(
-                    "settleDate".to_string(),
-                    serde_json::Value::String(v.clone()),
-                );
-            }
-            if let Some(ref v) = self.mer_ref {
-                map.insert("merRef".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.surcharge {
-                map.insert(
-                    "surcharge".to_string(),
-                    serde_json::Value::String(v.clone()),
-                );
-            }
-            if let Some(ref v) = self.mer_request_amt {
-                map.insert(
-                    "merRequestAmt".to_string(),
-                    serde_json::Value::String(v.clone()),
-                );
-            }
-            if let Some(ref v) = self.terminal {
-                map.insert("terminal".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.bank_mid {
-                map.insert("bankMid".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.settle_flag {
-                map.insert(
-                    "settleFlag".to_string(),
-                    serde_json::Value::String(v.clone()),
-                );
-            }
-            if let Some(ref v) = self.bank {
-                map.insert("bank".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.bank_ref {
-                map.insert("bankRef".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.trace_no {
-                map.insert("traceNo".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.account_no {
-                map.insert(
-                    "accountNo".to_string(),
-                    serde_json::Value::String(v.clone()),
-                );
-            }
-            if let Some(ref v) = self.currency {
-                map.insert("currency".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.remark {
-                map.insert("remark".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if let Some(ref v) = self.original_amt {
-                map.insert(
-                    "originalAmt".to_string(),
-                    serde_json::Value::String(v.clone()),
-                );
-            }
-            if let Some(ref v) = self.tx_time {
-                map.insert("txTime".to_string(), serde_json::Value::String(v.clone()));
-            }
-            if map.is_empty() {
-                None
-            } else {
-                Some(serde_json::Value::Object(map))
-            }
+/// Connector metadata extracted from AsiaPay responses.
+/// Both `AsiapayDirectPayResponse` and `AsiapayPSyncResponse` produce this struct.
+#[derive(Debug, Serialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AsiapayConnectorMetadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pay_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub holder: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capture_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub batch_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settle_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mer_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub surcharge: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mer_request_amt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub terminal: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank_mid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settle_flag: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bank_ref: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trace_no: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_no: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub remark: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub original_amt: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tx_time: Option<String>,
+}
+
+impl AsiapayConnectorMetadata {
+    fn into_json_value(self) -> Option<serde_json::Value> {
+        match serde_json::to_value(self).ok()? {
+            serde_json::Value::Object(map) if map.is_empty() => None,
+            val => Some(val),
         }
-    };
+    }
+}
+
+impl From<&AsiapayDirectPayResponse> for AsiapayConnectorMetadata {
+    fn from(response: &AsiapayDirectPayResponse) -> Self {
+        Self {
+            pay_ref: response.pay_ref.clone(),
+            auth_id: response.auth_id.clone(),
+            holder: response.holder.clone(),
+            auth_date: response.auth_date.clone(),
+            capture_date: response.capture_date.clone(),
+            batch_id: response.batch_id.clone(),
+            settle_date: response.settle_date.clone(),
+            mer_ref: response.mer_ref.clone(),
+            surcharge: response.surcharge.clone(),
+            mer_request_amt: response.mer_request_amt.clone(),
+            terminal: response.terminal.clone(),
+            bank_mid: response.bank_mid.clone(),
+            settle_flag: response.settle_flag.clone(),
+            bank: response.bank.clone(),
+            bank_ref: response.bank_ref.clone(),
+            trace_no: response.trace_no.clone(),
+            account_no: response.account_no.clone(),
+            currency: response.currency.clone(),
+            remark: response.remark.clone(),
+            original_amt: response.original_amt.clone(),
+            tx_time: response.tx_time.clone(),
+        }
+    }
+}
+
+impl From<&AsiapayPSyncResponse> for AsiapayConnectorMetadata {
+    fn from(response: &AsiapayPSyncResponse) -> Self {
+        Self {
+            pay_ref: response.pay_ref.clone(),
+            auth_id: response.auth_id.clone(),
+            holder: response.holder.clone(),
+            auth_date: response.auth_date.clone(),
+            capture_date: response.capture_date.clone(),
+            batch_id: response.batch_id.clone(),
+            settle_date: response.settle_date.clone(),
+            mer_ref: response.mer_ref.clone(),
+            surcharge: response.surcharge.clone(),
+            mer_request_amt: response.mer_request_amt.clone(),
+            terminal: response.terminal.clone(),
+            bank_mid: response.bank_mid.clone(),
+            settle_flag: response.settle_flag.clone(),
+            bank: response.bank.clone(),
+            bank_ref: response.bank_ref.clone(),
+            trace_no: response.trace_no.clone(),
+            account_no: response.account_no.clone(),
+            currency: response.currency.clone(),
+            remark: response.remark.clone(),
+            original_amt: response.original_amt.clone(),
+            tx_time: response.tx_time.clone(),
+        }
+    }
 }
 
 impl AsiapayDirectPayResponse {
-    impl_build_connector_metadata!();
+    pub fn build_connector_metadata(&self) -> Option<serde_json::Value> {
+        AsiapayConnectorMetadata::from(self).into_json_value()
+    }
 
     pub fn is_successful(&self) -> bool {
-        (self.prc.as_deref() == Some("0") && self.src.as_deref() == Some("0"))
-            || self.success_code.as_deref() == Some("0")
+        (&self.prc == "0" && &self.src == "0") || &self.success_code == "0"
     }
 }
 
@@ -716,7 +747,9 @@ pub struct AsiapayPSyncResponse {
 }
 
 impl AsiapayPSyncResponse {
-    impl_build_connector_metadata!();
+    pub fn build_connector_metadata(&self) -> Option<serde_json::Value> {
+        AsiapayConnectorMetadata::from(self).into_json_value()
+    }
 
     pub fn is_successful(&self) -> bool {
         self.result_code.as_deref() == Some("0") || self.success_code.as_deref() == Some("0")

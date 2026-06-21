@@ -672,9 +672,9 @@ mod tests {
         use super::super::transformers::AsiapayDirectPayResponse;
 
         let response = AsiapayDirectPayResponse {
-            prc: Some("0".to_string()),
-            src: Some("0".to_string()),
-            success_code: None,
+            prc: "0".to_string(),
+            src: "0".to_string(),
+            success_code: "".to_string(),
             ..Default::default()
         };
 
@@ -686,9 +686,9 @@ mod tests {
         use super::super::transformers::AsiapayDirectPayResponse;
 
         let response = AsiapayDirectPayResponse {
-            prc: Some("1".to_string()),
-            src: Some("1".to_string()),
-            success_code: None,
+            prc: "1".to_string(),
+            src: "1".to_string(),
+            success_code: "".to_string(),
             ..Default::default()
         };
 
