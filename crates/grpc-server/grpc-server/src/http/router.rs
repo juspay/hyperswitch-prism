@@ -57,7 +57,6 @@ pub fn create_router(state: AppState) -> Router {
             "/composite/payment_methods/recharge",
             post(handlers::composite::payment_methods::recharge),
         )
-        // Composite FRM Service routes
         .route(
             "/composite/frm/pre_risk_check",
             post(handlers::composite::frm::pre_risk_check),

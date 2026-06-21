@@ -119,7 +119,7 @@ pub struct Service {
         crate::server::payments::MerchantAuthentication,
     >,
     pub composite_frm_service: composite_service::frm::Frm<
-        crate::server::frm::FrmServiceImpl,
+        crate::server::frm::FraudAndRiskManagement,
         crate::server::payments::MerchantAuthentication,
     >,
     pub payments_service: crate::server::payments::Payments,
@@ -133,7 +133,7 @@ pub struct Service {
     pub payment_method_authentication_service: crate::server::payments::PaymentMethodAuthentication,
     pub payouts_service: crate::server::payouts::Payouts,
     pub surcharges_service: crate::server::surcharges::Surcharges,
-    pub frm_service: crate::server::frm::FrmServiceImpl,
+    pub frm_service: crate::server::frm::FraudAndRiskManagement,
 }
 
 impl Service {
@@ -192,7 +192,7 @@ impl Service {
             );
 
         let composite_frm_service = composite_service::frm::Frm::new(
-            crate::server::frm::FrmServiceImpl,
+            crate::server::frm::FraudAndRiskManagement,
             merchant_authentication_service.clone(),
         );
 
@@ -214,7 +214,7 @@ impl Service {
                 crate::server::payments::PaymentMethodAuthentication,
             payouts_service: crate::server::payouts::Payouts,
             surcharges_service: crate::server::surcharges::Surcharges,
-            frm_service: crate::server::frm::FrmServiceImpl,
+            frm_service: crate::server::frm::FraudAndRiskManagement,
         }
     }
 

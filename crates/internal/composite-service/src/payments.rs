@@ -45,6 +45,14 @@ pub trait CompositeAccessTokenRequest {
         &self,
         connector: &ConnectorEnum,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest;
+
+    /// Returns true if a valid access token already exists in the request payload.
+    fn has_existing_access_token(&self) -> bool {
+        self.state()
+            .and_then(|state| state.access_token.as_ref())
+            .and_then(|token| ServerAuthenticationTokenResponseData::foreign_try_from(token).ok())
+            .is_some()
+    }
 }
 
 /// Trait for abstracting access to common fields needed for session token creation.
@@ -295,11 +303,8 @@ where
                 .connector
                 .should_do_access_token(payment_method)
         };
-        let payload_access_token = payload
-            .state()
-            .and_then(|state| state.access_token.as_ref())
-            .and_then(|token| ServerAuthenticationTokenResponseData::foreign_try_from(token).ok());
-        let should_create_access_token = should_do_access_token && payload_access_token.is_none();
+        let should_create_access_token =
+            should_do_access_token && !payload.has_existing_access_token();
 
         let access_token_response = match should_create_access_token {
             true => {

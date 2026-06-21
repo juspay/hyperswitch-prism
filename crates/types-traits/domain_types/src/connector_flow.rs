@@ -175,4 +175,7 @@ pub enum FlowName {
     GetPaymentMethod,
     PreRiskCheck,
     PostRiskCheck,
+    FrmPaymentOutcome,
+    FrmRefundProcessed,
+    FrmChargebackReceived,
 }

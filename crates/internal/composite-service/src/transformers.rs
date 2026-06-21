@@ -1016,21 +1016,21 @@ impl
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         ),
     ) -> Self {
-        let access_token_from_req = item
+        let access_token = item
             .state
             .as_ref()
-            .and_then(|state| state.access_token.clone());
-        let access_token = access_token_from_req.or_else(|| {
-            access_token_response.and_then(|r| {
-                r.access_token
-                    .clone()
-                    .map(|token| grpc_api_types::frm::AccessToken {
-                        token: Some(token),
-                        token_type: r.token_type.clone(),
-                        expires_in_seconds: r.expires_in_seconds,
-                    })
-            })
-        });
+            .and_then(|state| state.access_token.clone())
+            .or_else(|| {
+                access_token_response.and_then(|r| {
+                    r.access_token
+                        .clone()
+                        .map(|token| grpc_api_types::frm::AccessToken {
+                            token: Some(token),
+                            token_type: r.token_type.clone(),
+                            expires_in_seconds: r.expires_in_seconds,
+                        })
+                })
+            });
 
         let connector_customer_id = item
             .state
@@ -1070,21 +1070,21 @@ impl
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         ),
     ) -> Self {
-        let access_token_from_req = item
+        let access_token = item
             .state
             .as_ref()
-            .and_then(|state| state.access_token.clone());
-        let access_token = access_token_from_req.or_else(|| {
-            access_token_response.and_then(|r| {
-                r.access_token
-                    .clone()
-                    .map(|token| grpc_api_types::frm::AccessToken {
-                        token: Some(token),
-                        token_type: r.token_type.clone(),
-                        expires_in_seconds: r.expires_in_seconds,
-                    })
-            })
-        });
+            .and_then(|state| state.access_token.clone())
+            .or_else(|| {
+                access_token_response.and_then(|r| {
+                    r.access_token
+                        .clone()
+                        .map(|token| grpc_api_types::frm::AccessToken {
+                            token: Some(token),
+                            token_type: r.token_type.clone(),
+                            expires_in_seconds: r.expires_in_seconds,
+                        })
+                })
+            });
 
         let connector_customer_id = item
             .state

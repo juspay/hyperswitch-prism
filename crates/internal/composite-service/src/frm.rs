@@ -1,10 +1,10 @@
 use connector_integration::types::ConnectorData;
 use domain_types::{
-    connector_types::{ConnectorEnum, ServerAuthenticationTokenResponseData},
-    payment_method_data::DefaultPCIHolder,
+    connector_types::ConnectorEnum, payment_method_data::DefaultPCIHolder,
     utils::ForeignTryFrom as _,
 };
 use grpc_api_types::frm::{
+    composite_fraud_and_risk_management_service_server::CompositeFraudAndRiskManagementService,
     fraud_and_risk_management_service_server::FraudAndRiskManagementService,
     CompositeFrmPostRiskCheckRequest, CompositeFrmPostRiskCheckResponse,
     CompositeFrmPreRiskCheckRequest, CompositeFrmPreRiskCheckResponse,
@@ -12,11 +12,9 @@ use grpc_api_types::frm::{
     FrmServicePreRiskCheckResponse,
 };
 use grpc_api_types::payments::{
-    ConnectorState as PaymentsConnectorState,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
-    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, PaymentMethod,
+    MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
 };
-use prost::Message as ProstMessage;
 use ucs_env::error::ResultExtGrpc;
 
 use crate::payments::CompositeAccessTokenRequest;
@@ -24,12 +22,20 @@ use crate::transformers::ForeignFrom;
 use crate::utils::connector_from_composite_authorize_metadata;
 
 impl CompositeAccessTokenRequest for CompositeFrmPreRiskCheckRequest {
-    fn payment_method(&self) -> Option<PaymentMethod> {
+    fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
         None
     }
 
-    fn state(&self) -> Option<&PaymentsConnectorState> {
+    fn state(&self) -> Option<&grpc_api_types::payments::ConnectorState> {
         None
+    }
+
+    fn has_existing_access_token(&self) -> bool {
+        self.state
+            .as_ref()
+            .and_then(|s| s.access_token.as_ref())
+            .and_then(|at| at.token.as_ref())
+            .is_some()
     }
 
     fn build_access_token_request(
@@ -43,12 +49,20 @@ impl CompositeAccessTokenRequest for CompositeFrmPreRiskCheckRequest {
 }
 
 impl CompositeAccessTokenRequest for CompositeFrmPostRiskCheckRequest {
-    fn payment_method(&self) -> Option<PaymentMethod> {
+    fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
         None
     }
 
-    fn state(&self) -> Option<&PaymentsConnectorState> {
+    fn state(&self) -> Option<&grpc_api_types::payments::ConnectorState> {
         None
+    }
+
+    fn has_existing_access_token(&self) -> bool {
+        self.state
+            .as_ref()
+            .and_then(|s| s.access_token.as_ref())
+            .and_then(|at| at.token.as_ref())
+            .is_some()
     }
 
     fn build_access_token_request(
@@ -93,18 +107,10 @@ where
         }
     }
 
-    /// Bootstrap the connector's session token for FRM requests.
-    ///
-    /// Works directly with FRM types since `frm::ConnectorState` and
-    /// `payments::ConnectorState` are structurally identical proto types but
-    /// different Rust types, so we can't use the generic
-    /// `CompositeAccessTokenRequest::state()` path here.
-    async fn create_server_authentication_token(
+    async fn create_server_authentication_token<R: CompositeAccessTokenRequest>(
         &self,
         connector: &ConnectorEnum,
-        payment_method: Option<grpc_api_types::frm::PaymentMethod>,
-        frm_state: Option<&grpc_api_types::frm::ConnectorState>,
-        access_token_request: MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
+        payload: &R,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<
@@ -112,43 +118,32 @@ where
         tonic::Status,
     > {
         let should_do_access_token = {
-            let payments_pm = payment_method.and_then(|pm| {
-                let mut buf = Vec::new();
-                pm.encode(&mut buf).ok()?;
-                PaymentMethod::decode(buf.as_slice()).ok()
-            });
-            let pm = payments_pm
+            let payment_method = payload
+                .payment_method()
                 .map(common_enums::PaymentMethod::foreign_try_from)
                 .transpose()
                 .into_grpc_status()?;
             let connector_data = ConnectorData::<DefaultPCIHolder>::get_connector_by_name(connector);
-            connector_data.connector.should_do_access_token(pm)
+            connector_data
+                .connector
+                .should_do_access_token(payment_method)
         };
-
-        let payload_access_token = frm_state
-            .and_then(|s| s.access_token.as_ref())
-            .and_then(|token| {
-                let mut buf = Vec::new();
-                token.encode(&mut buf).ok()?;
-                let payments_token: grpc_api_types::payments::AccessToken =
-                    ProstMessage::decode(buf.as_slice()).ok()?;
-                ServerAuthenticationTokenResponseData::foreign_try_from(&payments_token).ok()
-            });
-        let should_create_access_token = should_do_access_token && payload_access_token.is_none();
+        let should_create_access_token = should_do_access_token && !payload.has_existing_access_token();
 
         let access_token_response = match should_create_access_token {
             true => {
-                let mut req = tonic::Request::new(access_token_request);
-                *req.metadata_mut() = metadata.clone();
-                *req.extensions_mut() = extensions.clone();
+                let access_token_payload = payload.build_access_token_request(connector);
+                let mut access_token_request = tonic::Request::new(access_token_payload);
+                *access_token_request.metadata_mut() = metadata.clone();
+                *access_token_request.extensions_mut() = extensions.clone();
 
-                let response = self
+                let access_token_response = self
                     .merchant_authentication_service
-                    .create_server_authentication_token(req)
+                    .create_server_authentication_token(access_token_request)
                     .await?
                     .into_inner();
 
-                Some(response)
+                Some(access_token_response)
             }
             false => None,
         };
@@ -187,24 +182,37 @@ where
 
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+
         let access_token_response = self
             .create_server_authentication_token(
                 &connector,
-                payload.payment_method.clone(),
-                payload.state.as_ref(),
-                payload.build_access_token_request(&connector),
+                &payload,
                 &metadata,
                 &extensions,
             )
             .await?;
+
         let pre_risk_check_response = self
-            .pre_risk_check(&payload, access_token_response.as_ref(), &metadata, &extensions)
+            .pre_risk_check(
+                &payload,
+                access_token_response.as_ref(),
+                &metadata,
+                &extensions,
+            )
             .await?;
 
-        let frm_access_token_response = access_token_response.and_then(|r| {
-            let mut buf = Vec::new();
-            r.encode(&mut buf).ok()?;
-            grpc_api_types::frm::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse::decode(buf.as_slice()).ok()
+        // Field-by-field mapping required: create_server_authentication_token returns payments::MASATR
+        // but CompositeFrmPreRiskCheckResponse expects frm::MASATR — same proto, different Rust modules.
+        let frm_access_token_response = access_token_response.map(|r| {
+            grpc_api_types::frm::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse {
+                access_token: r.access_token,
+                token_type: r.token_type,
+                expires_in_seconds: r.expires_in_seconds,
+                status: r.status,
+                error: None,
+                status_code: r.status_code,
+                merchant_access_token_id: r.merchant_access_token_id,
+            }
         });
 
         Ok(tonic::Response::new(CompositeFrmPreRiskCheckResponse {
@@ -244,24 +252,37 @@ where
 
         let connector =
             connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+
         let access_token_response = self
             .create_server_authentication_token(
                 &connector,
-                payload.payment_method.clone(),
-                payload.state.as_ref(),
-                payload.build_access_token_request(&connector),
+                &payload,
                 &metadata,
                 &extensions,
             )
             .await?;
+
         let post_risk_check_response = self
-            .post_risk_check(&payload, access_token_response.as_ref(), &metadata, &extensions)
+            .post_risk_check(
+                &payload,
+                access_token_response.as_ref(),
+                &metadata,
+                &extensions,
+            )
             .await?;
 
-        let frm_access_token_response = access_token_response.and_then(|r| {
-            let mut buf = Vec::new();
-            r.encode(&mut buf).ok()?;
-            grpc_api_types::frm::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse::decode(buf.as_slice()).ok()
+        // Field-by-field mapping required: create_server_authentication_token returns payments::MASATR
+        // but CompositeFrmPostRiskCheckResponse expects frm::MASATR — same proto, different Rust modules.
+        let frm_access_token_response = access_token_response.map(|r| {
+            grpc_api_types::frm::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse {
+                access_token: r.access_token,
+                token_type: r.token_type,
+                expires_in_seconds: r.expires_in_seconds,
+                status: r.status,
+                error: None,
+                status_code: r.status_code,
+                merchant_access_token_id: r.merchant_access_token_id,
+            }
         });
 
         Ok(tonic::Response::new(CompositeFrmPostRiskCheckResponse {
@@ -272,7 +293,7 @@ where
 }
 
 #[tonic::async_trait]
-impl<F, MA> grpc_api_types::frm::composite_fraud_and_risk_management_service_server::CompositeFraudAndRiskManagementService for Frm<F, MA>
+impl<F, MA> CompositeFraudAndRiskManagementService for Frm<F, MA>
 where
     F: FraudAndRiskManagementService + Clone + Send + Sync + 'static,
     MA: grpc_api_types::payments::merchant_authentication_service_server::MerchantAuthenticationService

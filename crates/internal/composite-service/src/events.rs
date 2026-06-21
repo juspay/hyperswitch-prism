@@ -69,10 +69,6 @@ where
         }
     }
 
-    /// Bootstrap the connector's access token if (a) the connector requires
-    /// one and (b) the caller didn't already pass one via
-    /// `state.access_token`. Returns `None` otherwise so the response's
-    /// `access_token_response` slot stays unset.
     async fn create_server_authentication_token<R: CompositeAccessTokenRequest>(
         &self,
         connector: &ConnectorEnum,

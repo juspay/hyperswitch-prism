@@ -17,7 +17,7 @@ type CompositePaymentMethodService = composite_service::payment_methods::Payment
 >;
 
 type CompositeFrmService = composite_service::frm::Frm<
-    crate::server::frm::FrmServiceImpl,
+    crate::server::frm::FraudAndRiskManagement,
     crate::server::payments::MerchantAuthentication,
 >;
 

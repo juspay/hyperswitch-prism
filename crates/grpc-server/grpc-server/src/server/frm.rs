@@ -36,9 +36,9 @@ trait FrmOperationsInternal {
 }
 
 #[derive(Debug, Clone)]
-pub struct FrmServiceImpl;
+pub struct FraudAndRiskManagement;
 
-impl FrmOperationsInternal for FrmServiceImpl {
+impl FrmOperationsInternal for FraudAndRiskManagement {
     implement_connector_operation!(
         fn_name: internal_pre_risk_check,
         log_prefix: "PRE_RISK_CHECK",
@@ -73,7 +73,7 @@ impl FrmOperationsInternal for FrmServiceImpl {
 }
 
 #[tonic::async_trait]
-impl FraudAndRiskManagementService for FrmServiceImpl {
+impl FraudAndRiskManagementService for FraudAndRiskManagement {
     #[tracing::instrument(
         name = "pre_risk_check",
         fields(
