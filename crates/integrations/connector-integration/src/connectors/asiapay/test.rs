@@ -166,6 +166,9 @@ mod tests {
             threeds_method_comp_ind: None,
             tokenization: None,
             domain_data: None,
+            surcharge_amount: None,
+            mit_category: None,
+            partner_merchant_identifier_details: None,
         }
     }
 

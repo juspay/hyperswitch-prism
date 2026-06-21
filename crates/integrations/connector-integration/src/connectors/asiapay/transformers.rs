@@ -2,10 +2,11 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::types::StringMajorUnit;
 use domain_types::{
-    connector_flow::{Authorize, PSync, RSync, Refund},
+    connector_flow::{Authorize, PSync, RSync, Refund, VoidPostRefund},
     connector_types::{
         EventType, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        RefundFlowData, RefundSyncData, RefundVoidPostRefundData, RefundsData, RefundsResponseData,
+        ResponseId,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -892,12 +893,110 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 pub type AsiapayRSyncResponse = AsiapayRefundResponse;
+pub type AsiapayVoidPostRefundResponse = AsiapayRefundResponse;
 
 impl TryFrom<ResponseRouterData<AsiapayRSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<AsiapayRSyncResponse, Self>) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let refunds_response_data = if !response.is_successful() {
+            RefundsResponseData {
+                connector_refund_id: response.pay_ref.clone().unwrap_or_default(),
+                refund_status: RefundStatus::Failure,
+                status_code: item.http_code,
+            }
+        } else {
+            let refund_status = response
+                .order_status
+                .as_deref()
+                .map(map_refund_status)
+                .unwrap_or(RefundStatus::Pending);
+
+            RefundsResponseData {
+                connector_refund_id: response.pay_ref.clone().unwrap_or_default(),
+                refund_status,
+                status_code: item.http_code,
+            }
+        };
+
+        Ok(Self {
+            response: Ok(refunds_response_data),
+            resource_common_data: RefundFlowData {
+                status: if response.is_successful() {
+                    response
+                        .order_status
+                        .as_deref()
+                        .map(map_refund_status)
+                        .unwrap_or(RefundStatus::Pending)
+                } else {
+                    RefundStatus::Failure
+                },
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== VOID POST REFUND REQUEST =====
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AsiapayVoidPostRefundRequest {
+    pub merchant_id: Secret<String>,
+    pub login_id: Secret<String>,
+    pub password: Secret<String>,
+    pub action_type: String,
+    pub pay_ref: String,
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        AsiapayRouterData<
+            RouterDataV2<
+                VoidPostRefund,
+                RefundFlowData,
+                RefundVoidPostRefundData,
+                RefundsResponseData,
+            >,
+            T,
+        >,
+    > for AsiapayVoidPostRefundRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: AsiapayRouterData<
+            RouterDataV2<
+                VoidPostRefund,
+                RefundFlowData,
+                RefundVoidPostRefundData,
+                RefundsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = AsiapayAuthType::try_from(&item.router_data.connector_config)?;
+        let req = &item.router_data.request;
+
+        Ok(Self {
+            merchant_id: auth.merchant_id,
+            login_id: auth.login_id,
+            password: auth.password,
+            action_type: "VoidRefund".to_string(),
+            pay_ref: req.connector_refund_id.to_string(),
+        })
+    }
+}
+
+impl TryFrom<ResponseRouterData<AsiapayVoidPostRefundResponse, Self>>
+    for RouterDataV2<VoidPostRefund, RefundFlowData, RefundVoidPostRefundData, RefundsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<AsiapayRefundResponse, Self>,
+    ) -> Result<Self, Self::Error> {
         let response = item.response;
 
         let refunds_response_data = if !response.is_successful() {

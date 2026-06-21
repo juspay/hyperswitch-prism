@@ -8,12 +8,12 @@ use common_utils::{
     errors::CustomResult, events, ext_traits::ByteSliceExt, types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, PSync, RSync, Refund},
+    connector_flow::{Authorize, PSync, RSync, Refund, VoidPostRefund},
     connector_types::{
         ConnectorSpecifications, ConnectorWebhookSecrets, EventType, PaymentFlowData,
         PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
-        SupportedPaymentMethodsExt,
+        RefundSyncData, RefundVoidPostRefundData, RefundsData, RefundsResponseData, RequestDetails,
+        ResponseId, SupportedPaymentMethodsExt,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -38,6 +38,7 @@ use serde::Serialize;
 use transformers::{
     AsiapayDirectPayRequest, AsiapayDirectPayResponse, AsiapayPSyncRequest, AsiapayPSyncResponse,
     AsiapayRSyncRequest, AsiapayRSyncResponse, AsiapayRefundRequest, AsiapayRefundResponse,
+    AsiapayVoidPostRefundRequest, AsiapayVoidPostRefundResponse,
 };
 
 use super::macros;
@@ -50,6 +51,11 @@ pub(crate) mod headers {
 }
 
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RefundVoidPostRefundV2 for Asiapay<T>
+{
+}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Asiapay<T>
@@ -496,6 +502,12 @@ macros::create_all_prerequisites!(
             request_body: AsiapayRSyncRequest,
             response_body: AsiapayRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: VoidPostRefund,
+            request_body: AsiapayVoidPostRefundRequest,
+            response_body: AsiapayVoidPostRefundResponse,
+            router_data: RouterDataV2<VoidPostRefund, RefundFlowData, RefundVoidPostRefundData, RefundsResponseData>,
         )
     ],
     amount_converters: [
@@ -682,6 +694,41 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_refunds(req);
+            Ok(format!("{}/merchant/api/orderApi.jsp", base_url))
+        }
+    }
+);
+
+// ===== VOID POST REFUND FLOW =====
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Asiapay,
+    curl_request: FormUrlEncoded(AsiapayVoidPostRefundRequest),
+    curl_response: AsiapayVoidPostRefundResponse,
+    flow_name: VoidPostRefund,
+    resource_common_data: RefundFlowData,
+    flow_request: RefundVoidPostRefundData,
+    flow_response: RefundsResponseData,
+    http_method: Post,
+    preprocess_response: true,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            _req: &RouterDataV2<VoidPostRefund, RefundFlowData, RefundVoidPostRefundData, RefundsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            Ok(vec![(
+                headers::CONTENT_TYPE.to_string(),
+                self.common_get_content_type().to_string().into(),
+            )])
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPostRefund, RefundFlowData, RefundVoidPostRefundData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
             Ok(format!("{}/merchant/api/orderApi.jsp", base_url))
