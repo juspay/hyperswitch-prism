@@ -1,15 +1,23 @@
 //! Stored-credential phase axis of `TxProfile`.
 //!
 //! Splits the COF lifecycle into the four shapes TSYS cert rules
-//! actually distinguish: no COF involvement; first-time CIT that stores
-//! the card; CIT that re-uses a stored card; or MIT of a specific kind.
+//! actually distinguish:
+//!   • `NoCof`           — single-shot transaction
+//!   • `CitSetup`        — first-time CIT that stores the card
+//!   • `CitUsingStored`  — CIT re-using a stored card (consumer is present
+//!                          but the card was already on file)
+//!   • `Mit(MitKind)`    — merchant-initiated transaction
+//!
+//! The `CitUsingStored` vs `Mit` distinction is critical for the cert:
+//! the MOTO step-5 "25.50 Visa COF" row is a CIT-using-stored, and TSYS
+//! rejects it if we send `cardOnFile` / `cardOnFileTransactionIdentifier`
+//! (those are MIT-only).
 
 use common_enums::{FutureUsage, MitCategory};
 use domain_types::connector_types::{MandateIds, MandateReferenceId};
 
 /// What kind of future MIT a CIT-setup is preparing for. Drives
-/// `citStatusIndicator` values (e.g. Mastercard C101/C102/C103/C104).
-#[allow(dead_code)]
+/// `citStatusIndicator` values (e.g. Mastercard C101 / C102 / C103 / C104).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MitIntent {
     Unscheduled,
@@ -18,7 +26,6 @@ pub enum MitIntent {
 }
 
 /// The kind of MIT being run.
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MitKind {
     Unscheduled,
@@ -27,8 +34,7 @@ pub enum MitKind {
     Resubmission,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CofPhase {
     /// One-shot transaction with no stored-credential involvement.
     NoCof,
@@ -40,12 +46,12 @@ pub enum CofPhase {
     Mit(MitKind),
 }
 
-#[allow(dead_code)]
 impl CofPhase {
-    /// Derive from the three signals available on `PaymentsAuthorizeData`:
-    /// the mandate (present → MIT or CIT-using-stored), the setup-future-usage
-    /// flag (off-session → CIT-setup), and the requested MIT category (which
-    /// disambiguates the MIT kind).
+    /// Derive from the four signals available on `PaymentsAuthorizeData`:
+    ///   • mandate present → MIT or CIT-using-stored
+    ///   • `off_session=true` → MIT (vs CIT)
+    ///   • `setup_future_usage=OffSession` (without mandate) → CIT-setup
+    ///   • `mit_category` → disambiguates MIT kind / CIT-setup intent
     pub fn derive(
         mandate_id: Option<&MandateIds>,
         mit_category: Option<MitCategory>,
@@ -63,6 +69,13 @@ impl CofPhase {
             });
 
         if has_mandate {
+            // off_session=true (or any MIT category set) ⇒ MIT.
+            // Otherwise consumer is present and just re-using the stored
+            // card (CitUsingStored — MOTO step-5 25.50 Visa COF case).
+            let is_mit = off_session == Some(true) || mit_category.is_some();
+            if !is_mit {
+                return Self::CitUsingStored;
+            }
             let kind = match mit_category {
                 Some(MitCategory::Recurring) => MitKind::Recurring,
                 Some(MitCategory::Installment) => MitKind::Installment,
@@ -72,7 +85,8 @@ impl CofPhase {
             return Self::Mit(kind);
         }
 
-        let is_setup = setup_future_usage == Some(FutureUsage::OffSession) || off_session == Some(true);
+        let is_setup = setup_future_usage == Some(FutureUsage::OffSession)
+            || off_session == Some(true);
         if is_setup {
             let intended_kind = match mit_category {
                 Some(MitCategory::Recurring) => MitIntent::Recurring,
@@ -83,5 +97,27 @@ impl CofPhase {
         }
 
         Self::NoCof
+    }
+
+    pub fn is_no_cof(self) -> bool {
+        matches!(self, Self::NoCof)
+    }
+
+    pub fn is_cit_setup(self) -> bool {
+        matches!(self, Self::CitSetup { .. })
+    }
+
+    pub fn is_cit_using_stored(self) -> bool {
+        matches!(self, Self::CitUsingStored)
+    }
+
+    pub fn is_mit(self) -> bool {
+        matches!(self, Self::Mit(_))
+    }
+
+    /// True for any flow that has stored credentials in play (CitSetup,
+    /// CitUsingStored or any MIT). Useful for cardDataInputMode gating.
+    pub fn involves_stored_credential(self) -> bool {
+        !self.is_no_cof()
     }
 }

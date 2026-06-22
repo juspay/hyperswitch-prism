@@ -7,7 +7,6 @@
 
 use common_enums::CardNetwork;
 
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CardFamily {
     Visa,
@@ -20,7 +19,6 @@ pub enum CardFamily {
     Unknown,
 }
 
-#[allow(dead_code)]
 impl CardFamily {
     pub fn from_network(network: Option<&CardNetwork>) -> Self {
         match network {
@@ -44,6 +42,25 @@ impl CardFamily {
     /// Discover, JCB, Diners and UnionPay all flow through the same
     /// recurring-tag and `registeredUserIndicator` branches.
     pub fn is_discover_like(self) -> bool {
-        matches!(self, Self::Discover | Self::Jcb | Self::Diners | Self::UnionPay)
+        matches!(
+            self,
+            Self::Discover | Self::Jcb | Self::Diners | Self::UnionPay
+        )
+    }
+
+    pub fn is_visa(self) -> bool {
+        matches!(self, Self::Visa)
+    }
+
+    pub fn is_mastercard(self) -> bool {
+        matches!(self, Self::Mastercard)
+    }
+
+    pub fn is_amex(self) -> bool {
+        matches!(self, Self::Amex)
+    }
+
+    pub fn is_visa_or_mastercard(self) -> bool {
+        matches!(self, Self::Visa | Self::Mastercard)
     }
 }
