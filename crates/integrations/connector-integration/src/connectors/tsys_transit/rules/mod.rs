@@ -14,3 +14,6 @@ pub mod cof_mit;
 pub mod commercial;
 pub mod network_indicators;
 pub mod terminal_data;
+
+#[cfg(test)]
+mod tests;
