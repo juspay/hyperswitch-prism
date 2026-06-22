@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use common_enums::{AttemptStatus, CardNetwork, FutureUsage, MitCategory, RefundStatus};
+use common_enums::{AttemptStatus, CardNetwork, FutureUsage, MitCategory, PaymentChannel, RefundStatus};
 use common_utils::types::{MinorUnit, StringMajorUnit};
 use domain_types::{
     connector_flow::{
@@ -959,6 +959,16 @@ struct TsysTransitMerchantMetadataInner {
     terminal_data: Option<TsysTransitTerminalDataOverrides>,
     #[serde(default)]
     commercial_card: Option<TsysTransitCommercialCardMetadata>,
+    /// Channel override for the RepeatPayment / MIT-via-NTID flow only.
+    /// The `RecurringPaymentServiceChargeRequest` proto does NOT carry
+    /// `payment_channel`, so HS' MIT execution loses the MOTO-vs-Ecom
+    /// signal. Setting `payment_channel` in this merchant metadata block
+    /// (alongside `terminal_data` / `commercial_card`) lets the caller
+    /// inject that signal back on the MIT request. Accepts the strings
+    /// `"telephone_order"`, `"mail_order"`, `"ecommerce"`. Ignored when
+    /// the flow already carries an explicit channel.
+    #[serde(default)]
+    payment_channel: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
@@ -3636,6 +3646,25 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         mandate_reference_id: Some(req.mandate_reference.clone()),
     };
 
+    // The RecurringPaymentServiceChargeRequest proto doesn't carry
+    // payment_channel — recover it from the TSYS merchant metadata's
+    // optional `payment_channel` override so MOTO MIT executions still
+    // produce CARDHOLDER_NOT_PRESENT_PHONE_TRANSACTION etc. instead of
+    // the e-com default.
+    let payment_channel_from_metadata = req
+        .metadata
+        .as_ref()
+        .and_then(|m| {
+            serde_json::from_value::<TsysTransitMerchantMetadata>(m.clone().expose()).ok()
+        })
+        .and_then(|m| m.into_inner().payment_channel)
+        .and_then(|s| match s.to_ascii_lowercase().as_str() {
+            "telephone_order" | "phone" => Some(PaymentChannel::TelephoneOrder),
+            "mail_order" | "mail" => Some(PaymentChannel::MailOrder),
+            "ecommerce" | "internet" => Some(PaymentChannel::Ecommerce),
+            _ => None,
+        });
+
     PaymentsAuthorizeData {
         payment_method_data: req.payment_method_data.clone(),
         amount: req.minor_amount,
@@ -3680,7 +3709,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         setup_mandate_details: None,
         connector_feature_data: req.connector_feature_data.clone(),
         connector_testing_data: req.connector_testing_data.clone(),
-        payment_channel: None,
+        payment_channel: payment_channel_from_metadata,
         enable_partial_authorization: req.enable_partial_authorization,
         locale: req.locale.clone(),
         redirect_response: None,
