@@ -16,7 +16,7 @@
 //!      "partialAuthSupport tag is a deprecated tag and should not be sent."
 //!      → always None.
 
-use super::super::profile::{CardFamily, CaptureKind, CofPhase, TxProfile};
+use super::super::profile::{CaptureKind, CardFamily, CofPhase, TxProfile};
 use super::super::transformers::{
     TsysTransitAuthorizationIndicator, TsysTransitRegisteredUserIndicator,
 };
@@ -65,7 +65,10 @@ pub fn authorization_indicator_for_card_auth(
 pub fn registered_user(
     profile: &TxProfile,
 ) -> Option<(TsysTransitRegisteredUserIndicator, String)> {
-    if !matches!(profile.acceptance, super::super::profile::AcceptanceProfile::EcomInternet) {
+    if !matches!(
+        profile.acceptance,
+        super::super::profile::AcceptanceProfile::EcomInternet
+    ) {
         return None;
     }
     if !matches!(profile.cof_phase, CofPhase::NoCof) {

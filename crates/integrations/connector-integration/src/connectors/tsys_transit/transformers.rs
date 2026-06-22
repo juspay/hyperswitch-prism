@@ -1,8 +1,6 @@
 use std::fmt::Debug;
 
-use common_enums::{
-    AttemptStatus, CardNetwork, FutureUsage, MitCategory, RefundStatus,
-};
+use common_enums::{AttemptStatus, CardNetwork, FutureUsage, MitCategory, RefundStatus};
 use common_utils::types::{MinorUnit, StringMajorUnit};
 use domain_types::{
     connector_flow::{
@@ -1963,9 +1961,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let profile = TxProfile::derive_for_authorize(router_data);
         let terminal_data = rules::terminal_data::terminal_data(&profile);
         let is_manual_capture = profile.capture.is_manual();
-        let cvv_present_for_authorize = card
-            .map(|c| !c.card_cvc.peek().is_empty())
-            .unwrap_or(false);
+        let cvv_present_for_authorize =
+            card.map(|c| !c.card_cvc.peek().is_empty()).unwrap_or(false);
 
         // ── terminalData fields (merchant overrides win) ─────────────
         let card_data_source = terminal_data.card_data_source.clone();
@@ -1992,19 +1989,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .unwrap_or(terminal_data.terminal_card_capture_capability.clone());
         let cardholder_present_detail = terminal_overrides
             .cardholder_present_detail
-            .unwrap_or_else(|| rules::cardholder::cardholder_present_detail(&profile, &terminal_data));
+            .unwrap_or_else(|| {
+                rules::cardholder::cardholder_present_detail(&profile, &terminal_data)
+            });
         let card_present_detail = terminal_overrides
             .card_present_detail
             .unwrap_or(TsysTransitCardPresentDetail::CardNotPresent);
-        let card_data_input_mode = terminal_overrides
-            .card_data_input_mode
-            .unwrap_or_else(|| {
-                rules::card_input_mode::card_data_input_mode(
-                    &profile,
-                    &terminal_data,
-                    cvv_present_for_authorize,
-                )
-            });
+        let card_data_input_mode = terminal_overrides.card_data_input_mode.unwrap_or_else(|| {
+            rules::card_input_mode::card_data_input_mode(
+                &profile,
+                &terminal_data,
+                cvv_present_for_authorize,
+            )
+        });
         let cardholder_authentication_entity = terminal_overrides
             .cardholder_authentication_entity
             .unwrap_or(terminal_data.cardholder_authentication_entity.clone());
@@ -2108,7 +2105,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // (MIT-only tag).
         let card_on_file_transaction_identifier =
             if rules::cof_mit::should_send_card_on_file_transaction_identifier(&profile) {
-                card_on_file_context.card_on_file_transaction_identifier.clone()
+                card_on_file_context
+                    .card_on_file_transaction_identifier
+                    .clone()
             } else {
                 None
             };
@@ -3456,15 +3455,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .unwrap_or(terminal_data.terminal_card_capture_capability.clone());
         let cardholder_present_detail = terminal_overrides
             .cardholder_present_detail
-            .unwrap_or_else(|| rules::cardholder::cardholder_present_detail(&profile, &terminal_data));
+            .unwrap_or_else(|| {
+                rules::cardholder::cardholder_present_detail(&profile, &terminal_data)
+            });
         let card_present_detail = terminal_overrides
             .card_present_detail
             .unwrap_or(TsysTransitCardPresentDetail::CardNotPresent);
-        let card_data_input_mode = terminal_overrides
-            .card_data_input_mode
-            .unwrap_or_else(|| {
-                rules::card_input_mode::card_data_input_mode(&profile, &terminal_data, cvv_present)
-            });
+        let card_data_input_mode = terminal_overrides.card_data_input_mode.unwrap_or_else(|| {
+            rules::card_input_mode::card_data_input_mode(&profile, &terminal_data, cvv_present)
+        });
         let cardholder_authentication_entity = terminal_overrides
             .cardholder_authentication_entity
             .unwrap_or(terminal_data.cardholder_authentication_entity.clone());

@@ -98,8 +98,10 @@ impl TxProfile {
             PaymentMethodData::CardDetailsForNetworkTransactionId(nti) => nti.card_network.clone(),
             _ => None,
         };
-        let acceptance =
-            AcceptanceProfile::derive(request.payment_channel.clone(), request.mit_category.clone());
+        let acceptance = AcceptanceProfile::derive(
+            request.payment_channel.clone(),
+            request.mit_category.clone(),
+        );
         let card_family = CardFamily::from_network(card_network.as_ref());
         let cof_phase = CofPhase::derive(
             request.mandate_id.as_ref(),
@@ -134,7 +136,11 @@ impl TxProfile {
             has_duty_charges,
         );
 
-        let three_ds = match request.authentication_data.as_ref().and_then(|d| d.cavv.as_ref()) {
+        let three_ds = match request
+            .authentication_data
+            .as_ref()
+            .and_then(|d| d.cavv.as_ref())
+        {
             Some(cavv) if !cavv.peek().is_empty() => ThreeDsKind::Present,
             _ => ThreeDsKind::None,
         };

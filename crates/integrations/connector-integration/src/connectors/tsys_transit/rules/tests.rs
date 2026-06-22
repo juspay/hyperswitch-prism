@@ -10,9 +10,8 @@ use super::super::profile::{
 };
 use super::super::transformers::{
     TsysTransitCardDataInputMode, TsysTransitCardDataSource, TsysTransitCardOnFile,
-    TsysTransitMcCitStatusIndicator, TsysTransitMitIndicator,
-    TsysTransitRegisteredUserIndicator, TsysTransitTerminalOperatingEnvironment,
-    TsysTransitTerminalOutputCapability,
+    TsysTransitMcCitStatusIndicator, TsysTransitMitIndicator, TsysTransitRegisteredUserIndicator,
+    TsysTransitTerminalOperatingEnvironment, TsysTransitTerminalOutputCapability,
 };
 use super::{card_input_mode, cof_mit, commercial, network_indicators};
 
@@ -62,13 +61,19 @@ fn moto_phone_uses_display_only_output() {
 #[test]
 fn moto_phone_uses_phone_card_data_source() {
     let block = AcceptanceProfile::MotoPhone.terminal_data();
-    assert!(matches!(block.card_data_source, TsysTransitCardDataSource::Phone));
+    assert!(matches!(
+        block.card_data_source,
+        TsysTransitCardDataSource::Phone
+    ));
 }
 
 #[test]
 fn moto_mail_uses_mail_card_data_source() {
     let block = AcceptanceProfile::MotoMail.terminal_data();
-    assert!(matches!(block.card_data_source, TsysTransitCardDataSource::Mail));
+    assert!(matches!(
+        block.card_data_source,
+        TsysTransitCardDataSource::Mail
+    ));
 }
 
 #[test]
@@ -557,7 +562,9 @@ fn should_not_send_cof_txn_id_on_cit_using_stored() {
         CommercialLevel::None,
         CaptureKind::Auto,
     );
-    assert!(!cof_mit::should_send_card_on_file_transaction_identifier(&p));
+    assert!(!cof_mit::should_send_card_on_file_transaction_identifier(
+        &p
+    ));
 }
 
 #[test]

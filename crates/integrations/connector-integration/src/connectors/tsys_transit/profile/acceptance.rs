@@ -169,7 +169,8 @@ impl AcceptanceProfile {
                 card_data_output_capability: DataOut::None,
                 default_card_data_input_mode:
                     DataIn::MerchantInitiatedTransactionCardCredentialStoredOnFile,
-                default_cardholder_present_detail: Present::CardholderNotPresentRecurringTransaction,
+                default_cardholder_present_detail:
+                    Present::CardholderNotPresentRecurringTransaction,
             },
             // ── INSTALLMENT MIT ────────────────────────────────────────
             Self::InstallmentMit => TerminalDataBlock {

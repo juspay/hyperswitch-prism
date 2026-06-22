@@ -85,8 +85,8 @@ impl CofPhase {
             return Self::Mit(kind);
         }
 
-        let is_setup = setup_future_usage == Some(FutureUsage::OffSession)
-            || off_session == Some(true);
+        let is_setup =
+            setup_future_usage == Some(FutureUsage::OffSession) || off_session == Some(true);
         if is_setup {
             let intended_kind = match mit_category {
                 Some(MitCategory::Recurring) => MitIntent::Recurring,
