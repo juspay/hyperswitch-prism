@@ -10,91 +10,201 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.smartpayfuse-test.barclaycard/pts/v2/payments/",
+          "method": "Post",
+          "headers": {
+            "accept": "application/hal+json;charset=utf-8",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "host": "api.smartpayfuse-test.barclaycard",
+            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
+            "v-c-merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":true,\"paymentSolution\":\"001\",\"cavvAlgorithm\":\"2\"},\"paymentInformation\":{\"fluidData\":{\"value\":\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\",\"descriptor\":\"RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U\"},\"tokenizedCard\":{\"transactionType\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"}}"
+        }
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.smartpayfuse-test.barclaycard/pts/v2/payments/",
+          "method": "Post",
+          "headers": {
+            "accept": "application/hal+json;charset=utf-8",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "host": "api.smartpayfuse-test.barclaycard",
+            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
+            "v-c-merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":true,\"paymentSolution\":\"001\",\"cavvAlgorithm\":\"2\"},\"paymentInformation\":{\"tokenizedCard\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"cryptogram\":\"AAAAAA==\",\"transactionType\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"}}"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Card": {
         "status": "supported",
@@ -149,19 +259,19 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Crypto": {
         "status": "not_supported",
@@ -169,11 +279,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -181,35 +291,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Givex": {
         "status": "not_supported",
@@ -217,87 +327,141 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "state": "WA",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.smartpayfuse-test.barclaycard/pts/v2/payments/",
+          "method": "Post",
+          "headers": {
+            "accept": "application/hal+json;charset=utf-8",
+            "content-type": "application/json",
+            "date": "2020-01-01T00:00:00+00:00",
+            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "host": "api.smartpayfuse-test.barclaycard",
+            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
+            "v-c-merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":true,\"paymentSolution\":\"012\",\"cavvAlgorithm\":\"2\"},\"paymentInformation\":{\"fluidData\":{\"value\":\"eyJpZCI6InRva19wcm9iZV9ncGF5Iiwib2JqZWN0IjoidG9rZW4iLCJ0eXBlIjoiY2FyZCJ9\"},\"tokenizedCard\":{\"transactionType\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"}}"
+        }
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "status": "error",
+        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -305,43 +469,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -349,19 +513,19 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -369,15 +533,15 @@
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Paysera": {
         "status": "not_supported",
@@ -389,63 +553,63 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Skrill": {
         "status": "not_supported",
@@ -453,47 +617,47 @@
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       }
     },
     "capture": {
@@ -920,7 +1084,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported"
+        "error": "This feature is not implemented: Selected payment method is not supported"
       }
     },
     "token_setup_recurring": {

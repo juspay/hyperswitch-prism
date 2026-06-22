@@ -568,7 +568,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         ))
                     }
                 };
-                (payment_information, Some(APPLE_PAY_PAYMENT_SOLUTION.to_string()))
+                (
+                    payment_information,
+                    Some(APPLE_PAY_PAYMENT_SOLUTION.to_string()),
+                )
             }
             PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
                 // Forward the encrypted Google Pay token as base64-encoded fluidData and
