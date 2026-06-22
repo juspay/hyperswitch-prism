@@ -725,9 +725,16 @@ pub struct TsysTransitCardAuthenticationRequest {
     pub cardholder_authentication_entity: TsysTransitCardholderAuthenticationEntity,
     #[serde(rename = "cardDataOutputCapability")]
     pub card_data_output_capability: TsysTransitCardDataOutputCapability,
-    // TSYS cert: mPosAcceptanceDeviceType must NOT be sent on card
-    // authentications — mPos is out of scope for this certification.
-    // (Field removed.)
+    // TSYS cert csv asked us to remove mPosAcceptanceDeviceType, but
+    // TSYS' actual SBX XSD still requires one of
+    // {mPosAcceptanceDeviceType, acceptorStreetAddress, serviceLocationCity,
+    //  serviceLocationGeoCoordinates, merchantTokenRequesterID} on a
+    // CardAuthentication request — XSD validation rejects with F9901
+    // ("Invalid content was found starting with element 'cvv2'") if all
+    // five are missing. We keep mPosAcceptanceDeviceType="0" to satisfy
+    // the schema; will revisit once TSYS confirms the desired alternative.
+    #[serde(rename = "mPosAcceptanceDeviceType")]
+    pub m_pos_acceptance_device_type: String,
     // TSYS cert: cvv2 must be sent on card authentication when the
     // merchant collected one (we support CVV on card auth).
     #[serde(rename = "cvv2", skip_serializing_if = "Option::is_none")]
@@ -3517,6 +3524,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             card_data_input_mode,
             cardholder_authentication_entity,
             card_data_output_capability,
+            // XSD requires one of mPos/acceptorStreetAddress/etc on
+            // CardAuthentication; "0" satisfies the schema. See struct
+            // definition for the cert csv vs XSD trade-off note.
+            m_pos_acceptance_device_type: "0".to_string(),
             cvv2,
             authorization_indicator,
             card_on_file,
