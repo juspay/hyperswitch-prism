@@ -32,7 +32,6 @@ use interfaces::connector_types::AuthenticationStep;
 
 use crate::transformers::ForeignFrom;
 use crate::utils::{
-    access_token_from_create_server_authentication_token_response,
     connector_from_composite_authorize_metadata, is_failure_payment_status,
     is_terminal_payment_status,
 };
@@ -447,22 +446,11 @@ where
     async fn pre_authenticate(
         &self,
         payload: &CompositeAuthorizeRequest,
-        access_token_response: Option<
-            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
-        >,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<PaymentMethodAuthenticationServicePreAuthenticateResponse, tonic::Status> {
-        let mut pre_auth_payload =
+        let pre_auth_payload =
             PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from(payload);
-        if let Some(access_token) =
-            access_token_from_create_server_authentication_token_response(access_token_response)
-        {
-            pre_auth_payload.state = Some(ConnectorState {
-                access_token: Some(access_token),
-                connector_customer_id: None,
-            });
-        }
         let mut pre_auth_request = tonic::Request::new(pre_auth_payload);
         *pre_auth_request.metadata_mut() = metadata.clone();
         *pre_auth_request.extensions_mut() = extensions.clone();
@@ -612,15 +600,10 @@ where
 
             match next_step {
                 AuthenticationStep::PreAuthenticate => {
-                    let pre_auth_response = self
-                        .pre_authenticate(
-                            &payload,
-                            access_token_response.as_ref(),
-                            &metadata,
-                            &extensions,
-                        )
-                        .await?;
-                    state.pre_auth_response_opt = Some(pre_auth_response);
+                    state.pre_auth_response_opt = Some(
+                        self.pre_authenticate(&payload, &metadata, &extensions)
+                            .await?,
+                    );
                     state.completed_step = Some(AuthenticationStep::PreAuthenticate);
 
                     if state

@@ -23,6 +23,7 @@ bypass_urls = ["localhost", "local"]
 
 [connectors]
 kount.base_url = "https://api.kount.com"
+kount.secondary_base_url = "https://login.kount.com"
 hyperswitch.base_url = "https://api.hyperswitch.io"
 payconex.base_url = "https://secure.payconex.net"
 tamara.base_url = "https://api.tamara.co"

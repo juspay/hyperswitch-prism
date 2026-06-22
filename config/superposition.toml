@@ -549,6 +549,7 @@ connector_base_url = "https://core.demo-paco.2c2p.com"
 [[overrides]]
 _context_ = { connector = "kount" }
 connector_base_url = "https://api-sandbox.kount.com"
+connector_secondary_base_url = "https://login.kount.com"
 
 # Qwikcilver / Pine Labs (UAE sandbox `qc3` — terminal-bound)
 [[overrides]]
@@ -879,6 +880,7 @@ connector_base_url = "https://core.paco.2c2p.com/"
 [[overrides]]
 _context_ = { connector = "kount", environment = "production" }
 connector_base_url = "https://api.kount.com"
+connector_secondary_base_url = "https://login.kount.com"
 
 # Wells Fargo Production
 [[overrides]]

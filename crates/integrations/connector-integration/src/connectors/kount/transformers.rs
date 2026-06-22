@@ -30,6 +30,13 @@ type ResponseError = error_stack::Report<errors::ConnectorError>;
 
 /// OAuth scope required by the Kount Orders API.
 const KOUNT_API_SCOPE: &str = "k1_integration_api";
+/// OAuth grant type for the client-credentials token request.
+const KOUNT_GRANT_TYPE: &str = "client_credentials";
+/// Sales channel reported on the Evaluate Order (web checkout).
+const KOUNT_CHANNEL: &str = "WEB";
+/// Fallback values for an unparseable Kount error body.
+const KOUNT_DEFAULT_ERROR_CODE: &str = "KOUNT_ERROR";
+const KOUNT_DEFAULT_ERROR_MESSAGE: &str = "Kount request failed";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Auth + error types
@@ -62,7 +69,14 @@ impl TryFrom<&ConnectorSpecificConfig> for KountAuthType {
                 errors::IntegrationError::FailedToObtainAuthType {
                     context: errors::IntegrationErrorContext {
                         additional_context: Some(
-                            "expected ConnectorSpecificConfig::Kount with a Kount api_key"
+                            "Kount expects ConnectorSpecificConfig::Kount with a base64 \
+                             `CLIENT_ID:CLIENT_SECRET` api_key, but a different connector \
+                             config variant was supplied"
+                                .to_owned(),
+                        ),
+                        suggested_action: Some(
+                            "Send the Kount connector config (api_key, optional auth_server_id) \
+                             for Kount FRM flows"
                                 .to_owned(),
                         ),
                         ..Default::default()
@@ -82,11 +96,11 @@ pub struct KountErrorResponse {
 }
 
 fn default_error_code() -> String {
-    "KOUNT_ERROR".to_string()
+    KOUNT_DEFAULT_ERROR_CODE.to_string()
 }
 
 fn default_error_message() -> String {
-    "Kount request failed".to_string()
+    KOUNT_DEFAULT_ERROR_MESSAGE.to_string()
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -126,7 +140,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            grant_type: "client_credentials".to_string(),
+            grant_type: KOUNT_GRANT_TYPE.to_string(),
             scope: KOUNT_API_SCOPE.to_string(),
         })
     }
@@ -182,7 +196,8 @@ impl From<&KountDecision> for FrmDecision {
             KountDecision::Approve => Self::Approve,
             KountDecision::Review => Self::Review,
             KountDecision::Decline => Self::Reject,
-            KountDecision::Unknown => Self::Error,
+            // Kount documents only APPROVE/DECLINE/REVIEW; treat anything else as REVIEW.
+            KountDecision::Unknown => Self::Review,
         }
     }
 }
@@ -373,6 +388,14 @@ pub struct KountName {
     pub last: Option<String>,
 }
 
+impl KountName {
+    /// Build a name only when at least one part is present, so we never emit an
+    /// empty `{}` name object.
+    fn from_parts(first: Option<String>, last: Option<String>) -> Option<Self> {
+        (first.is_some() || last.is_some()).then_some(Self { first, last })
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct KountAddress {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -395,7 +418,7 @@ fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
     let name = details.and_then(|d| {
         let first = d.first_name.as_ref().map(|s| s.peek().to_string());
         let last = d.last_name.as_ref().map(|s| s.peek().to_string());
-        (first.is_some() || last.is_some()).then_some(KountName { first, last })
+        KountName::from_parts(first, last)
     });
     let kount_address = details.map(|d| KountAddress {
         line1: d.line1.as_ref().map(|s| s.peek().to_string()),
@@ -441,7 +464,7 @@ fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
         return None;
     }
     Some(KountPerson {
-        name: (first.is_some() || last.is_some()).then_some(KountName { first, last }),
+        name: KountName::from_parts(first, last),
         email_address,
         phone_number,
         address: None,
@@ -593,7 +616,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             order_id: order_id.clone(),
             session_id: to_session_id(&order_id),
-            channel: "WEB",
+            channel: KOUNT_CHANNEL,
             creation_date_time,
             user_ip,
             account,
@@ -619,11 +642,13 @@ impl TryFrom<ResponseRouterData<KountOrderResponse, Self>>
         Ok(Self {
             response: Ok(PreRiskCheckResponse {
                 frm_decision: risk
-                    .and_then(|r| r.decision.as_ref())
+                    .and_then(|inquiry| inquiry.decision.as_ref())
                     .map(FrmDecision::from),
-                risk_score: risk.and_then(|r| r.omniscore).map(omniscore_to_risk_score),
-                reason: risk.and_then(|r| r.reason.clone()),
-                frm_transaction_id: order.and_then(|o| o.order_id.clone()),
+                risk_score: risk
+                    .and_then(|inquiry| inquiry.omniscore)
+                    .map(omniscore_to_risk_score),
+                reason: risk.and_then(|inquiry| inquiry.reason.clone()),
+                frm_transaction_id: order.and_then(|order| order.order_id.clone()),
                 status_code: item.http_code,
             }),
             resource_common_data: FrmFlowData {
@@ -635,34 +660,60 @@ impl TryFrom<ResponseRouterData<KountOrderResponse, Self>>
     }
 }
 
-/// Map the FRM decision to Kount's Update Order disposition token (explicit,
-/// not Rust `Debug` formatting). `Error` has no Kount disposition, so it is
-/// omitted rather than sent as a guessed value.
-fn kount_disposition(decision: FrmDecision) -> Option<&'static str> {
-    match decision {
-        FrmDecision::Approve => Some("APPROVE"),
-        FrmDecision::Reject => Some("DECLINE"),
-        FrmDecision::Review => Some("REVIEW"),
-        FrmDecision::Error => None,
+/// Kount Update Order disposition tokens. Serialized in uppercase to match the
+/// Kount Orders schema.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum KountDisposition {
+    Approve,
+    Decline,
+    Review,
+}
+
+impl KountDisposition {
+    /// Map the FRM decision to a Kount disposition. `Error` has no Kount
+    /// disposition, so it is omitted rather than sent as a guessed value.
+    fn from_decision(decision: FrmDecision) -> Option<Self> {
+        match decision {
+            FrmDecision::Approve => Some(Self::Approve),
+            FrmDecision::Reject => Some(Self::Decline),
+            FrmDecision::Review => Some(Self::Review),
+            FrmDecision::Error => None,
+        }
     }
 }
 
-/// Map the internal attempt status to a Kount payment-status token (explicit,
-/// not Rust `Debug` formatting). Unmapped statuses are omitted rather than sent
-/// as an unrecognized value.
-fn kount_payment_status(status: AttemptStatus) -> Option<&'static str> {
-    match status {
-        AttemptStatus::Charged
-        | AttemptStatus::PartialCharged
-        | AttemptStatus::PartialChargedAndChargeable => Some("CHARGED"),
-        AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized => Some("AUTHORIZED"),
-        AttemptStatus::Voided | AttemptStatus::VoidedPostCapture => Some("VOIDED"),
-        AttemptStatus::AutoRefunded => Some("REFUNDED"),
-        AttemptStatus::Failure
-        | AttemptStatus::AuthorizationFailed
-        | AttemptStatus::CaptureFailed
-        | AttemptStatus::RouterDeclined => Some("DECLINED"),
-        _ => None,
+/// Kount Update Order payment-status tokens. Serialized in uppercase to match
+/// the Kount Orders schema.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum KountPaymentStatus {
+    Charged,
+    Authorized,
+    Voided,
+    Refunded,
+    Declined,
+}
+
+impl KountPaymentStatus {
+    /// Map the internal attempt status to a Kount payment status. Unmapped
+    /// statuses are omitted rather than sent as an unrecognized value.
+    fn from_attempt_status(status: AttemptStatus) -> Option<Self> {
+        match status {
+            AttemptStatus::Charged
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::PartialChargedAndChargeable => Some(Self::Charged),
+            AttemptStatus::Authorized | AttemptStatus::PartiallyAuthorized => {
+                Some(Self::Authorized)
+            }
+            AttemptStatus::Voided | AttemptStatus::VoidedPostCapture => Some(Self::Voided),
+            AttemptStatus::AutoRefunded => Some(Self::Refunded),
+            AttemptStatus::Failure
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::RouterDeclined => Some(Self::Declined),
+            _ => None,
+        }
     }
 }
 
@@ -679,17 +730,17 @@ pub struct KountUpdateOrderRequest {
         skip_serializing_if = "Option::is_none"
     )]
     pub merchant_transaction_id: Option<String>,
-    /// Final payment status string.
+    /// Final payment status.
     #[serde(rename = "paymentStatus", skip_serializing_if = "Option::is_none")]
-    pub payment_status: Option<String>,
+    pub payment_status: Option<KountPaymentStatus>,
     /// Order total in the smallest currency unit (string per Kount schema).
     #[serde(rename = "orderTotal")]
     pub order_total: StringMinorUnit,
     /// ISO 4217 currency code.
     pub currency: String,
-    /// FRM decision being notified (e.g. APPROVE / DECLINE / REVIEW).
+    /// FRM decision being notified (APPROVE / DECLINE / REVIEW).
     #[serde(rename = "frmDisposition", skip_serializing_if = "Option::is_none")]
-    pub frm_disposition: Option<String>,
+    pub frm_disposition: Option<KountDisposition>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -726,17 +777,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .or_else(|| req.connector_transaction_id.clone()),
             payment_status: req
                 .payment_status
-                .and_then(kount_payment_status)
-                .map(str::to_owned),
+                .and_then(KountPaymentStatus::from_attempt_status),
             order_total: super::KountAmountConvertor::convert(
                 req.amount.amount,
                 req.amount.currency,
             )?,
             currency: req.amount.currency.to_string(),
-            frm_disposition: req
-                .frm_decision
-                .and_then(kount_disposition)
-                .map(str::to_owned),
+            frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
         })
     }
 }
@@ -787,9 +834,9 @@ pub struct KountRefundUpdateRequest {
     pub refund_amount: StringMinorUnit,
     /// ISO 4217 currency code.
     pub currency: String,
-    /// FRM decision being notified (e.g. APPROVE / DECLINE / REVIEW).
+    /// FRM decision being notified (APPROVE / DECLINE / REVIEW).
     #[serde(rename = "frmDisposition", skip_serializing_if = "Option::is_none")]
-    pub frm_disposition: Option<String>,
+    pub frm_disposition: Option<KountDisposition>,
 }
 
 /// Response from the refund Update Order PATCH. Distinct type from
@@ -840,10 +887,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 req.amount.currency,
             )?,
             currency: req.amount.currency.to_string(),
-            frm_disposition: req
-                .frm_decision
-                .and_then(kount_disposition)
-                .map(str::to_owned),
+            frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
         })
     }
 }

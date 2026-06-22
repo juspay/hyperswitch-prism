@@ -354,17 +354,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         _auth_type: common_enums::AuthenticationType,
         _payment_method: common_enums::PaymentMethod,
-        redirect_state: connector_types::RedirectState,
+        _redirect_state: connector_types::RedirectState,
         _completed_step: Option<connector_types::AuthenticationStep>,
     ) -> connector_types::AuthenticationStep {
-        use connector_types::{AuthenticationStep, RedirectState};
-        // Kount runs PreAuthenticate (DDC) first; the composite loop breaks once
+        // Kount only runs PreAuthenticate (DDC); the composite loop breaks once
         // the DDC `redirection_data` is present. FRM risk checks run separately
         // via the FraudAndRiskManagementService composite flow.
-        match redirect_state {
-            RedirectState::InitialRequest => AuthenticationStep::PreAuthenticate,
-            _ => AuthenticationStep::Authorize,
-        }
+        connector_types::AuthenticationStep::PreAuthenticate
     }
 }
 
@@ -589,15 +585,24 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Auth-server id is account/environment specific; use the configured
-            // value and fall back to the sandbox server only when unset.
+            // The OAuth login host is configured via `secondary_base_url`
+            // (the Orders API host is the primary `base_url`); fall back to the
+            // public login host when unset. Auth-server id is account/environment
+            // specific, falling back to the sandbox server only when unset.
+            let login_base_url = req
+                .resource_common_data
+                .connectors
+                .kount
+                .secondary_base_url
+                .as_deref()
+                .unwrap_or(KOUNT_LOGIN_BASE_URL);
             let auth = kount::KountAuthType::try_from(&req.connector_config)?;
             let auth_server_id = auth
                 .auth_server_id
                 .as_deref()
                 .unwrap_or(KOUNT_SANDBOX_AUTH_SERVER_ID);
             Ok(format!(
-                "{KOUNT_LOGIN_BASE_URL}/oauth2/{auth_server_id}/v1/token"
+                "{login_base_url}/oauth2/{auth_server_id}/v1/token"
             ))
         }
     }
@@ -753,46 +758,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-macro_rules! kount_frm_not_implemented {
-    ($flow:ty, $req:ty, $resp:ty, $name:literal) => {
-        impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-            ConnectorIntegrationV2<$flow, FrmFlowData, $req, $resp> for Kount<T>
-        {
-            fn get_url(
-                &self,
-                _req: &RouterDataV2<$flow, FrmFlowData, $req, $resp>,
-            ) -> CustomResult<String, IntegrationError> {
-                Err(IntegrationError::connector_flow_not_implemented(
-                    ConnectorCommon::id(self),
-                    $name,
-                    IntegrationErrorContext {
-                        additional_context: Some(format!(
-                            "Kount does not implement the `{}` flow",
-                            $name
-                        )),
-                        ..Default::default()
-                    },
-                )
-                .into())
-            }
-        }
-    };
-}
-
 // PostRiskCheck is unused by Kount: the post-decision Update Order is driven by
 // the Notify flows (FrmPaymentOutcome / FrmRefundProcessed) above, not by
 // PostRiskCheck. ChargebackReceived is not supported.
-kount_frm_not_implemented!(
-    PostRiskCheck,
-    PostRiskCheckRequest,
-    PostRiskCheckResponse,
-    "post_risk_check"
+macros::frm_flow_not_implemented!(
+    connector: Kount,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    flow: PostRiskCheck,
+    request: PostRiskCheckRequest,
+    response: PostRiskCheckResponse,
+    flow_name: "post_risk_check",
 );
-kount_frm_not_implemented!(
-    FrmChargebackReceived,
-    FrmChargebackReceivedRequest,
-    FrmChargebackReceivedResponse,
-    "frm_chargeback_received"
+macros::frm_flow_not_implemented!(
+    connector: Kount,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    flow: FrmChargebackReceived,
+    request: FrmChargebackReceivedRequest,
+    response: FrmChargebackReceivedResponse,
+    flow_name: "frm_chargeback_received",
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>

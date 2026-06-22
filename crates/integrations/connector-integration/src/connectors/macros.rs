@@ -2187,3 +2187,55 @@ macro_rules! flow_status_emit {
     };
 }
 pub(crate) use flow_status_emit;
+
+/// Emit a `ConnectorIntegrationV2` stub for an FRM flow that a connector does
+/// not implement, so the FRM service surfaces a clear "flow not implemented"
+/// error instead of the connector failing to compile. All FRM flows share
+/// [`FrmFlowData`] as their common data, so this only needs the connector type
+/// (with its generic parameter + bounds) and the flow's request/response types.
+/// Generic over the connector, so any FRM connector can reuse it.
+macro_rules! frm_flow_not_implemented {
+    (
+        connector: $c:ident,
+        generic_type: $g:tt,
+        [$($b:tt)*],
+        flow: $flow:ty,
+        request: $req:ty,
+        response: $resp:ty,
+        flow_name: $name:literal $(,)?
+    ) => {
+        impl<$g: $($b)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                $flow,
+                ::domain_types::frm::frm_types::FrmFlowData,
+                $req,
+                $resp,
+            > for $c<$g>
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    $flow,
+                    ::domain_types::frm::frm_types::FrmFlowData,
+                    $req,
+                    $resp,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    $name,
+                    ::domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "{} does not implement the `{}` FRM flow",
+                            ::interfaces::api::ConnectorCommon::id(self),
+                            $name
+                        )),
+                        ..Default::default()
+                    },
+                )
+                .into())
+            }
+        }
+    };
+}
+pub(crate) use frm_flow_not_implemented;
