@@ -3,7 +3,10 @@ use super::frm_types::{
     PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest, PreRiskCheckResponse,
 };
 use crate::{
-    connector_types::{ConnectorResponseHeaders, CustomerInfo, RawConnectorRequestResponse},
+    connector_types::{
+        ConnectorResponseHeaders, CustomerInfo, RawConnectorRequestResponse,
+        ServerAuthenticationTokenResponseData,
+    },
     errors::IntegrationError,
     payment_address::{Address, OrderDetailsWithAmount, PaymentAddress},
     payment_method_data::{Card, DefaultPCIHolder, PaymentMethodData},
@@ -56,7 +59,7 @@ impl
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        (_value, connectors, metadata): (
+        (value, connectors, metadata): (
             grpc_api_types::frm::FrmServicePreRiskCheckRequest,
             Connectors,
             &common_utils::metadata::MaskedMetadata,
@@ -64,9 +67,17 @@ impl
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let merchant_id = extract_merchant_id_from_metadata(metadata)?;
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_id,
             connectors,
+            access_token,
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
@@ -84,7 +95,7 @@ impl
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        (_value, connectors, metadata): (
+        (value, connectors, metadata): (
             grpc_api_types::frm::FrmServicePostRiskCheckRequest,
             Connectors,
             &common_utils::metadata::MaskedMetadata,
@@ -92,9 +103,17 @@ impl
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let merchant_id = extract_merchant_id_from_metadata(metadata)?;
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_id,
             connectors,
+            access_token,
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
@@ -112,7 +131,7 @@ impl
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        (_value, connectors, metadata): (
+        (value, connectors, metadata): (
             grpc_api_types::payments::NotifyConnectorRequest,
             Connectors,
             &common_utils::metadata::MaskedMetadata,
@@ -120,9 +139,17 @@ impl
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let merchant_id = extract_merchant_id_from_metadata(metadata)?;
 
+        let access_token = value
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.as_ref())
+            .map(ServerAuthenticationTokenResponseData::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_id,
             connectors,
+            access_token,
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,

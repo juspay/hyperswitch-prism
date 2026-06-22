@@ -1,5 +1,8 @@
 use crate::{
-    connector_types::{ConnectorResponseHeaders, CustomerInfo, RawConnectorRequestResponse},
+    connector_types::{
+        ConnectorResponseHeaders, CustomerInfo, RawConnectorRequestResponse,
+        ServerAuthenticationTokenResponseData,
+    },
     payment_address::{OrderDetailsWithAmount, PaymentAddress},
     payment_method_data::{DefaultPCIHolder, PaymentMethodData},
     router_request_types::BrowserInformation,
@@ -13,6 +16,7 @@ use hyperswitch_masking::Secret;
 pub struct FrmFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub connectors: Connectors,
+    pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub raw_connector_response: Option<Secret<String>>,
     pub raw_connector_request: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
