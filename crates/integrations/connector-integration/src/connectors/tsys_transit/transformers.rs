@@ -732,16 +732,21 @@ pub struct TsysTransitCardAuthenticationRequest {
     pub cardholder_authentication_entity: TsysTransitCardholderAuthenticationEntity,
     #[serde(rename = "cardDataOutputCapability")]
     pub card_data_output_capability: TsysTransitCardDataOutputCapability,
-    // TSYS cert csv asked us to remove mPosAcceptanceDeviceType, but
-    // TSYS' actual SBX XSD still requires one of
-    // {mPosAcceptanceDeviceType, acceptorStreetAddress, serviceLocationCity,
-    //  serviceLocationGeoCoordinates, merchantTokenRequesterID} on a
-    // CardAuthentication request — XSD validation rejects with F9901
-    // ("Invalid content was found starting with element 'cvv2'") if all
-    // five are missing. We keep mPosAcceptanceDeviceType="0" to satisfy
-    // the schema; will revisit once TSYS confirms the desired alternative.
+    // TSYS' SBX XSD on CardAuthentication enforces a strict sequence
+    // here that requires BOTH:
+    //   1. mPosAcceptanceDeviceType
+    //   2. one of {acceptorStreetAddress, serviceLocationCity,
+    //      serviceLocationGeoCoordinates, merchantTokenRequesterID}
+    // The cert csv asked us to drop mPosAcceptanceDeviceType, but
+    // omitting it alone leaves the schema rejecting with F9901
+    // ("Invalid content was found starting with element 'cvv2'" /
+    // "Invalid content was found starting with element 'cardOnFile'").
+    // We satisfy (1) with "0" and (2) by mirroring billing addressLine1
+    // into acceptorStreetAddress.
     #[serde(rename = "mPosAcceptanceDeviceType")]
     pub m_pos_acceptance_device_type: String,
+    #[serde(rename = "acceptorStreetAddress")]
+    pub acceptor_street_address: Secret<String>,
     // TSYS cert: authorizationIndicator is missing on Mastercard
     // card-authentication transactions in step 3.
     #[serde(
@@ -3511,7 +3516,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             card_data_source,
             card_number: Secret::new(card.card_number.peek().to_string()),
             expiration_date: format_expiration_date(card),
-            address_line1,
+            cvv2,
+            address_line1: address_line1.clone(),
             zip,
             // TSYS cert: externalReferenceID is alphanumeric only; strip
             // underscores and any other non-alphanumeric/space chars.
@@ -3537,11 +3543,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             card_data_input_mode,
             cardholder_authentication_entity,
             card_data_output_capability,
-            // XSD requires one of mPos/acceptorStreetAddress/etc on
-            // CardAuthentication; "0" satisfies the schema. See struct
-            // definition for the cert csv vs XSD trade-off note.
+            // XSD enforces BOTH mPos AND one of {acceptor*, serviceLocation*,
+            // merchantTokenRequesterID}. See struct doc for cert vs XSD
+            // trade-off.
             m_pos_acceptance_device_type: "0".to_string(),
-            cvv2,
+            acceptor_street_address: address_line1.clone(),
             authorization_indicator,
             card_on_file,
             cit_status_indicator,
