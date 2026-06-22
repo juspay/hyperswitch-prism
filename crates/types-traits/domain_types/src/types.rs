@@ -12,6 +12,7 @@ use crate::{
         RechargeResponseData,
     },
     payment_method_data::SamsungPayWalletCredentials,
+    router_request_types::AuthoriseIntegrityObject,
     utils::extract_connector_request_reference_id,
 };
 use common_enums::{
@@ -5688,6 +5689,30 @@ fn convert_connector_metadata_to_secret_string(
     connector_metadata.and_then(|value| serde_json::to_string(&value).ok().map(Secret::new))
 }
 
+impl TryFrom<&AuthoriseIntegrityObject> for grpc_api_types::payments::Money {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(integrity_obj: &AuthoriseIntegrityObject) -> Result<Self, Self::Error> {
+        Ok(Self {
+            minor_amount: integrity_obj.amount.get_amount_as_i64(),
+            currency: grpc_api_types::payments::Currency::foreign_try_from(integrity_obj.currency)
+                .change_context(ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: None,
+                        additional_context: Some(
+                            "Failed to convert currency to gRPC Currency type".to_string(),
+                        ),
+                    },
+                })
+                .attach_printable(format!(
+                    "source currency for integrity object: {:?}",
+                    integrity_obj.currency
+                ))? as i32,
+        })
+    }
+}
+
+#[allow(deprecated)]
 pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
         Authorize,
@@ -5771,6 +5796,14 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                              }
                         )),
                     });
+
+                let authorized_money = router_data_v2
+                    .request
+                    .integrity_object
+                    .as_ref()
+                    .map(grpc_api_types::payments::Money::try_from)
+                    .transpose()?;
+
                 PaymentServiceAuthorizeResponse {
                     connector_transaction_id: Option::foreign_try_from(resource_id)?,
                     redirection_data: redirection_data
@@ -5799,6 +5832,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                         .resource_common_data
                         .minor_amount_authorized
                         .map(|amount_authorized| amount_authorized.get_amount_as_i64()),
+                    authorized_money,
                     connector_response,
                     network_txn_link_id,
                 }
@@ -5861,6 +5895,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 captured_amount: None,
                 capturable_amount: None,
                 authorized_amount: None,
+                authorized_money: None,
                 connector_response,
                 network_txn_link_id: None,
             }
