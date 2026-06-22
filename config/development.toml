@@ -163,12 +163,12 @@ brokers = ["localhost:9092"]
 
 # Outbound connector-call events.
 [events.connector_events]
-topic = "audit-trail-events"
+topic = "ucs-connector-events"
 partition_key_field = "request_id"
 
 # Inbound request events.
 [events.api_events]
-topic = "audit-trail-service-events"
+topic = "ucs-api-events"
 partition_key_field = "request_id"
 
 [lineage]
