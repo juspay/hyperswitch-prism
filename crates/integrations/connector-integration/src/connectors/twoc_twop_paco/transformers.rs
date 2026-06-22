@@ -454,8 +454,8 @@ pub struct TwocTwopPacoVoidPcRequest(pub TwocTwopPacoVoidRequest);
 /// decrypted payload instead.
 #[derive(Debug, Clone)]
 pub struct PacoResponseWithRaw<T> {
-    pub parsed: T,
-    pub raw: serde_json::Value,
+    pub parsed_response: T,
+    pub raw_response: serde_json::Value,
 }
 
 impl<'de, T: serde::de::DeserializeOwned> Deserialize<'de> for PacoResponseWithRaw<T> {
@@ -463,9 +463,9 @@ impl<'de, T: serde::de::DeserializeOwned> Deserialize<'de> for PacoResponseWithR
     where
         D: serde::Deserializer<'de>,
     {
-        let raw = serde_json::Value::deserialize(deserializer)?;
-        let parsed = T::deserialize(&raw).map_err(serde::de::Error::custom)?;
-        Ok(Self { parsed, raw })
+        let raw_response = serde_json::Value::deserialize(deserializer)?;
+        let parsed_response = T::deserialize(&raw_response).map_err(serde::de::Error::custom)?;
+        Ok(Self { parsed_response, raw_response })
     }
 }
 
@@ -474,7 +474,7 @@ impl<T> Serialize for PacoResponseWithRaw<T> {
     where
         S: serde::Serializer,
     {
-        self.raw.serialize(serializer)
+        self.raw_response.serialize(serializer)
     }
 }
 
@@ -528,7 +528,7 @@ where
     let common = &item.resource_common_data;
     let paco_billing_address = common
         .get_optional_billing()
-        .and_then(|a| a.address.as_ref())
+        .and_then(|billing| billing.address.as_ref())
         .map(|_| PacoBillingAddress {
             bill_addr_city: common.get_optional_billing_city(),
             bill_addr_country: common
@@ -542,7 +542,7 @@ where
 
     let paco_shipping_address = common
         .get_optional_shipping()
-        .and_then(|a| a.address.as_ref())
+        .and_then(|shipping| shipping.address.as_ref())
         .map(|_| PacoShippingAddress {
             ship_addr_city: common.get_optional_shipping_city(),
             ship_addr_country: common
@@ -1680,15 +1680,15 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoPSyncInquiryResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoPSyncInquiryResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let PacoResponseWithRaw { parsed, raw } = item.response.0;
+        let PacoResponseWithRaw { parsed_response, raw_response } = item.response.0;
         let router_data = Self::try_from(ResponseRouterData {
-            response: parsed,
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
         })?;
         Ok(Self {
             resource_common_data: PaymentFlowData {
-                raw_connector_response: Some(Secret::new(raw.to_string())),
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -1783,15 +1783,15 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoRSyncInquiryResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoRSyncInquiryResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let PacoResponseWithRaw { parsed, raw } = item.response.0;
+        let PacoResponseWithRaw { parsed_response, raw_response } = item.response.0;
         let router_data = Self::try_from(ResponseRouterData {
-            response: parsed,
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
         })?;
         Ok(Self {
             resource_common_data: RefundFlowData {
-                raw_connector_response: Some(Secret::new(raw.to_string())),
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -2101,15 +2101,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let PacoResponseWithRaw { parsed, raw } = item.response.0;
+        let PacoResponseWithRaw { parsed_response, raw_response } = item.response.0;
         let router_data = Self::try_from(ResponseRouterData {
-            response: parsed,
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
         })?;
         Ok(Self {
             resource_common_data: PaymentFlowData {
-                raw_connector_response: Some(Secret::new(raw.to_string())),
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -2125,15 +2125,15 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoCaptureResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let PacoResponseWithRaw { parsed, raw } = item.response.0;
+        let PacoResponseWithRaw { parsed_response, raw_response } = item.response.0;
         let router_data = Self::try_from(ResponseRouterData {
-            response: parsed,
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
         })?;
         Ok(Self {
             resource_common_data: PaymentFlowData {
-                raw_connector_response: Some(Secret::new(raw.to_string())),
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -2149,15 +2149,15 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoVoidResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoVoidResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let PacoResponseWithRaw { parsed, raw } = item.response.0;
+        let PacoResponseWithRaw { parsed_response, raw_response } = item.response.0;
         let router_data = Self::try_from(ResponseRouterData {
-            response: parsed,
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
         })?;
         Ok(Self {
             resource_common_data: PaymentFlowData {
-                raw_connector_response: Some(Secret::new(raw.to_string())),
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -2173,15 +2173,15 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoVoidPcResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoVoidPcResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let PacoResponseWithRaw { parsed, raw } = item.response.0;
+        let PacoResponseWithRaw { parsed_response, raw_response } = item.response.0;
         let router_data = Self::try_from(ResponseRouterData {
-            response: parsed,
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
         })?;
         Ok(Self {
             resource_common_data: PaymentFlowData {
-                raw_connector_response: Some(Secret::new(raw.to_string())),
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
                 ..router_data.resource_common_data
             },
             ..router_data
@@ -2197,15 +2197,15 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoRefundResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let PacoResponseWithRaw { parsed, raw } = item.response.0;
+        let PacoResponseWithRaw { parsed_response, raw_response } = item.response.0;
         let router_data = Self::try_from(ResponseRouterData {
-            response: parsed,
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
         })?;
         Ok(Self {
             resource_common_data: RefundFlowData {
-                raw_connector_response: Some(Secret::new(raw.to_string())),
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
                 ..router_data.resource_common_data
             },
             ..router_data
