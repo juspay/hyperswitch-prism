@@ -2,18 +2,21 @@ use core::result::Result;
 use std::{borrow::Cow, collections::HashMap, fmt::Debug, str::FromStr};
 
 use crate::{
-    connector_flow::{CreatePaymentMethod, GetPaymentMethod, MandateRevoke, Recharge},
+    connector_flow::{
+        CreatePaymentMethod, GetPaymentMethod, MandateRevoke, PaymentMethodEligibility, Recharge,
+    },
     connector_types::{
         self, CaptureSyncResponse, ConnectorEnum, CreatePaymentMethodData,
         CreatePaymentMethodResponseData, GetPaymentMethodData, GetPaymentMethodResponseData,
-        RechargeRequestData, RechargeResponseData,
+        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, RechargeRequestData,
+        RechargeResponseData,
     },
     payment_method_data::SamsungPayWalletCredentials,
     utils::extract_connector_request_reference_id,
 };
 use common_enums::{
-    CaptureMethod, CardNetwork, CountryAlpha2, FutureUsage, PaymentMethod, PaymentMethodType,
-    SamsungPayCardBrand,
+    CaptureMethod, CardNetwork, CountryAlpha2, EligibilityStatus, FutureUsage, PaymentMethod,
+    PaymentMethodType, SamsungPayCardBrand,
 };
 use common_utils::config_patch::Patch;
 use common_utils::{
@@ -35,6 +38,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServiceAuthenticateResponse,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateResponse,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse,
     PaymentMethodServiceGetResponse, PaymentMethodServiceRechargeResponse,
     PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureResponse,
     PaymentServiceCreateOrderResponse, PaymentServiceGetResponse,
@@ -5188,6 +5192,90 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
     }
 }
 
+impl
+    ForeignTryFrom<(
+        PaymentMethodServiceEligibilityRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for PaymentFlowData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, connectors, metadata): (
+            PaymentMethodServiceEligibilityRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Billing/shipping address drive the country gating and risk scoring
+        // many BNPL connectors apply during eligibility.
+        let address = match value.address {
+            Some(address) => PaymentAddress::foreign_try_from(address)?,
+            None => PaymentAddress::new(None, None, None, Some(false)),
+        };
+
+        // Cart line items, when supplied.
+        let order_details = (!value.order_details.is_empty())
+            .then(|| {
+                value
+                    .order_details
+                    .into_iter()
+                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()?;
+
+        let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+
+        Ok(Self {
+            merchant_id: merchant_id_from_header,
+            payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
+            attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
+            status: common_enums::AttemptStatus::Pending,
+            payment_method: PaymentMethod::Card,
+            address,
+            auth_type: common_enums::AuthenticationType::default(),
+            connector_request_reference_id: String::new(),
+            customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
+            connector_customer: value
+                .customer
+                .and_then(|customer| customer.connector_customer_id),
+            l2_l3_data: None,
+            description: None,
+            return_url: None,
+            connector_feature_data: value
+                .connector_feature_data
+                .map(|d| ForeignTryFrom::foreign_try_from((d, "connector_feature_data")))
+                .transpose()?,
+            amount_captured: None,
+            minor_amount_captured: None,
+            minor_amount_capturable: None,
+            amount: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            connector_order_id: None,
+            preprocessing_id: None,
+            connector_api_version: None,
+            test_mode: value.test_mode,
+            connector_http_status_code: None,
+            external_latency: None,
+            connectors,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            connector_response_headers: None,
+            vault_headers: None,
+            connector_response: None,
+            recurring_mandate_payment_data: None,
+            order_details,
+            minor_amount_authorized: None,
+            merchant_request_id: None,
+            sender_payment_instrument_id: None,
+        })
+    }
+}
+
 impl ForeignTryFrom<ResponseId> for Option<String> {
     type Error = ConnectorError;
     fn foreign_try_from(
@@ -5525,6 +5613,71 @@ pub fn generate_create_order_response(
         },
     };
     Ok(response)
+}
+
+impl ForeignFrom<EligibilityStatus> for grpc_api_types::payments::EligibilityStatus {
+    fn foreign_from(value: EligibilityStatus) -> Self {
+        match value {
+            EligibilityStatus::Eligible => Self::Eligible,
+            EligibilityStatus::Ineligible => Self::Ineligible,
+            EligibilityStatus::Unknown => Self::Unspecified,
+        }
+    }
+}
+
+/// Generates a PaymentMethodServiceEligibilityResponse from the router data.
+/// Used by PaymentMethodService.Eligibility (new route).
+pub fn generate_payment_method_eligibility_response(
+    router_data_v2: RouterDataV2<
+        PaymentMethodEligibility,
+        PaymentFlowData,
+        PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse,
+    >,
+) -> Result<PaymentMethodServiceEligibilityResponse, error_stack::Report<ConnectorError>> {
+    let response_headers = router_data_v2
+        .resource_common_data
+        .get_connector_response_headers_as_map();
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+    match router_data_v2.response {
+        Ok(response) => Ok(PaymentMethodServiceEligibilityResponse {
+            eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(
+                response.eligibility,
+            )
+            .into(),
+            status_code: response.status_code,
+            error_info: None,
+            raw_connector_request,
+            raw_connector_response,
+            response_headers,
+        }),
+        Err(err) => Ok(PaymentMethodServiceEligibilityResponse {
+            eligibility: grpc_api_types::payments::EligibilityStatus::foreign_from(
+                EligibilityStatus::Unknown,
+            )
+            .into(),
+            status_code: err.status_code as u32,
+            error_info: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    code: Some(err.code.clone()),
+                    reason: err.reason.clone(),
+                    connector_transaction_id: err.connector_transaction_id.clone(),
+                    message: Some(err.message.clone()),
+                    status: None,
+                }),
+                issuer_details: None,
+            }),
+            raw_connector_request,
+            raw_connector_response,
+            response_headers,
+        }),
+    }
 }
 
 /// Helper function to convert connector_metadata from serde_json::Value to Option<Secret<String>>
@@ -7264,8 +7417,8 @@ impl
                 PaymentMethod::foreign_try_from(grpc_pm_type)
             })
             .transpose()?;
-
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+
         Ok(Self {
             merchant_id: merchant_id_from_header,
             connector_request_reference_id: extract_connector_request_reference_id(
@@ -8049,6 +8202,66 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             incremental_authorization_allowed: None,
             payment_method_update: payment_method_update_grpc,
             sender_payment_instrument_id: value.sender_payment_instrument_id,
+        })
+    }
+}
+
+/// ForeignTryFrom for the NEW PaymentMethodServiceEligibilityRequest
+/// (uses Money + Customer instead of flat amount/currency/phone/email).
+impl ForeignTryFrom<PaymentMethodServiceEligibilityRequest> for PaymentMethodEligibilityData {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: PaymentMethodServiceEligibilityRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let money = value.amount.ok_or_else(|| {
+            report!(IntegrationError::MissingRequiredField {
+                field_name: "amount",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Order amount is required for eligibility check".to_string()
+                    ),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let amount = common_utils::types::Money {
+            amount: common_utils::types::MinorUnit::new(money.minor_amount),
+            currency: common_enums::Currency::foreign_try_from(money.currency())?,
+        };
+
+        // Resolve fields read via prost accessors (which borrow all of `value`)
+        // before moving any owned fields out of `value`.
+        let country = convert_optional_country_alpha2(value.country())?;
+
+        let payment_method_type =
+            <Option<PaymentMethodType>>::foreign_try_from(value.payment_method_type())?;
+
+        let customer = value
+            .customer
+            .as_ref()
+            .map(CustomerInfo::foreign_try_from)
+            .transpose()?;
+
+        let metadata = value
+            .metadata
+            .map(|m| ForeignTryFrom::foreign_try_from((m, "metadata")))
+            .transpose()?;
+
+        let connector_feature_data = value
+            .connector_feature_data
+            .map(|d| ForeignTryFrom::foreign_try_from((d, "connector_feature_data")))
+            .transpose()?;
+
+        Ok(Self {
+            amount,
+            customer,
+            country_code: country,
+            payment_method_type,
+            description: value.description,
+            metadata,
+            connector_feature_data,
+            test_mode: value.test_mode,
         })
     }
 }

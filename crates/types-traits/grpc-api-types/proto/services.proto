@@ -181,6 +181,7 @@ service PaymentService {
 
   // Setup recurring mandate using vault-aliased card data.
   rpc ProxySetupRecurring(PaymentServiceProxySetupRecurringRequest) returns (PaymentServiceSetupRecurringResponse);
+
 }
 
 // ======================================================================================
@@ -254,6 +255,9 @@ service PaymentMethodService {
 
   // Recharge a payment method (wallet, gift card, prepaid card) with funds.
   rpc Recharge(PaymentMethodServiceRechargeRequest) returns (PaymentMethodServiceRechargeResponse);
+
+  // Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+  rpc Eligibility(PaymentMethodServiceEligibilityRequest) returns (PaymentMethodServiceEligibilityResponse);
 }
 
 // ============================================================================

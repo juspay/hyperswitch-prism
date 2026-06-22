@@ -13,17 +13,17 @@ use domain_types::{
         DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse, EventType,
         GetPaymentMethodData, GetPaymentMethodResponseData, MandateRevokeRequestData,
         MandateRevokeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        PaymentsSyncData, RechargeRequestData, RechargeResponseData, RedirectDetailsResponse,
-        RefundFlowData, RefundSyncData, RefundVoidPostRefundData, RefundWebhookDetailsResponse,
-        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData, VerifyWebhookSourceFlowData,
-        WebhookDetailsResponse, WebhookResourceReference,
+        PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RechargeRequestData,
+        RechargeResponseData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
+        RefundVoidPostRefundData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
+        VerifyWebhookSourceFlowData, WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::WebhookError,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -115,6 +115,7 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + MandateRevokeV2
     + VerifyWebhookSourceV2
     + VerifyRedirectResponse
+    + PaymentMethodEligibilityV2
 {
 }
 
@@ -147,6 +148,16 @@ pub trait PaymentVoidPostCaptureV2:
     PaymentFlowData,
     PaymentsCancelPostCaptureData,
     PaymentsResponseData,
+>
+{
+}
+
+pub trait PaymentMethodEligibilityV2:
+    ConnectorIntegrationV2<
+    connector_flow::PaymentMethodEligibility,
+    PaymentFlowData,
+    PaymentMethodEligibilityData,
+    PaymentMethodEligibilityResponse,
 >
 {
 }

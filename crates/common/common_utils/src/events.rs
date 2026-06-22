@@ -360,6 +360,7 @@ pub enum FlowName {
     Recharge,
     CreatePaymentMethod,
     GetPaymentMethod,
+    PaymentMethodEligibility,
 }
 
 impl FlowName {
@@ -405,6 +406,7 @@ impl FlowName {
             Self::Recharge => "Recharge",
             Self::CreatePaymentMethod => "CreatePaymentMethod",
             Self::GetPaymentMethod => "GetPaymentMethod",
+            Self::PaymentMethodEligibility => "PaymentMethodEligibility",
             Self::Unknown => "Unknown",
         }
     }

@@ -63,6 +63,12 @@ SERVICE_FLOWS = {
         # customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
         "customer_create": "CustomerServiceCreateResponse",
     },
+    "PaymentMethodClient": {
+        # eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+        "eligibility": "PaymentMethodServiceEligibilityResponse",
+        # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
+        "tokenize": "PaymentMethodServiceTokenizeResponse",
+    },
     "PayoutClient": {
         # payout_create: PayoutService.Create — Creates a payout.
         "payout_create": "PayoutServiceCreateResponse",
@@ -88,10 +94,6 @@ SERVICE_FLOWS = {
     "SurchargeClient": {
         # surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
         "surcharge_calculate": "SurchargeServiceCalculateResponse",
-    },
-    "PaymentMethodClient": {
-        # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
-        "tokenize": "PaymentMethodServiceTokenizeResponse",
     },
 }
 

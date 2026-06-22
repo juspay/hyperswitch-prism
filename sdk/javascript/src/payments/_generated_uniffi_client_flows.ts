@@ -191,6 +191,23 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('defend', responseBytes, requestBytes, optionsBytes);
   }
 
+  /** Build connector HTTP request for eligibility flow. */
+  eligibilityReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('eligibility', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for eligibility flow. */
+  eligibilityRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('eligibility', responseBytes, requestBytes, optionsBytes);
+  }
+
   /** Build connector HTTP request for get flow. */
   getReq(
     requestBytes: Buffer | Uint8Array,
