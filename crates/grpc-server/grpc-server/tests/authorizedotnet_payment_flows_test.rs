@@ -413,6 +413,7 @@ fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest 
         split_payments: None,
         merchant_request_id: None,
         payment_method_type: None,
+        return_raw_connector_response: None,
     }
 }
 
@@ -436,7 +437,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
         state: None,
         test_mode: None,
         merchant_order_id: None,
-
+        return_raw_connector_response: None,
         merchant_request_id: None,
     }
 }
@@ -496,6 +497,7 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
         merchant_request_id: None,
         connector_order_id: None,
         payment_method: None,
+        return_raw_connector_response: None,
     }
 }
 
@@ -517,6 +519,7 @@ fn create_refund_get_request(transaction_id: &str, refund_id: &str) -> RefundSer
         split_refunds: None,
         merchant_request_id: None,
         connector_order_id: None,
+        return_raw_connector_response: None,
     }
 }
 

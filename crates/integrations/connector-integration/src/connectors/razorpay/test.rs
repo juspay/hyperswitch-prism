@@ -114,7 +114,7 @@ mod tests {
                     connector_response: None,
                     recurring_mandate_payment_data: None,
                     l2_l3_data: None,
-
+                    return_raw_connector_response: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
                 },
@@ -196,7 +196,6 @@ mod tests {
                     shipping_cost: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
-                    all_keys_required: None,
                     access_token: None,
                     customer_acceptance: None,
                     split_payments: None,
@@ -316,6 +315,7 @@ mod tests {
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
                     merchant_request_id: None,
+                    return_raw_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -372,7 +372,6 @@ mod tests {
                     shipping_cost: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
-                    all_keys_required: None,
                     access_token: None,
                     customer_acceptance: None,
                     split_payments: None,
@@ -466,6 +465,7 @@ mod tests {
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
                     merchant_request_id: None,
+                    return_raw_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -521,7 +521,6 @@ mod tests {
                     shipping_cost: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
-                    all_keys_required: None,
                     access_token: None,
                     customer_acceptance: None,
                     split_payments: None,
@@ -638,6 +637,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    return_raw_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -716,7 +716,6 @@ mod tests {
                     shipping_cost: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
-                    all_keys_required: None,
                     access_token: None,
                     customer_acceptance: None,
                     split_payments: None,
@@ -1008,6 +1007,7 @@ mod tests {
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
                 merchant_request_id: None,
+                return_raw_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1082,7 +1082,6 @@ mod tests {
                 integrity_object: None,
                 merchant_account_id: None,
                 merchant_config_currency: None,
-                all_keys_required: None,
                 access_token: None,
                 customer_acceptance: None,
                 split_payments: None,
@@ -1214,6 +1213,7 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                return_raw_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1288,7 +1288,6 @@ mod tests {
                 integrity_object: None,
                 merchant_account_id: None,
                 merchant_config_currency: None,
-                all_keys_required: None,
                 access_token: None,
                 customer_acceptance: None,
                 split_payments: None,
@@ -1422,6 +1421,7 @@ mod tests {
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
                     merchant_request_id: None,
+                    return_raw_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1543,6 +1543,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    return_raw_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1667,6 +1668,7 @@ mod tests {
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
                     merchant_request_id: None,
+                    return_raw_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "invalid_key".to_string().into(),
@@ -1723,7 +1725,6 @@ mod tests {
                     shipping_cost: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
-                    all_keys_required: None,
                     access_token: None,
                     customer_acceptance: None,
                     split_payments: None,
@@ -1838,6 +1839,7 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                return_raw_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1971,6 +1973,7 @@ mod tests {
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
                 merchant_request_id: None,
+                return_raw_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -2093,6 +2096,7 @@ mod tests {
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
                 merchant_request_id: None,
+                return_raw_connector_response: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),

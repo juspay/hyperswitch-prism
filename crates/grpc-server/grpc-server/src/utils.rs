@@ -498,7 +498,6 @@ macro_rules! implement_connector_operation {
         common_flow_data_constructor: $common_flow_data_constructor:path,
         generate_response_fn: $generate_response_fn:path,
         connector_data_type: $connector_data_type:ty,
-        all_keys_required: $all_keys_required:expr,
         has_payment_method_data: true
     ) => {
         async fn $fn_name(
@@ -614,6 +613,8 @@ macro_rules! implement_connector_operation {
                 tonic::Status::internal(format!("Test mode configuration error: {e}"))
             })?;
 
+            let return_raw_connector_response = router_data.resource_common_data.return_raw_connector_response;
+
             // Execute connector processing
             let event_params = external_services::service::EventProcessingParams {
                 connector_name: &connector.to_string(),
@@ -629,13 +630,13 @@ macro_rules! implement_connector_operation {
                 proxy_name: metadata_payload.proxy_name.as_deref(),
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
-                return_raw_connector_data: config.common.return_raw_connector_data,
+                return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
                 router_data,
-                $all_keys_required,
+                return_raw_connector_response,
                 event_params,
                 None,
                 common_enums::CallConnectorAction::Trigger,
@@ -670,7 +671,6 @@ macro_rules! implement_connector_operation {
         common_flow_data_constructor: $common_flow_data_constructor:path,
         generate_response_fn: $generate_response_fn:path,
         connector_data_type: $connector_data_type:ty,
-        all_keys_required: $all_keys_required:expr,
         has_payment_method_data: option
     ) => {
         async fn $fn_name(
@@ -764,6 +764,8 @@ macro_rules! implement_connector_operation {
                 tonic::Status::internal(format!("Test mode configuration error: {e}"))
             })?;
 
+            let return_raw_connector_response = router_data.resource_common_data.return_raw_connector_response;
+
             // Execute connector processing
             let event_params = external_services::service::EventProcessingParams {
                 connector_name: &metadata_payload.connector.get_connector_name(),
@@ -779,13 +781,13 @@ macro_rules! implement_connector_operation {
                 proxy_name: metadata_payload.proxy_name.as_deref(),
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
-                return_raw_connector_data: config.common.return_raw_connector_data,
+                return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
                 router_data,
-                $all_keys_required,
+                return_raw_connector_response,
                 event_params,
                 None,
                 common_enums::CallConnectorAction::Trigger,
@@ -819,7 +821,6 @@ macro_rules! implement_connector_operation {
         common_flow_data_constructor: $common_flow_data_constructor:path,
         generate_response_fn: $generate_response_fn:path,
         connector_data_type: $connector_data_type:ty,
-        all_keys_required: $all_keys_required:expr
     ) => {
         async fn $fn_name(
             &self,
@@ -895,6 +896,8 @@ macro_rules! implement_connector_operation {
                 tonic::Status::internal(format!("Test mode configuration error: {e}"))
             })?;
 
+            let return_raw_connector_response = router_data.resource_common_data.return_raw_connector_response;
+
             // Execute connector processing
             let event_params = external_services::service::EventProcessingParams {
                 connector_name: &metadata_payload.connector.get_connector_name(),
@@ -910,13 +913,13 @@ macro_rules! implement_connector_operation {
                 proxy_name: metadata_payload.proxy_name.as_deref(),
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
-                return_raw_connector_data: config.common.return_raw_connector_data,
+                return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
                 router_data,
-                $all_keys_required,
+                return_raw_connector_response,
                 event_params,
                 None,
                 common_enums::CallConnectorAction::Trigger,

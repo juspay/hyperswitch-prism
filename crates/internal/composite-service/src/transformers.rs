@@ -208,6 +208,7 @@ impl
             domain_data: item.domain_data.clone(),
             split_payments: item.split_payments.clone(),
             partner_merchant_identifier_details: item.partner_merchant_identifier_details.clone(),
+            return_raw_connector_response: item.return_raw_connector_response,
         }
     }
 }
@@ -274,6 +275,7 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             payment_method_type: item.payment_method_type,
             split_payments: item.split_payments.clone(),
+            return_raw_connector_response: item.return_raw_connector_response,
         }
     }
 }
@@ -343,6 +345,7 @@ impl
             connector_order_id: item.connector_order_id.clone(),
             payment_method: item.payment_method.clone(),
             split_refunds: item.split_refunds.clone(),
+            return_raw_connector_response: item.return_raw_connector_response,
         }
     }
 }
@@ -407,6 +410,7 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             connector_order_id: item.connector_order_id.clone(),
             split_refunds: item.split_refunds.clone(),
+            return_raw_connector_response: item.return_raw_connector_response,
         }
     }
 }
@@ -468,6 +472,7 @@ impl
             test_mode: item.test_mode,
             merchant_order_id: item.merchant_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
+            return_raw_connector_response: item.return_raw_connector_response,
         }
     }
 }
@@ -638,6 +643,7 @@ impl
             merchant_order_id: item.merchant_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
             order_tax_amount: item.order_tax_amount,
+            return_raw_connector_response: item.return_raw_connector_response,
         }
     }
 }
@@ -950,6 +956,7 @@ impl
             partner_merchant_identifier_details: request
                 .partner_merchant_identifier_details
                 .clone(),
+            return_raw_connector_response: request.return_raw_connector_response,
         }
     }
 }

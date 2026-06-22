@@ -178,6 +178,7 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         split_payments: None,
         merchant_request_id: None,
         payment_method_type: None,
+        return_raw_connector_response: None,
     }
 }
 
@@ -233,6 +234,7 @@ fn create_refund_sync_request(transaction_id: &str, refund_id: &str) -> RefundSe
         split_refunds: None,
         merchant_request_id: None,
         connector_order_id: None,
+        return_raw_connector_response: None,
     }
 }
 

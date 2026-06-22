@@ -55,7 +55,6 @@ impl DisputeOperationsInternal for Disputes {
         common_flow_data_constructor: DisputeFlowData::foreign_try_from,
         generate_response_fn: generate_defend_dispute_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 }
 
@@ -141,6 +140,9 @@ impl DisputeService for Disputes {
                         DisputeFlowData::foreign_try_from((payload.clone(), connectors))
                             .map_err(|e| e.into_grpc_status())?;
 
+                    let return_raw_connector_response =
+                        dispute_flow_data.return_raw_connector_response;
+
                     let router_data: RouterDataV2<
                         SubmitEvidence,
                         DisputeFlowData,
@@ -167,7 +169,8 @@ impl DisputeService for Disputes {
                         proxy_name: proxy_name.as_deref(),
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
-                        return_raw_connector_data: config.common.return_raw_connector_data,
+                        return_raw_connector_response: return_raw_connector_response
+                            .unwrap_or(false),
                     };
 
                     let response = Box::pin(
@@ -175,7 +178,7 @@ impl DisputeService for Disputes {
                             &config.proxy,
                             connector_integration,
                             router_data,
-                            None,
+                            return_raw_connector_response,
                             event_params,
                             None,
                             common_enums::CallConnectorAction::Trigger,
@@ -365,6 +368,8 @@ impl DisputeService for Disputes {
                     let dispute_flow_data =
                         DisputeFlowData::foreign_try_from((payload.clone(), connectors))
                             .map_err(|e| e.into_grpc_status())?;
+                    let return_raw_connector_response =
+                        dispute_flow_data.return_raw_connector_response;
 
                     let router_data: RouterDataV2<
                         Accept,
@@ -393,7 +398,8 @@ impl DisputeService for Disputes {
                         proxy_name: proxy_name.as_deref(),
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
-                        return_raw_connector_data: config.common.return_raw_connector_data,
+                        return_raw_connector_response: return_raw_connector_response
+                            .unwrap_or(false),
                     };
 
                     let response = Box::pin(
@@ -401,7 +407,7 @@ impl DisputeService for Disputes {
                             &config.proxy,
                             connector_integration,
                             router_data,
-                            None,
+                            return_raw_connector_response,
                             event_params,
                             None,
                             common_enums::CallConnectorAction::Trigger,

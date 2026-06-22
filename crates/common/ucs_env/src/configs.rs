@@ -69,10 +69,6 @@ fn default_lineage_prefix() -> String {
     consts::LINEAGE_FIELD_PREFIX.to_string()
 }
 
-fn default_true() -> bool {
-    true
-}
-
 /// Test mode configuration for mock server integration
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct TestConfig {
@@ -172,15 +168,12 @@ impl ApiTagConfig {
 #[derive(Clone, Deserialize, Debug, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct Common {
     pub environment: consts::Env,
-    #[serde(default = "default_true")]
-    pub return_raw_connector_data: bool,
 }
 
 impl Default for Common {
     fn default() -> Self {
         Self {
             environment: consts::Env::Development,
-            return_raw_connector_data: true,
         }
     }
 }

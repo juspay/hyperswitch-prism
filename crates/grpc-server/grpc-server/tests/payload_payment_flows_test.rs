@@ -187,6 +187,7 @@ fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServ
         split_payments: None,
         merchant_request_id: None,
         payment_method_type: None,
+        return_raw_connector_response: None,
     }
 }
 
@@ -540,6 +541,7 @@ async fn test_authorize_capture_refund_rsync() {
             split_payments: None,
             merchant_request_id: None,
             payment_method_type: None,
+            return_raw_connector_response: None,
         };
         let mut rsync_grpc_request = Request::new(rsync_request);
         add_payload_metadata(&mut rsync_grpc_request);

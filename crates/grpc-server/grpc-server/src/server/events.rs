@@ -370,6 +370,8 @@ impl EventServiceImpl {
         ))
         .into_grpc_status()?;
 
+        let return_raw_connector_response = common_flow_data.return_raw_connector_response;
+
         let router_data = RouterDataV2::<
             SurchargePaymentSucceeded,
             SurchargeFlowData,
@@ -397,7 +399,7 @@ impl EventServiceImpl {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         let response_result = Box::pin(
@@ -405,7 +407,7 @@ impl EventServiceImpl {
                 &config.proxy,
                 connector_integration,
                 router_data,
-                None,
+                return_raw_connector_response,
                 event_params,
                 None,
                 common_enums::CallConnectorAction::Trigger,
@@ -458,6 +460,8 @@ impl EventServiceImpl {
         ))
         .into_grpc_status()?;
 
+        let return_raw_connector_response = common_flow_data.return_raw_connector_response;
+
         let router_data = RouterDataV2::<
             SurchargeRefundSucceeded,
             SurchargeFlowData,
@@ -485,7 +489,7 @@ impl EventServiceImpl {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         let response_result = Box::pin(
@@ -493,7 +497,7 @@ impl EventServiceImpl {
                 &config.proxy,
                 connector_integration,
                 router_data,
-                None,
+                return_raw_connector_response,
                 event_params,
                 None,
                 common_enums::CallConnectorAction::Trigger,
@@ -531,6 +535,7 @@ async fn verify_webhook_source_external(
         raw_connector_response: None,
         raw_connector_request: None,
         connector_response_headers: None,
+        return_raw_connector_response: None,
     };
 
     let merchant_secret =
@@ -545,6 +550,8 @@ async fn verify_webhook_source_external(
         merchant_secret,
         webhook_uri: request_details.uri.clone(),
     };
+
+    let return_raw_connector_response = verify_webhook_flow_data.return_raw_connector_response;
 
     let verify_webhook_router_data = RouterDataV2::<
         VerifyWebhookSource,
@@ -581,7 +588,7 @@ async fn verify_webhook_source_external(
         proxy_name: metadata_payload.proxy_name.as_deref(),
         tenant_id: &metadata_payload.tenant_id,
         merchant_id: metadata_payload.merchant_id.as_str(),
-        return_raw_connector_data: config.common.return_raw_connector_data,
+        return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
     };
 
     match Box::pin(
@@ -589,7 +596,7 @@ async fn verify_webhook_source_external(
             &config.proxy,
             connector_integration,
             verify_webhook_router_data,
-            None,
+            return_raw_connector_response,
             event_params,
             None,
             common_enums::CallConnectorAction::Trigger,

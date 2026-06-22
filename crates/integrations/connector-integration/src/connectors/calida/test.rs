@@ -107,6 +107,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    return_raw_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Calida {
                     api_key: Secret::new(api_key),
@@ -156,7 +157,6 @@ mod tests {
                     shipping_cost: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
-                    all_keys_required: None,
                     customer_acceptance: None,
                     split_payments: None,
                     request_extended_authorization: None,
@@ -274,6 +274,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    return_raw_connector_response: None,
                 },
                 connector_config: ConnectorSpecificConfig::Calida {
                     api_key: Secret::new(api_key),
@@ -315,7 +316,6 @@ mod tests {
                     shipping_cost: None,
                     merchant_account_id: None,
                     merchant_config_currency: None,
-                    all_keys_required: None,
                     customer_acceptance: None,
                     split_payments: None,
                     request_extended_authorization: None,

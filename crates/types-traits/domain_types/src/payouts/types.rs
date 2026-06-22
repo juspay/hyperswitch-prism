@@ -44,6 +44,7 @@ impl
             }),
             test_mode: None,
             description: value.description.clone(),
+            return_raw_connector_response: None,
         })
     }
 }
@@ -1519,6 +1520,7 @@ impl
             }),
             test_mode: None,
             description: value.description.clone(),
+            return_raw_connector_response: None,
         })
     }
 }
@@ -1560,6 +1562,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -1601,6 +1604,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -1642,6 +1646,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -1683,6 +1688,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -1724,6 +1730,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -1765,6 +1772,7 @@ impl
             }),
             test_mode: None,
             description: None,
+            return_raw_connector_response: None,
         })
     }
 }

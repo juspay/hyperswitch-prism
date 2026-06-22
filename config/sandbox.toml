@@ -1,7 +1,5 @@
 [common]
 environment = "sandbox"
-# Whether to return raw connector request/response in the response (default: true)
-return_raw_connector_data = true
 
 [log.console]
 enabled = true

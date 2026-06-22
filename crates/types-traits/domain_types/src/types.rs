@@ -2953,6 +2953,8 @@ pub struct AuthorizationRequest {
     /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
     pub partner_merchant_identifier_details:
         Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
+    /// Whether to return the raw connector data in the response.
+    pub return_raw_connector_response: Option<bool>,
 }
 
 /// Intermediate setup recurring request that accepts both CardDetails and ProxyCardDetails.
@@ -2990,6 +2992,8 @@ pub struct SetupRecurringRequest {
     pub connector_testing_data: Option<Secret<String>>,
     pub l2_l3_data: Option<grpc_payment_types::L2l3Data>,
     pub mit_category: Option<common_enums::MitCategory>,
+    /// Whether to return the raw connector data in the response.
+    pub return_raw_connector_response: Option<bool>,
 }
 
 /// ============================================================================
@@ -3055,6 +3059,7 @@ impl From<grpc_payment_types::PaymentServiceAuthorizeRequest> for AuthorizationR
             domain_data: req.domain_data,
             split_payments: req.split_payments,
             partner_merchant_identifier_details: req.partner_merchant_identifier_details,
+            return_raw_connector_response: req.return_raw_connector_response,
         }
     }
 }
@@ -3124,6 +3129,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             domain_data: req.domain_data,
             split_payments: None,
             partner_merchant_identifier_details: None,
+            return_raw_connector_response: req.return_raw_connector_response,
         }
     }
 }
@@ -3169,6 +3175,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             connector_testing_data: req.connector_testing_data,
             l2_l3_data: req.l2_l3_data,
             mit_category,
+            return_raw_connector_response: req.return_raw_connector_response,
         }
     }
 }
@@ -3218,6 +3225,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             connector_testing_data: None,
             l2_l3_data: None,
             mit_category: None,
+            return_raw_connector_response: req.return_raw_connector_response,
         }
     }
 }
@@ -3932,7 +3940,6 @@ impl<
             merchant_account_id,
             integrity_object: None,
             merchant_config_currency: Some(merchant_config_currency),
-            all_keys_required: None, // Field not available in new proto structure
             split_payments: value
                 .split_payments
                 .map(connector_types::SplitPaymentsDetails::foreign_try_from)
@@ -4607,6 +4614,7 @@ impl
             raw_connector_request: None,
             connector_response_headers: None,
             merchant_request_id: value.merchant_request_id,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -4738,6 +4746,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             minor_amount_authorized: None,
             merchant_request_id: value.merchant_request_id.clone(),
             sender_payment_instrument_id: None,
+            return_raw_connector_response: value.return_raw_connector_response,
         })
     }
 }
@@ -4824,6 +4833,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
+            return_raw_connector_response: value.return_raw_connector_response,
         })
     }
 }
@@ -4910,6 +4920,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             merchant_request_id: None,
             sender_payment_instrument_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
+            return_raw_connector_response: value.return_raw_connector_response,
         })
     }
 }
@@ -5023,6 +5034,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
+            return_raw_connector_response: value.return_raw_connector_response,
         })
     }
 }
@@ -5115,6 +5127,7 @@ impl
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: value.return_raw_connector_response,
         })
     }
 }
@@ -5188,6 +5201,7 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: value.return_raw_connector_response,
         })
     }
 }
@@ -5272,6 +5286,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -6420,7 +6435,6 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             payment_experience,
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             integrity_object: None,
-            all_keys_required: None, // Field not available in new proto structure
             split_payments: value
                 .split_payments
                 .map(connector_types::SplitPaymentsDetails::foreign_try_from)
@@ -7358,7 +7372,6 @@ impl ForeignTryFrom<grpc_api_types::payments::RefundServiceGetRequest> for Refun
                 .refund_metadata
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "refund metadata")))
                 .transpose()?,
-            all_keys_required: None, // Field not available in new proto structure
             integrity_object: None,
             split_refunds: value
                 .split_refunds
@@ -7436,6 +7449,7 @@ impl
             test_mode: value.test_mode,
             payment_method,
             merchant_request_id: value.merchant_request_id.clone(),
+            return_raw_connector_response: value.return_raw_connector_response,
         })
     }
 }
@@ -7485,6 +7499,7 @@ impl
             test_mode: value.test_mode,
             payment_method: None,
             merchant_request_id: value.merchant_request_id.clone(),
+            return_raw_connector_response: None,
         })
     }
 }
@@ -7546,6 +7561,7 @@ impl
             test_mode: value.test_mode,
             payment_method,
             merchant_request_id: value.merchant_request_id.clone(),
+            return_raw_connector_response: value.return_raw_connector_response,
         })
     }
 }
@@ -7842,6 +7858,7 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -7873,6 +7890,7 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -7965,6 +7983,7 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -7997,6 +8016,7 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -8600,6 +8620,7 @@ impl
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -8710,6 +8731,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -9639,6 +9661,7 @@ impl
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: value.return_raw_connector_response,
         })
     }
 }
@@ -9690,6 +9713,7 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -10049,6 +10073,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
+            return_raw_connector_response: value.return_raw_connector_response,
         })
     }
 }
@@ -10145,6 +10170,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: value.return_raw_connector_response,
         })
     }
 }
@@ -11077,6 +11103,7 @@ impl ForeignTryFrom<(DisputeServiceDefendRequest, Connectors)> for DisputeFlowDa
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -11100,6 +11127,7 @@ impl ForeignTryFrom<(DisputeServiceDefendRequest, Connectors, &MaskedMetadata)>
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -11336,6 +11364,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -11909,6 +11938,7 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -12096,6 +12126,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -12271,6 +12302,7 @@ impl
             merchant_request_id: value.merchant_request_id,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -12381,6 +12413,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -12486,6 +12519,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -12587,6 +12621,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -14428,6 +14463,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -14528,6 +14564,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -14628,6 +14665,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -14706,6 +14744,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -15337,6 +15376,7 @@ pub fn tokenized_authorize_to_base(
         merchant_request_id: None,
         domain_data: None,
         partner_merchant_identifier_details: None,
+        return_raw_connector_response: None,
     }
 }
 
@@ -15414,6 +15454,7 @@ pub fn tokenized_setup_recurring_to_base(
         session_token: None,
         shipping_cost: None,
         mit_category: None,
+        return_raw_connector_response: None,
     }
 }
 
@@ -15514,6 +15555,7 @@ pub fn proxied_authorize_to_base(
         merchant_request_id: None,
         domain_data: None,
         partner_merchant_identifier_details: None,
+        return_raw_connector_response: v.return_raw_connector_response,
     })
 }
 
@@ -15628,6 +15670,7 @@ pub fn proxied_setup_recurring_to_base(
         session_token: None,
         shipping_cost: None,
         mit_category: None,
+        return_raw_connector_response: None,
     })
 }
 

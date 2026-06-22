@@ -396,6 +396,9 @@ impl CustomerService for Customer {
                         response: Err(ErrorResponse::default()),
                     };
 
+                    let return_raw_connector_response =
+                        payment_flow_data.return_raw_connector_response;
+
                     // Get API tag for CreateConnectorCustomer flow
                     let api_tag = config
                         .api_tags
@@ -422,7 +425,8 @@ impl CustomerService for Customer {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
-                        return_raw_connector_data: config.common.return_raw_connector_data,
+                        return_raw_connector_response: return_raw_connector_response
+                            .unwrap_or(false),
                     };
 
                     let response = Box::pin(
@@ -430,7 +434,7 @@ impl CustomerService for Customer {
                             &config.proxy,
                             connector_integration,
                             connector_customer_router_data,
-                            None,
+                            return_raw_connector_response,
                             external_event_params,
                             None,
                             common_enums::CallConnectorAction::Trigger,
@@ -527,6 +531,8 @@ impl Payments {
             response: Err(ErrorResponse::default()),
         };
 
+        let return_raw_connector_response = payment_flow_data.return_raw_connector_response;
+
         // Get API tag for the current flow with payment method type from domain layer
         let api_tag = config
             .api_tags
@@ -553,7 +559,7 @@ impl Payments {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         // Execute connector processing - ONLY the authorize call
@@ -561,7 +567,7 @@ impl Payments {
             &config.proxy,
             connector_integration,
             router_data,
-            None,
+            return_raw_connector_response,
             event_params,
             token_data,
             common_enums::CallConnectorAction::Trigger,
@@ -650,6 +656,8 @@ impl Payments {
             response: Err(ErrorResponse::default()),
         };
 
+        let return_raw_connector_response = payment_flow_data.return_raw_connector_response;
+
         // Get API tag for the current flow with payment method type from domain layer
         let api_tag = config.api_tags.get_tag(
             FlowName::SetupMandate,
@@ -676,7 +684,7 @@ impl Payments {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         let response = Box::pin(
@@ -684,7 +692,7 @@ impl Payments {
                 &config.proxy,
                 connector_integration,
                 router_data,
-                None,
+                return_raw_connector_response,
                 event_params,
                 token_data,
                 common_enums::CallConnectorAction::Trigger,
@@ -718,7 +726,6 @@ impl PaymentOperationsInternal for Payments {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_void_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 
     implement_connector_operation!(
@@ -734,7 +741,6 @@ impl PaymentOperationsInternal for Payments {
         common_flow_data_constructor: RefundFlowData::foreign_try_from,
         generate_response_fn: generate_refund_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 
     implement_connector_operation!(
@@ -750,7 +756,6 @@ impl PaymentOperationsInternal for Payments {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_capture_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 
     implement_connector_operation!(
@@ -766,7 +771,6 @@ impl PaymentOperationsInternal for Payments {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_incremental_authorization_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 
     implement_connector_operation!(
@@ -782,7 +786,6 @@ impl PaymentOperationsInternal for Payments {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_void_post_capture_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 
     implement_connector_operation!(
@@ -798,7 +801,6 @@ impl PaymentOperationsInternal for Payments {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_create_order_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 }
 
@@ -1023,6 +1025,8 @@ impl PaymentService for Payments {
                         payment_flow_data
                     };
 
+                    let return_raw_connector_response = payment_flow_data.return_raw_connector_response;
+
                     // Create router data
                     let router_data = RouterDataV2::<
                         PSync,
@@ -1067,7 +1071,7 @@ impl PaymentService for Payments {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
-                        return_raw_connector_data: config.common.return_raw_connector_data,
+                        return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
                     };
 
                     // handle_response field removed from proto (field 5 reserved)
@@ -1078,7 +1082,7 @@ impl PaymentService for Payments {
                             &config.proxy,
                             connector_integration,
                             router_data,
-                            None,
+                            return_raw_connector_response,
                             event_params,
                             None,
                             consume_or_trigger_flow,
@@ -2288,7 +2292,6 @@ impl PaymentMethod {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_recharge_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 
     implement_connector_operation!(
@@ -2304,7 +2307,6 @@ impl PaymentMethod {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_create_payment_method_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 
     implement_connector_operation!(
@@ -2320,7 +2322,6 @@ impl PaymentMethod {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_get_payment_method_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 
     implement_connector_operation!(
@@ -2336,7 +2337,6 @@ impl PaymentMethod {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_method_eligibility_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 
     #[allow(clippy::too_many_arguments)]
@@ -2406,6 +2406,8 @@ impl PaymentMethod {
             response: Err(ErrorResponse::default()),
         };
 
+        let return_raw_connector_response = payment_flow_data.return_raw_connector_response;
+
         // Get API tag for PaymentMethodToken flow
         let api_tag = config.api_tags.get_tag(FlowName::PaymentMethodToken, None);
 
@@ -2430,7 +2432,7 @@ impl PaymentMethod {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         let response = Box::pin(
@@ -2438,7 +2440,7 @@ impl PaymentMethod {
                 &config.proxy,
                 connector_integration,
                 payment_method_token_router_data,
-                None,
+                return_raw_connector_response,
                 event_params,
                 token_data,
                 common_enums::CallConnectorAction::Trigger,
@@ -2514,6 +2516,8 @@ impl MerchantAuthentication {
             response: Err(ErrorResponse::default()),
         };
 
+        let return_raw_connector_response = merchant_auth_flow_data.return_raw_connector_response;
+
         // Get API tag for ServerSessionAuthenticationToken flow with payment method type if available
         let api_tag = config
             .api_tags
@@ -2540,7 +2544,7 @@ impl MerchantAuthentication {
             proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         // Execute connector processing
@@ -2549,7 +2553,7 @@ impl MerchantAuthentication {
                 &config.proxy,
                 connector_integration,
                 session_token_router_data,
-                None,
+                return_raw_connector_response,
                 external_event_params,
                 None,
                 common_enums::CallConnectorAction::Trigger,
@@ -2630,6 +2634,8 @@ impl MerchantAuthentication {
             response: Err(ErrorResponse::default()),
         };
 
+        let return_raw_connector_response = merchant_auth_flow_data.return_raw_connector_response;
+
         // Get API tag for ServerAuthenticationToken flow with payment method type if available
         let api_tag = config
             .api_tags
@@ -2656,7 +2662,7 @@ impl MerchantAuthentication {
             proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
-            return_raw_connector_data: config.common.return_raw_connector_data,
+            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         let response = Box::pin(
@@ -2664,7 +2670,7 @@ impl MerchantAuthentication {
                 &config.proxy,
                 connector_integration,
                 access_token_router_data,
-                None,
+                return_raw_connector_response,
                 external_event_params,
                 None,
                 common_enums::CallConnectorAction::Trigger,
@@ -2694,7 +2700,6 @@ impl MerchantAuthenticationOperational for MerchantAuthentication {
         common_flow_data_constructor: MerchantAuthenticationFlowData::foreign_try_from,
         generate_response_fn: generate_payment_sdk_session_token_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 }
 
@@ -2987,7 +2992,6 @@ impl RecurringPaymentOperational for RecurringPayments {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_mandate_revoke_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None
     );
 }
 
@@ -3123,6 +3127,7 @@ impl RecurringPaymentService for RecurringPayments {
                     let repeat_payment_data = RepeatPaymentData::foreign_try_from((payload.clone(), payment_method_data))
                         .map_err(|e| e.into_grpc_status())?;
 
+                    let return_raw_connector_response = payment_flow_data.return_raw_connector_response;
                     // Create router data
                     let router_data: RouterDataV2<
                         RepeatPayment,
@@ -3162,7 +3167,7 @@ impl RecurringPaymentService for RecurringPayments {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
-                        return_raw_connector_data: config.common.return_raw_connector_data,
+                        return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
                     };
 
                     let response = Box::pin(
@@ -3170,7 +3175,7 @@ impl RecurringPaymentService for RecurringPayments {
                             &config.proxy,
                             connector_integration,
                             router_data,
-                            None,
+                            return_raw_connector_response,
                             event_params,
                             None, // token_data - None for non-proxy payments
                             common_enums::CallConnectorAction::Trigger,
@@ -3248,7 +3253,6 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_pre_authenticate_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None,
         has_payment_method_data: option
     );
 
@@ -3265,7 +3269,6 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_authenticate_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None,
         has_payment_method_data: option
     );
 
@@ -3282,7 +3285,6 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_post_authenticate_response,
         connector_data_type: ConnectorData<DefaultPCIHolder>,
-        all_keys_required: None,
         has_payment_method_data: option
     );
 }

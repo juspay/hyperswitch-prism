@@ -546,7 +546,6 @@ pub struct PaymentsSyncData {
     pub currency: Currency,
     pub payment_experience: Option<common_enums::PaymentExperience>,
     pub amount: MinorUnit,
-    pub all_keys_required: Option<bool>,
     pub integrity_object: Option<PaymentSynIntegrityObject>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
@@ -637,6 +636,7 @@ pub struct PaymentFlowData {
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    pub return_raw_connector_response: Option<bool>,
 }
 
 impl PaymentFlowData {
@@ -1478,7 +1478,6 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub merchant_account_id: Option<String>,
     pub integrity_object: Option<AuthoriseIntegrityObject>,
     pub merchant_config_currency: Option<Currency>,
-    pub all_keys_required: Option<bool>,
     pub request_extended_authorization: Option<bool>,
     pub enable_overcapture: Option<bool>,
     pub setup_mandate_details: Option<MandateData>,
@@ -2344,7 +2343,6 @@ pub struct RefundSyncData {
     pub reason: Option<String>,
     pub refund_connector_metadata: Option<SecretSerdeValue>,
     pub refund_status: common_enums::RefundStatus,
-    pub all_keys_required: Option<bool>,
     pub integrity_object: Option<RefundSyncIntegrityObject>,
     pub browser_info: Option<BrowserInformation>,
     /// Charges associated with the payment
@@ -2407,6 +2405,7 @@ pub struct RefundFlowData {
     /// Required by connectors (e.g. 2C2P PACO) that demand a per-request
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
+    pub return_raw_connector_response: Option<bool>,
 }
 
 impl RawConnectorRequestResponse for RefundFlowData {
@@ -3419,6 +3418,7 @@ pub struct DisputeFlowData {
     pub raw_connector_response: Option<Secret<String>>,
     pub raw_connector_request: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
+    pub return_raw_connector_response: Option<bool>,
 }
 
 impl RawConnectorRequestResponse for DisputeFlowData {
@@ -3456,6 +3456,7 @@ pub struct VerifyWebhookSourceFlowData {
     pub raw_connector_response: Option<Secret<String>>,
     pub raw_connector_request: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
+    pub return_raw_connector_response: Option<bool>,
 }
 
 impl RawConnectorRequestResponse for VerifyWebhookSourceFlowData {

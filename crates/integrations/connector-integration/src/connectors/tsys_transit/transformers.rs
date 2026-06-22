@@ -3717,7 +3717,6 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         merchant_account_id: req.merchant_account_id.as_ref().map(|s| s.peek().clone()),
         integrity_object: None,
         merchant_config_currency: req.merchant_configured_currency,
-        all_keys_required: None,
         request_extended_authorization: None,
         enable_overcapture: None,
         setup_mandate_details: None,

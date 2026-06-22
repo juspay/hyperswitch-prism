@@ -296,7 +296,7 @@ pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
     mut updated_router_data: RouterDataV2<F, ResourceCommonData, Req, Resp>,
     connector: &BoxedConnectorIntegrationV2<'static, F, ResourceCommonData, Req, Resp>,
     mut event: Option<&mut Event>,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
     method: &str,
     url: String,
     event_params: Option<&EventProcessingParams<'_>>,
@@ -308,7 +308,6 @@ where
     ResourceCommonData:
         Clone + RawConnectorRequestResponse + ConnectorResponseHeaders + GetFlowStatus,
 {
-    let return_raw = event_params.is_none_or(|p| p.return_raw_connector_data);
     match response {
         Ok(body) => {
             let response = match body {
@@ -317,7 +316,7 @@ where
                     tracing::Span::current()
                         .record("status_code", tracing::field::display(status_code));
 
-                    if all_keys_required.unwrap_or(true) && return_raw {
+                    if return_raw_connector_response.unwrap_or(false) {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
                         updated_router_data
                             .resource_common_data
@@ -327,6 +326,14 @@ where
                         updated_router_data
                             .resource_common_data
                             .set_connector_response_headers(body.headers.clone());
+                    } else {
+                        // Clear any existing raw response data if we're not returning raw response
+                        updated_router_data
+                            .resource_common_data
+                            .set_raw_connector_response(None);
+                        updated_router_data
+                            .resource_common_data
+                            .set_connector_response_headers(None);
                     }
 
                     let handle_response_result = connector.handle_response_v2(
@@ -376,7 +383,7 @@ where
                         );
                     }
 
-                    if all_keys_required.unwrap_or(true) && return_raw {
+                    if return_raw_connector_response.unwrap_or(false) {
                         let raw_response_string = strip_bom_and_convert_to_string(&body.response);
                         updated_router_data
                             .resource_common_data
@@ -384,6 +391,14 @@ where
                         updated_router_data
                             .resource_common_data
                             .set_connector_response_headers(body.headers.clone());
+                    } else {
+                        // Clear any existing raw response data if we're not returning raw response
+                        updated_router_data
+                            .resource_common_data
+                            .set_raw_connector_response(None);
+                        updated_router_data
+                            .resource_common_data
+                            .set_connector_response_headers(None);
                     }
 
                     let error_response = match body.status_code {
@@ -492,7 +507,7 @@ pub struct EventProcessingParams<'a> {
     pub proxy_name: Option<&'a str>,
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
-    pub return_raw_connector_data: bool,
+    pub return_raw_connector_response: bool,
 }
 
 #[cfg(feature = "injector-client")]
@@ -517,7 +532,7 @@ pub async fn execute_connector_processing_step<T, F, ResourceCommonData, Req, Re
     proxy: &ProxyConfig,
     connector: BoxedConnectorIntegrationV2<'static, F, ResourceCommonData, Req, Resp>,
     router_data: RouterDataV2<F, ResourceCommonData, Req, Resp>,
-    all_keys_required: Option<bool>,
+    return_raw_connector_response: Option<bool>,
     event_params: EventProcessingParams<'_>,
     token_data: Option<TokenData>,
     call_connector_action: common_enums::CallConnectorAction,
@@ -561,7 +576,7 @@ where
 
             let mut updated_router_data = router_data.clone();
             updated_router_data = match &connector_request {
-                Some(request) if event_params.return_raw_connector_data => {
+                Some(request) if event_params.return_raw_connector_response => {
                     updated_router_data
                         .resource_common_data
                         .set_raw_connector_request(Some(
@@ -832,7 +847,7 @@ where
                         updated_router_data,
                         &connector,
                         Some(&mut event),
-                        all_keys_required,
+                        return_raw_connector_response,
                         &method.to_string(),
                         url,
                         Some(&event_params),
@@ -946,7 +961,7 @@ where
                         router_data,
                         &connector,
                         Some(&mut event),
-                        all_keys_required,
+                        return_raw_connector_response,
                         "PUBLISH",
                         topic,
                         Some(&event_params),

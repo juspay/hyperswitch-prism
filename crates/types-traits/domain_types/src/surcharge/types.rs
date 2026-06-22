@@ -43,6 +43,7 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
+            return_raw_connector_response: None,
         })
     }
 }
@@ -223,6 +224,7 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
+            return_raw_connector_response: None,
         })
     }
 }
