@@ -379,10 +379,30 @@ pub struct FinixNetworkDetails {
     pub authorization_code: Option<String>,
 }
 
-// RepeatPayment (MIT) reuses the Authorize request/response shape.
-// A recurring charge is a POST /transfers (or /authorizations) with `source` set to a
+// RepeatPayment (MIT) is a POST /transfers (or /authorizations) with `source` set to a
 // previously stored Payment Instrument ID returned by SetupRecurring.
-pub type FinixRepeatPaymentRequest = FinixAuthorizeRequest;
+//
+// The request mirrors HS's `FinixPaymentsRequest` field-for-field: HS routes finix
+// repeat_payment through its Authorize + `MandatePayment` builder, which serializes
+// `tags`/`fraud_session_id`/`3d_secure_authentication`/`statement_descriptor` with NO
+// `skip_serializing_if` (so they appear as explicit JSON `null` when None) and sets
+// `tags = None`. The Authorize-flow `FinixAuthorizeRequest` above keeps its own
+// (skip_serializing_none) shape; this dedicated struct exists only so the MIT request
+// matches the HS ground truth byte-for-byte.
+#[derive(Debug, Serialize)]
+pub struct FinixRepeatPaymentRequest {
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    pub source: String,
+    pub merchant: String,
+    pub tags: Option<serde_json::Value>,
+    pub fraud_session_id: Option<String>,
+    #[serde(rename = "3d_secure_authentication")]
+    pub three_d_secure_authentication: Option<serde_json::Value>,
+    pub idempotency_id: Option<String>,
+    pub statement_descriptor: Option<String>,
+}
+
 pub type FinixRepeatPaymentResponse = FinixAuthorizeResponse;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1646,23 +1666,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
+        // Mirror HS's repeat request exactly: tags is None (serialized as explicit null),
+        // and fraud_session_id / 3d_secure_authentication / statement_descriptor are
+        // present-but-null. HS's Authorize+MandatePayment builder derives these from
+        // metadata/auth/billing, all absent on the MIT path, so they serialize as null.
         Ok(Self {
             amount: router_data.request.minor_amount,
             currency: router_data.request.currency,
             source,
             merchant: merchant_id,
+            tags: None,
+            fraud_session_id: None,
+            three_d_secure_authentication: None,
             idempotency_id: Some(
                 router_data
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
             ),
-            tags: Some(serde_json::json!({
-                FINIX_REFERENCE_TAG_KEY: router_data
-                    .resource_common_data
-                    .connector_request_reference_id
-                    .clone(),
-            })),
             statement_descriptor: None,
         })
     }
