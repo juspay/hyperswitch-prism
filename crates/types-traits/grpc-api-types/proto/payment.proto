@@ -1563,23 +1563,20 @@ message EventServiceHandleResponse {
 
 // Request for notifying connectors about events
 message NotifyConnectorRequest {
-  // Merchant identification
-  string merchant_id = 1;
-
   // Unique event identifier
-  string event_id = 2;
+  string event_id = 1;
 
   // Event type
-  NotifyEventType event_type = 3;
+  NotifyEventType event_type = 2;
 
-  // Event content with notify connector content 
-  NotifyConnectorContent content = 4;
+  // Event content with notify connector content
+  NotifyConnectorContent content = 3;
 
   // Timestamp when the event occurred (Unix timestamp in seconds)
-  int64 timestamp = 5;
+  int64 timestamp = 4;
 
   // Connector state for access token management (optional)
-  optional ConnectorState state = 6;
+  optional ConnectorState state = 5;
 }
 
 
