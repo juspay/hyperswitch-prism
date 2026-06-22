@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use base64::Engine;
 use common_utils::types::StringMajorUnit;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
@@ -55,6 +56,10 @@ const MIT_REASON_NTI: &str = "7";
 /// `processingInformation.paymentSolution` code for ApplePay wallet payments.
 /// Barclaycard mirrors Cybersource: ApplePay = "001", GooglePay = "012".
 const APPLE_PAY_PAYMENT_SOLUTION: &str = "001";
+
+/// `processingInformation.paymentSolution` code for GooglePay wallet payments.
+/// Barclaycard mirrors Cybersource: ApplePay = "001", GooglePay = "012".
+const GOOGLE_PAY_PAYMENT_SOLUTION: &str = "012";
 
 /// `paymentInformation.fluidData.descriptor` for ApplePay encrypted tokens.
 /// Base64 of `FID=COMMON.APPLE.INAPP.PAYMENT`, identical to the Cybersource value.
@@ -564,6 +569,34 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     }
                 };
                 (payment_information, Some(APPLE_PAY_PAYMENT_SOLUTION.to_string()))
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
+                // Forward the encrypted Google Pay token as base64-encoded fluidData and
+                // let Barclaycard decrypt it (mirrors the Cybersource whitelabel mapping).
+                let google_pay_token = google_pay_data
+                    .tokenization_data
+                    .get_encrypted_google_pay_token()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name: "gpay wallet_token",
+                        context: Default::default(),
+                    })?;
+                (
+                    requests::PaymentInformation::GooglePay(Box::new(
+                        requests::GooglePayTokenPaymentInformation {
+                            fluid_data: requests::FluidData {
+                                value: Secret::from(
+                                    base64::engine::general_purpose::STANDARD
+                                        .encode(google_pay_token),
+                                ),
+                                descriptor: None,
+                            },
+                            tokenized_card: requests::GooglePayTokenizedCard {
+                                transaction_type: requests::TransactionType::InApp,
+                            },
+                        },
+                    )),
+                    Some(GOOGLE_PAY_PAYMENT_SOLUTION.to_string()),
+                )
             }
             _ => Err(IntegrationError::NotImplemented(
                 "Selected payment method is not supported".to_string(),

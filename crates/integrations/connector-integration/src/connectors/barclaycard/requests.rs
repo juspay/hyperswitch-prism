@@ -42,11 +42,13 @@ pub enum PaymentInformation<T: PaymentMethodDataTypes + Sync + Send + 'static + 
     Cards(Box<CardPaymentInformation<T>>),
     ApplePay(Box<ApplePayPaymentInformation>),
     ApplePayToken(Box<ApplePayTokenPaymentInformation>),
+    GooglePay(Box<GooglePayTokenPaymentInformation>),
 }
 
-/// ApplePay transaction type.
+/// Wallet transaction type.
 ///
-/// Mirrors Cybersource: `"1"` (`InApp`) is used for tokenized in-app wallet payments.
+/// Mirrors Cybersource: `"1"` (`InApp`) is used for tokenized in-app wallet payments
+/// (ApplePay and GooglePay).
 #[derive(Debug, Serialize)]
 pub enum TransactionType {
     #[serde(rename = "1")]
@@ -87,6 +89,24 @@ pub struct TokenizedCard {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayTokenizedCard {
+    pub transaction_type: TransactionType,
+}
+
+/// GooglePay encrypted-token payment information.
+///
+/// Used for the GooglePay wallet flow: the encrypted Google Pay token is sent as
+/// `fluidData` and Barclaycard performs the decryption. Mirrors Cybersource's
+/// `GooglePayTokenPaymentInformation`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayTokenPaymentInformation {
+    pub fluid_data: FluidData,
+    pub tokenized_card: GooglePayTokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GooglePayTokenizedCard {
     pub transaction_type: TransactionType,
 }
 
