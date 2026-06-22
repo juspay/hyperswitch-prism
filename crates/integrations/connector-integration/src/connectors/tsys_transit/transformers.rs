@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 
-use common_enums::{AttemptStatus, CardNetwork, FutureUsage, MitCategory, PaymentChannel, RefundStatus};
+use common_enums::{
+    AttemptStatus, CardNetwork, FutureUsage, MitCategory, PaymentChannel, RefundStatus,
+};
 use common_utils::types::{MinorUnit, StringMajorUnit};
 use domain_types::{
     connector_flow::{
