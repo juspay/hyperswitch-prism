@@ -3,7 +3,7 @@ use common_utils::{
     pii::Email,
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
@@ -134,12 +134,27 @@ pub struct MollieKlarnaAddress {
     pub email: Email,
 }
 
+// Mollie order line item type (Klarna risk assessment).
+// Mollie accepts: physical, digital, shipping_fee, discount, store_credit,
+// gift_card, surcharge. See https://docs.mollie.com/reference/extra-payment-parameters
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MollieLineItemType {
+    Physical,
+    Digital,
+    ShippingFee,
+    Discount,
+    StoreCredit,
+    GiftCard,
+    Surcharge,
+}
+
 // Mollie order line item (required by Klarna)
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MollieLineItem {
     #[serde(rename = "type")]
-    pub line_type: String,
+    pub line_type: MollieLineItemType,
     pub description: String,
     pub quantity: i32,
     pub unit_price: MollieAmount,
@@ -270,7 +285,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .get_payment_method_billing()
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "billing_address",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Mollie Klarna (PayLater) requires billing details (name, email and postal address). Provide payment_method_billing in the request."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     })?;
                 let address =
                     billing
@@ -278,7 +299,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .as_ref()
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "billing_address.address",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires a postal address (line1, city, postal_code, country) in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?;
 
                 let line1 = address
@@ -286,7 +313,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .as_ref()
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "billing_address.line1",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Mollie Klarna requires the street address (line1) in the billing address."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     })?
                     .peek()
                     .to_string();
@@ -301,7 +334,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .or_else(|| item.request.email.clone())
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "email",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Mollie Klarna requires the customer email. Provide it in billing.email or the payment request email."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     })?;
 
                 let billing_address = MollieKlarnaAddress {
@@ -312,7 +351,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .as_ref()
                             .ok_or(IntegrationError::MissingRequiredField {
                                 field_name: "billing_address.zip",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "Mollie Klarna requires the postal code (zip) in the billing address."
+                                            .to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
                             })?
                             .peek()
                             .to_string(),
@@ -322,7 +367,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .as_ref()
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "billing_address.city",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires the city in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?
                         .peek()
                         .to_string(),
@@ -331,28 +382,49 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .country
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "billing_address.country",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires the country in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?,
                     given_name: address.first_name.clone().ok_or(
                         IntegrationError::MissingRequiredField {
                             field_name: "billing_address.first_name",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires the customer's given name (first_name) in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         },
                     )?,
                     family_name: address.last_name.clone().ok_or(
                         IntegrationError::MissingRequiredField {
                             field_name: "billing_address.last_name",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires the customer's family name (last_name) in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         },
                     )?,
                     email,
                 };
 
-                // Mollie requires at least one order line for Klarna. Order line
-                // details are not available in PaymentsAuthorizeData, so build a
-                // single line representing the full payment amount.
+                // Mollie requires at least one order line for Klarna. Per-product
+                // line details (and their goods type) are not available in
+                // PaymentsAuthorizeData, so build a single line for the full payment
+                // amount and default its type to `Physical` — the most general type
+                // Klarna accepts for a generic goods purchase. This can be refined
+                // once line-item/product-type data is plumbed through the request.
                 let line = MollieLineItem {
-                    line_type: "physical".to_string(),
+                    line_type: MollieLineItemType::Physical,
                     description: item
                         .resource_common_data
                         .description
