@@ -7,6 +7,7 @@ import types.Payment.*
 import types.Payouts.*
 import types.PaymentMethods.*
 import types.Surcharge.*
+import types.Frm.*
 
 {% for f in flows %}
 import uniffi.connector_service_ffi.{{ to_camel(f.name) }}ReqTransformer
