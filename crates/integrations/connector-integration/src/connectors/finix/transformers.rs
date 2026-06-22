@@ -343,17 +343,22 @@ pub type FinixSetupMandateResponse = FinixInstrumentResponse;
 
 // AUTHORIZE FLOW - REQUEST/RESPONSE
 
+// Mirror HS's `FinixPaymentsRequest` field-for-field. HS routes finix `authorize` through
+// `FinixPaymentsRequest`, which serializes tags/fraud_session_id/3d_secure_authentication/
+// statement_descriptor with NO `skip_serializing_if` (so they appear as explicit JSON `null`
+// when None) and sets `tags = None`. Keep the same field order, no skips, and the
+// `3d_secure_authentication` rename so the built request matches the HS ground truth.
 #[derive(Debug, Serialize)]
 pub struct FinixAuthorizeRequest {
     pub amount: MinorUnit,
     pub currency: Currency,
     pub source: String,
     pub merchant: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub idempotency_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fraud_session_id: Option<String>,
+    #[serde(rename = "3d_secure_authentication")]
+    pub three_d_secure_authentication: Option<serde_json::Value>,
+    pub idempotency_id: Option<String>,
     pub statement_descriptor: Option<String>,
 }
 
@@ -507,7 +512,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector_request_reference_id
                     .clone(),
             ),
+            // HS emits these as explicit `null` (no skip_serializing_if) for a non-3DS card
+            // authorize; mirror that so the request shapes match byte-for-byte.
             tags: None,
+            fraud_session_id: None,
+            three_d_secure_authentication: None,
             statement_descriptor,
         })
     }
