@@ -858,6 +858,19 @@ where
                     emit_event_with_config(event, event_params.event_config);
                     result
                 }
+                None if connector.should_trigger_handle_response_without_body() => {
+                    // No outbound request, but the connector builds its response
+                    // locally (e.g. device data collection HTML). Run the response
+                    // transformer with a synthetic empty body instead of a network call.
+                    let response = Response {
+                        headers: None,
+                        response: bytes::Bytes::new(),
+                        status_code: 200,
+                    };
+                    connector
+                        .handle_response_v2(&router_data, None, response)
+                        .map_err(report_connector_response_to_flow)
+                }
                 None => Ok(router_data),
             }
         }

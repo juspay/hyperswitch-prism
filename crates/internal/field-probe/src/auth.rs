@@ -708,5 +708,9 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             password: k(),
             base_url: None,
         },
+        ConnectorEnum::Kount => ConnectorSpecificConfig::Kount {
+            api_key: k(),
+            base_url: None,
+        },
     }
 }

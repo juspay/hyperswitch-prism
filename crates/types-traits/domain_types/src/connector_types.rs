@@ -152,6 +152,7 @@ pub enum ConnectorEnum {
     Tamara,
     Hyperswitch,
     Qwikcilver,
+    Kount,
 }
 
 // snake case for enum variants
@@ -188,7 +189,9 @@ pub enum SurchargeConnectorEnum {
     Serialize,
 )]
 #[strum(serialize_all = "snake_case")]
-pub enum FrmConnectorEnum {}
+pub enum FrmConnectorEnum {
+    Kount,
+}
 
 /// Enum representing connectors that support payout flows
 #[derive(
@@ -280,18 +283,21 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
 impl ForeignTryFrom<AuthType> for FrmConnectorEnum {
     type Error = IntegrationError;
 
-    fn foreign_try_from(_config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
-        Err(error_stack::Report::new(
-            IntegrationError::InvalidDataFormat {
-                field_name: "connector",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Connector is not supported for FRM flows".to_string(),
-                    ),
-                    ..Default::default()
+    fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
+        match config {
+            AuthType::Kount(_) => Ok(Self::Kount),
+            _ => Err(error_stack::Report::new(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Connector is not supported for FRM flows".to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 },
-            },
-        ))
+            )),
+        }
     }
 }
 
@@ -443,6 +449,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
             grpc_api_types::payments::Connector::Hyperswitch => Ok(Self::Hyperswitch),
             grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
+            grpc_api_types::payments::Connector::Kount => Ok(Self::Kount),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -5142,6 +5149,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
             AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
+            AuthType::Kount(_) => Ok(Self::Payment(ConnectorEnum::Kount)),
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
