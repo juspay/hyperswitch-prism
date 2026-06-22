@@ -462,7 +462,11 @@ mod unit {
             "connector-override"
         );
         assert_eq!(
-            new_config.events.connector_events.partition_key_field.as_str(),
+            new_config
+                .events
+                .connector_events
+                .partition_key_field
+                .as_str(),
             "merchant_id"
         );
         assert_eq!(new_config.events.api_events.topic.as_str(), "api-override");
