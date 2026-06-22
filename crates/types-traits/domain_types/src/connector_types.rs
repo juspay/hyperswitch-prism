@@ -4224,6 +4224,20 @@ impl CustomerInfo {
             .ok_or_else(missing_field_err("customer.phone_number"))
     }
 
+    /// Best-effort full name: the explicit `customer_name` when present, else the
+    /// first/last names joined with a space. `None` when no name is available.
+    pub fn get_full_name(&self) -> Option<Secret<String>> {
+        if let Some(name) = self.customer_name.clone() {
+            return Some(name);
+        }
+        let parts: Vec<String> = [self.first_name.as_ref(), self.last_name.as_ref()]
+            .into_iter()
+            .flatten()
+            .map(|part| part.peek().to_string())
+            .collect();
+        (!parts.is_empty()).then(|| Secret::new(parts.join(" ")))
+    }
+
     pub fn get_first_name(&self) -> Result<Secret<String>, Error> {
         self.first_name
             .clone()

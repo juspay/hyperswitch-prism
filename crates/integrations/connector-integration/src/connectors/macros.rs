@@ -2230,7 +2230,11 @@ macro_rules! frm_flow_not_implemented {
                             ::interfaces::api::ConnectorCommon::id(self),
                             $name
                         )),
-                        ..Default::default()
+                        suggested_action: Some(format!(
+                            "Do not route the `{}` FRM flow to this connector",
+                            $name
+                        )),
+                        doc_url: None,
                     },
                 )
                 .into())

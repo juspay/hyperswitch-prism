@@ -53,7 +53,6 @@ pub(crate) mod headers {
 }
 
 // Kount endpoints / constants.
-const KOUNT_LOGIN_BASE_URL: &str = "https://login.kount.com";
 /// Sandbox OAuth authorization-server id (from the Kount integration guide).
 const KOUNT_SANDBOX_AUTH_SERVER_ID: &str = "ausdppkujzCPQuIrY357";
 const KOUNT_ORDERS_PATH: &str = "/commerce/v2/orders";
@@ -192,7 +191,12 @@ fn kount_order_id(
                          (frm_transaction_id from Evaluate Order) or a connector_transaction_id"
                             .to_owned(),
                     ),
-                    ..Default::default()
+                    suggested_action: Some(
+                        "Send the Kount order id as frm_transaction_id (from the Pre Risk Check \
+                         response), or a connector_transaction_id, on the notify request"
+                            .to_owned(),
+                    ),
+                    doc_url: Some(kount::KOUNT_DOC_URL.to_owned()),
                 },
             }
             .into(),
@@ -249,7 +253,10 @@ macros::create_all_prerequisites!(
                          populated (provide it via the request state.access_token)"
                             .to_owned(),
                     ),
-                    ..Default::default()
+                    suggested_action: Some(
+                        "Supply the Kount OAuth token in the request state.access_token".to_owned(),
+                    ),
+                    doc_url: Some(kount::KOUNT_DOC_URL.to_owned()),
                 },
             })?;
             Ok(vec![
@@ -311,16 +318,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             res.response
                 .parse_struct("KountErrorResponse")
                 .change_context(ConnectorError::ResponseDeserializationFailed {
-                    context: Default::default(),
+                    context: domain_types::errors::ResponseTransformationErrorContext {
+                        http_status_code: Some(res.status_code),
+                        additional_context: Some(
+                            "failed to parse the Kount error body as KountErrorResponse".to_owned(),
+                        ),
+                    },
                 })?;
 
         with_error_response_body!(event_builder, response);
 
+        let (code, message) = (response.code(), response.message());
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message.clone(),
-            reason: Some(response.message),
+            code,
+            reason: Some(message.clone()),
+            message,
             attempt_status: None,
             connector_transaction_id: None,
             network_decline_code: None,
@@ -434,9 +447,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             "pre_authenticate_url",
             IntegrationErrorContext {
                 additional_context: Some(
-                    "Kount PreAuthenticate makes no outbound call (local DDC HTML only)".to_owned(),
+                    "Kount PreAuthenticate makes no outbound call (local DDC HTML only); \
+                     get_url is unreachable because build_request_v2 returns None"
+                        .to_owned(),
                 ),
-                ..Default::default()
+                suggested_action: Some(
+                    "No action required: the DDC HTML is built locally in handle_response_v2"
+                        .to_owned(),
+                ),
+                doc_url: Some(kount::KOUNT_DOC_URL.to_owned()),
             },
         )
         .into())
@@ -585,17 +604,33 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // The OAuth login host is configured via `secondary_base_url`
-            // (the Orders API host is the primary `base_url`); fall back to the
-            // public login host when unset. Auth-server id is account/environment
-            // specific, falling back to the sandbox server only when unset.
+            // The OAuth login host is configured via `secondary_base_url` (the
+            // Orders API host is the primary `base_url`); it is required, so the
+            // token endpoint host is never guessed. Auth-server id is
+            // account/environment specific, falling back to the sandbox server
+            // only when unset.
             let login_base_url = req
                 .resource_common_data
                 .connectors
                 .kount
                 .secondary_base_url
                 .as_deref()
-                .unwrap_or(KOUNT_LOGIN_BASE_URL);
+                .ok_or_else(|| {
+                    IntegrationError::InvalidConnectorConfig {
+                        config: "secondary_base_url",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Kount needs secondary_base_url (the OAuth login host, e.g. \
+                                 https://login.kount.com) to build the token endpoint"
+                                    .to_owned(),
+                            ),
+                            suggested_action: Some(
+                                "Set kount.secondary_base_url in the connector config".to_owned(),
+                            ),
+                            doc_url: Some(kount::KOUNT_DOC_URL.to_owned()),
+                        },
+                    }
+                })?;
             let auth = kount::KountAuthType::try_from(&req.connector_config)?;
             let auth_server_id = auth
                 .auth_server_id

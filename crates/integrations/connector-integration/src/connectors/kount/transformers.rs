@@ -30,13 +30,11 @@ type ResponseError = error_stack::Report<errors::ConnectorError>;
 
 /// OAuth scope required by the Kount Orders API.
 const KOUNT_API_SCOPE: &str = "k1_integration_api";
-/// OAuth grant type for the client-credentials token request.
-const KOUNT_GRANT_TYPE: &str = "client_credentials";
-/// Sales channel reported on the Evaluate Order (web checkout).
-const KOUNT_CHANNEL: &str = "WEB";
 /// Fallback values for an unparseable Kount error body.
 const KOUNT_DEFAULT_ERROR_CODE: &str = "KOUNT_ERROR";
 const KOUNT_DEFAULT_ERROR_MESSAGE: &str = "Kount request failed";
+/// Kount developer documentation, surfaced in error contexts.
+pub const KOUNT_DOC_URL: &str = "https://developer.kount.com/";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Auth + error types
@@ -79,7 +77,7 @@ impl TryFrom<&ConnectorSpecificConfig> for KountAuthType {
                              for Kount FRM flows"
                                 .to_owned(),
                         ),
-                        ..Default::default()
+                        doc_url: Some(KOUNT_DOC_URL.to_owned()),
                     }
                 }
             )),
@@ -87,20 +85,29 @@ impl TryFrom<&ConnectorSpecificConfig> for KountAuthType {
     }
 }
 
+/// Kount error body. Both fields are optional — a malformed/empty body falls back
+/// to [`KOUNT_DEFAULT_ERROR_CODE`] / [`KOUNT_DEFAULT_ERROR_MESSAGE`] when the
+/// response is mapped (see `Kount::build_error_response`).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KountErrorResponse {
-    #[serde(default = "default_error_code")]
-    pub code: String,
-    #[serde(default = "default_error_message")]
-    pub message: String,
+    pub code: Option<String>,
+    pub message: Option<String>,
 }
 
-fn default_error_code() -> String {
-    KOUNT_DEFAULT_ERROR_CODE.to_string()
-}
+impl KountErrorResponse {
+    /// Error code, falling back to the default when Kount omits it.
+    pub fn code(&self) -> String {
+        self.code
+            .clone()
+            .unwrap_or_else(|| KOUNT_DEFAULT_ERROR_CODE.to_string())
+    }
 
-fn default_error_message() -> String {
-    KOUNT_DEFAULT_ERROR_MESSAGE.to_string()
+    /// Error message, falling back to the default when Kount omits it.
+    pub fn message(&self) -> String {
+        self.message
+            .clone()
+            .unwrap_or_else(|| KOUNT_DEFAULT_ERROR_MESSAGE.to_string())
+    }
 }
 
 // ──────────────────────────────────────────────────────────────────────────
@@ -129,7 +136,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     type Error = Error;
 
     fn try_from(
-        _item: KountRouterData<
+        item: KountRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
                 MerchantAuthenticationFlowData,
@@ -140,7 +147,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            grant_type: KOUNT_GRANT_TYPE.to_string(),
+            grant_type: item.router_data.request.grant_type.clone(),
             scope: KOUNT_API_SCOPE.to_string(),
         })
     }
@@ -261,6 +268,38 @@ fn omniscore_to_risk_score(omniscore: f64) -> i32 {
 // PreRiskCheck = Evaluate Order (POST /commerce/v2/orders)
 // ──────────────────────────────────────────────────────────────────────────
 
+/// Sales channel reported on the Evaluate Order.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum KountChannel {
+    Web,
+}
+
+/// Kount account type, derived from whether the customer is registered.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum KountAccountType {
+    Registered,
+    Guest,
+}
+
+/// Kount fulfillment method for an order line.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum KountFulfillmentType {
+    /// Physically shipped to the recipient.
+    Shipped,
+    /// Digitally delivered (no shipment).
+    Digital,
+}
+
+/// Kount payment instrument type.
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum KountPaymentType {
+    CreditCard,
+}
+
 /// Evaluate Order request (`POST /commerce/v2/orders`). Modelled on the Kount
 /// Orders schema and populated with as much merchant context as the FRM request
 /// carries — account, line items, fulfillment, and a transaction block with the
@@ -275,7 +314,7 @@ pub struct KountEvaluateOrderRequest {
     #[serde(rename = "deviceSessionId")]
     pub session_id: String,
     /// Sales channel; web checkout by default.
-    pub channel: &'static str,
+    pub channel: KountChannel,
     /// Order creation timestamp (RFC 3339).
     #[serde(rename = "creationDateTime")]
     pub creation_date_time: String,
@@ -312,11 +351,13 @@ pub struct KountAccount {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[serde(rename = "type")]
-    pub account_type: &'static str,
+    pub account_type: KountAccountType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
-    #[serde(rename = "accountIsActive")]
-    pub account_is_active: bool,
+    /// Whether the account is active. Omitted when unknown (the FRM request
+    /// carries no account-status signal).
+    #[serde(rename = "accountIsActive", skip_serializing_if = "Option::is_none")]
+    pub account_is_active: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -338,7 +379,7 @@ pub struct KountItem {
 #[derive(Debug, Clone, Serialize)]
 pub struct KountFulfillment {
     #[serde(rename = "type")]
-    pub fulfillment_type: &'static str,
+    pub fulfillment_type: KountFulfillmentType,
     #[serde(rename = "recipientPerson", skip_serializing_if = "Option::is_none")]
     pub recipient_person: Option<KountPerson>,
 }
@@ -360,7 +401,7 @@ pub struct KountTransaction {
 #[derive(Debug, Clone, Serialize)]
 pub struct KountPayment {
     #[serde(rename = "type")]
-    pub payment_type: &'static str,
+    pub payment_type: KountPaymentType,
     /// Card BIN (first 6 digits) — no full PAN is sent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bin: Option<String>,
@@ -412,63 +453,83 @@ pub struct KountAddress {
     pub postal_code: Option<String>,
 }
 
-/// Build a Kount person block (name / email / phone / address) from a domain address.
-fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
-    let details = addr.address.as_ref();
-    let name = details.and_then(|d| {
-        let first = d.first_name.as_ref().map(|s| s.peek().to_string());
-        let last = d.last_name.as_ref().map(|s| s.peek().to_string());
-        KountName::from_parts(first, last)
-    });
-    let kount_address = details.map(|d| KountAddress {
-        line1: d.line1.as_ref().map(|s| s.peek().to_string()),
-        line2: d.line2.as_ref().map(|s| s.peek().to_string()),
-        city: d.city.as_ref().map(|s| s.peek().to_string()),
-        region: d.state.as_ref().map(|s| s.peek().to_string()),
-        country_code: d.country.map(|c| c.to_string()),
-        postal_code: d.zip.as_ref().map(|s| s.peek().to_string()),
-    });
-    let email_address = addr.email.as_ref().map(|e| e.peek().to_string());
-    let phone_number = addr
-        .phone
-        .as_ref()
-        .and_then(|p| p.number.as_ref().map(|n| n.peek().to_string()));
-    if name.is_none()
-        && kount_address.is_none()
-        && email_address.is_none()
-        && phone_number.is_none()
-    {
-        return None;
+/// Marker error for person conversions that yield no usable fields. Callers use
+/// `.ok()` to treat "no person data" as an absent (skipped) block.
+pub struct NoPersonData;
+
+/// Build a Kount person block (name / email / phone / address) from a domain
+/// address. `Err(NoPersonData)` when the address carries no usable person fields.
+impl TryFrom<&Address> for KountPerson {
+    type Error = NoPersonData;
+
+    fn try_from(addr: &Address) -> Result<Self, Self::Error> {
+        let details = addr.address.as_ref();
+        let name = details.and_then(|d| {
+            let first = d.first_name.as_ref().map(|name| name.peek().to_string());
+            let last = d.last_name.as_ref().map(|name| name.peek().to_string());
+            KountName::from_parts(first, last)
+        });
+        let kount_address = details.map(|d| KountAddress {
+            line1: d.line1.as_ref().map(|line| line.peek().to_string()),
+            line2: d.line2.as_ref().map(|line| line.peek().to_string()),
+            city: d.city.as_ref().map(|city| city.peek().to_string()),
+            region: d.state.as_ref().map(|state| state.peek().to_string()),
+            country_code: d.country.map(|country| country.to_string()),
+            postal_code: d.zip.as_ref().map(|zip| zip.peek().to_string()),
+        });
+        let email_address = addr.email.as_ref().map(|email| email.peek().to_string());
+        let phone_number = addr
+            .phone
+            .as_ref()
+            .and_then(|phone| phone.number.as_ref().map(|num| num.peek().to_string()));
+        if name.is_none()
+            && kount_address.is_none()
+            && email_address.is_none()
+            && phone_number.is_none()
+        {
+            return Err(NoPersonData);
+        }
+        Ok(Self {
+            name,
+            email_address,
+            phone_number,
+            address: kount_address,
+        })
     }
-    Some(KountPerson {
-        name,
-        email_address,
-        phone_number,
-        address: kount_address,
-    })
 }
 
 /// Fallback person block from customer info (name / email / phone, no address).
-fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
-    let first = customer.first_name.as_ref().map(|s| s.peek().to_string());
-    let last = customer.last_name.as_ref().map(|s| s.peek().to_string());
-    let email_address = customer
-        .customer_email
-        .as_ref()
-        .map(|e| e.peek().to_string());
-    let phone_number = customer
-        .customer_phone_number
-        .as_ref()
-        .map(|s| s.peek().to_string());
-    if first.is_none() && last.is_none() && email_address.is_none() && phone_number.is_none() {
-        return None;
+/// `Err(NoPersonData)` when the customer carries no usable fields.
+impl TryFrom<&CustomerInfo> for KountPerson {
+    type Error = NoPersonData;
+
+    fn try_from(customer: &CustomerInfo) -> Result<Self, Self::Error> {
+        let first = customer
+            .first_name
+            .as_ref()
+            .map(|name| name.peek().to_string());
+        let last = customer
+            .last_name
+            .as_ref()
+            .map(|name| name.peek().to_string());
+        let email_address = customer
+            .customer_email
+            .as_ref()
+            .map(|email| email.peek().to_string());
+        let phone_number = customer
+            .customer_phone_number
+            .as_ref()
+            .map(|phone| phone.peek().to_string());
+        if first.is_none() && last.is_none() && email_address.is_none() && phone_number.is_none() {
+            return Err(NoPersonData);
+        }
+        Ok(Self {
+            name: KountName::from_parts(first, last),
+            email_address,
+            phone_number,
+            address: None,
+        })
     }
-    Some(KountPerson {
-        name: KountName::from_parts(first, last),
-        email_address,
-        phone_number,
-        address: None,
-    })
 }
 
 /// Card BIN (first 6) + last4 from a raw PAN, ignoring formatting. Never emits
@@ -506,17 +567,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                          order reference and the basis for the deviceSessionId"
                             .to_owned(),
                     ),
-                    ..Default::default()
+                    suggested_action: Some(
+                        "Set merchant_transaction_id on the FRM Pre Risk Check request".to_owned(),
+                    ),
+                    doc_url: Some(KOUNT_DOC_URL.to_owned()),
                 },
             })
         })?;
 
         // Device / IP from browser info.
         let browser = req.browser_info.as_ref();
-        let user_ip = browser.and_then(|b| b.ip_address.map(|ip| ip.to_string()));
-        let device = browser.and_then(|b| {
-            let ip_address = b.ip_address.map(|ip| ip.to_string());
-            let user_agent = b.user_agent.clone();
+        let user_ip = browser.and_then(|info| info.ip_address.map(|ip| ip.to_string()));
+        let device = browser.and_then(|info| {
+            let ip_address = info.ip_address.map(|ip| ip.to_string());
+            let user_agent = info.user_agent.clone();
             (ip_address.is_some() || user_agent.is_some()).then_some(KountDevice {
                 ip_address,
                 user_agent,
@@ -524,22 +588,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         });
 
         // Account context from customer info.
-        let account = req.customer_info.as_ref().map(|c| KountAccount {
-            account_type: if c.customer_id.is_some() {
-                "REGISTERED"
+        let account = req.customer_info.as_ref().map(|customer| KountAccount {
+            account_type: if customer.customer_id.is_some() {
+                KountAccountType::Registered
             } else {
-                "GUEST"
+                KountAccountType::Guest
             },
-            id: c
+            id: customer
                 .customer_id
                 .as_ref()
                 .map(|id| id.get_string_repr().to_string()),
-            username: c
+            username: customer
                 .customer_email
                 .as_ref()
-                .map(|e| e.peek().to_string())
-                .or_else(|| c.customer_name.as_ref().map(|n| n.peek().to_string())),
-            account_is_active: true,
+                .map(|email| email.peek().to_string())
+                .or_else(|| customer.get_full_name().map(|name| name.peek().to_string())),
+            // No account-status signal in the FRM request, so leave it unset.
+            account_is_active: None,
         });
 
         let currency = req.amount.currency;
@@ -548,40 +613,56 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let items = match req.order_details.as_ref() {
             Some(details) => details
                 .iter()
-                .map(|d| {
+                .map(|detail| {
                     Ok::<_, Self::Error>(KountItem {
-                        price: super::KountAmountConvertor::convert(d.amount, currency)?,
-                        name: d.product_name.clone(),
-                        quantity: d.quantity,
-                        description: d.description.clone(),
-                        category: d.category.clone(),
-                        is_digital: d.requires_shipping.map(|s| !s),
-                        sku: d.sku.clone(),
+                        price: super::KountAmountConvertor::convert(detail.amount, currency)?,
+                        name: detail.product_name.clone(),
+                        quantity: detail.quantity,
+                        description: detail.description.clone(),
+                        category: detail.category.clone(),
+                        is_digital: detail.requires_shipping.map(|ships| !ships),
+                        sku: detail.sku.clone(),
                     })
                 })
                 .collect::<Result<Vec<_>, _>>()?,
             None => Vec::new(),
         };
 
+        // Fulfillment method (the order's intended fulfillment at evaluation time,
+        // not a post-ship status): digital only when every line item is flagged as
+        // not requiring shipping, otherwise physical shipment.
+        let fulfillment_type = req
+            .order_details
+            .as_ref()
+            .filter(|details| {
+                !details.is_empty()
+                    && details
+                        .iter()
+                        .all(|detail| detail.requires_shipping == Some(false))
+            })
+            .map_or(KountFulfillmentType::Shipped, |_| {
+                KountFulfillmentType::Digital
+            });
+
         // Billing / shipping persons from the payment address.
         let address = req.address.as_ref();
         let billed_person = address
-            .and_then(|a| {
-                a.get_payment_billing()
-                    .or_else(|| a.get_payment_method_billing())
+            .and_then(|addr| {
+                addr.get_payment_billing()
+                    .or_else(|| addr.get_payment_method_billing())
             })
-            .and_then(kount_person_from_address)
+            .and_then(|addr| KountPerson::try_from(addr).ok())
             .or_else(|| {
                 req.customer_info
                     .as_ref()
-                    .and_then(kount_person_from_customer)
+                    .and_then(|customer| KountPerson::try_from(customer).ok())
             });
         let fulfillment = address
-            .and_then(|a| a.get_shipping())
-            .and_then(kount_person_from_address)
+            .and_then(|addr| addr.get_shipping())
+            .and_then(|addr| KountPerson::try_from(addr).ok())
             .map(|recipient| {
                 vec![KountFulfillment {
-                    fulfillment_type: "SHIPPED",
+                    fulfillment_type,
                     recipient_person: Some(recipient),
                 }]
             })
@@ -592,7 +673,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(PaymentMethodData::Card(card)) => {
                 let (bin, last4) = card_bin_last4(card.card_number.peek());
                 Some(KountPayment {
-                    payment_type: "CREDIT_CARD",
+                    payment_type: KountPaymentType::CreditCard,
                     bin,
                     last4,
                 })
@@ -616,7 +697,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             order_id: order_id.clone(),
             session_id: to_session_id(&order_id),
-            channel: KOUNT_CHANNEL,
+            channel: KountChannel::Web,
             creation_date_time,
             user_ip,
             account,
