@@ -369,7 +369,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   EventServiceHandleResponse: { "eventContent": "EventContent", "eventAckResponse": "EventAckResponse" },
   NotifyConnectorRequest: { "content": "NotifyConnectorContent", "state": "ConnectorState" },
   NotifyConnectorContent: { "surchargeContent": "SurchargeContent", "frmNotification": "FrmNotificationContent" },
-  FrmNotificationContent: { "amount": "Money", "paymentSuccess": "FrmPaymentDetails", "refund": "FrmRefundDetails", "chargeback": "FrmChargebackDetails" },
+  FrmNotificationContent: { "amount": "Money", "paymentDetails": "FrmPaymentDetails", "refund": "FrmRefundDetails", "chargeback": "FrmChargebackDetails" },
   NotifyConnectorResponse: { "error": "ErrorInfo" },
   EventAckResponse: { "headers": "HeadersEntry" },
   EventContent: { "paymentsResponse": "PaymentServiceGetResponse", "refundsResponse": "RefundResponse", "disputesResponse": "DisputeResponse" },
