@@ -22,6 +22,8 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
+    PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceEligibilityResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -87,6 +89,7 @@ use crate::services::payments::{
     create_server_session_authentication_token_req_transformer, create_server_session_authentication_token_res_transformer,
     customer_create_req_transformer, customer_create_res_transformer,
     defend_req_transformer, defend_res_transformer,
+    eligibility_req_transformer, eligibility_res_transformer,
     get_req_transformer, get_res_transformer,
     incremental_authorization_req_transformer, incremental_authorization_res_transformer,
     post_authenticate_req_transformer, post_authenticate_res_transformer,
@@ -140,6 +143,8 @@ impl_flow_handlers!(create_server_session_authentication_token, MerchantAuthenti
 impl_flow_handlers!(customer_create, CustomerServiceCreateRequest, CustomerServiceCreateResponse, customer_create_req_transformer, customer_create_res_transformer, domain_types::connector_types::ConnectorEnum);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 impl_flow_handlers!(defend, DisputeServiceDefendRequest, DisputeServiceDefendResponse, defend_req_transformer, defend_res_transformer, domain_types::connector_types::ConnectorEnum);
+// eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+impl_flow_handlers!(eligibility, PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse, eligibility_req_transformer, eligibility_res_transformer, domain_types::connector_types::ConnectorEnum);
 // get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
 impl_flow_handlers!(get, PaymentServiceGetRequest, PaymentServiceGetResponse, get_req_transformer, get_res_transformer, domain_types::connector_types::ConnectorEnum);
 // incremental_authorization: PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.

@@ -2037,6 +2037,19 @@ macro_rules! expand_flow_status_impl {
         );
     };
 
+    // ---- PaymentMethodEligibility ----
+    (connector: $c:ident, flow: PaymentMethodEligibility, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::PaymentMethodEligibilityV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::PaymentMethodEligibility,
+            flow_name: "eligibility",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::PaymentMethodEligibilityData,
+            response: ::domain_types::connector_types::PaymentMethodEligibilityResponse,
+        );
+    };
+
     // ---- Refund family ----
     (connector: $c:ident, flow: Refund, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
         impl<$g: $($b)*> ::interfaces::connector_types::RefundV2 for $c<$g> {}
@@ -2046,6 +2059,17 @@ macro_rules! expand_flow_status_impl {
             flow_name: "refund",
             flow_common_data: ::domain_types::connector_types::RefundFlowData,
             request: ::domain_types::connector_types::RefundsData,
+            response: ::domain_types::connector_types::RefundsResponseData,
+        );
+    };
+    (connector: $c:ident, flow: VoidPostRefund, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::RefundVoidPostRefundV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::VoidPostRefund,
+            flow_name: "void_post_refund",
+            flow_common_data: ::domain_types::connector_types::RefundFlowData,
+            request: ::domain_types::connector_types::RefundVoidPostRefundData,
             response: ::domain_types::connector_types::RefundsResponseData,
         );
     };

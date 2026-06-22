@@ -52,6 +52,8 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceCreateRequest,
     PaymentMethodServiceCreateResponse,
+    PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceEligibilityResponse,
     PaymentMethodServiceGetRequest,
     PaymentMethodServiceGetResponse,
     PaymentMethodServiceRechargeRequest,
@@ -105,6 +107,7 @@ use grpc_api_types::payments::{
     RecurringPaymentServiceRevokeResponse,
     RefundResponse,
     RefundServiceGetRequest,
+    RefundServiceVoidPostRefundRequest,
     SurchargeServiceCalculateRequest,
     SurchargeServiceCalculateResponse,
 };
@@ -317,6 +320,12 @@ impl_grpc_client!(
         PaymentMethodServiceRechargeRequest,
         PaymentMethodServiceRechargeResponse
     ),
+    (
+        eligibility,
+        eligibility,
+        PaymentMethodServiceEligibilityRequest,
+        PaymentMethodServiceEligibilityResponse
+    ),
 );
 
 // PaymentService
@@ -457,7 +466,7 @@ impl_grpc_client!(
         PayoutServiceEnrollDisburseAccountResponse
     ),
     (
-        eligibility,
+        payout_eligibility,
         eligibility,
         PayoutMethodEligibilityRequest,
         PayoutMethodEligibilityResponse
@@ -487,6 +496,12 @@ impl_grpc_client!(
     GrpcRefundClient,
     RefundServiceClient,
     (refund_get, get, RefundServiceGetRequest, RefundResponse),
+    (
+        void_post_refund,
+        void_post_refund,
+        RefundServiceVoidPostRefundRequest,
+        RefundResponse
+    ),
 );
 
 // SurchargeService

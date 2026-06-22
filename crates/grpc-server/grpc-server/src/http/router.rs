@@ -116,11 +116,19 @@ pub fn create_router(state: AppState) -> Router {
             "/payments/verify_redirect_response",
             post(handlers::payments::verify_redirect_response),
         )
+        .route(
+            "/payment_method/eligibility",
+            post(handlers::payments::eligibility),
+        )
         // EventService routes
         .route("/events/parse", post(handlers::payments::parse_event))
         .route("/events/handle", post(handlers::payments::handle_event))
         // RefundService routes
         .route("/refunds/get", post(handlers::refunds::get_refund))
+        .route(
+            "/refunds/void_post_refund",
+            post(handlers::refunds::void_post_refund),
+        )
         .route(
             "/refunds/transform",
             post(handlers::refunds::transform_refund),

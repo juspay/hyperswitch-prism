@@ -32,14 +32,15 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceTokenizeRequest,
-    PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
-    PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
-    PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
-    PaymentServiceGetResponse, PaymentServiceIncrementalAuthorizationRequest,
-    PaymentServiceIncrementalAuthorizationResponse, PaymentServiceProxyAuthorizeRequest,
-    PaymentServiceProxySetupRecurringRequest, PaymentServiceRefundRequest,
-    PaymentServiceReverseRequest, PaymentServiceReverseResponse,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse,
+    PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest,
+    PaymentServiceCaptureResponse, PaymentServiceCreateOrderRequest,
+    PaymentServiceCreateOrderResponse, PaymentServiceGetRequest, PaymentServiceGetResponse,
+    PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
+    PaymentServiceProxyAuthorizeRequest, PaymentServiceProxySetupRecurringRequest,
+    PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceReverseResponse,
     PaymentServiceSetupRecurringRequest, PaymentServiceSetupRecurringResponse,
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
     PaymentServiceVoidRequest, PaymentServiceVoidResponse, RecurringPaymentServiceChargeRequest,
@@ -402,6 +403,13 @@ impl ConnectorClient {
         pre_authenticate_res_handler
     );
     // ── PaymentMethodService flows ───────────────────────────────────────────────────
+    impl_flow_method!(
+        eligibility,
+        PaymentMethodServiceEligibilityRequest,
+        PaymentMethodServiceEligibilityResponse,
+        eligibility_req_handler,
+        eligibility_res_handler
+    );
     impl_flow_method!(
         tokenize,
         PaymentMethodServiceTokenizeRequest,

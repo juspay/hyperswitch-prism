@@ -964,7 +964,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by paypal connector"
       }
     },
     "get": {
@@ -1043,6 +1044,11 @@
           "headers": {},
           "body": "{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

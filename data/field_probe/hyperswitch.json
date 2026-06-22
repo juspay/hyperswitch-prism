@@ -510,7 +510,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by hyperswitch connector"
       }
     },
     "get": {
@@ -579,6 +580,11 @@
           "headers": {},
           "body": "{\"merchant_id\":\"probe_merchant\",\"event_id\":\"evt_probe_001\",\"event_type\":\"payment_succeeded\",\"content\":{\"type\":\"payment_details\",\"object\":{\"payment_id\":\"pay_probe001\",\"status\":\"succeeded\",\"connector_transaction_id\":\"txn_probe001\"}}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {
