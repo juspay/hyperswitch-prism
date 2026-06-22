@@ -30,7 +30,7 @@ type ResponseError = error_stack::Report<errors::ConnectorError>;
 
 /// OAuth scope required by the Kount Orders API.
 const KOUNT_API_SCOPE: &str = "k1_integration_api";
-/// Fallback values for an unparseable Kount error body.
+/// Fallback values for an unparsable Kount error body.
 const KOUNT_DEFAULT_ERROR_CODE: &str = "KOUNT_ERROR";
 const KOUNT_DEFAULT_ERROR_MESSAGE: &str = "Kount request failed";
 /// Kount developer documentation, surfaced in error contexts.
