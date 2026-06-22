@@ -134,8 +134,15 @@ axisbank.base_url = "https://upisdk.axisbank.co.in/api/b2/"
 [events]
 enabled = false
 brokers = ["localhost:9092"]
+
+# Outbound connector-call events.
+[events.connector_events]
 topic = "audit-trail-events"
-ucs_api_events_topic = "audit-trail-events"
+partition_key_field = "request_id"
+
+# Inbound request events.
+[events.api_events]
+topic = "audit-trail-events"
 partition_key_field = "request_id"
 
 [connector_request_kafka]

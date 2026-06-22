@@ -426,21 +426,31 @@ impl EventStage {
     }
 }
 
+/// A Kafka topic plus the payload field whose value is used as its partition key.
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
+pub struct KafkaTopicConfig {
+    pub topic: String,
+    pub partition_key_field: String,
+}
+
+impl Default for KafkaTopicConfig {
+    fn default() -> Self {
+        Self {
+            topic: String::new(),
+            partition_key_field: "request_id".to_string(),
+        }
+    }
+}
+
 /// Configuration for events system
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct EventConfig {
     pub enabled: bool,
-    /// Topic for outbound connector-call events. Accepts the legacy key `topic`
-    /// for backward compatibility.
-    // TODO: remove the `topic` alias once configs use `connector_events_topic`.
-    #[serde(alias = "topic")]
-    pub connector_events_topic: String,
-    /// Topic for inbound request events. Single-topic deployments set this equal to
-    /// `connector_events_topic`.
-    #[serde(default)]
-    pub ucs_api_events_topic: String,
     pub brokers: Vec<String>,
-    pub partition_key_field: String,
+    /// Outbound connector-call events.
+    pub connector_events: KafkaTopicConfig,
+    /// Inbound request events.
+    pub api_events: KafkaTopicConfig,
     #[serde(default)]
     pub transformations: HashMap<String, String>, // target_path → source_field
     #[serde(default)]
@@ -449,14 +459,23 @@ pub struct EventConfig {
     pub extractions: HashMap<String, String>, // target_path → extraction_path
 }
 
+impl EventConfig {
+    /// Topic + partition key for the given event stage.
+    pub fn topic_config(&self, stage: &EventStage) -> &KafkaTopicConfig {
+        match stage {
+            EventStage::ConnectorCall => &self.connector_events,
+            EventStage::GrpcRequest => &self.api_events,
+        }
+    }
+}
+
 impl Default for EventConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            connector_events_topic: String::new(),
-            ucs_api_events_topic: String::new(),
             brokers: vec!["localhost:9092".to_string()],
-            partition_key_field: "request_id".to_string(),
+            connector_events: KafkaTopicConfig::default(),
+            api_events: KafkaTopicConfig::default(),
             transformations: HashMap::new(),
             static_values: HashMap::new(),
             extractions: HashMap::new(),
@@ -632,4 +651,32 @@ pub(crate) fn set_nested_value(
     );
 
     result.map(|_| ())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stage_selects_topic_and_partition_key() {
+        let config = EventConfig {
+            connector_events: KafkaTopicConfig {
+                topic: "connector-events".to_string(),
+                partition_key_field: "request_id".to_string(),
+            },
+            api_events: KafkaTopicConfig {
+                topic: "ucs-api-events".to_string(),
+                partition_key_field: "merchant_id".to_string(),
+            },
+            ..Default::default()
+        };
+
+        let connector = config.topic_config(&EventStage::ConnectorCall);
+        assert_eq!(connector.topic, "connector-events");
+        assert_eq!(connector.partition_key_field, "request_id");
+
+        let ucs_api = config.topic_config(&EventStage::GrpcRequest);
+        assert_eq!(ucs_api.topic, "ucs-api-events");
+        assert_eq!(ucs_api.partition_key_field, "merchant_id");
+    }
 }

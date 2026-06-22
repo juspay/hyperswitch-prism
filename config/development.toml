@@ -160,10 +160,15 @@ axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
 [events]
 enabled = false
 brokers = ["localhost:9092"]
-# Outbound connector calls (ConnectorCall stage) -> connector_events table.
-connector_events_topic = "audit-trail-events"
-# Inbound requests UCS serves (GrpcRequest stage) -> ucs_api_events table.
-ucs_api_events_topic = "audit-trail-service-events"
+
+# Outbound connector-call events.
+[events.connector_events]
+topic = "audit-trail-events"
+partition_key_field = "request_id"
+
+# Inbound request events.
+[events.api_events]
+topic = "audit-trail-service-events"
 partition_key_field = "request_id"
 
 [lineage]
