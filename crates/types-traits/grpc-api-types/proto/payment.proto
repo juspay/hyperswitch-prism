@@ -3385,6 +3385,11 @@ message RecurringPaymentServiceChargeRequest {
 
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 35;
 
+  // Authentication Type (3DS / no-3DS) requested for the recurring charge.
+  // Carried so connectors that vary request fields by auth type (e.g. Novalnet's
+  // enforce_3d) build an identical MIT request on the UCS side as on Hyperswitch.
+  optional AuthenticationType auth_type = 36;
+
 }
 
 // Response message for repeat payment operation
