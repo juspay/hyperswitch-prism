@@ -29,7 +29,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeOptionInterface, Secret};
+use hyperswitch_masking::{ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests, responses};
@@ -53,6 +53,18 @@ type ResponseError = error_stack::Report<ConnectorError>;
 // Helper function to check if capture method is manual
 fn is_manual_capture(capture_method: Option<enums::CaptureMethod>) -> bool {
     matches!(capture_method, Some(enums::CaptureMethod::Manual))
+}
+
+// Mirror of HS's get_processing_account_id_from_metadata: read the Payload
+// `processing_account_id` from the request metadata so the connector request
+// carries the same `processing_id` HS emits.
+fn get_processing_account_id_from_metadata(
+    metadata: Option<&common_utils::pii::SecretSerdeValue>,
+) -> Option<Secret<String>> {
+    metadata
+        .and_then(|m| m.peek().get("processing_account_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| Secret::new(s.to_string()))
 }
 
 // Auth Struct
@@ -623,12 +635,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
+        // HS sources processing_id from the request metadata for the mandate request.
+        let processing_id =
+            get_processing_account_id_from_metadata(router_data.request.metadata.as_ref());
+
         Ok(Self::PayloadMandateRequest(Box::new(
             requests::PayloadMandateRequestData {
                 amount,
                 transaction_types: requests::TransactionTypes::Payment,
                 payment_method_id: Secret::new(mandate_id),
                 status,
+                processing_id,
             },
         )))
     }
