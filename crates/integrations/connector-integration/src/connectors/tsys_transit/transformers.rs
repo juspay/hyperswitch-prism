@@ -689,6 +689,11 @@ pub struct TsysTransitCardAuthenticationRequest {
     pub card_number: Secret<String>,
     #[serde(rename = "expirationDate")]
     pub expiration_date: Secret<String>,
+    // TSYS cert: cvv2 must be sent on card authentication when the
+    // merchant collected one. The XSD requires it adjacent to
+    // expirationDate (early in the body, like Sale/Auth).
+    #[serde(rename = "cvv2", skip_serializing_if = "Option::is_none")]
+    pub cvv2: Option<Secret<String>>,
     #[serde(rename = "addressLine1")]
     pub address_line1: Secret<String>,
     #[serde(rename = "zip")]
@@ -737,10 +742,6 @@ pub struct TsysTransitCardAuthenticationRequest {
     // the schema; will revisit once TSYS confirms the desired alternative.
     #[serde(rename = "mPosAcceptanceDeviceType")]
     pub m_pos_acceptance_device_type: String,
-    // TSYS cert: cvv2 must be sent on card authentication when the
-    // merchant collected one (we support CVV on card auth).
-    #[serde(rename = "cvv2", skip_serializing_if = "Option::is_none")]
-    pub cvv2: Option<Secret<String>>,
     // TSYS cert: authorizationIndicator is missing on Mastercard
     // card-authentication transactions in step 3.
     #[serde(
