@@ -1619,7 +1619,7 @@ message FrmNotificationContent {
 
   // The specific notification type — exactly one must be set
   oneof notification_type {
-    FrmPaymentDetails payment_success = 4;
+    FrmPaymentDetails payment_details = 4;
     FrmRefundDetails refund = 5;
     FrmChargebackDetails chargeback = 6;
   }

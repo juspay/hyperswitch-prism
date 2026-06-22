@@ -198,6 +198,8 @@ impl AdditionalHeaders
         None
     }
 }
+// `ConnectorRequestReference` is a compile-time bound on `execute_connector_processing_step` but `get_connector_request_reference_id`
+// is never called at runtime for FRM flows — the empty string satisfies the trait without affecting behaviour.
 impl ConnectorRequestReference for domain_types::frm::frm_types::FrmFlowData {
     fn get_connector_request_reference_id(&self) -> &str {
         ""
