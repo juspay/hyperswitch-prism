@@ -4149,6 +4149,12 @@ message CustomerServiceCreateRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 9;
+
+  // Mandate context — some connectors build the customer-creation request
+  // differently for mandate setups (e.g. keeping the saved payment method
+  // active), so this context must be carried alongside the customer details.
+  optional FutureUsage setup_future_usage = 10;
+  optional CustomerAcceptance customer_acceptance = 11;
 }
 
 // Response message for creating a customer
