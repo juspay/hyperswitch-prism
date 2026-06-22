@@ -146,6 +146,7 @@ pub struct AuthenticationData {
     pub transaction_id: Option<String>,
     pub network_params: Option<NetworkParams>,
     pub exemption_indicator: Option<common_enums::ExemptionIndicator>,
+    pub created_at: Option<time::PrimitiveDateTime>,
 }
 
 impl TryFrom<payments::AuthenticationData> for AuthenticationData {
@@ -163,7 +164,11 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
             ucaf_collection_indicator,
             exemption_indicator,
             network_params,
+            created_at,
         } = value;
+        let created_at = created_at
+            .and_then(|ts| time::OffsetDateTime::from_unix_timestamp(ts).ok())
+            .map(|odt| time::PrimitiveDateTime::new(odt.date(), odt.time()));
         let message_version = message_version.map(|message_version|{
             SemanticVersion::from_str(&message_version).change_context(errors::IntegrationError::InvalidDataFormat {
                 field_name: "message_version",
@@ -205,6 +210,7 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
                 .ok()
                 .flatten()
                 .map(common_enums::ExemptionIndicator::foreign_from),
+            created_at,
         })
     }
 }
@@ -268,6 +274,9 @@ impl ForeignFrom<AuthenticationData> for payments::AuthenticationData {
             network_params: value
                 .network_params
                 .map(payments::NetworkParams::foreign_from),
+            created_at: value
+                .created_at
+                .map(|created_at| created_at.assume_utc().unix_timestamp()),
         }
     }
 }

@@ -1116,6 +1116,10 @@ message AuthenticationData {
   optional ExemptionIndicator exemption_indicator = 10;
   // Network-specific parameters for 3DS processing.
   optional NetworkParams network_params = 11;
+  // Authentication timestamp (Unix epoch seconds, UTC) when the 3DS
+  // authentication was performed. Used by connectors (e.g. Cybersource) that
+  // send an authenticationDate in their request.
+  optional int64 created_at = 12;
 }
 
 // Details of customer acceptance for mandates or terms

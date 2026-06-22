@@ -1668,6 +1668,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpayPostAuthentic
                         transaction_id: Some(operation.operation_id.clone()),
                         exemption_indicator: None,
                         network_params: None,
+                        created_at: None,
                     }
                 }),
                 connector_response_reference_id: Some(operation.order_id.clone()),

@@ -4180,6 +4180,11 @@ impl<
             mit_category: value.mit_category,
             connector_testing_data,
             split_payments: None,
+            authentication_data: value
+                .authentication_data
+                .clone()
+                .map(router_request_types::AuthenticationData::try_from)
+                .transpose()?,
         })
     }
 }
@@ -5378,6 +5383,9 @@ impl ForeignTryFrom<router_request_types::AuthenticationData>
             network_params: value
                 .network_params
                 .map(grpc_api_types::payments::NetworkParams::foreign_from),
+            created_at: value
+                .created_at
+                .map(|created_at| created_at.assume_utc().unix_timestamp()),
         })
     }
 }
@@ -10758,6 +10766,11 @@ impl<
             }),
             mit_category,
             split_payments: None,
+            authentication_data: value
+                .authentication_data
+                .clone()
+                .map(router_request_types::AuthenticationData::try_from)
+                .transpose()?,
         })
     }
 }

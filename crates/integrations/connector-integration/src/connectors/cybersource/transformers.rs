@@ -98,6 +98,8 @@ pub struct CybersourceZeroMandateRequest<
     payment_information: PaymentInformation<T>,
     order_information: OrderInformationWithBill,
     client_reference_information: ClientReferenceInformation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    consumer_authentication_information: Option<CybersourceConsumerAuthInformation>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -364,11 +366,63 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             payment_solution: solution.map(String::from),
             bank_transfer_options: None,
         };
+
+        // Mirror Hyperswitch's cybersource zero-mandate builder: when external 3DS
+        // authentication data is present on a card payment, populate
+        // consumerAuthenticationInformation so the UCS request matches HS.
+        let consumer_authentication_information =
+            match &item.router_data.request.payment_method_data {
+                PaymentMethodData::Card(ccard) => item
+                    .router_data
+                    .request
+                    .authentication_data
+                    .as_ref()
+                    .map(|authn_data| {
+                        let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
+                            if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
+                                (authn_data.cavv.clone(), None, Some("2".to_string()))
+                            } else {
+                                (None, authn_data.cavv.clone(), None)
+                            };
+                        CybersourceConsumerAuthInformation {
+                            pares_status: Some(CybersourceParesStatus::AuthenticationSuccessful),
+                            ucaf_collection_indicator,
+                            cavv,
+                            ucaf_authentication_data,
+                            xid: None,
+                            directory_server_transaction_id: authn_data
+                                .ds_trans_id
+                                .clone()
+                                .map(Secret::new),
+                            specification_version: authn_data.message_version.clone(),
+                            pa_specification_version: authn_data.message_version.clone(),
+                            veres_enrolled: Some("Y".to_string()),
+                            eci_raw: authn_data.eci.clone(),
+                            authentication_date: authn_data.created_at.and_then(|created_at| {
+                                common_utils::date_time::format_date(
+                                    created_at,
+                                    common_utils::date_time::DateFormat::YYYYMMDDHHmmss,
+                                )
+                                .ok()
+                            }),
+                            effective_authentication_type: None,
+                            challenge_code: None,
+                            signed_pares_status_reason: None,
+                            challenge_cancel_code: None,
+                            network_score: None,
+                            acs_transaction_id: authn_data.acs_transaction_id.clone(),
+                            cavv_algorithm: Some("2".to_string()),
+                        }
+                    }),
+                _ => None,
+            };
+
         Ok(Self {
             processing_information,
             payment_information,
             order_information,
             client_reference_information,
+            consumer_authentication_information,
         })
     }
 }
@@ -494,6 +548,7 @@ fn get_authentication_data_for_validation_response(
         transaction_id: response.validate_response.xid,
         exemption_indicator: None,
         network_params: None,
+        created_at: None,
     }
 }
 
@@ -539,6 +594,7 @@ fn get_authentication_data_for_authenticate_response(
         ucaf_collection_indicator: validate_response.ucaf_collection_indicator.clone(),
         exemption_indicator: None,
         network_params: None,
+        created_at: None,
     }
 }
 
@@ -598,6 +654,7 @@ impl From<router_request_types::AuthenticationData> for CybersourceConsumerAuthI
             ucaf_collection_indicator,
             exemption_indicator: _,
             network_params: _,
+            created_at: _,
         } = value;
 
         Self {

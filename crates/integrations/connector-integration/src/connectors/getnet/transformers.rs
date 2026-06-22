@@ -1978,6 +1978,7 @@ fn build_threeds_authentication_data(response: &GetnetThreeDsResponse) -> Authen
         transaction_id: response.xid.clone(),
         network_params: None,
         exemption_indicator: None,
+        created_at: None,
     }
 }
 
