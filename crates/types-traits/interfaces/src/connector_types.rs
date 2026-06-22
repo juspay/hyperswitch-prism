@@ -125,12 +125,17 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
 }
 
 pub trait SurchargeServiceTrait:
-    ConnectorCommon + SurchargeCalculateV2 + SurchargePaymentSucceededV2 + SurchargeRefundSucceededV2
+    ConnectorCommon
+    + ValidationTrait
+    + SurchargeCalculateV2
+    + SurchargePaymentSucceededV2
+    + SurchargeRefundSucceededV2
 {
 }
 
 pub trait FrmServiceTrait:
     ConnectorCommon
+    + ValidationTrait
     + PreRiskCheckV2
     + PostRiskCheckV2
     + FrmPaymentOutcomeV2

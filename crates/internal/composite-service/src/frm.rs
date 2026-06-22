@@ -1,8 +1,5 @@
-use connector_integration::types::ConnectorData;
-use domain_types::{
-    connector_types::ConnectorEnum, payment_method_data::DefaultPCIHolder,
-    utils::ForeignTryFrom as _,
-};
+use connector_integration::types::FrmConnectorData;
+use domain_types::connector_types::ConnectorVariant;
 use grpc_api_types::frm::{
     composite_fraud_and_risk_management_service_server::CompositeFraudAndRiskManagementService,
     fraud_and_risk_management_service_server::FraudAndRiskManagementService,
@@ -15,17 +12,20 @@ use grpc_api_types::payments::{
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
 };
-use ucs_env::error::ResultExtGrpc;
-
 use crate::payments::CompositeAccessTokenRequest;
 use crate::transformers::ForeignFrom;
-use crate::utils::connector_from_composite_authorize_metadata;
+use crate::utils::frm_connector_from_composite_frm_metadata;
 
 impl CompositeAccessTokenRequest for CompositeFrmPreRiskCheckRequest {
     fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
         None
     }
 
+    // FRM requests carry `frm::ConnectorState`, a distinct Rust type that cannot be
+    // returned as `payments::ConnectorState` required by the trait signature. `state()`
+    // therefore always returns `None` — any default trait logic that reads `state()` will
+    // see no state. `has_existing_access_token` is overridden below to read `self.state`
+    // directly, bypassing this stub.
     fn state(&self) -> Option<&grpc_api_types::payments::ConnectorState> {
         None
     }
@@ -40,7 +40,7 @@ impl CompositeAccessTokenRequest for CompositeFrmPreRiskCheckRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -53,6 +53,11 @@ impl CompositeAccessTokenRequest for CompositeFrmPostRiskCheckRequest {
         None
     }
 
+    // FRM requests carry `frm::ConnectorState`, a distinct Rust type that cannot be
+    // returned as `payments::ConnectorState` required by the trait signature. `state()`
+    // therefore always returns `None` — any default trait logic that reads `state()` will
+    // see no state. `has_existing_access_token` is overridden below to read `self.state`
+    // directly, bypassing this stub.
     fn state(&self) -> Option<&grpc_api_types::payments::ConnectorState> {
         None
     }
@@ -67,7 +72,7 @@ impl CompositeAccessTokenRequest for CompositeFrmPostRiskCheckRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -107,9 +112,11 @@ where
         }
     }
 
+    // FrmConnectorEnum is currently empty, so the body after the early-return is unreachable
+    // at runtime. The variables and expressions are kept for when a real FRM connector is added.
+    #[allow(unreachable_code, unused_variables)]
     async fn create_server_authentication_token<R: CompositeAccessTokenRequest>(
         &self,
-        connector: &ConnectorEnum,
         payload: &R,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
@@ -117,38 +124,37 @@ where
         Option<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         tonic::Status,
     > {
-        let should_do_access_token = {
-            let payment_method = payload
-                .payment_method()
-                .map(common_enums::PaymentMethod::foreign_try_from)
-                .transpose()
-                .into_grpc_status()?;
-            let connector_data = ConnectorData::<DefaultPCIHolder>::get_connector_by_name(connector);
-            connector_data
+        // Resolve the FRM connector from x-frm-connector. Returns Ok(None) when
+        // the header is absent (no dedicated FRM connector → no access token).
+        let Some(frm_connector) =
+            frm_connector_from_composite_frm_metadata(metadata).map_err(|err| *err)?
+        else {
+            return Ok(None);
+        };
+
+        let should_create_access_token =
+            FrmConnectorData::get_connector_by_name(&frm_connector)
                 .connector
-                .should_do_access_token(payment_method)
-        };
-        let should_create_access_token = should_do_access_token && !payload.has_existing_access_token();
+                .should_do_access_token(None)
+                && !payload.has_existing_access_token();
 
-        let access_token_response = match should_create_access_token {
-            true => {
-                let access_token_payload = payload.build_access_token_request(connector);
-                let mut access_token_request = tonic::Request::new(access_token_payload);
-                *access_token_request.metadata_mut() = metadata.clone();
-                *access_token_request.extensions_mut() = extensions.clone();
+        if !should_create_access_token {
+            return Ok(None);
+        }
 
-                let access_token_response = self
-                    .merchant_authentication_service
-                    .create_server_authentication_token(access_token_request)
-                    .await?
-                    .into_inner();
+        let access_token_payload =
+            payload.build_access_token_request(&ConnectorVariant::Frm(frm_connector));
+        let mut access_token_request = tonic::Request::new(access_token_payload);
+        *access_token_request.metadata_mut() = metadata.clone();
+        *access_token_request.extensions_mut() = extensions.clone();
 
-                Some(access_token_response)
-            }
-            false => None,
-        };
+        let access_token_response = self
+            .merchant_authentication_service
+            .create_server_authentication_token(access_token_request)
+            .await?
+            .into_inner();
 
-        Ok(access_token_response)
+        Ok(Some(access_token_response))
     }
 
     async fn pre_risk_check(
@@ -180,16 +186,8 @@ where
     ) -> Result<tonic::Response<CompositeFrmPreRiskCheckResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
 
-        let connector =
-            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
-
         let access_token_response = self
-            .create_server_authentication_token(
-                &connector,
-                &payload,
-                &metadata,
-                &extensions,
-            )
+            .create_server_authentication_token(&payload, &metadata, &extensions)
             .await?;
 
         let pre_risk_check_response = self
@@ -203,13 +201,60 @@ where
 
         // Field-by-field mapping required: create_server_authentication_token returns payments::MASATR
         // but CompositeFrmPreRiskCheckResponse expects frm::MASATR — same proto, different Rust modules.
+        // grpc_api_types::{payments, frm} both include the same `types` proto package
+        // independently, producing separate Rust types even for identical messages.
+        // Field-by-field mapping is required; only ErrorInfo needs recursive conversion.
         let frm_access_token_response = access_token_response.map(|r| {
+            let error = r.error.map(|error_info| grpc_api_types::frm::ErrorInfo {
+                unified_details: error_info.unified_details.map(|ud| {
+                    grpc_api_types::frm::UnifiedErrorDetails {
+                        code: ud.code,
+                        message: ud.message,
+                        description: ud.description,
+                        user_guidance_message: ud.user_guidance_message,
+                    }
+                }),
+                issuer_details: error_info.issuer_details.map(|id| {
+                    grpc_api_types::frm::IssuerErrorDetails {
+                        code: id.code,
+                        message: id.message,
+                        network_details: id.network_details.map(|nd| {
+                            grpc_api_types::frm::NetworkErrorDetails {
+                                advice_code: nd.advice_code,
+                                decline_code: nd.decline_code,
+                                error_message: nd.error_message,
+                            }
+                        }),
+                    }
+                }),
+                connector_details: error_info.connector_details.map(|cd| {
+                    grpc_api_types::frm::ConnectorErrorDetails {
+                        code: cd.code,
+                        message: cd.message,
+                        reason: cd.reason,
+                        connector_transaction_id: cd.connector_transaction_id,
+                        status: cd.status.map(|flow_status| grpc_api_types::frm::FlowStatus {
+                            status: flow_status.status.map(|s| match s {
+                                grpc_api_types::payments::flow_status::Status::PaymentStatus(v) => {
+                                    grpc_api_types::frm::flow_status::Status::PaymentStatus(v)
+                                }
+                                grpc_api_types::payments::flow_status::Status::RefundStatus(v) => {
+                                    grpc_api_types::frm::flow_status::Status::RefundStatus(v)
+                                }
+                                grpc_api_types::payments::flow_status::Status::DisputeStatus(v) => {
+                                    grpc_api_types::frm::flow_status::Status::DisputeStatus(v)
+                                }
+                            }),
+                        }),
+                    }
+                }),
+            });
             grpc_api_types::frm::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse {
                 access_token: r.access_token,
                 token_type: r.token_type,
                 expires_in_seconds: r.expires_in_seconds,
                 status: r.status,
-                error: None,
+                error,
                 status_code: r.status_code,
                 merchant_access_token_id: r.merchant_access_token_id,
             }
@@ -250,16 +295,8 @@ where
     ) -> Result<tonic::Response<CompositeFrmPostRiskCheckResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
 
-        let connector =
-            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
-
         let access_token_response = self
-            .create_server_authentication_token(
-                &connector,
-                &payload,
-                &metadata,
-                &extensions,
-            )
+            .create_server_authentication_token(&payload, &metadata, &extensions)
             .await?;
 
         let post_risk_check_response = self
@@ -273,13 +310,60 @@ where
 
         // Field-by-field mapping required: create_server_authentication_token returns payments::MASATR
         // but CompositeFrmPostRiskCheckResponse expects frm::MASATR — same proto, different Rust modules.
+        // grpc_api_types::{payments, frm} both include the same `types` proto package
+        // independently, producing separate Rust types even for identical messages.
+        // Field-by-field mapping is required; only ErrorInfo needs recursive conversion.
         let frm_access_token_response = access_token_response.map(|r| {
+            let error = r.error.map(|error_info| grpc_api_types::frm::ErrorInfo {
+                unified_details: error_info.unified_details.map(|ud| {
+                    grpc_api_types::frm::UnifiedErrorDetails {
+                        code: ud.code,
+                        message: ud.message,
+                        description: ud.description,
+                        user_guidance_message: ud.user_guidance_message,
+                    }
+                }),
+                issuer_details: error_info.issuer_details.map(|id| {
+                    grpc_api_types::frm::IssuerErrorDetails {
+                        code: id.code,
+                        message: id.message,
+                        network_details: id.network_details.map(|nd| {
+                            grpc_api_types::frm::NetworkErrorDetails {
+                                advice_code: nd.advice_code,
+                                decline_code: nd.decline_code,
+                                error_message: nd.error_message,
+                            }
+                        }),
+                    }
+                }),
+                connector_details: error_info.connector_details.map(|cd| {
+                    grpc_api_types::frm::ConnectorErrorDetails {
+                        code: cd.code,
+                        message: cd.message,
+                        reason: cd.reason,
+                        connector_transaction_id: cd.connector_transaction_id,
+                        status: cd.status.map(|flow_status| grpc_api_types::frm::FlowStatus {
+                            status: flow_status.status.map(|s| match s {
+                                grpc_api_types::payments::flow_status::Status::PaymentStatus(v) => {
+                                    grpc_api_types::frm::flow_status::Status::PaymentStatus(v)
+                                }
+                                grpc_api_types::payments::flow_status::Status::RefundStatus(v) => {
+                                    grpc_api_types::frm::flow_status::Status::RefundStatus(v)
+                                }
+                                grpc_api_types::payments::flow_status::Status::DisputeStatus(v) => {
+                                    grpc_api_types::frm::flow_status::Status::DisputeStatus(v)
+                                }
+                            }),
+                        }),
+                    }
+                }),
+            });
             grpc_api_types::frm::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse {
                 access_token: r.access_token,
                 token_type: r.token_type,
                 expires_in_seconds: r.expires_in_seconds,
                 status: r.status,
-                error: None,
+                error,
                 status_code: r.status_code,
                 merchant_access_token_id: r.merchant_access_token_id,
             }

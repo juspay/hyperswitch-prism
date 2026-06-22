@@ -683,7 +683,7 @@ message CompositeNotifyRequest {
   // Event type
   NotifyEventType event_type = 3;
 
-  // Event content with notify connector content 
+  // Event content with notify connector content
   NotifyConnectorContent content = 4;
 
   // Timestamp when the event occurred (Unix timestamp in seconds)
@@ -691,6 +691,21 @@ message CompositeNotifyRequest {
 
   // Connector state for access token management (optional)
   optional ConnectorState state = 6;
+
+  // Additional metadata for the connector
+  optional SecretString metadata = 7;
+
+  // Connector-specific feature data
+  optional SecretString connector_feature_data = 8;
+
+  // Sandbox/test mode flag
+  optional bool test_mode = 9;
+
+  // Reference ID for access token tracking
+  optional string merchant_access_token_id = 10;
+
+  // Per-request idempotency / correlation token
+  optional string merchant_request_id = 11;
 }
 
 // Generic composite notify response that includes access token response.

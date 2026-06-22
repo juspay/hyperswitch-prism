@@ -1,7 +1,9 @@
-use connector_integration::types::ConnectorData;
+use crate::payments::CompositeAccessTokenRequest;
+use crate::transformers::ForeignFrom;
+use crate::utils::connector_variant_from_composite_metadata;
+use connector_integration::types::{FrmConnectorData, SurchargeConnectorData};
 use domain_types::{
-    connector_types::{ConnectorEnum, ServerAuthenticationTokenResponseData},
-    payment_method_data::DefaultPCIHolder,
+    connector_types::{ConnectorVariant, ServerAuthenticationTokenResponseData},
     utils::ForeignTryFrom as _,
 };
 use grpc_api_types::payments::{
@@ -11,12 +13,8 @@ use grpc_api_types::payments::{
     CompositeNotifyResponse, ConnectorState, EventServiceHandleRequest, EventServiceParseRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse, NotifyConnectorRequest,
+    NotifyEventType,
 };
-use ucs_env::error::ResultExtGrpc;
-
-use crate::payments::CompositeAccessTokenRequest;
-use crate::transformers::ForeignFrom;
-use crate::utils::connector_from_composite_authorize_metadata;
 
 /// Composite implementation of [`CompositeEventService`].
 ///
@@ -49,7 +47,7 @@ impl CompositeAccessTokenRequest for CompositeNotifyRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -69,9 +67,12 @@ where
         }
     }
 
+    // FrmConnectorEnum is currently empty so the Frm arm is unreachable at runtime.
+    // The match is kept for when a real FRM connector is added.
+    #[allow(unreachable_code)]
     async fn create_server_authentication_token<R: CompositeAccessTokenRequest>(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
         payload: &R,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
@@ -79,17 +80,14 @@ where
         Option<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         tonic::Status,
     > {
-        let should_do_access_token = {
-            let payment_method = payload
-                .payment_method()
-                .map(common_enums::PaymentMethod::foreign_try_from)
-                .transpose()
-                .into_grpc_status()?;
-            let connector_data =
-                ConnectorData::<DefaultPCIHolder>::get_connector_by_name(connector);
-            connector_data
+        let should_do_access_token = match connector {
+            ConnectorVariant::Frm(c) => FrmConnectorData::get_connector_by_name(c)
                 .connector
-                .should_do_access_token(payment_method)
+                .should_do_access_token(None),
+            ConnectorVariant::Surcharge(c) => SurchargeConnectorData::get_connector_by_name(c)
+                .connector
+                .should_do_access_token(None),
+            _ => false,
         };
 
         let payload_access_token = payload
@@ -178,8 +176,15 @@ where
     ) -> Result<tonic::Response<CompositeNotifyResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
 
-        let connector =
-            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+        // Validate event_type so malformed requests are rejected without an unnecessary auth call.
+        NotifyEventType::try_from(payload.event_type).map_err(|_| {
+            tonic::Status::invalid_argument(format!(
+                "unsupported event type: {}",
+                payload.event_type
+            ))
+        })?;
+
+        let connector = connector_variant_from_composite_metadata(&metadata).map_err(|err| *err)?;
 
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)

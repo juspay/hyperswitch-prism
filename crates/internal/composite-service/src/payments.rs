@@ -1,6 +1,6 @@
 use connector_integration::types::ConnectorData;
 use domain_types::{
-    connector_types::{ConnectorEnum, ServerAuthenticationTokenResponseData},
+    connector_types::{ConnectorEnum, ConnectorVariant, ServerAuthenticationTokenResponseData},
     utils::ForeignTryFrom as _,
 };
 use grpc_api_types::payments::{
@@ -43,7 +43,7 @@ pub trait CompositeAccessTokenRequest {
     fn state(&self) -> Option<&ConnectorState>;
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest;
 
     /// Returns true if a valid access token already exists in the request payload.
@@ -75,7 +75,7 @@ impl CompositeAccessTokenRequest for CompositeAuthorizeRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -109,7 +109,7 @@ impl CompositeAccessTokenRequest for CompositeGetRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -128,7 +128,7 @@ impl CompositeAccessTokenRequest for CompositeRefundRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -147,7 +147,7 @@ impl CompositeAccessTokenRequest for CompositeRefundGetRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -166,7 +166,7 @@ impl CompositeAccessTokenRequest for CompositeVoidRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -185,7 +185,7 @@ impl CompositeAccessTokenRequest for CompositeCaptureRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -206,7 +206,7 @@ impl CompositeAccessTokenRequest
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -308,7 +308,8 @@ where
 
         let access_token_response = match should_create_access_token {
             true => {
-                let access_token_payload = payload.build_access_token_request(connector);
+                let access_token_payload =
+                    payload.build_access_token_request(&ConnectorVariant::Payment(*connector));
                 let mut access_token_request = tonic::Request::new(access_token_payload);
                 *access_token_request.metadata_mut() = metadata.clone();
                 *access_token_request.extensions_mut() = extensions.clone();
