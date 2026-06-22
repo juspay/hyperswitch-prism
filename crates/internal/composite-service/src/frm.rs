@@ -21,21 +21,8 @@ impl CompositeAccessTokenRequest for CompositeFrmPreRiskCheckRequest {
         None
     }
 
-    // FRM requests carry `frm::ConnectorState`, a distinct Rust type that cannot be
-    // returned as `payments::ConnectorState` required by the trait signature. `state()`
-    // therefore always returns `None` — any default trait logic that reads `state()` will
-    // see no state. `has_existing_access_token` is overridden below to read `self.state`
-    // directly, bypassing this stub.
     fn state(&self) -> Option<&grpc_api_types::payments::ConnectorState> {
-        None
-    }
-
-    fn has_existing_access_token(&self) -> bool {
-        self.state
-            .as_ref()
-            .and_then(|s| s.access_token.as_ref())
-            .and_then(|at| at.token.as_ref())
-            .is_some()
+        self.state.as_ref()
     }
 
     fn build_access_token_request(
@@ -53,21 +40,8 @@ impl CompositeAccessTokenRequest for CompositeFrmPostRiskCheckRequest {
         None
     }
 
-    // FRM requests carry `frm::ConnectorState`, a distinct Rust type that cannot be
-    // returned as `payments::ConnectorState` required by the trait signature. `state()`
-    // therefore always returns `None` — any default trait logic that reads `state()` will
-    // see no state. `has_existing_access_token` is overridden below to read `self.state`
-    // directly, bypassing this stub.
     fn state(&self) -> Option<&grpc_api_types::payments::ConnectorState> {
-        None
-    }
-
-    fn has_existing_access_token(&self) -> bool {
-        self.state
-            .as_ref()
-            .and_then(|s| s.access_token.as_ref())
-            .and_then(|at| at.token.as_ref())
-            .is_some()
+        self.state.as_ref()
     }
 
     fn build_access_token_request(
@@ -132,11 +106,15 @@ where
             return Ok(None);
         };
 
+        let has_existing_access_token = payload
+            .state()
+            .and_then(|state| state.access_token.as_ref())
+            .is_some();
         let should_create_access_token =
             FrmConnectorData::get_connector_by_name(&frm_connector)
                 .connector
                 .should_do_access_token(None)
-                && !payload.has_existing_access_token();
+                && !has_existing_access_token;
 
         if !should_create_access_token {
             return Ok(None);
