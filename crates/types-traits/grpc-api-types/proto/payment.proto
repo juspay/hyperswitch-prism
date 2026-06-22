@@ -5461,6 +5461,77 @@ message StripeSplitPaymentData {
 }
 
 // ============================================================================
+// ELIGIBILITY — Pre-checkout eligibility for payment methods requiring
+//                customer/order details before authorization (e.g. BNPL).
+// ============================================================================
+
+// Eligibility status reason codes returned by the connector.
+enum EligibilityStatus {
+  ELIGIBILITY_STATUS_UNSPECIFIED = 0; // Default, status not specified
+  INELIGIBLE = 1;                     // Customer is ineligible
+  ELIGIBLE = 2;                       // Customer is eligible
+}
+
+// Request to check pre-checkout eligibility for a payment method.
+// Used by PaymentMethodService.Eligibility (e.g. BNPL connectors like Tamara).
+message PaymentMethodServiceEligibilityRequest {
+  // Order amount and currency using the shared Money message.
+  Money amount = 1;
+
+  // Customer details (phone, email, name, etc.).
+  // At a minimum the connector requires phone_number and/or email.
+  optional Customer customer = 2;
+
+  // Billing and shipping address. Many BNPL connectors gate eligibility on
+  // the billing country and use the address for risk scoring.
+  optional PaymentAddress address = 3;
+
+  // Order line items. BNPL eligibility frequently depends on the cart
+  // contents (category, quantity, per-item amount).
+  repeated OrderDetailsWithAmount order_details = 4;
+
+  // Market/country the eligibility check is for. BNPL availability is
+  // country-gated; set this when it cannot be derived from the address.
+  optional CountryAlpha2 country = 5;
+
+  // The specific payment method (e.g. a BNPL variant) eligibility is being
+  // checked for, when the caller wants to scope the check.
+  optional PaymentMethodType payment_method_type = 6;
+
+  // Description for connector-rendered eligibility messaging.
+  optional string description = 7;
+
+  // Additional metadata for the connector
+  optional SecretString metadata = 8;
+
+  // Connector-specific feature data for the transaction.
+  optional SecretString connector_feature_data = 9;
+
+  // Sandbox/test mode flag (true for test environment).
+  optional bool test_mode = 10;
+}
+
+// Response from a pre-checkout eligibility check.
+message PaymentMethodServiceEligibilityResponse {
+  EligibilityStatus eligibility = 1;
+
+  // HTTP status code returned by the upstream connector.
+  uint32 status_code = 2;
+
+  // Structured error details (only present on failure).
+  optional ErrorInfo error_info = 3;
+
+  // Raw request sent to the connector (for debugging).
+  optional SecretString raw_connector_request = 4;
+
+  // Raw response received from the connector (for debugging).
+  optional SecretString raw_connector_response = 5;
+
+  // Response headers from the connector.
+  map<string, string> response_headers = 6;
+}
+
+// ============================================================================
 // SPLIT RESPONSE TYPES
 // ============================================================================
 

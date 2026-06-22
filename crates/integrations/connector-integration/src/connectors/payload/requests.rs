@@ -1,4 +1,4 @@
-use common_utils::{pii::Email, types::FloatMajorUnit};
+use common_utils::{pii::Email, types::StringMajorUnit};
 use domain_types::payment_method_data::{PaymentMethodDataTypes, RawCardNumber};
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
@@ -36,7 +36,7 @@ pub struct BillingAddress {
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PayloadCardsRequestData<T: PaymentMethodDataTypes> {
-    pub amount: FloatMajorUnit,
+    pub amount: StringMajorUnit,
     pub payment_method: PayloadPaymentMethod<T>,
     #[serde(rename = "type")]
     pub transaction_types: TransactionTypes,
@@ -46,6 +46,12 @@ pub struct PayloadCardsRequestData<T: PaymentMethodDataTypes> {
     pub processing_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
+    /// Free-text context about the purchase shown on receipts / transaction histories
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    /// Flexible JSON object for structured metadata (order IDs, lease references, etc.)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attrs: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -84,9 +90,18 @@ pub struct PayloadBank {
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct PayloadBankAccountInner {
+    pub account_class: Option<PayloadAccClass>,
+    pub account_currency: String,
     pub account_number: Secret<String>,
-    pub routing_number: Secret<String>,
     pub account_type: PayloadBankAccountType,
+    pub routing_number: Secret<String>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum PayloadAccClass {
+    Personal,
+    Business,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -99,7 +114,7 @@ pub enum PayloadBankAccountType {
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PayloadMandateRequestData {
-    pub amount: FloatMajorUnit,
+    pub amount: StringMajorUnit,
     #[serde(rename = "type")]
     pub transaction_types: TransactionTypes,
     pub payment_method_id: Secret<String>,
@@ -109,7 +124,7 @@ pub struct PayloadMandateRequestData {
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub struct PayloadCardTokenRequestData {
-    pub amount: FloatMajorUnit,
+    pub amount: StringMajorUnit,
     #[serde(rename = "type")]
     pub transaction_types: TransactionTypes,
     pub payment_method_id: Secret<String>,
@@ -131,7 +146,7 @@ pub struct PayloadCaptureRequest {
 pub struct PayloadRefundRequest {
     #[serde(rename = "type")]
     pub transaction_type: TransactionTypes,
-    pub amount: FloatMajorUnit,
+    pub amount: StringMajorUnit,
     pub ledger: Vec<PayloadRefundLedgerEntry>,
 }
 

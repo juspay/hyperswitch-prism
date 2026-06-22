@@ -115,6 +115,9 @@ pub struct CreatePaymentMethod;
 #[derive(Debug, Clone)]
 pub struct GetPaymentMethod;
 
+#[derive(Debug, Clone)]
+pub struct PaymentMethodEligibility;
+
 #[derive(strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum FlowName {
@@ -158,4 +161,5 @@ pub enum FlowName {
     Recharge,
     CreatePaymentMethod,
     GetPaymentMethod,
+    PaymentMethodEligibility,
 }
