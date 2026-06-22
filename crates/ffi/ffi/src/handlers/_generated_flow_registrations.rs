@@ -70,6 +70,12 @@ use grpc_api_types::payouts::{
     PayoutServiceVoidRequest,
     PayoutServiceVoidResponse,
 };
+use grpc_api_types::frm::{
+    FrmServicePostRiskCheckRequest,
+    FrmServicePostRiskCheckResponse,
+    FrmServicePreRiskCheckRequest,
+    FrmServicePreRiskCheckResponse,
+};
 use grpc_api_types::surcharge::{
     SurchargeServiceCalculateRequest,
     SurchargeServiceCalculateResponse,
@@ -113,6 +119,10 @@ use crate::services::payouts::{
     payout_stage_req_transformer, payout_stage_res_transformer,
     payout_transfer_req_transformer, payout_transfer_res_transformer,
     payout_void_req_transformer, payout_void_res_transformer,
+};
+use crate::services::frm::{
+    post_risk_check_req_transformer, post_risk_check_res_transformer,
+    pre_risk_check_req_transformer, pre_risk_check_res_transformer,
 };
 use crate::services::surcharge::{
     surcharge_calculate_req_transformer, surcharge_calculate_res_transformer,
@@ -162,8 +172,12 @@ impl_flow_handlers!(payout_transfer, PayoutServiceTransferRequest, PayoutService
 impl_flow_handlers!(payout_void, PayoutServiceVoidRequest, PayoutServiceVoidResponse, payout_void_req_transformer, payout_void_res_transformer, domain_types::connector_types::PayoutConnectorEnum);
 // post_authenticate: PaymentMethodAuthenticationService.PostAuthenticate — Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.
 impl_flow_handlers!(post_authenticate, PaymentMethodAuthenticationServicePostAuthenticateRequest, PaymentMethodAuthenticationServicePostAuthenticateResponse, post_authenticate_req_transformer, post_authenticate_res_transformer, domain_types::connector_types::ConnectorEnum);
+// post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+impl_flow_handlers!(post_risk_check, FrmServicePostRiskCheckRequest, FrmServicePostRiskCheckResponse, post_risk_check_req_transformer, post_risk_check_res_transformer, domain_types::connector_types::FrmConnectorEnum);
 // pre_authenticate: PaymentMethodAuthenticationService.PreAuthenticate — Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.
 impl_flow_handlers!(pre_authenticate, PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentMethodAuthenticationServicePreAuthenticateResponse, pre_authenticate_req_transformer, pre_authenticate_res_transformer, domain_types::connector_types::ConnectorEnum);
+// pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+impl_flow_handlers!(pre_risk_check, FrmServicePreRiskCheckRequest, FrmServicePreRiskCheckResponse, pre_risk_check_req_transformer, pre_risk_check_res_transformer, domain_types::connector_types::FrmConnectorEnum);
 // proxy_authorize: PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector.
 impl_flow_handlers!(proxy_authorize, PaymentServiceProxyAuthorizeRequest, PaymentServiceAuthorizeResponse, proxy_authorize_req_transformer, proxy_authorize_res_transformer, domain_types::connector_types::ConnectorEnum);
 // proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.

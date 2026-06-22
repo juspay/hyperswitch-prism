@@ -1,3 +1,6 @@
+use crate::payments::CompositeAccessTokenRequest;
+use crate::transformers::ForeignFrom;
+use crate::utils::frm_connector_from_composite_frm_metadata;
 use connector_integration::types::FrmConnectorData;
 use domain_types::connector_types::ConnectorVariant;
 use grpc_api_types::frm::{
@@ -12,9 +15,6 @@ use grpc_api_types::payments::{
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
 };
-use crate::payments::CompositeAccessTokenRequest;
-use crate::transformers::ForeignFrom;
-use crate::utils::frm_connector_from_composite_frm_metadata;
 
 impl CompositeAccessTokenRequest for CompositeFrmPreRiskCheckRequest {
     fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
@@ -199,70 +199,9 @@ where
             )
             .await?;
 
-        // Field-by-field mapping required: create_server_authentication_token returns payments::MASATR
-        // but CompositeFrmPreRiskCheckResponse expects frm::MASATR — same proto, different Rust modules.
-        // grpc_api_types::{payments, frm} both include the same `types` proto package
-        // independently, producing separate Rust types even for identical messages.
-        // Field-by-field mapping is required; only ErrorInfo needs recursive conversion.
-        let frm_access_token_response = access_token_response.map(|r| {
-            let error = r.error.map(|error_info| grpc_api_types::frm::ErrorInfo {
-                unified_details: error_info.unified_details.map(|ud| {
-                    grpc_api_types::frm::UnifiedErrorDetails {
-                        code: ud.code,
-                        message: ud.message,
-                        description: ud.description,
-                        user_guidance_message: ud.user_guidance_message,
-                    }
-                }),
-                issuer_details: error_info.issuer_details.map(|id| {
-                    grpc_api_types::frm::IssuerErrorDetails {
-                        code: id.code,
-                        message: id.message,
-                        network_details: id.network_details.map(|nd| {
-                            grpc_api_types::frm::NetworkErrorDetails {
-                                advice_code: nd.advice_code,
-                                decline_code: nd.decline_code,
-                                error_message: nd.error_message,
-                            }
-                        }),
-                    }
-                }),
-                connector_details: error_info.connector_details.map(|cd| {
-                    grpc_api_types::frm::ConnectorErrorDetails {
-                        code: cd.code,
-                        message: cd.message,
-                        reason: cd.reason,
-                        connector_transaction_id: cd.connector_transaction_id,
-                        status: cd.status.map(|flow_status| grpc_api_types::frm::FlowStatus {
-                            status: flow_status.status.map(|s| match s {
-                                grpc_api_types::payments::flow_status::Status::PaymentStatus(v) => {
-                                    grpc_api_types::frm::flow_status::Status::PaymentStatus(v)
-                                }
-                                grpc_api_types::payments::flow_status::Status::RefundStatus(v) => {
-                                    grpc_api_types::frm::flow_status::Status::RefundStatus(v)
-                                }
-                                grpc_api_types::payments::flow_status::Status::DisputeStatus(v) => {
-                                    grpc_api_types::frm::flow_status::Status::DisputeStatus(v)
-                                }
-                            }),
-                        }),
-                    }
-                }),
-            });
-            grpc_api_types::frm::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse {
-                access_token: r.access_token,
-                token_type: r.token_type,
-                expires_in_seconds: r.expires_in_seconds,
-                status: r.status,
-                error,
-                status_code: r.status_code,
-                merchant_access_token_id: r.merchant_access_token_id,
-            }
-        });
-
         Ok(tonic::Response::new(CompositeFrmPreRiskCheckResponse {
             pre_risk_check_response: Some(pre_risk_check_response),
-            access_token_response: frm_access_token_response,
+            access_token_response,
         }))
     }
 
@@ -308,70 +247,9 @@ where
             )
             .await?;
 
-        // Field-by-field mapping required: create_server_authentication_token returns payments::MASATR
-        // but CompositeFrmPostRiskCheckResponse expects frm::MASATR — same proto, different Rust modules.
-        // grpc_api_types::{payments, frm} both include the same `types` proto package
-        // independently, producing separate Rust types even for identical messages.
-        // Field-by-field mapping is required; only ErrorInfo needs recursive conversion.
-        let frm_access_token_response = access_token_response.map(|r| {
-            let error = r.error.map(|error_info| grpc_api_types::frm::ErrorInfo {
-                unified_details: error_info.unified_details.map(|ud| {
-                    grpc_api_types::frm::UnifiedErrorDetails {
-                        code: ud.code,
-                        message: ud.message,
-                        description: ud.description,
-                        user_guidance_message: ud.user_guidance_message,
-                    }
-                }),
-                issuer_details: error_info.issuer_details.map(|id| {
-                    grpc_api_types::frm::IssuerErrorDetails {
-                        code: id.code,
-                        message: id.message,
-                        network_details: id.network_details.map(|nd| {
-                            grpc_api_types::frm::NetworkErrorDetails {
-                                advice_code: nd.advice_code,
-                                decline_code: nd.decline_code,
-                                error_message: nd.error_message,
-                            }
-                        }),
-                    }
-                }),
-                connector_details: error_info.connector_details.map(|cd| {
-                    grpc_api_types::frm::ConnectorErrorDetails {
-                        code: cd.code,
-                        message: cd.message,
-                        reason: cd.reason,
-                        connector_transaction_id: cd.connector_transaction_id,
-                        status: cd.status.map(|flow_status| grpc_api_types::frm::FlowStatus {
-                            status: flow_status.status.map(|s| match s {
-                                grpc_api_types::payments::flow_status::Status::PaymentStatus(v) => {
-                                    grpc_api_types::frm::flow_status::Status::PaymentStatus(v)
-                                }
-                                grpc_api_types::payments::flow_status::Status::RefundStatus(v) => {
-                                    grpc_api_types::frm::flow_status::Status::RefundStatus(v)
-                                }
-                                grpc_api_types::payments::flow_status::Status::DisputeStatus(v) => {
-                                    grpc_api_types::frm::flow_status::Status::DisputeStatus(v)
-                                }
-                            }),
-                        }),
-                    }
-                }),
-            });
-            grpc_api_types::frm::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse {
-                access_token: r.access_token,
-                token_type: r.token_type,
-                expires_in_seconds: r.expires_in_seconds,
-                status: r.status,
-                error,
-                status_code: r.status_code,
-                merchant_access_token_id: r.merchant_access_token_id,
-            }
-        });
-
         Ok(tonic::Response::new(CompositeFrmPostRiskCheckResponse {
             post_risk_check_response: Some(post_risk_check_response),
-            access_token_response: frm_access_token_response,
+            access_token_response,
         }))
     }
 }

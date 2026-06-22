@@ -1016,31 +1016,16 @@ impl
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         ),
     ) -> Self {
-        let access_token = item
-            .state
-            .as_ref()
-            .and_then(|state| state.access_token.clone())
-            .or_else(|| {
-                access_token_response.and_then(|r| {
-                    r.access_token
-                        .clone()
-                        .map(|token| grpc_api_types::frm::AccessToken {
-                            token: Some(token),
-                            token_type: r.token_type.clone(),
-                            expires_in_seconds: r.expires_in_seconds,
-                        })
-                })
-            });
-
+        let access_token = get_access_token(
+            item.state
+                .as_ref()
+                .and_then(|state| state.access_token.clone()),
+            access_token_response,
+        );
         let connector_customer_id = item
             .state
             .as_ref()
             .and_then(|state| state.connector_customer_id.clone());
-
-        let resolved_state = Some(grpc_api_types::frm::ConnectorState {
-            access_token,
-            connector_customer_id,
-        });
 
         Self {
             amount: item.amount,
@@ -1053,7 +1038,10 @@ impl
             metadata: item.metadata.clone(),
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
-            state: resolved_state,
+            state: Some(ConnectorState {
+                access_token,
+                connector_customer_id,
+            }),
         }
     }
 }
@@ -1070,31 +1058,16 @@ impl
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         ),
     ) -> Self {
-        let access_token = item
-            .state
-            .as_ref()
-            .and_then(|state| state.access_token.clone())
-            .or_else(|| {
-                access_token_response.and_then(|r| {
-                    r.access_token
-                        .clone()
-                        .map(|token| grpc_api_types::frm::AccessToken {
-                            token: Some(token),
-                            token_type: r.token_type.clone(),
-                            expires_in_seconds: r.expires_in_seconds,
-                        })
-                })
-            });
-
+        let access_token = get_access_token(
+            item.state
+                .as_ref()
+                .and_then(|state| state.access_token.clone()),
+            access_token_response,
+        );
         let connector_customer_id = item
             .state
             .as_ref()
             .and_then(|state| state.connector_customer_id.clone());
-
-        let resolved_state = Some(grpc_api_types::frm::ConnectorState {
-            access_token,
-            connector_customer_id,
-        });
 
         Self {
             amount: item.amount,
@@ -1108,7 +1081,10 @@ impl
             payment_status: item.payment_status,
             connector_transaction_id: item.connector_transaction_id.clone(),
             payment_connector: item.payment_connector,
-            state: resolved_state,
+            state: Some(ConnectorState {
+                access_token,
+                connector_customer_id,
+            }),
         }
     }
 }

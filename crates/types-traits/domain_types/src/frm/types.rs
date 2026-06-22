@@ -5,15 +5,13 @@ use super::frm_types::{
 use crate::{
     connector_types::{ConnectorResponseHeaders, CustomerInfo, RawConnectorRequestResponse},
     errors::IntegrationError,
-    payment_address::{
-        Address, AddressDetails, OrderDetailsWithAmount, PaymentAddress, PhoneDetails,
-    },
-    payment_method_data::{Card, DefaultPCIHolder, PaymentMethodData, RawCardNumber},
+    payment_address::{Address, OrderDetailsWithAmount, PaymentAddress},
+    payment_method_data::{Card, DefaultPCIHolder, PaymentMethodData},
     router_request_types::BrowserInformation,
     types::Connectors,
     utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom},
 };
-use common_enums::{AttemptStatus, CardNetwork, CountryAlpha2, FrmDecision};
+use common_enums::{AttemptStatus, FrmDecision};
 use common_utils::{
     pii::Email,
     types::{MinorUnit, Money},
@@ -329,13 +327,16 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
                 },
             })?;
 
-        let order_details = {
-            let details: Result<Vec<OrderDetailsWithAmount>, _> = value
-                .order_details
-                .into_iter()
-                .map(OrderDetailsWithAmount::foreign_try_from)
-                .collect();
-            let details = details.change_context(IntegrationError::InvalidDataFormat {
+        let order_details = (!value.order_details.is_empty())
+            .then(|| {
+                value
+                    .order_details
+                    .into_iter()
+                    .map(OrderDetailsWithAmount::foreign_try_from)
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .transpose()
+            .change_context(IntegrationError::InvalidDataFormat {
                 field_name: "order_details",
                 context: crate::errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -344,12 +345,6 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
                     ..Default::default()
                 },
             })?;
-            if details.is_empty() {
-                None
-            } else {
-                Some(details)
-            }
-        };
 
         Ok(Self {
             amount: Money {
@@ -371,8 +366,10 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePostRiskCheckRequest> for Pos
 }
 
 // ── frm:: type conversions ────────────────────────────────────────────────────
-// These mirror the payments:: equivalents but target grpc_api_types::frm types,
-// which are separate Rust types even though they originate from the same proto package.
+// After the lib.rs namespace unification, grpc_api_types::frm::* re-exports the same
+// proto-generated types as grpc_api_types::payments::*, so most conversions are handled
+// by the payments:: impls in types.rs. Only types whose target differs from the
+// payments:: equivalents are kept here.
 
 impl ForeignTryFrom<grpc_api_types::frm::Customer> for CustomerInfo {
     type Error = IntegrationError;
@@ -415,222 +412,6 @@ impl ForeignTryFrom<grpc_api_types::frm::Customer> for CustomerInfo {
             customer_phone_number: value.phone_number,
             customer_phone_country_code: value.phone_country_code,
             salutation: value.salutation,
-        })
-    }
-}
-
-impl ForeignTryFrom<grpc_api_types::frm::BrowserInformation> for BrowserInformation {
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        value: grpc_api_types::frm::BrowserInformation,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        Ok(Self {
-            color_depth: value.color_depth.map(|color_depth| color_depth as u8),
-            java_enabled: value.java_enabled,
-            java_script_enabled: value.java_script_enabled,
-            language: value.language,
-            screen_height: value.screen_height,
-            screen_width: value.screen_width,
-            time_zone: value.time_zone_offset_minutes,
-            ip_address: value.ip_address.and_then(|ip_address| ip_address.parse().ok()),
-            accept_header: value.accept_header,
-            user_agent: value.user_agent,
-            os_type: value.os_type,
-            os_version: value.os_version,
-            device_model: value.device_model,
-            accept_language: value.accept_language,
-            referer: value.referer,
-        })
-    }
-}
-
-impl ForeignTryFrom<grpc_api_types::frm::OrderDetailsWithAmount> for OrderDetailsWithAmount {
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        item: grpc_api_types::frm::OrderDetailsWithAmount,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        Ok(Self {
-            product_name: item.product_name,
-            quantity: u16::try_from(item.quantity).change_context(
-                IntegrationError::InvalidDataFormat {
-                    field_name: "order_details.quantity",
-                    context: crate::errors::IntegrationErrorContext {
-                        additional_context: Some(
-                            "Quantity value is out of range for u16".to_owned(),
-                        ),
-                        ..Default::default()
-                    },
-                },
-            )?,
-            amount: MinorUnit::new(item.amount),
-            tax_rate: item.tax_rate,
-            total_tax_amount: item.total_tax_amount.map(MinorUnit::new),
-            requires_shipping: item.requires_shipping,
-            product_img_link: item.product_img_link,
-            product_id: item.product_id,
-            category: item.category,
-            sub_category: item.sub_category,
-            brand: item.brand,
-            description: item.description,
-            unit_of_measure: item.unit_of_measure,
-            // Convert frm::ProductType i32 to payments::ProductType via shared integer values.
-            product_type: item
-                .product_type
-                .and_then(|product_type| {
-                    grpc_api_types::payments::ProductType::try_from(product_type).ok()
-                })
-                .filter(|product_type| {
-                    !matches!(
-                        product_type,
-                        grpc_api_types::payments::ProductType::Unspecified
-                    )
-                })
-                .map(common_enums::ProductType::foreign_from),
-            product_tax_code: item.product_tax_code,
-            commodity_code: item.commodity_code,
-            sku: item.sku,
-            upc: item.upc,
-            unit_discount_amount: item.unit_discount_amount.map(MinorUnit::new),
-            total_amount: None,
-        })
-    }
-}
-
-impl ForeignTryFrom<grpc_api_types::frm::Address> for AddressDetails {
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        value: grpc_api_types::frm::Address,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        // Convert frm::CountryAlpha2 to payments::CountryAlpha2 via shared proto integer values,
-        // then use the existing ForeignTryFrom impl for the domain CountryAlpha2.
-        let country_code_i32 = value.country_alpha2_code() as i32;
-        let payments_country = grpc_api_types::payments::CountryAlpha2::try_from(country_code_i32)
-            .unwrap_or(grpc_api_types::payments::CountryAlpha2::Unspecified);
-        let country = if matches!(
-            payments_country,
-            grpc_api_types::payments::CountryAlpha2::Unspecified
-        ) {
-            None
-        } else {
-            Some(CountryAlpha2::foreign_try_from(payments_country)?)
-        };
-
-        Ok(Self {
-            country,
-            city: value.city,
-            line1: value.line1,
-            line2: value.line2,
-            line3: value.line3,
-            zip: value.zip_code,
-            state: value.state,
-            first_name: value.first_name,
-            last_name: value.last_name,
-            origin_zip: None,
-        })
-    }
-}
-
-impl ForeignTryFrom<grpc_api_types::frm::Address> for Address {
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        value: grpc_api_types::frm::Address,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let email = value
-            .email
-            .clone()
-            .map(|email| email.expose().parse::<Email>())
-            .transpose()
-            .map_err(|_| {
-                error_stack::report!(IntegrationError::InvalidDataFormat {
-                    field_name: "address.email",
-                    context: crate::errors::IntegrationErrorContext {
-                        additional_context: Some("Invalid email".to_owned()),
-                        ..Default::default()
-                    },
-                })
-            })?;
-
-        Ok(Self {
-            address: Some(AddressDetails::foreign_try_from(value.clone())?),
-            phone: value.phone_number.map(|number| PhoneDetails {
-                number: Some(number),
-                country_code: value.phone_country_code,
-            }),
-            email,
-        })
-    }
-}
-
-impl ForeignTryFrom<grpc_api_types::frm::CardDetails> for Card<DefaultPCIHolder> {
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        card: grpc_api_types::frm::CardDetails,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        // Convert frm::CardNetwork to payments::CardNetwork via shared proto integer values,
-        // then use the existing ForeignTryFrom impl for the domain CardNetwork.
-        let frm_card_network = card.card_network();
-        let card_network = if matches!(
-            frm_card_network,
-            grpc_api_types::frm::CardNetwork::Unspecified
-        ) {
-            None
-        } else {
-            let payments_card_network =
-                grpc_api_types::payments::CardNetwork::try_from(frm_card_network as i32)
-                    .unwrap_or(grpc_api_types::payments::CardNetwork::Unspecified);
-            Some(CardNetwork::foreign_try_from(payments_card_network)?)
-        };
-
-        Ok(Self {
-            card_number: RawCardNumber(card.card_number.ok_or_else(|| {
-                error_stack::report!(IntegrationError::InvalidDataFormat {
-                    field_name: "card.card_number",
-                    context: crate::errors::IntegrationErrorContext {
-                        additional_context: Some("Missing card number".to_owned()),
-                        ..Default::default()
-                    },
-                })
-            })?),
-            card_exp_month: card.card_exp_month.ok_or_else(|| {
-                error_stack::report!(IntegrationError::InvalidDataFormat {
-                    field_name: "card.card_exp_month",
-                    context: crate::errors::IntegrationErrorContext {
-                        additional_context: Some("Missing card expiry month".to_owned()),
-                        ..Default::default()
-                    },
-                })
-            })?,
-            card_exp_year: card.card_exp_year.ok_or_else(|| {
-                error_stack::report!(IntegrationError::InvalidDataFormat {
-                    field_name: "card.card_exp_year",
-                    context: crate::errors::IntegrationErrorContext {
-                        additional_context: Some("Missing card expiry year".to_owned()),
-                        ..Default::default()
-                    },
-                })
-            })?,
-            card_cvc: card.card_cvc.ok_or_else(|| {
-                error_stack::report!(IntegrationError::InvalidDataFormat {
-                    field_name: "card.card_cvc",
-                    context: crate::errors::IntegrationErrorContext {
-                        additional_context: Some("Missing CVC".to_owned()),
-                        ..Default::default()
-                    },
-                })
-            })?,
-            card_issuer: card.card_issuer,
-            card_network,
-            card_type: card.card_type,
-            card_issuing_country: card.card_issuing_country_alpha2,
-            bank_code: card.bank_code,
-            nick_name: card.nick_name.map(Into::into),
-            card_holder_name: card.card_holder_name,
-            co_badged_card_data: None,
         })
     }
 }

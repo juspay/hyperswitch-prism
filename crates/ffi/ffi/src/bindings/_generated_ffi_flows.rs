@@ -40,6 +40,10 @@ use grpc_api_types::payouts::{
     PayoutServiceTransferRequest,
     PayoutServiceVoidRequest,
 };
+use grpc_api_types::frm::{
+    FrmServicePostRiskCheckRequest,
+    FrmServicePreRiskCheckRequest,
+};
 use grpc_api_types::surcharge::{
     SurchargeServiceCalculateRequest,
 };
@@ -67,7 +71,9 @@ use crate::handlers::payments::{
     payout_transfer_req_handler, payout_transfer_res_handler,
     payout_void_req_handler, payout_void_res_handler,
     post_authenticate_req_handler, post_authenticate_res_handler,
+    post_risk_check_req_handler, post_risk_check_res_handler,
     pre_authenticate_req_handler, pre_authenticate_res_handler,
+    pre_risk_check_req_handler, pre_risk_check_res_handler,
     proxy_authorize_req_handler, proxy_authorize_res_handler,
     proxy_setup_recurring_req_handler, proxy_setup_recurring_res_handler,
     recurring_revoke_req_handler, recurring_revoke_res_handler,
@@ -127,8 +133,12 @@ define_ffi_flow!(payout_transfer, PayoutServiceTransferRequest, payout_transfer_
 define_ffi_flow!(payout_void, PayoutServiceVoidRequest, payout_void_req_handler, payout_void_res_handler);
 // post_authenticate: PaymentMethodAuthenticationService.PostAuthenticate — Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.
 define_ffi_flow!(post_authenticate, PaymentMethodAuthenticationServicePostAuthenticateRequest, post_authenticate_req_handler, post_authenticate_res_handler);
+// post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+define_ffi_flow!(post_risk_check, FrmServicePostRiskCheckRequest, post_risk_check_req_handler, post_risk_check_res_handler);
 // pre_authenticate: PaymentMethodAuthenticationService.PreAuthenticate — Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.
 define_ffi_flow!(pre_authenticate, PaymentMethodAuthenticationServicePreAuthenticateRequest, pre_authenticate_req_handler, pre_authenticate_res_handler);
+// pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+define_ffi_flow!(pre_risk_check, FrmServicePreRiskCheckRequest, pre_risk_check_req_handler, pre_risk_check_res_handler);
 // proxy_authorize: PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector.
 define_ffi_flow!(proxy_authorize, PaymentServiceProxyAuthorizeRequest, proxy_authorize_req_handler, proxy_authorize_res_handler);
 // proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.
