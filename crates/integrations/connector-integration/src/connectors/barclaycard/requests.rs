@@ -40,6 +40,62 @@ pub struct CardPaymentInformation<T: PaymentMethodDataTypes + Sync + Send + 'sta
 #[serde(untagged)]
 pub enum PaymentInformation<T: PaymentMethodDataTypes + Sync + Send + 'static + Serialize> {
     Cards(Box<CardPaymentInformation<T>>),
+    ApplePay(Box<ApplePayPaymentInformation>),
+    ApplePayToken(Box<ApplePayTokenPaymentInformation>),
+}
+
+/// ApplePay transaction type.
+///
+/// Mirrors Cybersource: `"1"` (`InApp`) is used for tokenized in-app wallet payments.
+#[derive(Debug, Serialize)]
+pub enum TransactionType {
+    #[serde(rename = "1")]
+    InApp,
+}
+
+/// ApplePay decrypted-token payment information.
+///
+/// Used when the network token (PAN + cryptogram) has been decrypted, so the card
+/// details are sent directly under `tokenizedCard`.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayPaymentInformation {
+    pub tokenized_card: TokenizedCard,
+}
+
+/// ApplePay encrypted-token payment information.
+///
+/// Used when only the encrypted Apple Pay blob is available; the blob is sent as
+/// `fluidData` and Barclaycard performs the decryption.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayTokenPaymentInformation {
+    pub fluid_data: FluidData,
+    pub tokenized_card: ApplePayTokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TokenizedCard {
+    pub number: cards::CardNumber,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub cryptogram: Option<Secret<String>>,
+    pub transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayTokenizedCard {
+    pub transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FluidData {
+    pub value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub descriptor: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

@@ -10,10 +10,11 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, Secret};
 use serde::Serialize;
 
@@ -50,6 +51,14 @@ const TYPE_SELECTION_INDICATOR_PRIMARY: &str = "1";
 /// flow). Other reason codes exist for installment/recurring/resubmission MITs but are
 /// not used here.
 const MIT_REASON_NTI: &str = "7";
+
+/// `processingInformation.paymentSolution` code for ApplePay wallet payments.
+/// Barclaycard mirrors Cybersource: ApplePay = "001", GooglePay = "012".
+const APPLE_PAY_PAYMENT_SOLUTION: &str = "001";
+
+/// `paymentInformation.fluidData.descriptor` for ApplePay encrypted tokens.
+/// Base64 of `FID=COMMON.APPLE.INAPP.PAYMENT`, identical to the Cybersource value.
+const FLUID_DATA_DESCRIPTOR: &str = "RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U";
 
 #[derive(Debug, Clone)]
 pub struct BarclaycardAuthType {
@@ -481,30 +490,86 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.currency,
         )?;
 
-        let ccard = match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => Ok(card),
+        // Build the payment_information block and, for wallet payments, the
+        // processingInformation.paymentSolution code. Card payments leave payment_solution
+        // unset; ApplePay sets it to "001" (matching the Cybersource whitelabel mapping).
+        let (payment_information, payment_solution): (
+            requests::PaymentInformation<T>,
+            Option<String>,
+        ) = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(ccard) => {
+                let card_network = ccard.card_network.clone();
+                let card_type = card_network
+                    .and_then(get_barclaycard_card_type)
+                    .map(|s| s.to_string());
+
+                (
+                    requests::PaymentInformation::Cards(Box::new(
+                        requests::CardPaymentInformation {
+                            card: requests::Card {
+                                number: ccard.card_number.clone(),
+                                expiration_month: ccard.card_exp_month.clone(),
+                                expiration_year: ccard.get_expiry_year_4_digit(),
+                                security_code: ccard.card_cvc.clone(),
+                                card_type,
+                                type_selection_indicator: Some(
+                                    TYPE_SELECTION_INDICATOR_PRIMARY.to_owned(),
+                                ),
+                            },
+                        },
+                    )),
+                    None,
+                )
+            }
+            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                let payment_information = match apple_pay_data
+                    .payment_data
+                    .get_decrypted_apple_pay_payment_data_optional()
+                {
+                    // Decrypted token: send the PAN + cryptogram directly under tokenizedCard.
+                    Some(decrypt_data) => requests::PaymentInformation::ApplePay(Box::new(
+                        requests::ApplePayPaymentInformation {
+                            tokenized_card: requests::TokenizedCard {
+                                number: decrypt_data.clone().application_primary_account_number,
+                                cryptogram: Some(
+                                    decrypt_data.clone().payment_data.online_payment_cryptogram,
+                                ),
+                                transaction_type: requests::TransactionType::InApp,
+                                expiration_year: decrypt_data.get_four_digit_expiry_year(),
+                                expiration_month: decrypt_data.get_expiry_month(),
+                            },
+                        },
+                    )),
+                    // Encrypted token: forward the encrypted blob as fluidData and let
+                    // Barclaycard decrypt it.
+                    None => {
+                        let apple_pay_encrypted_data = apple_pay_data
+                            .payment_data
+                            .get_encrypted_apple_pay_payment_data_mandatory()
+                            .change_context(IntegrationError::MissingRequiredField {
+                                field_name: "Apple pay encrypted data",
+                                context: Default::default(),
+                            })?;
+                        requests::PaymentInformation::ApplePayToken(Box::new(
+                            requests::ApplePayTokenPaymentInformation {
+                                fluid_data: requests::FluidData {
+                                    value: Secret::from(apple_pay_encrypted_data.clone()),
+                                    descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                                },
+                                tokenized_card: requests::ApplePayTokenizedCard {
+                                    transaction_type: requests::TransactionType::InApp,
+                                },
+                            },
+                        ))
+                    }
+                };
+                (payment_information, Some(APPLE_PAY_PAYMENT_SOLUTION.to_string()))
+            }
             _ => Err(IntegrationError::NotImplemented(
-                "Only card payments are supported".to_string(),
+                "Selected payment method is not supported".to_string(),
                 Default::default(),
-            )),
-        }?;
-
-        let card_network = ccard.card_network.clone();
-        let card_type = card_network
-            .and_then(get_barclaycard_card_type)
-            .map(|s| s.to_string());
-
-        let payment_information =
-            requests::PaymentInformation::Cards(Box::new(requests::CardPaymentInformation {
-                card: requests::Card {
-                    number: ccard.card_number.clone(),
-                    expiration_month: ccard.card_exp_month.clone(),
-                    expiration_year: ccard.get_expiry_year_4_digit(),
-                    security_code: ccard.card_cvc.clone(),
-                    card_type,
-                    type_selection_indicator: Some(TYPE_SELECTION_INDICATOR_PRIMARY.to_owned()),
-                },
-            }));
+            ))?,
+        };
 
         let email = router_data
             .resource_common_data
@@ -536,7 +601,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 router_data.request.capture_method,
                 Some(common_enums::CaptureMethod::Automatic) | None
             )),
-            payment_solution: None, // Only set for wallet payments (GooglePay="012", ApplePay="001")
+            payment_solution, // Only set for wallet payments (GooglePay="012", ApplePay="001")
             cavv_algorithm: Some(CAVV_ALGORITHM_ATN.to_string()),
         };
 
