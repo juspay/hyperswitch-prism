@@ -682,7 +682,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe-mandate-123\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"\",\"tags\":{\"merchant_reference\":\"\"}}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe-mandate-123\",\"merchant\":\"probe_merchant\",\"tags\":null,\"fraud_session_id\":null,\"3d_secure_authentication\":null,\"idempotency_id\":\"\",\"statement_descriptor\":null}"
         }
       }
     },
