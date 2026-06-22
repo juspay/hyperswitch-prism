@@ -362,6 +362,7 @@ pub enum FlowName {
     GetPaymentMethod,
     PreRiskCheck,
     PostRiskCheck,
+    PaymentMethodEligibility,
 }
 
 impl FlowName {
@@ -409,6 +410,7 @@ impl FlowName {
             Self::GetPaymentMethod => "GetPaymentMethod",
             Self::PreRiskCheck => "PreRiskCheck",
             Self::PostRiskCheck => "PostRiskCheck",
+            Self::PaymentMethodEligibility => "PaymentMethodEligibility",
             Self::Unknown => "Unknown",
         }
     }

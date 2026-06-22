@@ -52,6 +52,8 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
     PaymentMethodServiceCreateRequest,
     PaymentMethodServiceCreateResponse,
+    PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceEligibilityResponse,
     PaymentMethodServiceGetRequest,
     PaymentMethodServiceGetResponse,
     PaymentMethodServiceRechargeRequest,
@@ -318,6 +320,12 @@ impl_grpc_client!(
         PaymentMethodServiceRechargeRequest,
         PaymentMethodServiceRechargeResponse
     ),
+    (
+        eligibility,
+        eligibility,
+        PaymentMethodServiceEligibilityRequest,
+        PaymentMethodServiceEligibilityResponse
+    ),
 );
 
 // PaymentService
@@ -458,7 +466,7 @@ impl_grpc_client!(
         PayoutServiceEnrollDisburseAccountResponse
     ),
     (
-        eligibility,
+        payout_eligibility,
         eligibility,
         PayoutMethodEligibilityRequest,
         PayoutMethodEligibilityResponse

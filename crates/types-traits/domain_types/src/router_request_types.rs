@@ -496,3 +496,6 @@ pub struct FrmRefundProcessedIntegrityObject {}
 /// FRM chargeback received integrity object (no-op; kept for framework compatibility).
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct FrmChargebackReceivedIntegrityObject {}
+
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PaymentMethodEligibilityIntegrityObject {}

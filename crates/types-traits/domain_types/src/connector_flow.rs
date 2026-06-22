@@ -130,6 +130,9 @@ pub struct FrmRefundProcessed;
 #[derive(Debug, Clone)]
 pub struct FrmChargebackReceived;
 
+#[derive(Debug, Clone)]
+pub struct PaymentMethodEligibility;
+
 #[derive(strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum FlowName {
@@ -178,4 +181,5 @@ pub enum FlowName {
     FrmPaymentOutcome,
     FrmRefundProcessed,
     FrmChargebackReceived,
+    PaymentMethodEligibility,
 }

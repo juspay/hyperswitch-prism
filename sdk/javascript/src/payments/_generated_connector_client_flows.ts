@@ -117,6 +117,14 @@ export class PaymentMethodAuthenticationClient extends _ConnectorClientBase {
 }
 
 export class PaymentMethodClient extends _ConnectorClientBase {
+  /** PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check) */
+  async eligibility(
+    requestMsg: types.IPaymentMethodServiceEligibilityRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentMethodServiceEligibilityResponse> {
+    return this._executeFlow('eligibility', requestMsg, options, 'PaymentMethodServiceEligibilityRequest', 'PaymentMethodServiceEligibilityResponse') as Promise<types.PaymentMethodServiceEligibilityResponse>;
+  }
+
   /** PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing. */
   async tokenize(
     requestMsg: types.IPaymentMethodServiceTokenizeRequest,

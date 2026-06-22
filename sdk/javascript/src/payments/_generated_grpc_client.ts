@@ -297,6 +297,8 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentServiceTokenSetupRecurringRequest: ["connectorToken", "metadata", "connectorFeatureData"],
   PaymentServiceProxyAuthorizeRequest: ["metadata", "connectorFeatureData"],
   PaymentServiceProxySetupRecurringRequest: ["metadata"],
+  PaymentMethodServiceEligibilityRequest: ["metadata", "connectorFeatureData"],
+  PaymentMethodServiceEligibilityResponse: ["rawConnectorRequest", "rawConnectorResponse"],
   FrmServicePreRiskCheckRequest: ["metadata", "connectorFeatureData"],
   FrmServicePreRiskCheckResponse: ["rawConnectorRequest", "rawConnectorResponse"],
   FrmServicePostRiskCheckRequest: ["metadata", "connectorFeatureData"],
@@ -390,7 +392,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaypalClientAuthenticationResponse: { "transactionInfo": "PaypalTransactionInfo" },
   PaymentServiceAuthorizeRequest: { "amount": "Money", "paymentMethod": "PaymentMethod", "customer": "Customer", "address": "PaymentAddress", "authenticationData": "AuthenticationData", "customerAcceptance": "CustomerAcceptance", "browserInfo": "BrowserInformation", "setupMandateDetails": "SetupMandateDetails", "billingDescriptor": "BillingDescriptor", "state": "ConnectorState", "orderDetails": "OrderDetailsWithAmount", "redirectionResponse": "RedirectionResponse", "l2L3Data": "L2L3Data", "domainData": "DomainData", "splitPayments": "SplitPaymentsDetails", "surchargeAmount": "Money", "partnerMerchantIdentifierDetails": "PartnerMerchantIdentifierDetails" },
   PartnerMerchantIdentifierDetails: { "partnerDetails": "PartnerApplicationDetails", "merchantDetails": "MerchantApplicationDetails" },
-  PaymentServiceAuthorizeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "redirectionData": "RedirectForm", "state": "ConnectorState", "mandateReference": "MandateReference", "connectorResponse": "ConnectorResponseData" },
+  PaymentServiceAuthorizeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "redirectionData": "RedirectForm", "state": "ConnectorState", "authorizedMoney": "Money", "mandateReference": "MandateReference", "connectorResponse": "ConnectorResponseData" },
   PaymentServiceGetRequest: { "amount": "Money", "state": "ConnectorState", "splitPayments": "SplitPaymentsDetails" },
   PaymentServiceGetResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "mandateReference": "MandateReference", "amount": "Money", "connectorResponse": "ConnectorResponseData", "state": "ConnectorState", "redirectionData": "RedirectForm", "paymentMethodUpdate": "PaymentMethodUpdate" },
   PaymentServiceVoidRequest: { "browserInfo": "BrowserInformation", "amount": "Money", "state": "ConnectorState" },
@@ -472,6 +474,8 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   ChargeRefundsOptions: { "destination": "DestinationChargeRefund", "direct": "DirectChargeRefund" },
   AdyenSplitData: { "splitItems": "AdyenSplitItem" },
   SplitPaymentsDetails: { "stripeSplitPayment": "StripeSplitPaymentData", "adyenSplitPayment": "AdyenSplitData" },
+  PaymentMethodServiceEligibilityRequest: { "amount": "Money", "customer": "Customer", "address": "PaymentAddress", "orderDetails": "OrderDetailsWithAmount" },
+  PaymentMethodServiceEligibilityResponse: { "errorInfo": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   FrmServicePreRiskCheckRequest: { "amount": "Money", "customerInfo": "CustomerInfo", "paymentMethod": "PaymentMethod", "browserInfo": "BrowserInformation", "orderDetails": "OrderDetailsWithAmount", "address": "Address", "state": "ConnectorState" },
   FrmServicePreRiskCheckResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   FrmServicePostRiskCheckRequest: { "amount": "Money", "customerInfo": "CustomerInfo", "paymentMethod": "PaymentMethod", "orderDetails": "OrderDetailsWithAmount", "state": "ConnectorState" },
@@ -703,6 +707,11 @@ export class GrpcPaymentMethodClient {
     return callGrpc(this.ffi, this.config, "payment_method/recharge",
       req, types.PaymentMethodServiceRechargeRequest, types.PaymentMethodServiceRechargeResponse);
   }
+  /** PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check) */
+  async eligibility(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payment_method/eligibility",
+      req, types.PaymentMethodServiceEligibilityRequest, types.PaymentMethodServiceEligibilityResponse);
+  }
 }
 
 // PaymentService
@@ -826,8 +835,8 @@ export class GrpcPayoutClient {
       req, types.PayoutServiceEnrollDisburseAccountRequest, types.PayoutServiceEnrollDisburseAccountResponse);
   }
   /** PayoutService.Eligibility — Check if the payout method is eligible for the transaction */
-  async eligibility(req: unknown): Promise<unknown> {
-    return callGrpc(this.ffi, this.config, "payout/eligibility",
+  async payoutEligibility(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "payout/payout_eligibility",
       req, types.PayoutMethodEligibilityRequest, types.PayoutMethodEligibilityResponse);
   }
 }

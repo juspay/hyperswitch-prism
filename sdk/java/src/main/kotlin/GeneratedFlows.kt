@@ -30,6 +30,8 @@ import uniffi.connector_service_ffi.customerCreateReqTransformer
 import uniffi.connector_service_ffi.customerCreateResTransformer
 import uniffi.connector_service_ffi.defendReqTransformer
 import uniffi.connector_service_ffi.defendResTransformer
+import uniffi.connector_service_ffi.eligibilityReqTransformer
+import uniffi.connector_service_ffi.eligibilityResTransformer
 import uniffi.connector_service_ffi.getReqTransformer
 import uniffi.connector_service_ffi.getResTransformer
 import uniffi.connector_service_ffi.incrementalAuthorizationReqTransformer
@@ -97,6 +99,7 @@ object FlowRegistry {
         "create_server_session_authentication_token" to ::createServerSessionAuthenticationTokenReqTransformer,
         "customer_create" to ::customerCreateReqTransformer,
         "defend" to ::defendReqTransformer,
+        "eligibility" to ::eligibilityReqTransformer,
         "get" to ::getReqTransformer,
         "incremental_authorization" to ::incrementalAuthorizationReqTransformer,
         "payout_create" to ::payoutCreateReqTransformer,
@@ -136,6 +139,7 @@ object FlowRegistry {
         "create_server_session_authentication_token" to ::createServerSessionAuthenticationTokenResTransformer,
         "customer_create" to ::customerCreateResTransformer,
         "defend" to ::defendResTransformer,
+        "eligibility" to ::eligibilityResTransformer,
         "get" to ::getResTransformer,
         "incremental_authorization" to ::incrementalAuthorizationResTransformer,
         "payout_create" to ::payoutCreateResTransformer,
@@ -260,6 +264,10 @@ class PaymentMethodClient(
     defaults: RequestConfig = RequestConfig.getDefaultInstance(),
     libPath: String? = null
 ) : ConnectorClient(config, defaults, libPath) {
+    // eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+    fun eligibility(request: PaymentMethodServiceEligibilityRequest, options: RequestConfig? = null): PaymentMethodServiceEligibilityResponse =
+        executeFlow("eligibility", request.toByteArray(), PaymentMethodServiceEligibilityResponse.parser(), options)
+
     // tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
     fun tokenize(request: PaymentMethodServiceTokenizeRequest, options: RequestConfig? = null): PaymentMethodServiceTokenizeResponse =
         executeFlow("tokenize", request.toByteArray(), PaymentMethodServiceTokenizeResponse.parser(), options)

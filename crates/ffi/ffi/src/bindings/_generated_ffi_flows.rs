@@ -12,6 +12,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
+    PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceTokenizeRequest,
     PaymentServiceAuthorizeRequest,
     PaymentServiceCaptureRequest,
@@ -60,6 +61,7 @@ use crate::handlers::payments::{
     create_server_session_authentication_token_req_handler, create_server_session_authentication_token_res_handler,
     customer_create_req_handler, customer_create_res_handler,
     defend_req_handler, defend_res_handler,
+    eligibility_req_handler, eligibility_res_handler,
     get_req_handler, get_res_handler,
     incremental_authorization_req_handler, incremental_authorization_res_handler,
     payout_create_req_handler, payout_create_res_handler,
@@ -111,6 +113,8 @@ define_ffi_flow!(create_server_session_authentication_token, MerchantAuthenticat
 define_ffi_flow!(customer_create, CustomerServiceCreateRequest, customer_create_req_handler, customer_create_res_handler);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 define_ffi_flow!(defend, DisputeServiceDefendRequest, defend_req_handler, defend_res_handler);
+// eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+define_ffi_flow!(eligibility, PaymentMethodServiceEligibilityRequest, eligibility_req_handler, eligibility_res_handler);
 // get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
 define_ffi_flow!(get, PaymentServiceGetRequest, get_req_handler, get_res_handler);
 // incremental_authorization: PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.

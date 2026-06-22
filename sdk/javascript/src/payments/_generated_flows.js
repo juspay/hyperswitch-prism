@@ -36,6 +36,9 @@ const FLOWS = {
   // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
   defend                                     : { request: "DisputeServiceDefendRequest", response: "DisputeServiceDefendResponse" },
 
+  // eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+  eligibility                                : { request: "PaymentMethodServiceEligibilityRequest", response: "PaymentMethodServiceEligibilityResponse" },
+
   // get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
   get                                        : { request: "PaymentServiceGetRequest", response: "PaymentServiceGetResponse" },
 
