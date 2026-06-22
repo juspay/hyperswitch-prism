@@ -5604,7 +5604,15 @@ fn convert_metadata_to_merchant_defined_info(
     let mut result: Vec<utils::MerchantDefinedInformation> = metadata
         .and_then(|value| value.as_object().cloned())
         .map(|map| {
-            map.into_iter()
+            // Match Hyperswitch's ordering: HS parses the metadata into a
+            // `BTreeMap<String, Value>` (key-sorted) before building the entries,
+            // whereas serde_json here runs with the `preserve_order` feature, so
+            // `as_object()` keeps insertion order. Collect into a BTreeMap so the
+            // merchantDefinedInformation positions are identical on both sides.
+            let sorted: std::collections::BTreeMap<String, serde_json::Value> =
+                map.into_iter().collect();
+            sorted
+                .into_iter()
                 .map(|(key, value)| {
                     let mdi = utils::MerchantDefinedInformation {
                         key: iter,
