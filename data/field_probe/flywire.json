@@ -3293,7 +3293,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by flywire connector"
       }
     },
     "get": {
@@ -3362,6 +3363,11 @@
           "headers": {},
           "body": "{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"PTU000000000\",\"status\":\"guaranteed\",\"external_reference\":\"sample\"}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {
