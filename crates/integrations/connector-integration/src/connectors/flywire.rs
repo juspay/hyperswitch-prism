@@ -659,5 +659,7 @@ macros::macro_connector_flow_status_impls!(
         VoidPC,
         PaymentMethodToken,
         CreateOrder,
+        VoidPostRefund,
+        PaymentMethodEligibility,
     ],
 );
