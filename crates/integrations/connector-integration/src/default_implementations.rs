@@ -279,6 +279,7 @@ default_impl_verify_webhook_source_v2!(
         Juspay,
         Payconex,
         Hyperswitch,
+        Affirm,
     ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -432,6 +433,7 @@ default_impl_recharge_v2!(
     Stripe,
     Tamara,
     Hyperswitch,
+    Affirm,
     Truelayer,
     Trustly,
     Trustpay,
@@ -647,6 +649,7 @@ default_impl_create_payment_method_v2!(
     Stripe,
     Tamara,
     Hyperswitch,
+    Affirm,
     Truelayer,
     Trustly,
     Trustpay,
@@ -742,6 +745,7 @@ default_impl_get_payment_method_v2!(
     Stripe,
     Tamara,
     Hyperswitch,
+    Affirm,
     Truelayer,
     Trustly,
     Trustpay,
@@ -852,5 +856,6 @@ default_impl_payment_method_eligibility_v2!(
         Paypal,
         Truelayer,
         Hyperswitch,
+        Affirm,
     ],
 );

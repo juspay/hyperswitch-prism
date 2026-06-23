@@ -59,6 +59,7 @@ connectors_with_webhook_source_verification_call = "paypal, truelayer"
 [connectors]
 hyperswitch.base_url = "https://sandbox.hyperswitch.io"
 payconex.base_url = "https://cert.payconex.net"
+affirm.base_url = "https://sandbox.affirm.com"
 tamara.base_url = "https://api-sandbox.tamara.co"
 juspay.base_url = "https://sandbox.juspay.in/"
 qwikcilver.base_url = "https://qc3.qwikcilver.com/"

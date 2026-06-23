@@ -413,6 +413,7 @@ pub struct Connectors {
     pub tamara: ConnectorParams,
     pub hyperswitch: ConnectorParams,
     pub qwikcilver: ConnectorParams,
+    pub affirm: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -723,6 +724,9 @@ impl Connectors {
             }
             ConnectorEnum::TwocTwopPaco => {
                 patched.twoc_twop_paco.apply(params_patch);
+            }
+            ConnectorEnum::Affirm => {
+                patched.affirm.apply(params_patch);
             }
             _ => {
                 // Connector not supported for URL patching - return error

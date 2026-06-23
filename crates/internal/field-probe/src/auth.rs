@@ -708,5 +708,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             password: k(),
             base_url: None,
         },
+        ConnectorEnum::Affirm => ConnectorSpecificConfig::Affirm {
+            public_key: u(),
+            private_key: p(),
+            base_url: None,
+        },
     }
 }

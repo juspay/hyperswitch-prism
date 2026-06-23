@@ -126,6 +126,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Tamara => Box::new(connectors::Tamara::<T>::new()),
             ConnectorEnum::Hyperswitch => Box::new(connectors::Hyperswitch::<T>::new()),
             ConnectorEnum::Qwikcilver => Box::new(connectors::Qwikcilver::<T>::new()),
+            ConnectorEnum::Affirm => Box::new(connectors::Affirm::<T>::new()),
         }
     }
 }
