@@ -198,7 +198,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 
     fn sample_webhook_body(&self) -> &'static [u8] {
-        br#"{"event_type":"guaranteed","event_date":"2026-01-01T00:00:00Z","event_resource":"payments","data":{"payment_id":"PTU000000000","status":"guaranteed","external_reference":"sample"}}"#
+        br#"{"event_type":"guaranteed","event_date":"2026-01-01T00:00:00Z","event_resource":"payments","data":{"payment_id":"probe_pay_001","status":"guaranteed","external_reference":"probe_ref_001"}}"#
     }
 
     fn get_event_type(
