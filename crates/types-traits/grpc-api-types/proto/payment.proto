@@ -2430,6 +2430,9 @@ message PaymentServiceAuthorizeResponse {
   // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
   // Distinct from network_transaction_id.
   optional string network_txn_link_id = 19;
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 21;
 }
 
 // Request message for synchronizing payment status
@@ -2537,6 +2540,9 @@ message PaymentServiceGetResponse {
   optional PaymentMethodUpdate payment_method_update = 29; // Updated payment method details, if present
 
   optional string sender_payment_instrument_id = 30;
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 32;
 }
 
 // Request message for voiding a payment
@@ -2598,6 +2604,9 @@ message PaymentServiceVoidResponse {
 
   optional SecretString connector_feature_data =
       11; // Connector-specific metadata for the transaction
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 12;
 }
 
 // Request message for reversing a captured payment if not yet settled (similar
@@ -2816,6 +2825,9 @@ message PaymentServiceCaptureResponse {
 
   // Additional connector response details (e.g. AVS / CVV checks, auth code)
   optional ConnectorResponseData connector_response = 13;
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 14;
 }
 
 // Request message for creating an order
@@ -3188,6 +3200,9 @@ message PaymentServiceSetupRecurringResponse {
       14; // Raw request to the connector for debugging
   optional SecretString connector_feature_data =
       15; // Connector-specific metadata for the transaction
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 16;
 }
 
 // Request message for repeat payment (MIT - Merchant Initiated Transaction)
@@ -5515,4 +5530,25 @@ message PaymentMethodServiceEligibilityResponse {
 
   // Response headers from the connector.
   map<string, string> response_headers = 6;
+}
+
+// ============================================================================
+// SPLIT RESPONSE TYPES
+// ============================================================================
+
+// Stripe-specific split response data (includes charge_id)
+message StripeSplitResponseData {
+  optional string charge_id = 1;
+  PaymentChargeType charge_type = 2;
+  optional int64 application_fees = 3;
+  string transfer_account_id = 4;
+  optional string on_behalf_of = 5;
+}
+
+// Response data for connector split payments
+message ConnectorSplitResponseData {
+  oneof split_response_type {
+    StripeSplitResponseData stripe_split_response = 1;
+    AdyenSplitData adyen_split_response = 2;
+  }
 }
