@@ -531,6 +531,7 @@ fn get_payment_response(
                     .token_information
                     .clone()
                     .map(|token_info| MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: token_info
                             .payment_instrument
                             .map(|payment_instrument| payment_instrument.id.expose()),
@@ -2282,6 +2283,7 @@ impl<F> TryFrom<ResponseRouterData<BankOfAmericaSetupMandatesResponse, Self>>
                         .token_information
                         .clone()
                         .map(|token_info| MandateReference {
+                            mandate_metadata: None,
                             connector_mandate_id: token_info
                                 .payment_instrument
                                 .map(|payment_instrument| payment_instrument.id.expose()),

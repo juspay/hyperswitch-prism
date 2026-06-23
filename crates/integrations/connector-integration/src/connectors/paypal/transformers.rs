@@ -2488,6 +2488,7 @@ where
                     resource_id: order_id,
                     redirection_data: None,
                     mandate_reference: Some(Box::new(MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: match item.response.payment_source.clone() {
                             Some(paypal_source) => match paypal_source {
                                 PaymentSourceItemResponse::Paypal(paypal_source) => {
@@ -3105,6 +3106,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalSetupMandatesResponse, Self>>
         let info_response = item.response;
 
         let mandate_reference = Some(Box::new(MandateReference {
+            mandate_metadata: None,
             connector_mandate_id: Some(info_response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,

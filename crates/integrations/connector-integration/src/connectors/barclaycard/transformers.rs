@@ -1093,6 +1093,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .as_ref()
                     .and_then(|token_info| token_info.payment_instrument.as_ref())
                     .map(|payment_instrument| MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: Some(payment_instrument.id.clone().expose()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,

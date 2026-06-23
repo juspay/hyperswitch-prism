@@ -1428,6 +1428,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                 .and_then(|token_info| token_info.payment_instrument.as_ref())
                 .map(|instrument| {
                     domain_types::connector_types::MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: Some(instrument.id.clone().expose()),
                         payment_method_id: None, // Could potentially use token_information.customer.id here if needed
                         connector_mandate_request_reference_id: None,

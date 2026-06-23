@@ -4715,6 +4715,7 @@ pub fn get_adyen_response(
         .as_ref()
         .and_then(|data| data.recurring_detail_reference.to_owned())
         .map(|mandate_id| MandateReference {
+            mandate_metadata: None,
             connector_mandate_id: Some(mandate_id.expose()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
@@ -5117,6 +5118,7 @@ pub fn get_webhook_response(
             .recurring_detail_reference
             .as_ref()
             .map(|mandate_id| MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(mandate_id.clone().expose()),
                 payment_method_id: response.recurring_shopper_reference.clone(),
                 connector_mandate_request_reference_id: None,
@@ -5493,6 +5495,7 @@ pub(crate) fn get_adyen_mandate_reference_from_webhook(
         .as_ref()
         .map(|mandate_id| {
             Box::new(MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(mandate_id.peek().to_string()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,

@@ -193,6 +193,7 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
         return_url: Some("https://example.com/recurring-return".to_string()),
         payment_method_type: Some(proto::PaymentMethodType::PayPal as i32),
         connector_recurring_payment_id: Some(MandateReference {
+            mandate_metadata: None,
             mandate_id_type: Some(MandateIdType::ConnectorMandateId(
                 ConnectorMandateReferenceId {
                     connector_mandate_id: Some("probe-mandate-123".to_string()),

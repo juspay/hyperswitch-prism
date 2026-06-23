@@ -507,6 +507,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 },
                 mandate_reference: match is_mandate_payment(&router_data.request) {
                     true => Some(Box::new(MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: Some(response.payment_method.id.expose()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,

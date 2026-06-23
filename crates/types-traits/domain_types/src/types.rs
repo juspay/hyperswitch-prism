@@ -5788,6 +5788,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
             } => {
                 let mandate_reference_grpc =
                     mandate_reference.map(|m| grpc_api_types::payments::MandateReference {
+                        mandate_metadata: convert_connector_metadata_to_secret_string(m.mandate_metadata.map(|v| v.expose())),
                         mandate_id_type: Some(grpc_api_types::payments::mandate_reference::MandateIdType::ConnectorMandateId(
                             grpc_payment_types::ConnectorMandateReferenceId {
                                 connector_mandate_id: m.connector_mandate_id,
@@ -6738,6 +6739,7 @@ pub fn generate_payment_void_response(
 
                 let mandate_reference_grpc =
                     mandate_reference.map(|m| grpc_api_types::payments::MandateReference {
+                        mandate_metadata: convert_connector_metadata_to_secret_string(m.mandate_metadata.map(|v| v.expose())),
                         mandate_id_type: Some(grpc_api_types::payments::mandate_reference::MandateIdType::ConnectorMandateId(
                             grpc_payment_types::ConnectorMandateReferenceId {
                                 connector_mandate_id: m.connector_mandate_id,
@@ -7120,6 +7122,7 @@ pub fn generate_payment_sync_response(
 
                 let mandate_reference_grpc =
                     mandate_reference.map(|m| grpc_api_types::payments::MandateReference {
+                        mandate_metadata: convert_connector_metadata_to_secret_string(m.mandate_metadata.map(|v| v.expose())),
                         mandate_id_type: Some(grpc_api_types::payments::mandate_reference::MandateIdType::ConnectorMandateId(
                             grpc_payment_types::ConnectorMandateReferenceId {
                                 connector_mandate_id: m.connector_mandate_id,
@@ -8177,6 +8180,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                 .mandate_reference
                 .map(|m| {
                     grpc_api_types::payments::MandateReference {
+                        mandate_metadata: convert_connector_metadata_to_secret_string(m.mandate_metadata.map(|v| v.expose())),
                 mandate_id_type: Some(
                     grpc_api_types::payments::mandate_reference::MandateIdType::ConnectorMandateId(
                         grpc_payment_types::ConnectorMandateReferenceId {
@@ -10010,6 +10014,7 @@ pub fn generate_payment_capture_response(
 
                 let mandate_reference_grpc =
                     mandate_reference.map(|m| grpc_api_types::payments::MandateReference {
+                        mandate_metadata: convert_connector_metadata_to_secret_string(m.mandate_metadata.map(|v| v.expose())),
                         mandate_id_type: Some(grpc_api_types::payments::mandate_reference::MandateIdType::ConnectorMandateId(
                             grpc_payment_types::ConnectorMandateReferenceId {
                                 connector_mandate_id: m.connector_mandate_id,
@@ -11065,6 +11070,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
             } => {
                 let mandate_reference_grpc =
                     mandate_reference.map(|m| grpc_api_types::payments::MandateReference {
+                        mandate_metadata: convert_connector_metadata_to_secret_string(m.mandate_metadata.map(|v| v.expose())),
                         mandate_id_type: Some(grpc_api_types::payments::mandate_reference::MandateIdType::ConnectorMandateId(
                             grpc_payment_types::ConnectorMandateReferenceId { connector_mandate_id: m.connector_mandate_id,
                         payment_method_id: m.payment_method_id,
@@ -13090,6 +13096,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     ),
                     mandate_reference: mandate_reference.map(|m| {
                         grpc_api_types::payments::MandateReference {
+                            mandate_metadata: convert_connector_metadata_to_secret_string(m.mandate_metadata.map(|v| v.expose())),
                             mandate_id_type: Some(grpc_api_types::payments::mandate_reference::MandateIdType::ConnectorMandateId(grpc_api_types::payments::ConnectorMandateReferenceId {
                             connector_mandate_id: m.connector_mandate_id,
                             payment_method_id: m.payment_method_id,

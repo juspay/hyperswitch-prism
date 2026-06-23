@@ -431,6 +431,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             .payment_instrument
             .payment_instrument_id
             .map(|id| MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
@@ -1223,6 +1224,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .payment_instrument
                 .payment_instrument_id
                 .map(|id| MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: Some(id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
@@ -1431,6 +1433,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .payment_instrument
                 .payment_instrument_id
                 .map(|id| MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: Some(id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,

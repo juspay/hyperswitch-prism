@@ -864,6 +864,7 @@ impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
         // credential. Surface it as the `connector_mandate_id` so the framework can
         // pass it back on subsequent MIT charges.
         let mandate_reference = MandateReference {
+            mandate_metadata: None,
             connector_mandate_id: Some(item.transaction_id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,

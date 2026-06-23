@@ -2162,6 +2162,7 @@ impl<
                         .profile
                         .as_ref()
                         .map(|profile| MandateReference {
+                            mandate_metadata: None,
                             connector_mandate_id: Some(format!(
                                 "{}-{}",
                                 profile.customer_profile_id, profile.customer_payment_profile_id
@@ -2685,6 +2686,7 @@ pub fn convert_to_payments_response_data_or_error(
                             .and_then(|list| list.first().cloned());
 
                         MandateReference {
+                            mandate_metadata: None,
                             connector_mandate_id: profile_response
                                 .customer_profile_id
                                 .as_ref()
@@ -3136,6 +3138,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 redirection_data: None,
                 connector_metadata: None,
                 mandate_reference: Some(Box::new(MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: Some(connector_mandate_id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,

@@ -829,6 +829,7 @@ impl<F, T>
                     res.description.clone(),
                     None,
                     res.token.as_ref().map(|mandate_token| MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: Some(mandate_token.href.clone().expose()),
                         payment_method_id: Some(mandate_token.token_id.clone()),
                         connector_mandate_request_reference_id: None,

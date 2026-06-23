@@ -1369,6 +1369,7 @@ where
             .registration_id
             .clone()
             .map(|id| MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
@@ -1783,6 +1784,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<AciMandateResponse, Self>) -> Result<Self, Self::Error> {
         let mandate_reference = Some(MandateReference {
+            mandate_metadata: None,
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,

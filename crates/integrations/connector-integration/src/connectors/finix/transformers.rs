@@ -562,6 +562,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                         redirection_data: None,
                         mandate_reference: Some(Box::new(MandateReference {
+                            mandate_metadata: None,
                             connector_mandate_id: response.source.clone().map(|id| id.expose()),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
@@ -680,6 +681,7 @@ impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
         // Surface the stored Payment Instrument (`source`) as the mandate reference and
         // propagate AVS / network details via `connector_response`.
         let mandate_reference = Some(Box::new(MandateReference {
+            mandate_metadata: None,
             connector_mandate_id: response.source.as_ref().map(|s| s.clone().expose()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
@@ -817,6 +819,7 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
                 ),
                 redirection_data: None,
                 mandate_reference: Some(Box::new(MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: response.source.clone().map(|id| id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
@@ -1541,6 +1544,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .map(|_| id.clone());
 
                 let mandate_reference = Some(Box::new(MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: Some(id.clone()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
@@ -1740,6 +1744,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
                 redirection_data: None,
                 mandate_reference: Some(Box::new(MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: response.source.clone().map(|id| id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,

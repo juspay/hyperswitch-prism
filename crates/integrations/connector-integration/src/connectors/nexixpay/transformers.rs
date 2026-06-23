@@ -2093,6 +2093,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpaySetupMandateR
         // it sent — NOT the one-shot `operationId` (that is kept on
         // connector_metadata / preprocessing_id below for the 3DS continuation).
         let mandate_reference = Some(Box::new(MandateReference {
+            mandate_metadata: None,
             connector_mandate_id: Some(operation.order_id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,

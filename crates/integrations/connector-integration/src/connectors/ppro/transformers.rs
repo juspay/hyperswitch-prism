@@ -790,6 +790,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
         // so callers can use it for subsequent RepeatPayment charges.
         let mandate_reference = item.response.instrument_id.as_ref().map(|instr_id| {
             Box::new(MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(instr_id.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
@@ -1420,6 +1421,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
 
         // The agreement ID is stored as the mandate reference (connector_mandate_id)
         let mandate_reference = Some(Box::new(MandateReference {
+            mandate_metadata: None,
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,

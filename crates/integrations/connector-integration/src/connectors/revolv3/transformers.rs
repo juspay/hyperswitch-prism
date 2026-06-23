@@ -468,6 +468,7 @@ impl Revolv3SaleResponse {
         } else {
             let mandate_reference = self.payment_method_id.as_ref().map(|connector_mandate_id| {
                 domain_types::connector_types::MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: Some(connector_mandate_id.to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
@@ -501,6 +502,7 @@ impl Revolv3AuthorizeResponse {
         let mandate_reference = self.payment_method.as_ref().and_then(|pm| {
             pm.payment_method_id.map(|connector_mandate_id| {
                 domain_types::connector_types::MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: Some(connector_mandate_id.to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
@@ -680,6 +682,7 @@ impl TryFrom<ResponseRouterData<Revolv3PaymentSyncResponse, Self>>
                     .payment_method_id
                     .map(
                         |connector_mandate_id| domain_types::connector_types::MandateReference {
+                            mandate_metadata: None,
                             connector_mandate_id: Some(connector_mandate_id.to_string()),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,

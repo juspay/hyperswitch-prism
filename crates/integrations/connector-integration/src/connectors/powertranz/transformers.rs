@@ -942,6 +942,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PowertranzSetupMandat
             // The PowerTranz transaction_identifier IS the connector_mandate_id
             // used for subsequent RepeatPayment (MIT) calls.
             let mandate_reference = Some(Box::new(MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(response.transaction_identifier.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,

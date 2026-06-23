@@ -1205,6 +1205,11 @@ message MandateReference {
     // txns along with network token data
     NetworkTokenWithNTI network_token_with_nti = 3;
   }
+
+  // Connector-specific metadata associated with the mandate (e.g. Stripe
+  // split-payment details). Serialized JSON object; mirrors hyperswitch's
+  // MandateReference.mandate_metadata on the Direct gateway.
+  optional SecretString mandate_metadata = 4;
 }
 
 message ConnectorMandateReferenceId {

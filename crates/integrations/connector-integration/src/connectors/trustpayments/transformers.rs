@@ -1829,6 +1829,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // This will be used as parenttransactionreference in RepeatPayment
         let mandate_reference = response.transactionreference.as_ref().map(|txn_ref| {
             Box::new(MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(txn_ref.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,

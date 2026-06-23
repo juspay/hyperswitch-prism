@@ -1002,6 +1002,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         }
 
         let mandate_reference = saved_card_id.map(|card_id| MandateReference {
+            mandate_metadata: None,
             connector_mandate_id: Some(card_id),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,

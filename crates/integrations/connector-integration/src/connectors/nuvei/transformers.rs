@@ -2694,6 +2694,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .and_then(|po| po.user_payment_option_id.clone())
             .map(|id| {
                 Box::new(MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,

@@ -793,6 +793,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         mandate_reference: mandate_reference_id
                             .as_ref()
                             .map(|id| MandateReference {
+                                mandate_metadata: None,
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
@@ -899,6 +900,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         mandate_reference: mandate_reference_id
                             .as_ref()
                             .map(|id| MandateReference {
+                                mandate_metadata: None,
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
@@ -1001,6 +1003,7 @@ impl<
                         mandate_reference: mandate_reference_id
                             .as_ref()
                             .map(|id| MandateReference {
+                                mandate_metadata: None,
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
@@ -1520,6 +1523,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
                         mandate_reference: mandate_reference_id
                             .as_ref()
                             .map(|id| MandateReference {
+                                mandate_metadata: None,
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
@@ -2506,6 +2510,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                             mandate_reference: mandate_reference_id
                                 .as_ref()
                                 .map(|id| MandateReference {
+                                    mandate_metadata: None,
                                     connector_mandate_id: Some(id.clone()),
                                     payment_method_id: None,
                                     connector_mandate_request_reference_id: None,

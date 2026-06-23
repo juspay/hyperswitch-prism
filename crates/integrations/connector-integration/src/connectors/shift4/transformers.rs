@@ -1658,6 +1658,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
                 // downstream detect an unusable mandate.
                 let mandate_reference = item.response.card.as_ref().map(|card| {
                     Box::new(MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: Some(card.id.clone()),
                         payment_method_id: Some(card.id.clone()),
                         connector_mandate_request_reference_id: None,

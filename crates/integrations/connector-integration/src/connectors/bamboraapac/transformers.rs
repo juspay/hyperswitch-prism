@@ -1336,6 +1336,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             resource_id: ResponseId::NoResponseId,
             redirection_data: None,
             mandate_reference: Some(Box::new(domain_types::connector_types::MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(connector_mandate_id.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,

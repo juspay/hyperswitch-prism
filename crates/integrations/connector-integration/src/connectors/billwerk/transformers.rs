@@ -404,6 +404,7 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
         };
         let mandate_reference = response.recurring_payment_method.as_ref().map(|rpm| {
             Box::new(MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(rpm.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,

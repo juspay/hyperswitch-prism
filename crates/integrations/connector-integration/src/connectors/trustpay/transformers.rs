@@ -2789,6 +2789,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // The instance_id serves as the connector_mandate_id for future recurring payments
         let mandate_reference = Some(Box::new(MandateReference {
+            mandate_metadata: None,
             connector_mandate_id: Some(response.instance_id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,

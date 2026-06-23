@@ -536,11 +536,13 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 
             let mandate_reference = connector_mandate_id
                 .map(|mandate_id| MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: Some(mandate_id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id,
                 })
                 .unwrap_or(MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: None,
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,

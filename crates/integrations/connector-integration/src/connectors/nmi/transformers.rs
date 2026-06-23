@@ -753,6 +753,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StandardResponse, Sel
                 redirection_data: None,
                 mandate_reference: response.customer_vault_id.as_ref().map(|vault_id| {
                     Box::new(MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: Some(vault_id.clone().expose()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
@@ -1789,6 +1790,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let mandate_reference = connector_mandate_id.clone().map(|id| {
                     Box::new(MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: Some(id),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,

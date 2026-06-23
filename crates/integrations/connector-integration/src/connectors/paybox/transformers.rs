@@ -1287,6 +1287,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateRes
                 None => None,
             };
             let mandate_reference = Some(Box::new(MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: carrier_with_expiry,
                 payment_method_id: None,
                 connector_mandate_request_reference_id: item
@@ -1543,6 +1544,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxRepeatPaymentRe
                     .connector_mandate_id()
                     .map(|packed_mandate_id| {
                         Box::new(MandateReference {
+                            mandate_metadata: None,
                             connector_mandate_id: Some(packed_mandate_id),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: item
