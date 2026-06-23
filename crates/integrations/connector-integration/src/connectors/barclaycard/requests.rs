@@ -16,7 +16,16 @@ pub struct BarclaycardPaymentsRequest<T: PaymentMethodDataTypes + Sync + Send + 
     pub order_information: OrderInformationWithBill,
     pub client_reference_information: ClientReferenceInformation,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub consumer_authentication_information: Option<ConsumerAuthenticationInformation>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_defined_information: Option<Vec<MerchantDefinedInformation>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConsumerAuthenticationInformation {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ucaf_collection_indicator: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -101,13 +110,6 @@ pub struct ApplePayTokenizedCard {
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayTokenPaymentInformation {
     pub fluid_data: FluidData,
-    pub tokenized_card: GooglePayTokenizedCard,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct GooglePayTokenizedCard {
-    pub transaction_type: TransactionType,
 }
 
 #[derive(Debug, Serialize)]

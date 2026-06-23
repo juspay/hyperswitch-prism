@@ -498,9 +498,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Build the payment_information block and, for wallet payments, the
         // processingInformation.paymentSolution code. Card payments leave payment_solution
         // unset; ApplePay sets it to "001" (matching the Cybersource whitelabel mapping).
-        let (payment_information, payment_solution): (
+        //
+        // Also compute the commerceIndicator (network-specific for encrypted ApplePay:
+        // "spa" for Mastercard, "internet" otherwise; "internet" for Card, GooglePay and
+        // decrypted ApplePay) and the consumerAuthenticationInformation (ApplePay sets
+        // ucafCollectionIndicator="2" for Mastercard, None otherwise; Card/GooglePay None).
+        let (
+            payment_information,
+            payment_solution,
+            commerce_indicator,
+            consumer_authentication_information,
+        ): (
             requests::PaymentInformation<T>,
             Option<String>,
+            String,
+            Option<requests::ConsumerAuthenticationInformation>,
         ) = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
                 let card_network = ccard.card_network.clone();
@@ -524,29 +536,46 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         },
                     )),
                     None,
+                    COMMERCE_INDICATOR_INTERNET.to_string(),
+                    None,
                 )
             }
             PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
-                let payment_information = match apple_pay_data
+                // ApplePay sets consumerAuthenticationInformation.ucafCollectionIndicator="2"
+                // for Mastercard (None otherwise) on both the decrypted and encrypted paths,
+                // mirroring the Cybersource whitelabel reference.
+                let is_mastercard =
+                    apple_pay_data.payment_method.network.to_lowercase() == "mastercard";
+                let consumer_authentication_information =
+                    Some(requests::ConsumerAuthenticationInformation {
+                        ucaf_collection_indicator: is_mastercard.then(|| "2".to_string()),
+                    });
+
+                let (payment_information, commerce_indicator) = match apple_pay_data
                     .payment_data
                     .get_decrypted_apple_pay_payment_data_optional()
                 {
                     // Decrypted token: send the PAN + cryptogram directly under tokenizedCard.
-                    Some(decrypt_data) => requests::PaymentInformation::ApplePay(Box::new(
-                        requests::ApplePayPaymentInformation {
-                            tokenized_card: requests::TokenizedCard {
-                                number: decrypt_data.clone().application_primary_account_number,
-                                cryptogram: Some(
-                                    decrypt_data.clone().payment_data.online_payment_cryptogram,
-                                ),
-                                transaction_type: requests::TransactionType::InApp,
-                                expiration_year: decrypt_data.get_four_digit_expiry_year(),
-                                expiration_month: decrypt_data.get_expiry_month(),
+                    // commerceIndicator is always "internet" for the decrypted path.
+                    Some(decrypt_data) => (
+                        requests::PaymentInformation::ApplePay(Box::new(
+                            requests::ApplePayPaymentInformation {
+                                tokenized_card: requests::TokenizedCard {
+                                    number: decrypt_data.clone().application_primary_account_number,
+                                    cryptogram: Some(
+                                        decrypt_data.clone().payment_data.online_payment_cryptogram,
+                                    ),
+                                    transaction_type: requests::TransactionType::InApp,
+                                    expiration_year: decrypt_data.get_four_digit_expiry_year(),
+                                    expiration_month: decrypt_data.get_expiry_month(),
+                                },
                             },
-                        },
-                    )),
+                        )),
+                        COMMERCE_INDICATOR_INTERNET.to_string(),
+                    ),
                     // Encrypted token: forward the encrypted blob as fluidData and let
-                    // Barclaycard decrypt it.
+                    // Barclaycard decrypt it. commerceIndicator is network-specific:
+                    // "spa" for Mastercard, "internet" otherwise.
                     None => {
                         let apple_pay_encrypted_data = apple_pay_data
                             .payment_data
@@ -555,22 +584,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 field_name: "Apple pay encrypted data",
                                 context: Default::default(),
                             })?;
-                        requests::PaymentInformation::ApplePayToken(Box::new(
-                            requests::ApplePayTokenPaymentInformation {
-                                fluid_data: requests::FluidData {
-                                    value: Secret::from(apple_pay_encrypted_data.clone()),
-                                    descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                        let commerce_indicator = if is_mastercard {
+                            "spa".to_string()
+                        } else {
+                            COMMERCE_INDICATOR_INTERNET.to_string()
+                        };
+                        (
+                            requests::PaymentInformation::ApplePayToken(Box::new(
+                                requests::ApplePayTokenPaymentInformation {
+                                    fluid_data: requests::FluidData {
+                                        value: Secret::from(apple_pay_encrypted_data.clone()),
+                                        descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                                    },
+                                    tokenized_card: requests::ApplePayTokenizedCard {
+                                        transaction_type: requests::TransactionType::InApp,
+                                    },
                                 },
-                                tokenized_card: requests::ApplePayTokenizedCard {
-                                    transaction_type: requests::TransactionType::InApp,
-                                },
-                            },
-                        ))
+                            )),
+                            commerce_indicator,
+                        )
                     }
                 };
                 (
                     payment_information,
                     Some(APPLE_PAY_PAYMENT_SOLUTION.to_string()),
+                    commerce_indicator,
+                    consumer_authentication_information,
                 )
             }
             PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
@@ -593,12 +632,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 ),
                                 descriptor: None,
                             },
-                            tokenized_card: requests::GooglePayTokenizedCard {
-                                transaction_type: requests::TransactionType::InApp,
-                            },
                         },
                     )),
                     Some(GOOGLE_PAY_PAYMENT_SOLUTION.to_string()),
+                    COMMERCE_INDICATOR_INTERNET.to_string(),
+                    None,
                 )
             }
             _ => Err(IntegrationError::NotImplemented(
@@ -632,7 +670,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         let processing_information = requests::ProcessingInformation {
-            commerce_indicator: COMMERCE_INDICATOR_INTERNET.to_string(),
+            commerce_indicator,
             capture: Some(matches!(
                 router_data.request.capture_method,
                 Some(common_enums::CaptureMethod::Automatic) | None
@@ -662,6 +700,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_information,
             order_information,
             client_reference_information,
+            consumer_authentication_information,
             merchant_defined_information,
         })
     }
