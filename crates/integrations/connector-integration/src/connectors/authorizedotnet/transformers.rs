@@ -2489,7 +2489,7 @@ pub struct ResponseMessage {
     pub text: String,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Serialize, strum::Display)]
 #[serde(rename_all = "PascalCase")]
 pub enum ResultCode {
     #[default]
@@ -3546,11 +3546,15 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                         status_code: http_code,
                     });
                 } else {
-                    // Couldn't extract ID, return error
+                    // Couldn't extract ID, return error.
+                    // Mirror HS native: surface the result_code ("Error") as `message` and
+                    // the connector text as `reason`, and mark the router-level status as
+                    // Failure (HS sets RouterData.status = Failure here).
+                    new_router_data.resource_common_data.status = AttemptStatus::Failure;
                     new_router_data.response = Err(ErrorResponse {
                         status_code: http_code,
                         code: error_code.to_string(),
-                        message: error_text.to_string(),
+                        message: response.messages.result_code.to_string(),
                         reason: Some(error_text.to_string()),
                         attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure since we couldn't confirm existing profile ID
                         connector_transaction_id: None,
@@ -3560,11 +3564,14 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                     });
                 }
             } else {
-                // Other error - return error response
+                // Other error - return error response.
+                // Mirror HS native: `message` = result_code ("Error"), `reason` = connector
+                // text, and set the router-level status to Failure (HS sets it here too).
+                new_router_data.resource_common_data.status = AttemptStatus::Failure;
                 new_router_data.response = Err(ErrorResponse {
                     status_code: http_code,
                     code: error_code.to_string(),
-                    message: error_text.to_string(),
+                    message: response.messages.result_code.to_string(),
                     reason: Some(error_text.to_string()),
                     attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure for non-duplicate errors
                     connector_transaction_id: None,
