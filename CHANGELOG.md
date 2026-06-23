@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.23.1
+
+### Features
+
+- **framework:** Added splits field in transaction response ([#1582](https://github.com/juspay/connector-service/pull/1582)) ([`5a61d2d`](https://github.com/juspay/connector-service/commit/5a61d2dde272376dc876f068c02644845ca81d9c))
+
+**Full Changelog:** [`2026.06.23.0...2026.06.23.1`](https://github.com/juspay/connector-service/compare/2026.06.23.0...2026.06.23.1)
+
+- - -
+
 ## 2026.06.23.0
 
 ### Features
