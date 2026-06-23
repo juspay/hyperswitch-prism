@@ -145,6 +145,18 @@ fn get_filtered_metadata(metadata: Option<&serde_json::Value>) -> Option<serde_j
     })
 }
 
+/// Source `processing_id` the same way hyperswitch's Direct authorize path does:
+/// the merchant metadata's `processing_account_id` takes precedence, falling back
+/// to the connector auth's `processing_account_id`. Without this the shadow UCS
+/// request omits `processing_id` whenever the id is supplied via metadata (and the
+/// connector auth has none), producing the `keyDiff{processing_id}` shadow diff.
+fn get_processing_id_from_metadata(metadata: Option<&serde_json::Value>) -> Option<Secret<String>> {
+    metadata
+        .and_then(|m| m.get("processing_account_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| Secret::new(s.to_string()))
+}
+
 fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
     connector_config: &ConnectorSpecificConfig,
@@ -153,6 +165,7 @@ fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
     resource_common_data: &PaymentFlowData,
     capture_method: Option<enums::CaptureMethod>,
     is_mandate: bool,
+    metadata: Option<&serde_json::Value>,
 ) -> Result<PayloadCardsRequestData<T>, Error> {
     if let PaymentMethodData::Card(req_card) = payment_method_data {
         let payload_auth = PayloadAuth::try_from((connector_config, currency))?;
@@ -201,7 +214,8 @@ fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
             },
             transaction_types: requests::TransactionTypes::Payment,
             status,
-            processing_id: payload_auth.processing_account_id,
+            processing_id: get_processing_id_from_metadata(metadata)
+                .or(payload_auth.processing_account_id),
             customer_id: resource_common_data.connector_customer.clone(),
             description: None,
             attrs: None,
@@ -333,7 +347,8 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
                 },
                 transaction_types: requests::TransactionTypes::Payment,
                 status,
-                processing_id: payload_auth.processing_account_id,
+                processing_id: get_processing_id_from_metadata(metadata)
+                    .or(payload_auth.processing_account_id),
                 customer_id: resource_common_data.connector_customer.clone(),
                 description: resource_common_data.description.clone(),
                 attrs: get_filtered_metadata(metadata),
@@ -381,6 +396,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
+        let metadata = router_data.request.metadata.clone().expose_option();
 
         match router_data.request.amount {
             Some(amount) if amount > 0 => Err(IntegrationError::FlowNotSupported {
@@ -397,6 +413,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 &router_data.resource_common_data,
                 None,
                 true,
+                metadata.as_ref(),
             ),
         }
     }
@@ -440,6 +457,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         match &router_data.request.payment_method_data {
             PaymentMethodData::Card(_) => {
                 let is_mandate = router_data.request.is_mandate_payment();
+                let metadata = router_data.request.metadata.clone().expose_option();
 
                 let payment_data = build_payload_card_request_data(
                     &router_data.request.payment_method_data,
@@ -449,6 +467,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     &router_data.resource_common_data,
                     router_data.request.capture_method,
                     is_mandate,
+                    metadata.as_ref(),
                 )?;
 
                 Ok(Self::PayloadPaymentRequest(Box::new(payment_data)))
