@@ -1459,6 +1459,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_information = OrderInformationWithBill::try_from((item, Some(bill_to)))?;
 
         let raw_card_type = ccard.card_network.clone();
+        let is_mastercard = raw_card_type == Some(common_enums::CardNetwork::Mastercard);
 
         let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
@@ -1493,12 +1494,53 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             item.router_data.request.merchant_order_id.clone(),
         );
 
+        // Mirror Hyperswitch's cybersource authorize builder: when external 3DS
+        // authentication data is present on a card payment, populate
+        // consumerAuthenticationInformation so the UCS request matches HS (the lossy
+        // `From<AuthenticationData>` only set ucafAuthenticationData and dropped
+        // pares_status/specification_version/veres_enrolled/eci_raw/authentication_date/
+        // cavv_algorithm).
         let consumer_authentication_information = item
             .router_data
             .request
             .authentication_data
-            .clone()
-            .map(From::from);
+            .as_ref()
+            .map(|authn_data| {
+                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) = if is_mastercard {
+                    (authn_data.cavv.clone(), None, Some("2".to_string()))
+                } else {
+                    (None, authn_data.cavv.clone(), None)
+                };
+                CybersourceConsumerAuthInformation {
+                    pares_status: Some(CybersourceParesStatus::AuthenticationSuccessful),
+                    ucaf_collection_indicator,
+                    cavv,
+                    ucaf_authentication_data,
+                    xid: None,
+                    directory_server_transaction_id: authn_data
+                        .ds_trans_id
+                        .clone()
+                        .map(Secret::new),
+                    specification_version: authn_data.message_version.clone(),
+                    pa_specification_version: authn_data.message_version.clone(),
+                    veres_enrolled: Some("Y".to_string()),
+                    eci_raw: authn_data.eci.clone(),
+                    authentication_date: authn_data.created_at.and_then(|created_at| {
+                        common_utils::date_time::format_date(
+                            created_at,
+                            common_utils::date_time::DateFormat::YYYYMMDDHHmmss,
+                        )
+                        .ok()
+                    }),
+                    effective_authentication_type: None,
+                    challenge_code: None,
+                    signed_pares_status_reason: None,
+                    challenge_cancel_code: None,
+                    network_score: None,
+                    acs_transaction_id: authn_data.acs_transaction_id.clone(),
+                    cavv_algorithm: Some("2".to_string()),
+                }
+            });
         Ok(Self {
             processing_information,
             payment_information,
