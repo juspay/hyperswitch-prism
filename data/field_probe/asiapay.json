@@ -540,7 +540,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by asiapay connector"
       }
     },
     "get": {
@@ -608,6 +609,11 @@
           "headers": {},
           "body": "prc=0&src=0&Ord=12345678&Ref=ORD_TEST_001&PayRef=13907042&successcode=0&Amt=1.00&Cur=702&Holder=SURAJ+KUMAR&AuthId=907042&AlertCode=&remark=&eci=07&payerAuth=U&sourceIp=65.1.52.128&ipCountry=IN&payMethod=VISA&TxTime=2026-06-09+22%3A46%3A06.0&panFirst4=4333&panLast4=0011&cardIssuingCountry=HK&channelType=DPS&MerchantId=12109740&secureHash=abc123"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {
