@@ -95,6 +95,10 @@ impl TryFrom<&ConnectorSpecificConfig> for FlywireAuthType {
 // CreateOrder — Create Hosted Checkout Session
 // =============================================================================
 
+const CHECKOUT_SESSION_TYPE: &str = "one_off";
+const CHECKOUT_SESSION_SCHEMA: &str = "cards";
+const CHECKOUT_SESSION_ITEM_ID: &str = "default";
+
 #[derive(Debug, Serialize)]
 pub struct FlywireCheckoutSessionRequest {
     #[serde(rename = "type")]
@@ -200,35 +204,54 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let router_data = item.router_data;
         let auth = FlywireAuthType::try_from(&router_data.connector_config)?;
 
-        let ucs_payment_id = router_data
+        let payment_ref = router_data
             .resource_common_data
             .connector_request_reference_id
             .clone();
-        let payor_id = format!("ucs_{}", ucs_payment_id);
+        let payor_id = payment_ref.clone();
 
-        // Recipient fields: pulled from resource_common_data.connector_feature_data
-        // if the caller provided `flywire_recipient_fields`, otherwise placeholders.
+        // Recipient fields: must be provided by the merchant in connector_feature_data
+        // under the key `flywire_recipient_fields`. They are institution-specific and
+        // cannot be defaulted.
         let recipient_fields =
             build_recipient_fields(&router_data.resource_common_data.connector_feature_data)
-                .unwrap_or_else(default_recipient_fields);
+                .ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "connector_feature_data.flywire_recipient_fields",
+                        context: domain_types::errors::IntegrationErrorContext {
+                            suggested_action: Some(
+                                "Pass `flywire_recipient_fields` as a JSON array in \
+                                 connector_feature_data. Each entry must have `id` and `value` \
+                                 matching the recipient's configured field schema."
+                                    .to_string(),
+                            ),
+                            doc_url: Some(
+                                "https://developers.flywire.com/docs/checkout-session".to_string(),
+                            ),
+                            additional_context: None,
+                        },
+                    })
+                })?;
 
         // Payor (name, address, email): from billing address on resource_common_data.
         let payor = build_payor_from_billing(&router_data.resource_common_data);
 
         Ok(Self {
-            type_: "one_off",
-            schema: "cards",
-            charge_intent: FlywireChargeIntent { mode: "one_off" },
+            type_: CHECKOUT_SESSION_TYPE,
+            schema: CHECKOUT_SESSION_SCHEMA,
+            charge_intent: FlywireChargeIntent {
+                mode: CHECKOUT_SESSION_TYPE,
+            },
             recipient_id: auth.recipient_id,
             recipient: FlywireRecipient {
                 fields: recipient_fields,
             },
             items: vec![FlywireItem {
-                id: "default",
+                id: CHECKOUT_SESSION_ITEM_ID,
                 amount: router_data.request.amount,
             }],
             payor_id,
-            external_reference: ucs_payment_id,
+            external_reference: payment_ref,
             // No notifications_url on the CheckoutSession request — the
             // FLYWIRE recipient is pre-configured with the webhook destination.
             // (PaymentsAuthenticateData has no webhook_url field to forward.)
@@ -255,26 +278,6 @@ fn build_recipient_fields(
     Some(out)
 }
 
-fn default_recipient_fields() -> Vec<FlywireRecipientField> {
-    vec![
-        FlywireRecipientField {
-            id: "student_id".to_string(),
-            value: "UCS_TEST".to_string(),
-        },
-        FlywireRecipientField {
-            id: "student_first_name".to_string(),
-            value: "UCS".to_string(),
-        },
-        FlywireRecipientField {
-            id: "student_last_name".to_string(),
-            value: "Test".to_string(),
-        },
-        FlywireRecipientField {
-            id: "student_email".to_string(),
-            value: "ucs-test@example.com".to_string(),
-        },
-    ]
-}
 
 fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {
     use hyperswitch_masking::ExposeInterface;
