@@ -332,23 +332,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
-        let title = response
-            .title
-            .clone()
-            .unwrap_or_else(|| "Error".to_string());
-        let detail = response.detail.clone().unwrap_or_default();
-        let first_detail_msg = response
-            .errors
-            .first()
-            .and_then(|e| e.message.clone())
-            .unwrap_or_default();
-        let combined_msg = if !first_detail_msg.is_empty() {
-            format!("{title}: {detail} ({first_detail_msg})")
-        } else if !detail.is_empty() {
-            format!("{title}: {detail}")
-        } else {
-            title.clone()
-        };
+        let message = response.title.clone().unwrap_or_default();
+        let reason = response.detail.clone();
 
         // Classify whether this error is a known terminal refund failure.
         // FLYWIRE refund endpoints return RFC 7807 problem+json with an inner
@@ -398,9 +383,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             code: response
                 .status
                 .map(|s| s.to_string())
-                .unwrap_or_else(|| "UNKNOWN".to_string()),
-            message: combined_msg.clone(),
-            reason: Some(combined_msg),
+                .unwrap_or_else(|| res.status_code.to_string()),
+            message,
+            reason,
             attempt_status: Some(attempt_status),
             connector_transaction_id: None,
             network_decline_code: None,
