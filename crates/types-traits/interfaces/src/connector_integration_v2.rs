@@ -249,7 +249,7 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
         Ok(None)
     }
-    fn should_trigger_handle_response_without_body(&self) -> bool {
-        false
+    fn get_call_connector_action(&self) -> common_enums::CallConnectorAction {
+        common_enums::CallConnectorAction::Trigger
     }
 }

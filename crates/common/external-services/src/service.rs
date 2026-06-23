@@ -557,6 +557,16 @@ where
     let proxy_name = event_params.proxy_name.unwrap_or("primary");
     let transport_type = connector.get_transport_type();
     let result = match (call_connector_action, transport_type) {
+        (common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest, _) => {
+            let response = Response {
+                headers: None,
+                response: bytes::Bytes::new(),
+                status_code: 200,
+            };
+            connector
+                .handle_response_v2(&router_data, None, response)
+                .map_err(report_connector_response_to_flow)
+        }
         // handle_response removed from proto (PaymentServiceGetRequest field 5 reserved)
         (common_enums::CallConnectorAction::HandleResponse(_), _) => {
             return Err(error_stack::report!(ConnectorFlowError::from(
@@ -857,19 +867,6 @@ where
 
                     emit_event_with_config(event, event_params.event_config);
                     result
-                }
-                None if connector.should_trigger_handle_response_without_body() => {
-                    // No outbound request, but the connector builds its response
-                    // locally (e.g. device data collection HTML). Run the response
-                    // transformer with a synthetic empty body instead of a network call.
-                    let response = Response {
-                        headers: None,
-                        response: bytes::Bytes::new(),
-                        status_code: 200,
-                    };
-                    connector
-                        .handle_response_v2(&router_data, None, response)
-                        .map_err(report_connector_response_to_flow)
                 }
                 None => Ok(router_data),
             }

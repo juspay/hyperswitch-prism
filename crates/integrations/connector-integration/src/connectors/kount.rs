@@ -393,15 +393,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Sour
 }
 
 // =============================================================================
-// REAL FLOW: PreAuthenticate = Device Data Collection (no outbound call)
-// =============================================================================
-// Returns only the Kount Web Client SDK HTML for the shopper's browser; makes no
-// server-side call to Kount. `build_request_v2` returns `None` and
-// `should_trigger_handle_response_without_body` opts the flow into the harness's
-// "build the response locally" path, where `handle_response_v2` synthesises the
-// DDC HTML. `clientID`/`environment` come from the access token (threaded via
-// `state.access_token`); `sessionID` derives from `connector_request_reference_id`
-// so it matches the Evaluate Order `deviceSessionId`.
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentPreAuthenticateV2<T> for Kount<T>
 {
@@ -415,8 +406,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         PaymentsResponseData,
     > for Kount<T>
 {
-    fn should_trigger_handle_response_without_body(&self) -> bool {
-        true
+    fn get_call_connector_action(&self) -> common_enums::CallConnectorAction {
+        common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest
     }
 
     fn build_request_v2(

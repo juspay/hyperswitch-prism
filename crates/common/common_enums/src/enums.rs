@@ -2101,6 +2101,7 @@ pub enum ProductType {
 pub enum CallConnectorAction {
     Trigger,
     HandleResponse(Vec<u8>),
+    HandleResponseWithoutBuildRequest,
 }
 
 #[derive(
