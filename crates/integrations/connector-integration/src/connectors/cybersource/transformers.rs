@@ -5703,7 +5703,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             target_origins: vec![target_origin],
-            client_version: "0.11".to_string(),
+            // Cybersource Flex Microform v2 rejects the legacy "0.11" client
+            // version ("Invalid Client Version"); "v2.0" is the current value.
+            client_version: "v2.0".to_string(),
             allowed_card_networks: Some(vec![
                 CybersourceFlexCardNetwork::Visa,
                 CybersourceFlexCardNetwork::Mastercard,
