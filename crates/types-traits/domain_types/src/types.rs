@@ -4050,6 +4050,12 @@ impl<
             .map(|m| ForeignTryFrom::foreign_try_from((m, "connector_testing_data")))
             .transpose()?;
 
+        let authentication_data = value
+            .authentication_data
+            .clone()
+            .map(router_request_types::AuthenticationData::try_from)
+            .transpose()?;
+
         Ok(Self {
             currency: common_enums::Currency::foreign_try_from(amount.currency())?,
             payment_method_data,
@@ -4122,6 +4128,7 @@ impl<
             mit_category: value.mit_category,
             connector_testing_data,
             split_payments: None,
+            authentication_data,
         })
     }
 }
@@ -10036,6 +10043,12 @@ impl<
             other => Some(common_enums::MitCategory::foreign_from(other)),
         };
 
+        let authentication_data = value
+            .authentication_data
+            .clone()
+            .map(router_request_types::AuthenticationData::try_from)
+            .transpose()?;
+
         Ok(Self {
             currency: amount.currency,
             payment_method_data,
@@ -10105,6 +10118,7 @@ impl<
             }),
             mit_category,
             split_payments: None,
+            authentication_data,
         })
     }
 }

@@ -3195,6 +3195,9 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     /// `Recurring`, `Installment`). Mirrors `RepeatPaymentData.mit_category`.
     pub mit_category: Option<common_enums::MitCategory>,
     pub split_payments: Option<SplitPaymentsDetails>,
+    /// External-authentication (3DS) result threaded into the CIT setup request,
+    /// rendered by connectors such as Cybersource as `consumerAuthenticationInformation`.
+    pub authentication_data: Option<router_request_types::AuthenticationData>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {
