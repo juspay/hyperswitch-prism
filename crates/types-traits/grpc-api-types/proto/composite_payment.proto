@@ -408,6 +408,10 @@ message CompositeCaptureRequest {
 
   // Order-level tax amount.
   optional Money order_tax_amount = 15;
+
+  // Split payment request data. Required by connectors such as Stripe to
+  // rebuild the split charge response when capturing a split payment.
+  optional SplitPaymentsDetails split_payments = 16;
 }
 
 // Response message for composite capture flow.
