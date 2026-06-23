@@ -120,6 +120,8 @@ pub struct PayloadMandateRequestData {
     pub payment_method_id: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<responses::PayloadPaymentStatus>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub processing_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
