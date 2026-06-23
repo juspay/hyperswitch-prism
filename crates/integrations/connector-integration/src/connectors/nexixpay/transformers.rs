@@ -620,12 +620,32 @@ impl TryFrom<ResponseRouterData<NexixpaySyncResponse, Self>>
         // Map operation result to payment status using From trait
         let status = AttemptStatus::from(item.response.operation_result.clone());
 
+        // Echo back the stored connector metadata blob (mirrors native hyperswitch's
+        // `connector_metadata: request.connector_meta.clone()` on PSync — native re-emits
+        // the persisted `NexixpayConnectorMetaData`, prism was dropping it as `None`).
+        let connector_metadata = item
+            .router_data
+            .request
+            .connector_feature_data
+            .as_ref()
+            .map(|meta| meta.peek().clone());
+
+        // NOTE: #16985 (mandate_reference typeDiff) is intentionally NOT fixed here. Native
+        // sources `mandate_reference.connector_mandate_id` from the stored
+        // `payment_attempt.connector_mandate_detail.connector_mandate_request_reference_id`,
+        // which the HS->UCS PaymentServiceGetRequest does NOT thread through (no mandate_id /
+        // connector_mandate_request_reference_id on the sync request). Emitting an all-None
+        // MandateReference here would only trade the type diff for a value diff. A clean fix
+        // requires threading that stored reference through the PSync gRPC request (proto change).
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.operation_id.clone()),
+                // Use the order id (== merchant payment_id) to match native, not the
+                // per-operation `operationId` prism previously surfaced.
+                resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                connector_metadata,
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
