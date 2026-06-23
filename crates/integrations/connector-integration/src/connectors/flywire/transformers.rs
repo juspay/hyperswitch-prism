@@ -1,7 +1,7 @@
 use crate::connectors::flywire::FlywireRouterData;
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::types::MinorUnit;
+use common_utils::types::{MinorUnit, Money};
 use domain_types::{
     connector_flow::{Authenticate, Authorize, PSync, Refund},
     connector_types::{
@@ -229,17 +229,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }],
             payor_id,
             external_reference: ucs_payment_id,
-            notifications_url: router_data
-                .resource_common_data
-                .connector_feature_data
-                .as_ref()
-                .and_then(|v| {
-                    use hyperswitch_masking::PeekInterface;
-                    v.peek()
-                        .get("webhook_url")
-                        .and_then(|u| u.as_str())
-                        .map(String::from)
-                }),
+            // No notifications_url on the CheckoutSession request — the
+            // FLYWIRE recipient is pre-configured with the webhook destination.
+            // (PaymentsAuthenticateData has no webhook_url field to forward.)
+            notifications_url: None,
             payor,
             enable_email_notifications: false,
         })
@@ -426,6 +419,28 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
         let status = response.status.to_attempt_status();
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
 
+        // Override the request-side amount with what FLYWIRE actually recorded.
+        // amount_to is the recipient-side billing amount — the same value we
+        // sent in items[].amount at session creation. Surfacing it here
+        // (instead of echoing the PSync request amount) gives the caller a
+        // real integrity-check basis. We pair it with the original currency
+        // from the request because FLYWIRE's currency_to is the recipient
+        // billing currency (constant per recipient config) and using it
+        // would conflate connector-side state with merchant-side intent.
+        // If either side is absent, fall through to the request amount
+        // (existing behaviour) so we don't regress non-FLYWIRE-shaped txns.
+        let amount_override = match (
+            response.amount_to,
+            item.router_data
+                .resource_common_data
+                .amount
+                .as_ref()
+                .map(|m| m.currency),
+        ) {
+            (Some(amt), Some(curr)) => Some(Money { amount: amt, currency: curr }),
+            _ => item.router_data.resource_common_data.amount.clone(),
+        };
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.payment_id.clone()),
@@ -441,6 +456,7 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
             resource_common_data: PaymentFlowData {
                 status,
                 raw_connector_response: raw_response,
+                amount: amount_override,
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -574,22 +590,35 @@ pub struct FlywireRefundRequest {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FlywireRefundResponse {
-    pub id: String,
+    pub refund_id: String,
+    #[serde(default)]
+    pub payment_id: Option<String>,
+    #[serde(default)]
+    pub bundle_id: Option<String>,
     pub status: FlywireRefundStatus,
     #[serde(default)]
     pub amount: Option<MinorUnit>,
     #[serde(default)]
     pub currency: Option<String>,
+    #[serde(default)]
+    pub external_reference: Option<String>,
+    #[serde(default)]
+    pub notifications_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum FlywireRefundStatus {
     Initiated,
+    Pending,
+    Received,
     Approved,
+    Finished,
     Completed,
-    Rejected,
     Cancelled,
+    Failed,
+    Returned,
+    Rejected,
     #[serde(other)]
     Unknown,
 }
@@ -597,9 +626,13 @@ pub enum FlywireRefundStatus {
 impl FlywireRefundStatus {
     pub fn to_refund_status(&self) -> RefundStatus {
         match self {
-            Self::Completed | Self::Approved => RefundStatus::Success,
-            Self::Rejected | Self::Cancelled => RefundStatus::Failure,
-            Self::Initiated | Self::Unknown => RefundStatus::Pending,
+            Self::Finished | Self::Completed | Self::Approved => RefundStatus::Success,
+            Self::Rejected | Self::Cancelled | Self::Failed   => RefundStatus::Failure,
+            Self::Initiated
+            | Self::Pending
+            | Self::Received
+            | Self::Returned
+            | Self::Unknown                                    => RefundStatus::Pending,
         }
     }
 }
@@ -646,7 +679,7 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
         let router_data = item.router_data;
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: response.id.clone(),
+                connector_refund_id: response.refund_id.clone(),
                 refund_status: response.status.to_refund_status(),
                 status_code: item.http_code,
             }),
@@ -672,7 +705,7 @@ impl<F> TryFrom<ResponseRouterData<FlywireRefundResponse, Self>>
         let router_data = item.router_data;
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: response.id.clone(),
+                connector_refund_id: response.refund_id.clone(),
                 refund_status: response.status.to_refund_status(),
                 status_code: item.http_code,
             }),
@@ -915,9 +948,15 @@ pub fn webhook_event_type(body: &FlywireWebhookBody) -> EventType {
                 | FlywireRefundWebhookStatus::Unknown => EventType::PaymentIntentProcessing,
             }
         }
-        FlywireWebhookResource::Payments
-        | FlywireWebhookResource::Charges
-        | FlywireWebhookResource::Unknown => {
+        // `charges` events are per-card-capture-attempt notifications. A single
+        // payment can emit multiple charges events (e.g., first attempt declined,
+        // second attempt succeeds) before the payment-level state is decided.
+        // We MUST NOT promote a charges:failed event to PaymentIntentFailure -
+        // that would terminate the txn in Euler before the payer's retry chance
+        // is exhausted. The canonical terminal signal is the `payments:*` event
+        // family; charges events are informational and always map to Processing.
+        FlywireWebhookResource::Charges => EventType::PaymentIntentProcessing,
+        FlywireWebhookResource::Payments | FlywireWebhookResource::Unknown => {
             let status = body
                 .parse_payment_data()
                 .ok()

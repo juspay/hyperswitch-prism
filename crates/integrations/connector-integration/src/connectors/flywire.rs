@@ -18,7 +18,7 @@ use domain_types::{
 
 use std::fmt::Debug;
 
-use common_enums::{AttemptStatus, CurrencyUnit};
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
     crypto::{self, VerifySignature},
     errors::CustomResult,
@@ -44,7 +44,8 @@ use transformers as flywire;
 use transformers::{
     FlywireCheckoutSessionRequest, FlywireCheckoutSessionResponse, FlywireConfirmRequest,
     FlywireConfirmResponse, FlywirePayment as FlywirePSyncResponse,
-    FlywirePayment as FlywireRSyncResponse, FlywireRefundRequest, FlywireRefundResponse,
+    FlywireRefundRequest, FlywireRefundResponse,
+    FlywireRefundResponse as FlywireRSyncResponse,
 };
 
 pub(crate) mod headers {
@@ -350,10 +351,47 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             title.clone()
         };
 
-        let attempt_status = match response.status {
-            Some(401) | Some(403) => AttemptStatus::AuthenticationFailed,
-            Some(404) | Some(422) => AttemptStatus::Failure,
-            _ => AttemptStatus::Pending,
+        // Classify whether this error is a known terminal refund failure.
+        // FLYWIRE refund endpoints return RFC 7807 problem+json with an inner
+        // `errors[*].type` tag. Each of these means the refund will never
+        // succeed; we surface that as FlowStatus::Refund(Failure) so the
+        // framework marks the refund row FAILED rather than leaving it
+        // transient/PENDING.
+        //
+        // Reason codes per FLYWIRE refund docs:
+        // https://developers.flywire.com/education/Content/resource_refunds.htm
+        //   not_found                      — parent payment missing
+        //   already_refund                 — one-active-refund rule violated
+        //   status                         — payment in non-refundable state
+        //   amount_over_remaining_balance  — over-refund
+        //   minimum_threshold              — below recipient's configured floor
+        //   currency                       — currency mismatch
+        //   multiple                       — payment already fully refunded
+        // Plus the wire-observed `invalid_status` (used in 422 responses for
+        // the same conditions; not formally listed but actually emitted).
+        let is_refund_failure = response.errors.iter().any(|e| {
+            matches!(
+                e.detail_type.as_deref(),
+                Some("invalid_status")
+                    | Some("not_found")
+                    | Some("already_refund")
+                    | Some("status")
+                    | Some("amount_over_remaining_balance")
+                    | Some("minimum_threshold")
+                    | Some("currency")
+                    | Some("multiple")
+            )
+        });
+
+        let attempt_status: FlowStatus = if is_refund_failure {
+            FlowStatus::Refund(RefundStatus::Failure)
+        } else {
+            let payment_status = match response.status {
+                Some(401) | Some(403) => AttemptStatus::AuthenticationFailed,
+                Some(404) | Some(422) => AttemptStatus::Failure,
+                _ => AttemptStatus::Pending,
+            };
+            FlowStatus::Payment(payment_status)
         };
 
         Ok(ErrorResponse {
@@ -364,7 +402,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 .unwrap_or_else(|| "UNKNOWN".to_string()),
             message: combined_msg.clone(),
             reason: Some(combined_msg),
-            attempt_status: Some(FlowStatus::Payment(attempt_status)),
+            attempt_status: Some(attempt_status),
             connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,
@@ -626,10 +664,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Re-queries the parent payment; Flywire has no per-refund GET endpoint.
+            // RSync hits FLYWIRE's per-refund GET endpoint (docs:
+            // https://developers.flywire.com/education/Content/resource_refunds.htm).
             let refund_id = req.request.connector_refund_id.clone();
             let base_url = self.connector_base_url_refund(req);
-            Ok(format!("{base_url}/payments/v1/payments/{refund_id}"))
+            Ok(format!("{base_url}/payments/v1/refunds/{refund_id}"))
         }
     }
 );
