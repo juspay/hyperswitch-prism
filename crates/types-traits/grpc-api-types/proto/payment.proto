@@ -811,6 +811,7 @@ enum Connector {
   QWIKCILVER = 125;
   HYPERSWITCH = 126;
   TSYS_TRANSIT = 127;
+  KOUNT = 128;
 }
 
 // Payment method types
@@ -4945,6 +4946,15 @@ message PayconexConfig {
   optional string base_url = 50;
 }
 
+message KountConfig {
+  SecretString api_key = 1;
+  // Kount OAuth authorization-server id for the token endpoint
+  // (`login.kount.com/oauth2/{auth_server_id}/v1/token`). Account/environment
+  // specific; falls back to the sandbox auth server when unset.
+  optional string auth_server_id = 2;
+  optional string base_url = 50;
+}
+
 message HyperswitchConfig {
   SecretString api_key = 1;
   optional string base_url = 50;
@@ -5240,6 +5250,8 @@ message ConnectorSpecificConfig {
     HyperswitchConfig hyperswitch = 132;
     // TSYS_TRANSIT = 127
     TsysTransitConfig tsys_transit = 133;
+    // KOUNT = 128
+    KountConfig kount = 134;
   }
 }
 
