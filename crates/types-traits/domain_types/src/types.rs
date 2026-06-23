@@ -11145,13 +11145,33 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 }
                 None => grpc_api_types::payments::PaymentStatus::Unspecified,
             };
+            // Surface the connector transaction id and the card-network decline
+            // details on the error path so the router maps them back onto
+            // `ErrorResponse.connector_transaction_id` / `network_decline_code`
+            // (matching the Direct gateway). See juspay/hyperswitch-cloud#17014, #17015.
+            let has_network_details = err.network_decline_code.is_some()
+                || err.network_advice_code.is_some()
+                || err.network_error_message.is_some();
+            let issuer_details = has_network_details.then(|| {
+                grpc_api_types::payments::IssuerErrorDetails {
+                    code: None,
+                    message: err.network_error_message.clone(),
+                    network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                        advice_code: err.network_advice_code.clone(),
+                        decline_code: err.network_decline_code.clone(),
+                        error_message: err.network_error_message.clone(),
+                    }),
+                }
+            });
             PaymentServiceSetupRecurringResponse {
-                connector_recurring_payment_id: None,
+                connector_recurring_payment_id: err.connector_transaction_id.clone(),
                 redirection_data: None,
                 network_transaction_id: None,
-                merchant_recurring_payment_id: extract_connector_request_reference_id(
-                    &err.connector_transaction_id,
-                ),
+                // The native gateway leaves `connector_response_reference_id` as
+                // `None` on the error path, so do not echo the connector transaction
+                // id here (the router maps this onto that field). Keeps UCS at parity
+                // with Direct — see juspay/hyperswitch-cloud#17014, #17015.
+                merchant_recurring_payment_id: String::new(),
                 status: status as i32,
                 mandate_reference: None,
                 incremental_authorization_allowed: None,
@@ -11164,7 +11184,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         connector_transaction_id: err.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details,
                 }),
                 status_code: err.status_code as u32,
                 response_headers: router_data_v2
