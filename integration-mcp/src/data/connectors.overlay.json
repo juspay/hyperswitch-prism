@@ -1,0 +1,65 @@
+{
+  "stripe": {
+    "displayName": "Stripe",
+    "paymentMethods": ["card", "wallet", "bank"],
+    "docsUrl": "https://stripe.com/docs/testing",
+    "sandboxCards": [
+      { "brand": "Visa", "number": "4242424242424242", "expMonth": "12", "expYear": "2030", "cvc": "123" },
+      { "brand": "Visa (declined)", "number": "4000000000000002", "expMonth": "12", "expYear": "2030", "cvc": "123" },
+      { "brand": "Mastercard", "number": "5555555555554444", "expMonth": "12", "expYear": "2030", "cvc": "123" }
+    ],
+    "fieldDocs": {
+      "apiKey": { "description": "Stripe secret key", "example": "sk_test_..." }
+    },
+    "notes": "Single API key. Use a restricted test-mode key (sk_test_...) for sandbox."
+  },
+  "adyen": {
+    "displayName": "Adyen",
+    "paymentMethods": ["card", "wallet", "bank"],
+    "docsUrl": "https://docs.adyen.com/development-resources/testing/test-card-numbers/",
+    "sandboxCards": [
+      { "brand": "Visa", "number": "4111111111111111", "expMonth": "03", "expYear": "2030", "cvc": "737" },
+      { "brand": "Mastercard", "number": "5577000055770004", "expMonth": "03", "expYear": "2030", "cvc": "737" }
+    ],
+    "notes": "Card payments ALWAYS require browserInfo. merchantAccount is part of the connector config."
+  },
+  "paypal": {
+    "displayName": "PayPal",
+    "paymentMethods": ["card", "wallet"],
+    "docsUrl": "https://developer.paypal.com/tools/sandbox/card-testing/",
+    "notes": "OAuth client credentials (clientId + clientSecret)."
+  },
+  "authorizedotnet": {
+    "displayName": "Authorize.Net",
+    "paymentMethods": ["card"],
+    "docsUrl": "https://developer.authorize.net/hello_world/testing_guide.html",
+    "sandboxCards": [
+      { "brand": "Visa", "number": "4111111111111111", "expMonth": "12", "expYear": "2030", "cvc": "123" }
+    ],
+    "fieldDocs": {
+      "name": { "description": "API Login ID", "example": "5KP3u95bQpv" },
+      "transactionKey": { "description": "Transaction Key", "example": "346HZ32z3fP4hTG2" }
+    },
+    "notes": "Body-key auth: name = API Login ID, transactionKey = Transaction Key."
+  },
+  "checkout": {
+    "displayName": "Checkout.com",
+    "paymentMethods": ["card", "wallet"],
+    "docsUrl": "https://www.checkout.com/docs/testing"
+  },
+  "cybersource": {
+    "displayName": "Cybersource",
+    "paymentMethods": ["card"],
+    "docsUrl": "https://developer.cybersource.com/"
+  },
+  "braintree": {
+    "displayName": "Braintree",
+    "paymentMethods": ["card", "wallet"],
+    "docsUrl": "https://developer.paypal.com/braintree/docs/reference/general/testing"
+  },
+  "worldpay": {
+    "displayName": "Worldpay",
+    "paymentMethods": ["card"],
+    "docsUrl": "https://developer.worldpay.com/"
+  }
+}

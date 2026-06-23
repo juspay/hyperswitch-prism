@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Read-only, verifiable evaluation cases for hyperswitch-prism-integration-mcp.
+  Each <case> states a realistic merchant-developer question, the tool an agent
+  should call, the arguments, and assertions over the structuredContent result.
+  These mirror the assertions in scripts/smoke-tools-list.mjs.
+-->
+<evaluation server="hyperswitch-prism-integration">
+  <case id="1">
+    <question>How do I start integrating Prism into my Express app for authorize + capture?</question>
+    <tool>prism_integration_guide</tool>
+    <arguments>{ "framework": "express", "flows": ["authorize", "capture"] }</arguments>
+    <expect>structuredContent.ok === true</expect>
+    <expect>structuredContent.steps.length === 6</expect>
+    <expect>structuredContent.steps[0].tool === "prism_doctor"</expect>
+  </case>
+
+  <case id="2">
+    <question>What credentials does Stripe need?</question>
+    <tool>prism_connector_requirements</tool>
+    <arguments>{ "connector": "stripe" }</arguments>
+    <expect>requiredFields includes a field named "apiKey"</expect>
+    <expect>that field has secret === true</expect>
+    <expect>configTemplate.connectorConfig.stripe.apiKey is an object { value }</expect>
+  </case>
+
+  <case id="3">
+    <question>What are Authorize.Net's exact credential field names?</question>
+    <tool>prism_connector_requirements</tool>
+    <arguments>{ "connector": "authorizedotnet" }</arguments>
+    <expect>requiredFields field names === ["name", "transactionKey"]</expect>
+    <expect>both fields have secret === true</expect>
+  </case>
+
+  <case id="4">
+    <question>Which connectors match "pay"?</question>
+    <tool>prism_list_connectors</tool>
+    <arguments>{ "search": "pay" }</arguments>
+    <expect>structuredContent.count >= 3</expect>
+    <expect>connector machine names include "paypal"</expect>
+  </case>
+
+  <case id="5">
+    <question>Is this Stripe config valid?</question>
+    <tool>prism_validate_config</tool>
+    <arguments>{ "connector": "stripe", "config": { "connectorConfig": { "stripe": { "apiKey": { "value": "sk_test_x" } } } } }</arguments>
+    <expect>structuredContent.valid === true</expect>
+    <expect>structuredContent.issues.length === 0</expect>
+  </case>
+
+  <case id="6">
+    <question>Why is my Authorize.Net config rejected when I only set name?</question>
+    <tool>prism_validate_config</tool>
+    <arguments>{ "connector": "authorizedotnet", "config": { "authorizedotnet": { "name": { "value": "x" } } } }</arguments>
+    <expect>structuredContent.valid === false</expect>
+    <expect>issues mention the missing "transactionKey" field</expect>
+  </case>
+
+  <case id="7">
+    <question>What does status 8 mean?</question>
+    <tool>prism_status_reference</tool>
+    <arguments>{ "status_code": 8 }</arguments>
+    <expect>structuredContent.status.name === "CHARGED"</expect>
+    <expect>structuredContent.status.category === "success"</expect>
+  </case>
+
+  <case id="8">
+    <question>My authorize call returned status 21 but no exception — why?</question>
+    <tool>prism_explain_error</tool>
+    <arguments>{ "status": 21 }</arguments>
+    <expect>text explains FAILURE is a soft decline returned in the body (not thrown)</expect>
+    <expect>structuredContent.status.name === "FAILURE"</expect>
+  </case>
+
+  <case id="9">
+    <question>Scaffold an Express + Stripe integration with manual capture.</question>
+    <tool>prism_scaffold_integration</tool>
+    <arguments>{ "framework": "express", "connector": "stripe", "flows": ["authorize", "capture"], "language": "ts", "captureMethod": "MANUAL" }</arguments>
+    <expect>structuredContent.files.length >= 3</expect>
+    <expect>a file at src/payments/prismClient.ts imports PaymentClient from hyperswitch-prism</expect>
+    <expect>handlers compare res.status to types.PaymentStatus.AUTHORIZED for MANUAL capture</expect>
+  </case>
+
+  <case id="10">
+    <question>Generate the env + config for Stripe.</question>
+    <tool>prism_generate_config</tool>
+    <arguments>{ "connector": "stripe", "environment": "sandbox" }</arguments>
+    <expect>structuredContent.envExample includes a STRIPE_API_KEY line</expect>
+    <expect>literalConfig.connectorConfig.stripe.apiKey is wrapped as { value }</expect>
+    <expect>no real secret is inlined (placeholders only)</expect>
+  </case>
+
+  <case id="11">
+    <question>Can I run Prism on my ARM Linux CI runner?</question>
+    <tool>prism_doctor</tool>
+    <arguments>{}</arguments>
+    <expect>structuredContent.native.platform and structuredContent.native.arch reflect the host</expect>
+    <expect>on linux-arm64, structuredContent.native.willLoad === false with an ARM-Linux warning</expect>
+  </case>
+
+  <case id="12">
+    <question>Prove the integration works with a sandbox charge (no creds set).</question>
+    <tool>prism_test_charge</tool>
+    <arguments>{ "connector": "stripe", "amount": 1000, "test_mode": false }</arguments>
+    <expect>isError === true</expect>
+    <expect>refuses because test_mode is not true (never runs a non-sandbox charge)</expect>
+  </case>
+</evaluation>

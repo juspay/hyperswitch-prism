@@ -1,0 +1,62 @@
+{
+  "name": "hyperswitch-prism-integration-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that helps merchant developers integrate the hyperswitch-prism payments SDK: connector requirements lookup, code scaffolding, config generation/validation, error explanation, and sandbox test charges.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "hyperswitch-prism-integration-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/data/*.json",
+    "README.md"
+  ],
+  "scripts": {
+    "gen:connectors": "tsx scripts/gen-connectors.ts",
+    "prebuild": "npm run gen:connectors",
+    "build": "tsc && node scripts/copy-data.mjs",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "smoke": "node scripts/smoke-tools-list.mjs",
+    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "hyperswitch",
+    "prism",
+    "payments",
+    "payment-processing",
+    "stripe",
+    "adyen",
+    "paypal",
+    "integration",
+    "developer-tools"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juspay/hyperswitch-prism.git",
+    "directory": "integration-mcp"
+  },
+  "homepage": "https://github.com/juspay/hyperswitch-prism/tree/main/integration-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/juspay/hyperswitch-prism/issues"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "hyperswitch-prism": "^0.2.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}

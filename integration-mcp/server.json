@@ -1,0 +1,27 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "io.github.juspay/hyperswitch-prism-integration",
+  "description": "Helps merchant developers integrate the hyperswitch-prism payments SDK: connector requirements, code scaffolding, config generation/validation, error explanation, and sandbox test charges.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/juspay/hyperswitch-prism",
+    "source": "github",
+    "subfolder": "integration-mcp"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "hyperswitch-prism-integration-mcp",
+      "version": "0.1.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "PRISM_CONNECTOR_CONFIG",
+          "description": "JSON connectorConfig used only by prism_test_charge for sandbox charges. Optional.",
+          "isRequired": false,
+          "isSecret": true
+        }
+      ]
+    }
+  ]
+}

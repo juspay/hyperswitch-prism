@@ -1,0 +1,9 @@
+src/
+scripts/
+tsconfig.json
+evaluation.xml
+.github/
+node_modules/
+*.tsbuildinfo
+.env
+.env.local

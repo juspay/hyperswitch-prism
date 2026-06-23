@@ -1,0 +1,23 @@
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    properties:
+      PRISM_CONNECTOR_CONFIG:
+        type: string
+        title: Prism connector config (JSON)
+        description: >-
+          JSON connectorConfig used ONLY by prism_test_charge to run a sandbox
+          charge, e.g. {"connectorConfig":{"stripe":{"apiKey":{"value":"sk_test_..."}}}}.
+          All other tools work without it. Keep real secrets out of source control.
+    required: []
+  commandFunction: |
+    (config) => ({
+      command: "node",
+      args: ["dist/index.js"],
+      env: config.PRISM_CONNECTOR_CONFIG
+        ? { PRISM_CONNECTOR_CONFIG: config.PRISM_CONNECTOR_CONFIG }
+        : {}
+    })
+build:
+  dockerfile: null
