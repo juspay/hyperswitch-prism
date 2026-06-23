@@ -670,6 +670,7 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                         connector_response_reference_id,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 }
             },
@@ -1479,6 +1480,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         connector_response_reference_id,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 }
             },
@@ -1701,6 +1703,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         connector_response_reference_id,
                         incremental_authorization_allowed: None,
                         status_code: http_code,
+                        splits: None,
                     })
                 }
             },

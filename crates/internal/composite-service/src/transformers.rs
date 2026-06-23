@@ -1167,7 +1167,6 @@ impl
         });
 
         Self {
-            merchant_id: item.merchant_id.clone(),
             event_id: item.event_id.clone(),
             event_type: item.event_type,
             content: item.content.clone(),

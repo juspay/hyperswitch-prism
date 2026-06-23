@@ -1814,6 +1814,7 @@ pub enum PaymentsResponseData {
         network_txn_link_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
+        splits: Option<ConnectorSplitResponseData>,
         status_code: u16,
     },
     ClientAuthenticationTokenResponse {
@@ -3953,17 +3954,17 @@ pub struct StripeSplitPaymentData {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
-pub enum ConnectorChargeResponseData {
-    /// StripeChargeResponseData
-    StripeSplitPayment(StripeChargeResponseData),
-    /// AdyenChargeResponseData
+pub enum ConnectorSplitResponseData {
+    /// StripeSplitResponseData
+    StripeSplitPayment(StripeSplitResponseData),
+    /// AdyenSplitResponseData
     AdyenSplitPayment(AdyenSplitData),
 }
 
 /// Fee information to be charged on the payment being collected via Stripe
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct StripeChargeResponseData {
+pub struct StripeSplitResponseData {
     /// Identifier for charge created for the payment
     pub charge_id: Option<String>,
 
@@ -3975,6 +3976,9 @@ pub struct StripeChargeResponseData {
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]

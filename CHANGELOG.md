@@ -19,6 +19,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.23.1
+
+### Features
+
+- **framework:** Added splits field in transaction response ([#1582](https://github.com/juspay/connector-service/pull/1582)) ([`5a61d2d`](https://github.com/juspay/connector-service/commit/5a61d2dde272376dc876f068c02644845ca81d9c))
+
+**Full Changelog:** [`2026.06.23.0...2026.06.23.1`](https://github.com/juspay/connector-service/compare/2026.06.23.0...2026.06.23.1)
+
+- - -
+
+## 2026.06.23.0
+
+### Features
+
+- **connector:** 2c2p_paco address raw response ([#1583](https://github.com/juspay/connector-service/pull/1583)) ([`32b792c`](https://github.com/juspay/connector-service/commit/32b792cde690ede6f36dbb9c541f21886c878bf8))
+- **core:** Add payment method eligibility flow ([#1511](https://github.com/juspay/connector-service/pull/1511)) ([`1351f63`](https://github.com/juspay/connector-service/commit/1351f63bae08ae787e0eb59d8789895814e4d8c8))
+
+### Bug Fixes
+
+- **payload:** Match hyperswitch request parity (string amount + ACH bank_debit fields) ([#1561](https://github.com/juspay/connector-service/pull/1561)) ([`230b8e4`](https://github.com/juspay/connector-service/commit/230b8e4854a628f8257c63e207c1dc69df0c9529))
+- **ucs:** Populate amount in PaymentServiceAuthorizeResponse for integrity check ([#1572](https://github.com/juspay/connector-service/pull/1572)) ([`83944da`](https://github.com/juspay/connector-service/commit/83944dab7187447700b626ea748e00e5f48c4224))
+
+### Miscellaneous Tasks
+
+- Add logger for integrity check when it passes ([#1581](https://github.com/juspay/connector-service/pull/1581)) ([`02e639f`](https://github.com/juspay/connector-service/commit/02e639f8c03a383ba8540286eff67c36d1bc192e))
+
+**Full Changelog:** [`2026.06.19.0...2026.06.23.0`](https://github.com/juspay/connector-service/compare/2026.06.19.0...2026.06.23.0)
+
+- - -
+
 ## 2026.06.19.0
 
 ### Features

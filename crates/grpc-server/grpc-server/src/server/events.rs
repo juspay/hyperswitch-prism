@@ -384,6 +384,7 @@ impl EventServiceImpl {
         tracing::info!("SURCHARGE_PAYMENT_SUCCEEDED_FLOW: initiated");
 
         let metadata_payload = request_data.extracted_metadata;
+        let masked_metadata = request_data.masked_metadata;
         let req = request_data.payload;
 
         let connector_data: SurchargeConnectorData = ConnectorDataProvider::from_connector_variant(
@@ -405,7 +406,7 @@ impl EventServiceImpl {
         let common_flow_data = SurchargeFlowData::foreign_try_from((
             req.clone(),
             config.connectors.clone(),
-            &common_utils::metadata::MaskedMetadata::default(),
+            &masked_metadata,
         ))
         .into_grpc_status()?;
 
@@ -472,6 +473,7 @@ impl EventServiceImpl {
         tracing::info!("SURCHARGE_REFUND_SUCCEEDED_FLOW: initiated");
 
         let metadata_payload = request_data.extracted_metadata;
+        let masked_metadata = request_data.masked_metadata;
         let req = request_data.payload;
 
         let connector_data: SurchargeConnectorData = ConnectorDataProvider::from_connector_variant(
@@ -493,7 +495,7 @@ impl EventServiceImpl {
         let common_flow_data = SurchargeFlowData::foreign_try_from((
             req.clone(),
             config.connectors.clone(),
-            &common_utils::metadata::MaskedMetadata::default(),
+            &masked_metadata,
         ))
         .into_grpc_status()?;
 
@@ -560,6 +562,7 @@ impl EventServiceImpl {
         tracing::info!("FRM_PAYMENT_OUTCOME_FLOW: initiated");
 
         let metadata_payload = request_data.extracted_metadata;
+        let masked_metadata = request_data.masked_metadata;
         let req = request_data.payload;
 
         let connector_data: FrmConnectorData = ConnectorDataProvider::from_connector_variant(
@@ -581,7 +584,7 @@ impl EventServiceImpl {
         let common_flow_data = FrmFlowData::foreign_try_from((
             req.clone(),
             config.connectors.clone(),
-            &common_utils::metadata::MaskedMetadata::default(),
+            &masked_metadata,
         ))
         .into_grpc_status()?;
 
@@ -645,6 +648,7 @@ impl EventServiceImpl {
         tracing::info!("FRM_REFUND_PROCESSED_FLOW: initiated");
 
         let metadata_payload = request_data.extracted_metadata;
+        let masked_metadata = request_data.masked_metadata;
         let req = request_data.payload;
 
         let connector_data: FrmConnectorData = ConnectorDataProvider::from_connector_variant(
@@ -666,7 +670,7 @@ impl EventServiceImpl {
         let common_flow_data = FrmFlowData::foreign_try_from((
             req.clone(),
             config.connectors.clone(),
-            &common_utils::metadata::MaskedMetadata::default(),
+            &masked_metadata,
         ))
         .into_grpc_status()?;
 
@@ -730,6 +734,7 @@ impl EventServiceImpl {
         tracing::info!("FRM_CHARGEBACK_RECEIVED_FLOW: initiated");
 
         let metadata_payload = request_data.extracted_metadata;
+        let masked_metadata = request_data.masked_metadata;
         let req = request_data.payload;
 
         let connector_data: FrmConnectorData = ConnectorDataProvider::from_connector_variant(
@@ -751,7 +756,7 @@ impl EventServiceImpl {
         let common_flow_data = FrmFlowData::foreign_try_from((
             req.clone(),
             config.connectors.clone(),
-            &common_utils::metadata::MaskedMetadata::default(),
+            &masked_metadata,
         ))
         .into_grpc_status()?;
 

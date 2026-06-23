@@ -135,7 +135,10 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
     CompositeFlowSpec {
         name: "notify",
         composite_request_message: "CompositeNotifyRequest",
-        granular_request_messages: &["NotifyConnectorRequest"],
+        granular_request_messages: &[
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
+            "NotifyConnectorRequest",
+        ],
         ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
         ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
     },

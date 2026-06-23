@@ -414,6 +414,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxPaymentResponse, 
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -459,6 +460,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -536,6 +538,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -798,6 +801,7 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1329,6 +1333,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateRespo
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             Err(ErrorResponse {
@@ -1469,6 +1474,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxRepeatPaymentResp
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             Err(ErrorResponse {

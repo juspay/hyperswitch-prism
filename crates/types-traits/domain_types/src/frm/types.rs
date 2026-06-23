@@ -495,25 +495,25 @@ impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent> for FrmPay
             common_enums::Currency::foreign_try_from(grpc_currency)?
         };
 
-        let payment_success = match value.notification_type {
-            Some(grpc_api_types::payments::frm_notification_content::NotificationType::PaymentSuccess(ps)) => ps,
+        let payment_details = match value.notification_type {
+            Some(grpc_api_types::payments::frm_notification_content::NotificationType::PaymentDetails(pd)) => pd,
             _ => return Err(error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "payment_success",
+                field_name: "payment_details",
                 context: crate::errors::IntegrationErrorContext {
-                    additional_context: Some("Payment success details required".to_owned()),
+                    additional_context: Some("Payment details required for FRM payment outcome".to_owned()),
                     ..Default::default()
                 },
             })),
         };
 
-        let payment_status = payment_success
+        let payment_status = payment_details
             .payment_status
             .try_into()
             .ok()
             .and_then(|status| AttemptStatus::foreign_try_from(status).ok());
 
-        let frm_decision = value.frm_decision.and_then(|d| {
-            grpc_api_types::frm::FrmDecision::try_from(d)
+        let frm_decision = value.frm_decision.and_then(|decision| {
+            grpc_api_types::frm::FrmDecision::try_from(decision)
                 .ok()
                 .map(FrmDecision::foreign_from)
         });
@@ -526,7 +526,7 @@ impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent> for FrmPay
             },
             frm_transaction_id: value.frm_transaction_id,
             payment_status,
-            merchant_transaction_id: payment_success.merchant_transaction_id,
+            merchant_transaction_id: payment_details.merchant_transaction_id,
             frm_decision,
         })
     }
@@ -583,8 +583,8 @@ impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent>
             }
         };
 
-        let frm_decision = value.frm_decision.and_then(|d| {
-            grpc_api_types::frm::FrmDecision::try_from(d)
+        let frm_decision = value.frm_decision.and_then(|decision| {
+            grpc_api_types::frm::FrmDecision::try_from(decision)
                 .ok()
                 .map(FrmDecision::foreign_from)
         });
@@ -651,8 +651,8 @@ impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent>
             }
         };
 
-        let frm_decision = value.frm_decision.and_then(|d| {
-            grpc_api_types::frm::FrmDecision::try_from(d)
+        let frm_decision = value.frm_decision.and_then(|decision| {
+            grpc_api_types::frm::FrmDecision::try_from(decision)
                 .ok()
                 .map(FrmDecision::foreign_from)
         });
