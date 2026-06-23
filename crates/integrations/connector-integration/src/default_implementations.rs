@@ -765,6 +765,7 @@ default_impl_get_payment_method_v2!(
 default_impl_payment_method_eligibility_v2!(
     not_supported: [
         Adyen,
+        Asiapay,
         Authorizedotnet,
         Bluesnap,
         Calida,
