@@ -522,6 +522,17 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
         },
     );
 
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::Upi,
+        common_enums::PaymentMethodType::UpiQr,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
     let bank_redirect_methods = vec![
         (
             common_enums::PaymentMethodType::Ideal,
@@ -553,6 +564,17 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             },
         );
     }
+
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::PayLater,
+        common_enums::PaymentMethodType::AfterpayClearpay,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
     ppro_supported_payment_methods
 });

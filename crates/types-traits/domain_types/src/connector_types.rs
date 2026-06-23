@@ -2598,6 +2598,7 @@ pub enum EventType {
     // Refund events
     RefundFailure,
     RefundSuccess,
+    RefundProcessing,
 
     // Dispute events
     DisputeOpened,
@@ -2788,6 +2789,9 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookEventType> for EventType {
             grpc_api_types::payments::WebhookEventType::WebhookRefundSuccess => {
                 Ok(Self::RefundSuccess)
             }
+            grpc_api_types::payments::WebhookEventType::WebhookRefundProcessing => {
+                Ok(Self::RefundProcessing)
+            }
             grpc_api_types::payments::WebhookEventType::WebhookDisputeOpened => {
                 Ok(Self::DisputeOpened)
             }
@@ -2871,6 +2875,7 @@ impl ForeignTryFrom<EventType> for grpc_api_types::payments::WebhookEventType {
             EventType::SourceTransactionCreated => Ok(Self::SourceTransactionCreated),
             EventType::RefundFailure => Ok(Self::WebhookRefundFailure),
             EventType::RefundSuccess => Ok(Self::WebhookRefundSuccess),
+            EventType::RefundProcessing => Ok(Self::WebhookRefundProcessing),
             EventType::DisputeOpened => Ok(Self::WebhookDisputeOpened),
             EventType::DisputeExpired => Ok(Self::WebhookDisputeExpired),
             EventType::DisputeAccepted => Ok(Self::WebhookDisputeAccepted),
