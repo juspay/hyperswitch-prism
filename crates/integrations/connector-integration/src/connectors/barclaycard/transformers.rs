@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_utils::types::StringMajorUnit;
 use common_utils::ext_traits::ValueExt;
+use common_utils::types::StringMajorUnit;
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund,
@@ -1701,7 +1701,9 @@ where
 /// from `cavv` (Mastercard UCAF carrier), `xid` from `transaction_id`,
 /// `directoryServerTransactionId` from `ds_trans_id`, `paSpecificationVersion` from
 /// `message_version`; the richer pares/eci/specification fields are left unset.
-impl From<router_request_types::AuthenticationData> for requests::ConsumerAuthenticationInformation {
+impl From<router_request_types::AuthenticationData>
+    for requests::ConsumerAuthenticationInformation
+{
     fn from(value: router_request_types::AuthenticationData) -> Self {
         let router_request_types::AuthenticationData {
             eci: _,
@@ -1832,7 +1834,8 @@ fn build_auth_error_response(
         code: error_message
             .clone()
             .unwrap_or_else(|| common_utils::consts::NO_ERROR_CODE.to_string()),
-        message: error_message.unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
+        message: error_message
+            .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
         reason,
         status_code: http_code,
         attempt_status: None,
@@ -2016,14 +2019,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let email = router_data
             .resource_common_data
             .get_billing_email()
-            .or(router_data
-                .request
-                .email
-                .clone()
-                .ok_or(IntegrationError::MissingRequiredField {
+            .or(router_data.request.email.clone().ok_or(
+                IntegrationError::MissingRequiredField {
                     field_name: "email",
                     context: Default::default(),
-                }))?;
+                },
+            ))?;
 
         let billing = router_data
             .resource_common_data
