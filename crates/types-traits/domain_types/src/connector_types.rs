@@ -550,6 +550,10 @@ pub struct PaymentsSyncData {
     pub integrity_object: Option<PaymentSynIntegrityObject>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
+    // Stored connector_mandate_request_reference_id for off-session mandate
+    // setups, threaded from the GET request so connectors can surface
+    // response.mandate_reference on sync (#16985).
+    pub connector_mandate_request_reference_id: Option<String>,
 }
 
 impl PaymentsSyncData {

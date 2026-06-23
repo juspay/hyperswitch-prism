@@ -620,11 +620,33 @@ impl TryFrom<ResponseRouterData<NexixpaySyncResponse, Self>>
         // Map operation result to payment status using From trait
         let status = AttemptStatus::from(item.response.operation_result.clone());
 
+        // Mirror hyperswitch's native nexixpay PSync transformer (#16985): for an
+        // off-session mandate setup, surface the stored
+        // connector_mandate_request_reference_id as the mandate reference so the
+        // sync response carries `mandate_reference` instead of null. The value is
+        // threaded in from the GET request (see PaymentServiceGetRequest).
+        let mandate_reference = if matches!(
+            item.router_data.request.setup_future_usage,
+            Some(common_enums::FutureUsage::OffSession)
+        ) {
+            Some(Box::new(MandateReference {
+                connector_mandate_id: item
+                    .router_data
+                    .request
+                    .connector_mandate_request_reference_id
+                    .clone(),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+            }))
+        } else {
+            None
+        };
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.operation_id.clone()),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,

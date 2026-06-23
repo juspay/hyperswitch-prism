@@ -6466,6 +6466,8 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
                 .map(connector_types::SplitPaymentsDetails::foreign_try_from)
                 .transpose()?,
             setup_future_usage,
+            connector_mandate_request_reference_id: value
+                .connector_mandate_request_reference_id,
         })
     }
 }
