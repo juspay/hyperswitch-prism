@@ -252,9 +252,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }],
             payor_id,
             external_reference: payment_ref,
-            // No notifications_url on the CheckoutSession request — the
-            // FLYWIRE recipient is pre-configured with the webhook destination.
-            // (PaymentsAuthenticateData has no webhook_url field to forward.)
             notifications_url: None,
             payor,
             enable_email_notifications: false,
@@ -313,10 +310,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
         let session_id = response.id.clone();
 
-        // Wrap the hosted form URL in the iframe + postMessage template.
-        // The session UUID flows as connector_transaction_id so the caller can
-        // pass it back as connector_order_id in the subsequent CompositeAuthorize
-        // call (which triggers the Authorize/confirm step).
         let return_url = item
             .router_data
             .resource_common_data
@@ -451,17 +444,6 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
 //   1. PaymentService/CreateOrder  → POST /checkout/sessions
 //   2. PaymentService/Authorize    → POST /checkout/sessions/{id}/confirm  ← THIS
 //   3. PaymentService/Get          → GET  /payments/{payment_id}
-//
-// The session_id created in step 1 is stored as `connector_order_id` on
-// PaymentFlowData and read here to build the URL.
-//
-// /confirm is one-shot — subsequent calls 404. It returns the Flywire
-// payment_id (`payment_reference`) which UCS surfaces as
-// `connectorTransactionId` for step 3.
-
-/// Flywire's /confirm endpoint takes no body, but the macro framework requires
-/// a serializable request type when `flow_request` has generics. An empty struct
-/// serializes to `{}` which Flywire accepts.
 #[derive(Debug, Serialize)]
 pub struct FlywireConfirmRequest {}
 
