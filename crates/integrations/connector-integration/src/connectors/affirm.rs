@@ -33,9 +33,10 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    AffirmAuthType, AffirmCaptureRequest, AffirmCaptureResponse, AffirmErrorResponse,
-    AffirmPaymentsRequest, AffirmPaymentsResponse, AffirmRSyncResponse, AffirmRefundRequest,
-    AffirmRefundResponse, AffirmSyncResponse, AffirmVoidRequest, AffirmVoidResponse,
+    affirm_checkout_token, AffirmAuthType, AffirmCaptureRequest, AffirmCaptureResponse,
+    AffirmErrorResponse, AffirmPaymentsRequest, AffirmPaymentsResponse, AffirmRSyncResponse,
+    AffirmRefundRequest, AffirmRefundResponse, AffirmSyncResponse, AffirmVoidRequest,
+    AffirmVoidResponse,
 };
 
 use super::macros;
@@ -47,6 +48,9 @@ pub(crate) mod headers {
 }
 
 const TRANSACTIONS_PATH: &str = "/api/v1/transactions";
+// Affirm's checkout-create endpoint — used on the INITIATE leg of Authorize to
+// mint the hosted-checkout redirect URL (before any checkout_token exists).
+const CHECKOUT_DIRECT_PATH: &str = "/api/v2/checkout/direct";
 
 macros::macro_connector_payout_implementation!(
     connector: Affirm,
@@ -284,7 +288,14 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}{TRANSACTIONS_PATH}", self.connector_base_url_payments(req)))
+            // INITIATE (no checkout_token yet) hits the checkout-create endpoint to
+            // mint the redirect URL; COMPLETE (token present) charges the transaction.
+            let path = if affirm_checkout_token(req).is_some() {
+                TRANSACTIONS_PATH
+            } else {
+                CHECKOUT_DIRECT_PATH
+            };
+            Ok(format!("{}{path}", self.connector_base_url_payments(req)))
         }
     }
 );
