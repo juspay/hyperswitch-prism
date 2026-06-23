@@ -477,5 +477,25 @@ pub struct CreatePaymentMethodIntegrityObject {}
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct GetPaymentMethodIntegrityObject {}
 
+/// FRM pre-risk-check integrity object (no-op; kept for framework compatibility).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PreRiskCheckIntegrityObject {}
+
+/// FRM post-risk-check integrity object (no-op; kept for framework compatibility).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct PostRiskCheckIntegrityObject {}
+
+/// FRM payment outcome integrity object (no-op; kept for framework compatibility).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct FrmPaymentOutcomeIntegrityObject {}
+
+/// FRM refund processed integrity object (no-op; kept for framework compatibility).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct FrmRefundProcessedIntegrityObject {}
+
+/// FRM chargeback received integrity object (no-op; kept for framework compatibility).
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct FrmChargebackReceivedIntegrityObject {}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct PaymentMethodEligibilityIntegrityObject {}

@@ -2436,6 +2436,31 @@ pub enum TaxStatus {
     Exempt,
 }
 
+/// FRM decision outcomes for fraud risk assessment
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    strum::VariantNames,
+    ToSchema,
+)]
+pub enum FrmDecision {
+    #[default]
+    Approve,
+    Reject,
+    Review,
+    Error,
+}
+
 /// Whether the ticket can be refunded.
 #[derive(
     Clone,
