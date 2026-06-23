@@ -212,7 +212,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Swish | ⚠ |
 | Affirm | ⚠ |
 | Afterpay | ⚠ |
-| Klarna | ✓ |
+| Klarna | ? |
 | UPI Collect | ⚠ |
 | UPI Intent | ⚠ |
 | UPI QR | ⚠ |
@@ -293,14 +293,6 @@ Authorize a payment amount on a payment method. This reserves funds without capt
     "card_cvc": "737",
     "card_holder_name": "John Doe"
   }
-}
-```
-
-##### Klarna
-
-```python
-"payment_method": {
-  "klarna": {}
 }
 ```
 
