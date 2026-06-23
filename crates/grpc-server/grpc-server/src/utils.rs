@@ -630,7 +630,6 @@ macro_rules! implement_connector_operation {
                 proxy_name: metadata_payload.proxy_name.as_deref(),
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
-                return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -781,7 +780,6 @@ macro_rules! implement_connector_operation {
                 proxy_name: metadata_payload.proxy_name.as_deref(),
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
-                return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
@@ -913,7 +911,6 @@ macro_rules! implement_connector_operation {
                 proxy_name: metadata_payload.proxy_name.as_deref(),
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
-                return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
             };
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,

@@ -507,7 +507,6 @@ pub struct EventProcessingParams<'a> {
     pub proxy_name: Option<&'a str>,
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
-    pub return_raw_connector_response: bool,
 }
 
 #[cfg(feature = "injector-client")]
@@ -576,7 +575,7 @@ where
 
             let mut updated_router_data = router_data.clone();
             updated_router_data = match &connector_request {
-                Some(request) if event_params.return_raw_connector_response => {
+                Some(request) if return_raw_connector_response.unwrap_or(false) => {
                     updated_router_data
                         .resource_common_data
                         .set_raw_connector_request(Some(

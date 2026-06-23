@@ -169,8 +169,6 @@ impl DisputeService for Disputes {
                         proxy_name: proxy_name.as_deref(),
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
-                        return_raw_connector_response: return_raw_connector_response
-                            .unwrap_or(false),
                     };
 
                     let response = Box::pin(
@@ -398,8 +396,6 @@ impl DisputeService for Disputes {
                         proxy_name: proxy_name.as_deref(),
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
-                        return_raw_connector_response: return_raw_connector_response
-                            .unwrap_or(false),
                     };
 
                     let response = Box::pin(

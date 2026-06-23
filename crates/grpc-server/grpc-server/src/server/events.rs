@@ -399,7 +399,6 @@ impl EventServiceImpl {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         let response_result = Box::pin(
@@ -489,7 +488,6 @@ impl EventServiceImpl {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         let response_result = Box::pin(
@@ -588,7 +586,6 @@ async fn verify_webhook_source_external(
         proxy_name: metadata_payload.proxy_name.as_deref(),
         tenant_id: &metadata_payload.tenant_id,
         merchant_id: metadata_payload.merchant_id.as_str(),
-        return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
     };
 
     match Box::pin(

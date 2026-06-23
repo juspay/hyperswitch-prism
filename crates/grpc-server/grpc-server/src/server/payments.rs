@@ -425,8 +425,6 @@ impl CustomerService for Customer {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
-                        return_raw_connector_response: return_raw_connector_response
-                            .unwrap_or(false),
                     };
 
                     let response = Box::pin(
@@ -559,7 +557,6 @@ impl Payments {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         // Execute connector processing - ONLY the authorize call
@@ -684,7 +681,6 @@ impl Payments {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         let response = Box::pin(
@@ -1071,7 +1067,6 @@ impl PaymentService for Payments {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
-                        return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
                     };
 
                     // handle_response field removed from proto (field 5 reserved)
@@ -2432,7 +2427,6 @@ impl PaymentMethod {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         let response = Box::pin(
@@ -2544,7 +2538,6 @@ impl MerchantAuthentication {
             proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
-            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         // Execute connector processing
@@ -2662,7 +2655,6 @@ impl MerchantAuthentication {
             proxy_name: event_params.proxy_name,
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
-            return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
         };
 
         let response = Box::pin(
@@ -3167,7 +3159,6 @@ impl RecurringPaymentService for RecurringPayments {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
-                        return_raw_connector_response: return_raw_connector_response.unwrap_or(false),
                     };
 
                     let response = Box::pin(
