@@ -46,6 +46,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "proto/payment.proto",
             "proto/composite_services.proto",
             "proto/composite_payment.proto",
+            "proto/composite_frm.proto",
             "proto/payment_methods.proto",
             "proto/sdk_config.proto",
             "proto/payouts.proto",

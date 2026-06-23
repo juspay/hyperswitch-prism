@@ -595,4 +595,7 @@ macros::macro_connector_flow_status_impls!(
         MandateRevoke,
         CreateConnectorCustomer,
     ],
+    not_supported: [
+        VoidPostRefund,
+    ],
 );

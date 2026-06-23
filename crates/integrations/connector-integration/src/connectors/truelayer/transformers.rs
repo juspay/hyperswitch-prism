@@ -522,6 +522,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPaymentsResponseData, Self>>
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 ..item.router_data
             })
@@ -577,6 +578,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                             connector_response_reference_id: Some(response.id),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         ..item.router_data
                     })
@@ -626,6 +628,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                             connector_response_reference_id: Some(response.id),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         ..item.router_data
                     })
@@ -656,6 +659,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                             connector_response_reference_id: Some(response.payment_id.clone()),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         ..item.router_data
                     })
@@ -704,6 +708,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                             connector_response_reference_id: Some(response.payment_id.clone()),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         ..item.router_data
                     })
@@ -916,6 +921,7 @@ impl TryFrom<ResponseRouterData<TruelayerVoidResponseData, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

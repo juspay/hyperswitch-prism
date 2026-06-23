@@ -764,6 +764,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StandardResponse, Sel
                 connector_response_reference_id: Some(response.orderid.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -891,6 +892,7 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -991,6 +993,7 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
                 connector_response_reference_id: Some(response.orderid.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1294,6 +1297,7 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
                 connector_response_reference_id: Some(response.orderid.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1808,6 +1812,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         connector_response_reference_id: Some(response.orderid.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                 )
             }
@@ -1987,6 +1992,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_response_reference_id: Some(response.orderid.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
             ),
             Response::Declined | Response::Error => (

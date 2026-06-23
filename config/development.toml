@@ -57,6 +57,7 @@ psync = "GW_TXN_SYNC"
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
+hyperswitch.base_url = "https://sandbox.hyperswitch.io"
 payconex.base_url = "https://cert.payconex.net"
 tamara.base_url = "https://api-sandbox.tamara.co"
 juspay.base_url = "https://sandbox.juspay.in/"
@@ -164,6 +165,7 @@ pinelabs_online.base_url = "https://pluraluat.v2.pinepg.in/api/pay/v1"
 easebuzz.base_url = "https://testpay.easebuzz.in"
 easebuzz.secondary_base_url = "https://testdashboard.easebuzz.in"
 axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
+tsys_transit.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Server"
 
 # Generic Events Configuration
 [events]

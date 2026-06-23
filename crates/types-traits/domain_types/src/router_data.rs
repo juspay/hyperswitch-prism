@@ -613,6 +613,12 @@ pub enum ConnectorSpecificConfig {
         developer_id: Secret<String>,
         base_url: Option<String>,
     },
+    TsysTransit {
+        device_id: Secret<String>,
+        transaction_key: Secret<String>,
+        developer_id: Secret<String>,
+        base_url: Option<String>,
+    },
     Wellsfargo {
         api_key: Secret<String>,
         merchant_account: Secret<String>,
@@ -771,6 +777,10 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
     },
     Tamara {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
+    Hyperswitch {
         api_key: Secret<String>,
         base_url: Option<String>,
     },
@@ -1004,6 +1014,11 @@ impl ConnectorSpecificConfig {
                 transaction_key,
                 developer_id
             },
+            TsysTransit {
+                device_id,
+                transaction_key,
+                developer_id
+            },
             Wellsfargo {
                 api_key,
                 merchant_account,
@@ -1104,6 +1119,7 @@ impl ConnectorSpecificConfig {
                 account_id
             },
             Tamara { api_key },
+            Hyperswitch { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1430,6 +1446,11 @@ impl ConnectorSpecificConfig {
                     transaction_key,
                     developer_id
                 },
+                TsysTransit {
+                    device_id,
+                    transaction_key,
+                    developer_id
+                },
                 Wellsfargo {
                     api_key,
                     merchant_account,
@@ -1531,6 +1552,7 @@ impl ConnectorSpecificConfig {
                     account_id
                 },
                 Tamara { api_key },
+                Hyperswitch { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
@@ -2097,10 +2119,20 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_key: tamara.api_key.ok_or_else(err)?,
                 base_url: tamara.base_url,
             }),
+            AuthType::Hyperswitch(hyperswitch) => Ok(Self::Hyperswitch {
+                api_key: hyperswitch.api_key.ok_or_else(err)?,
+                base_url: hyperswitch.base_url,
+            }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
                 merchant_id: imerchantsolutions.merchant_id,
                 base_url: imerchantsolutions.base_url,
+            }),
+            AuthType::TsysTransit(tsys_transit) => Ok(Self::TsysTransit {
+                device_id: tsys_transit.device_id.ok_or_else(err)?,
+                transaction_key: tsys_transit.transaction_key.ok_or_else(err)?,
+                developer_id: tsys_transit.developer_id.ok_or_else(err)?,
+                base_url: tsys_transit.base_url,
             }),
             AuthType::Interpayments(interpayments) => Ok(Self::Interpayments {
                 api_key: interpayments.api_key.ok_or_else(err)?,
@@ -3201,6 +3233,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Hyperswitch => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Hyperswitch {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
@@ -3232,6 +3271,19 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::TsysTransit => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::TsysTransit {
+                        device_id: key1.clone(),
+                        transaction_key: api_key.clone(),
+                        developer_id: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::TwocTwopPaco => Err(err().into()),
                 ConnectorEnum::Tamara => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Tamara {
@@ -3256,6 +3308,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
             },
+            connector_types::ConnectorVariant::Frm(_connector_enum) => Err(err().into()),
             connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
                 PayoutConnectorEnum::Loonio => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {

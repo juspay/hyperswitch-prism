@@ -4,7 +4,7 @@ use common_enums::enums;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     ext_traits::ValueExt,
-    types::FloatMajorUnit,
+    types::StringMajorUnit,
 };
 use domain_types::{
     connector_flow::{
@@ -19,7 +19,7 @@ use domain_types::{
         PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{BankDebitData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{
@@ -128,11 +128,28 @@ impl PayloadAuthType {
     }
 }
 
+/// Strip the connector-internal `processing_account_id` key from the merchant
+/// metadata before it is echoed back to Payload as `attrs` (mirrors hyperswitch).
+fn get_filtered_metadata(metadata: Option<&serde_json::Value>) -> Option<serde_json::Value> {
+    metadata.and_then(|m| match m {
+        serde_json::Value::Object(map) => {
+            let mut filtered = map.clone();
+            filtered.remove("processing_account_id");
+            if filtered.is_empty() {
+                None
+            } else {
+                Some(serde_json::Value::Object(filtered))
+            }
+        }
+        _ => None,
+    })
+}
+
 fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
     connector_config: &ConnectorSpecificConfig,
     currency: enums::Currency,
-    amount: FloatMajorUnit,
+    amount: StringMajorUnit,
     resource_common_data: &PaymentFlowData,
     capture_method: Option<enums::CaptureMethod>,
     is_mandate: bool,
@@ -186,6 +203,8 @@ fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
             status,
             processing_id: payload_auth.processing_account_id,
             customer_id: resource_common_data.connector_customer.clone(),
+            description: None,
+            attrs: None,
         })
     } else {
         Err(IntegrationError::NotSupported {
@@ -201,9 +220,10 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
     bank_debit_data: &BankDebitData,
     connector_config: &ConnectorSpecificConfig,
     currency: enums::Currency,
-    amount: FloatMajorUnit,
+    amount: StringMajorUnit,
     capture_method: Option<enums::CaptureMethod>,
     resource_common_data: &PaymentFlowData,
+    metadata: Option<&serde_json::Value>,
 ) -> Result<PayloadCardsRequestData<T>, Error> {
     match bank_debit_data {
         BankDebitData::AchBankDebit {
@@ -212,6 +232,7 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
             bank_account_holder_name,
             card_holder_name,
             bank_type,
+            bank_holder_type,
             ..
         } => {
             let payload_auth = PayloadAuth::try_from((connector_config, currency))?;
@@ -245,14 +266,57 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
                 }
             };
 
+            // Mirror hyperswitch: derive account_class from the bank holder type
+            // (serialised even when absent, matching the reference `"account_class": null`).
+            let account_class = match bank_holder_type {
+                Some(enums::BankHolderType::Business) => Some(requests::PayloadAccClass::Business),
+                Some(enums::BankHolderType::Personal) => Some(requests::PayloadAccClass::Personal),
+                None => None,
+            };
+
             let bank = requests::PayloadBank {
                 bank_account: requests::PayloadBankAccountInner {
+                    account_class,
+                    account_currency: currency.to_string(),
                     account_number: account_number.clone(),
-                    routing_number: routing_number.clone(),
                     account_type,
+                    routing_number: routing_number.clone(),
                 },
                 account_holder,
             };
+
+            // Billing address nested inside `payment_method` (mirrors the card builder
+            // and the hyperswitch reference body).
+            let billing_addr = resource_common_data.get_billing_address()?;
+            let billing_address = Some(requests::BillingAddress {
+                city: resource_common_data.get_billing_city()?,
+                country_code: resource_common_data.get_billing_country()?,
+                postal_code: billing_addr.zip.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "billing.address.zip",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "payload bank_debit authorize: billing address postal_code (zip) is required by the Payload /transactions API"
+                                    .to_owned(),
+                            ),
+                            ..Default::default()
+                        },
+                    },
+                )?,
+                state_province: billing_addr.state.clone().ok_or(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "billing.address.state",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "payload bank_debit authorize: billing address state is required by the Payload /transactions API"
+                                    .to_owned(),
+                            ),
+                            ..Default::default()
+                        },
+                    },
+                )?,
+                street_address: resource_common_data.get_billing_line1()?,
+            });
 
             let status = if is_manual_capture(capture_method) {
                 Some(responses::PayloadPaymentStatus::Authorized)
@@ -264,13 +328,15 @@ fn build_payload_bank_account_request_data<T: PaymentMethodDataTypes>(
                 amount,
                 payment_method: requests::PayloadPaymentMethod {
                     method: requests::PayloadPaymentMethods::BankAccount(bank),
-                    billing_address: None,
+                    billing_address,
                     keep_active: false,
                 },
                 transaction_types: requests::TransactionTypes::Payment,
                 status,
                 processing_id: payload_auth.processing_account_id,
                 customer_id: resource_common_data.connector_customer.clone(),
+                description: resource_common_data.description.clone(),
+                attrs: get_filtered_metadata(metadata),
             })
         }
         BankDebitData::SepaBankDebit { .. }
@@ -327,7 +393,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 &router_data.request.payment_method_data,
                 &router_data.connector_config,
                 router_data.request.currency,
-                FloatMajorUnit::zero(),
+                StringMajorUnit::zero(),
                 &router_data.resource_common_data,
                 None,
                 true,
@@ -388,6 +454,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(Self::PayloadPaymentRequest(Box::new(payment_data)))
             }
             PaymentMethodData::BankDebit(bank_debit_data) => {
+                let metadata = router_data.request.metadata.clone().expose_option();
                 let payment_data = build_payload_bank_account_request_data(
                     bank_debit_data,
                     &router_data.connector_config,
@@ -395,6 +462,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     amount,
                     router_data.request.capture_method,
                     &router_data.resource_common_data,
+                    metadata.as_ref(),
                 )?;
 
                 Ok(Self::PayloadPaymentRequest(Box::new(payment_data)))
@@ -687,6 +755,7 @@ fn handle_payment_response<F, T>(
                     connector_response_reference_id: card_response.ref_number,
                     incremental_authorization_allowed: None,
                     status_code: http_code,
+                    splits: None,
                 })
             };
 
@@ -972,7 +1041,7 @@ pub struct PayloadClientAuthPaymentForm {
 
 #[derive(Debug, Serialize)]
 pub struct PayloadClientAuthPayment {
-    pub amount: FloatMajorUnit,
+    pub amount: StringMajorUnit,
     pub description: String,
 }
 

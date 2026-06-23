@@ -277,6 +277,11 @@ class GrpcPaymentMethodClient internal constructor(
      */
     suspend fun recharge(req: PaymentMethodServiceRechargeRequest): PaymentMethodServiceRechargeResponse =
         callGrpc(config, "payment_method/recharge", req, PaymentMethodServiceRechargeResponse.parser())
+    /**
+     * PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+     */
+    suspend fun eligibility(req: PaymentMethodServiceEligibilityRequest): PaymentMethodServiceEligibilityResponse =
+        callGrpc(config, "payment_method/eligibility", req, PaymentMethodServiceEligibilityResponse.parser())
 }
 
 /**
@@ -406,8 +411,8 @@ class GrpcPayoutClient internal constructor(
     /**
      * PayoutService.Eligibility — Check if the payout method is eligible for the transaction
      */
-    suspend fun eligibility(req: PayoutMethodEligibilityRequest): PayoutMethodEligibilityResponse =
-        callGrpc(config, "payout/eligibility", req, PayoutMethodEligibilityResponse.parser())
+    suspend fun payout_eligibility(req: PayoutMethodEligibilityRequest): PayoutMethodEligibilityResponse =
+        callGrpc(config, "payout/payout_eligibility", req, PayoutMethodEligibilityResponse.parser())
 }
 
 /**
@@ -439,6 +444,11 @@ class GrpcRefundClient internal constructor(
      */
     suspend fun refund_get(req: RefundServiceGetRequest): RefundResponse =
         callGrpc(config, "refund/refund_get", req, RefundResponse.parser())
+    /**
+     * RefundService.VoidPostRefund — Void/reverse a refund before processor settlement.
+     */
+    suspend fun void_post_refund(req: RefundServiceVoidPostRefundRequest): RefundResponse =
+        callGrpc(config, "refund/void_post_refund", req, RefundResponse.parser())
 }
 
 /**

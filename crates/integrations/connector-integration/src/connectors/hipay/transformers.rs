@@ -512,6 +512,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<HipayAuthorizeRespons
                 connector_response_reference_id: Some(item.response.order.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -705,6 +706,7 @@ impl TryFrom<ResponseRouterData<HipayPSyncResponse, Self>>
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: attempt_status,
@@ -824,6 +826,7 @@ impl TryFrom<ResponseRouterData<HipayCaptureResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -1006,6 +1009,7 @@ impl TryFrom<ResponseRouterData<HipayVoidResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 

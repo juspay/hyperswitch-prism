@@ -36,6 +36,9 @@ const FLOWS = {
   // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
   defend                                     : { request: "DisputeServiceDefendRequest", response: "DisputeServiceDefendResponse" },
 
+  // eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+  eligibility                                : { request: "PaymentMethodServiceEligibilityRequest", response: "PaymentMethodServiceEligibilityResponse" },
+
   // get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
   get                                        : { request: "PaymentServiceGetRequest", response: "PaymentServiceGetResponse" },
 
@@ -69,8 +72,14 @@ const FLOWS = {
   // post_authenticate: PaymentMethodAuthenticationService.PostAuthenticate — Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.
   post_authenticate                          : { request: "PaymentMethodAuthenticationServicePostAuthenticateRequest", response: "PaymentMethodAuthenticationServicePostAuthenticateResponse" },
 
+  // post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+  post_risk_check                            : { request: "FrmServicePostRiskCheckRequest", response: "FrmServicePostRiskCheckResponse" },
+
   // pre_authenticate: PaymentMethodAuthenticationService.PreAuthenticate — Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.
   pre_authenticate                           : { request: "PaymentMethodAuthenticationServicePreAuthenticateRequest", response: "PaymentMethodAuthenticationServicePreAuthenticateResponse" },
+
+  // pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+  pre_risk_check                             : { request: "FrmServicePreRiskCheckRequest", response: "FrmServicePreRiskCheckResponse" },
 
   // proxy_authorize: PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector.
   proxy_authorize                            : { request: "PaymentServiceProxyAuthorizeRequest", response: "PaymentServiceAuthorizeResponse" },

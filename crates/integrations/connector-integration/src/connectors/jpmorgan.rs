@@ -807,5 +807,5 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
         CreateConnectorCustomer,
     ],
-    not_supported: [],
+    not_supported: [ VoidPostRefund,],
 );

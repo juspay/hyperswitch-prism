@@ -39,6 +39,7 @@ import {
   mapPrismStatus,
   mapRefundStatus,
   buildError,
+  extractValue,
 } from "./utils"
 import { logger } from "./utils/logger"
 import * as connectors from "./connector"
@@ -157,6 +158,35 @@ class PrismService {
       })
     }
 
+    // Mollie Components: in-page card fields tokenize client-side. Skip the hosted
+    // client-auth (which would create an orphan redirect payment). The first init
+    // returns the public profileId for mollie.js; reinitiate stores the cardToken.
+    if (this.options_.connector === "mollie") {
+      if ((data as any)?.cardToken) {
+        return connectors.mollie.reInitiatePayment({
+          data,
+          merchantClientSessionId,
+          currencyCode: currency_code,
+          minorAmount,
+        })
+      }
+      const profileId = extractValue(
+        (this.options_.connectorConfig as any)?.profileToken
+      )
+      return {
+        id: merchantClientSessionId,
+        data: {
+          id: merchantClientSessionId,
+          profileId,
+          currency: currency_code,
+          minorAmount,
+          connector: "mollie",
+          merchantClientSessionId,
+        },
+        status: PaymentSessionStatus.PENDING,
+      }
+    }
+
     try {
       const req: any = {
         merchantClientSessionId,
@@ -213,8 +243,8 @@ class PrismService {
           return connectors.globalpay.initiatePayment(ctx)
         case "cybersource":
           return connectors.cybersource.initiatePayment(ctx)
-        case "mollie":
-          return connectors.mollie.initiatePayment(ctx)
+        // Mollie is handled by the Components short-circuit above (before the
+        // hosted client-auth), so it never reaches this switch.
         default:
           // Fallback for any other connector — pass through raw session data
           return {
@@ -262,6 +292,14 @@ class PrismService {
         options: this.options_,
         paymentClient: this.paymentClient_,
         authClient: this.authClient_,
+      })
+    }
+
+    if (connector === "mollie") {
+      return connectors.mollie.authorizePayment(input, {
+        options: this.options_,
+        paymentClient: this.paymentClient_,
+        getPaymentStatus: (i) => this.getPaymentStatus(i),
       })
     }
 

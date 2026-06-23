@@ -280,7 +280,7 @@ fn create_payment_sync_request(
         connector_order_reference_id: None,
         test_mode: None,
         payment_experience: None,
-
+        split_payments: None,
         merchant_request_id: None,
         payment_method_type: None,
     }

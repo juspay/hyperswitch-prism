@@ -597,6 +597,7 @@ macros::macro_connector_flow_status_impls!(
         RSync,
     ],
     not_supported: [
+        VoidPostRefund,
         Void,
         Capture,
         VoidPC,

@@ -70,7 +70,7 @@ pub fn build_customer_create_request() -> CustomerServiceCreateRequest {
         merchant_customer_id: Some("cust_probe_123".to_string()), // Identification.
         customer_name: Some("John Doe".to_string()),              // Name of the customer.
         email: Some(Secret::new("test@example.com".to_string())), // Email address of the customer.
-        phone_number: Some("4155552671".to_string()),             // Phone number of the customer.
+        phone_number: Some(Secret::new("4155552671".to_string())), // Phone number of the customer.
         ..Default::default()
     }
 }
