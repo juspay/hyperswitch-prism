@@ -438,6 +438,16 @@ class PrismService {
       )
     }
 
+    if (this.options_.connector === "authorizedotnet") {
+      return connectors.authorizedotnet.refundPayment(
+        { data, amount, context },
+        {
+          options: this.options_,
+          paymentClient: this.paymentClient_,
+        }
+      )
+    }
+
     const connectorTransactionId = this.getTransactionId(data) as string
     const currency = (data as any)?.currency as string
 
