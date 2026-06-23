@@ -596,6 +596,7 @@ pub fn handle_authorize_response<
             connector_response_reference_id: Some(payload.merchant_request_id.clone()),
             incremental_authorization_allowed: None,
             status_code: http_code,
+            splits: None,
         };
 
         Ok(RouterDataV2 {
@@ -619,6 +620,7 @@ pub fn handle_authorize_response<
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: http_code,
+            splits: None,
         };
         Ok(RouterDataV2 {
             response: Ok(response_data),
@@ -698,6 +700,7 @@ pub fn handle_psync_response(
             .map(|p| p.merchant_request_id.clone()),
         incremental_authorization_allowed: None,
         status_code: http_code,
+        splits: None,
     };
 
     Ok(RouterDataV2 {

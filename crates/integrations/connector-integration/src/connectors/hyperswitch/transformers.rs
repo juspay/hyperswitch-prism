@@ -276,6 +276,7 @@ fn build_payments_response(
             connector_response_reference_id: Some(response.payment_id.clone()),
             incremental_authorization_allowed: None,
             status_code: http_code,
+            splits: None,
         })
     }
 }

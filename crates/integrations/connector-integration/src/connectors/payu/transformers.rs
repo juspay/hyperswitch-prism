@@ -1049,6 +1049,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_response_reference_id: Some(transaction_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1099,6 +1100,7 @@ impl TryFrom<ResponseRouterData<PayuSyncResponse, Self>>
                             connector_response_reference_id: txn_detail.mihpayid.clone(),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         };
 
                         Ok(Self {
@@ -1397,6 +1399,7 @@ impl TryFrom<ResponseRouterData<PayuCaptureResponse, Self>>
             connector_response_reference_id: Some(connector_transaction_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1581,6 +1584,7 @@ impl TryFrom<ResponseRouterData<PayuVoidResponse, Self>>
             connector_response_reference_id: Some(connector_transaction_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {

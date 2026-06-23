@@ -665,6 +665,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 connector_response_reference_id: merchant_reference,
                 incremental_authorization_allowed: None,
                 status_code: 200,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -728,6 +729,7 @@ impl TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
                 connector_response_reference_id: merchant_reference,
                 incremental_authorization_allowed: None,
                 status_code: 200,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -956,6 +958,7 @@ impl<F> TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

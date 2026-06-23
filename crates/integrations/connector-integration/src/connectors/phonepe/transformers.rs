@@ -765,6 +765,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             status: common_enums::AttemptStatus::AuthenticationPending,
@@ -790,6 +791,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             ),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             ..item.router_data.resource_common_data
@@ -1094,6 +1096,7 @@ impl TryFrom<ResponseRouterData<PhonepeSyncResponse, Self>>
                             connector_response_reference_id: Some(merchant_transaction_id.clone()),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             status,
@@ -1635,6 +1638,7 @@ impl TryFrom<ResponseRouterData<PhonepeCaptureResponse, Self>>
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             });
             Ok(router_data)
         } else {
@@ -2382,6 +2386,7 @@ impl TryFrom<ResponseRouterData<PhonepeVoidResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             });
             Ok(router_data)
         } else {

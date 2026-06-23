@@ -755,6 +755,7 @@ fn handle_payment_response<F, T>(
                     connector_response_reference_id: card_response.ref_number,
                     incremental_authorization_allowed: None,
                     status_code: http_code,
+                    splits: None,
                 })
             };
 

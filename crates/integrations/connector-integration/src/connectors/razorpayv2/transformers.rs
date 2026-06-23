@@ -615,6 +615,7 @@ impl
                 connector_response_reference_id: payment_response.order_id,
                 incremental_authorization_allowed: None,
                 status_code: _status_code,
+                splits: None,
             }),
             RazorpayStatus::Failed => Err(ErrorResponse {
                 code: payment_response
@@ -702,6 +703,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_response_reference_id: data.resource_common_data.connector_order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -744,6 +746,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_response_reference_id: data.resource_common_data.connector_order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,
+            splits: None,
         };
 
         Ok(Self {

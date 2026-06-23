@@ -3382,6 +3382,7 @@ fn get_payment_response(
                 ),
                 incremental_authorization_allowed,
                 status_code: http_code,
+                splits: None,
             })
         }
     }
@@ -4367,6 +4368,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         mandate_status == common_enums::AttemptStatus::Authorized,
                     ),
                     status_code: item.http_code,
+                    splits: None,
                 }),
             },
             ..item.router_data
@@ -4444,6 +4446,7 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
                                 .unwrap_or(Some(item.response.id)),
                             incremental_authorization_allowed,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         ..item.router_data
                     })
@@ -4464,6 +4467,7 @@ impl<F> TryFrom<ResponseRouterData<CybersourceTransactionResponse, Self>>
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 ..item.router_data
             }),
