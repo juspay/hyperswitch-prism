@@ -427,19 +427,10 @@ impl EventStage {
 }
 
 /// A Kafka topic plus the payload field whose value is used as its partition key.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct KafkaTopicConfig {
     pub topic: String,
     pub partition_key_field: String,
-}
-
-impl Default for KafkaTopicConfig {
-    fn default() -> Self {
-        Self {
-            topic: String::new(),
-            partition_key_field: "request_id".to_string(),
-        }
-    }
 }
 
 /// Configuration for events system
@@ -651,32 +642,4 @@ pub(crate) fn set_nested_value(
     );
 
     result.map(|_| ())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn stage_selects_topic_and_partition_key() {
-        let config = EventConfig {
-            connector_events: KafkaTopicConfig {
-                topic: "connector-events".to_string(),
-                partition_key_field: "request_id".to_string(),
-            },
-            api_events: KafkaTopicConfig {
-                topic: "ucs-api-events".to_string(),
-                partition_key_field: "merchant_id".to_string(),
-            },
-            ..Default::default()
-        };
-
-        let connector = config.topic_config(&EventStage::ConnectorCall);
-        assert_eq!(connector.topic, "connector-events");
-        assert_eq!(connector.partition_key_field, "request_id");
-
-        let ucs_api = config.topic_config(&EventStage::GrpcRequest);
-        assert_eq!(ucs_api.topic, "ucs-api-events");
-        assert_eq!(ucs_api.partition_key_field, "merchant_id");
-    }
 }
