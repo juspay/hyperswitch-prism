@@ -43,9 +43,8 @@ use serde::Serialize;
 use transformers as flywire;
 use transformers::{
     FlywireCheckoutSessionRequest, FlywireCheckoutSessionResponse, FlywireConfirmRequest,
-    FlywireConfirmResponse, FlywirePayment as FlywirePSyncResponse,
-    FlywireRefundRequest, FlywireRefundResponse,
-    FlywireRefundResponse as FlywireRSyncResponse,
+    FlywireConfirmResponse, FlywirePayment as FlywirePSyncResponse, FlywireRefundRequest,
+    FlywireRefundResponse, FlywireRefundResponse as FlywireRSyncResponse,
 };
 
 pub(crate) mod headers {

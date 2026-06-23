@@ -437,7 +437,10 @@ impl TryFrom<ResponseRouterData<FlywirePayment, Self>>
                 .as_ref()
                 .map(|m| m.currency),
         ) {
-            (Some(amt), Some(curr)) => Some(Money { amount: amt, currency: curr }),
+            (Some(amt), Some(curr)) => Some(Money {
+                amount: amt,
+                currency: curr,
+            }),
             _ => item.router_data.resource_common_data.amount.clone(),
         };
 
@@ -627,12 +630,10 @@ impl FlywireRefundStatus {
     pub fn to_refund_status(&self) -> RefundStatus {
         match self {
             Self::Finished | Self::Completed | Self::Approved => RefundStatus::Success,
-            Self::Rejected | Self::Cancelled | Self::Failed   => RefundStatus::Failure,
-            Self::Initiated
-            | Self::Pending
-            | Self::Received
-            | Self::Returned
-            | Self::Unknown                                    => RefundStatus::Pending,
+            Self::Rejected | Self::Cancelled | Self::Failed => RefundStatus::Failure,
+            Self::Initiated | Self::Pending | Self::Received | Self::Returned | Self::Unknown => {
+                RefundStatus::Pending
+            }
         }
     }
 }

@@ -3471,7 +3471,7 @@
           "refund_id": "probe_refund_id_001"
         },
         "sample": {
-          "url": "https://api-platform-sandbox.flywire.com/payments/v1/payments/probe_refund_id_001",
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/refunds/probe_refund_id_001",
           "method": "Get",
           "headers": {
             "content-type": "application/json",
