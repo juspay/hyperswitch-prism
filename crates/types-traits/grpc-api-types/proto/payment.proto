@@ -3039,6 +3039,12 @@ message PaymentServiceCaptureResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 16;
+
+  // Captured amount in minor currency units, as set by the connector transformer.
+  // Distinct from captured_amount (field 9): this mirrors the connector's
+  // minor_amount_captured, which some connectors (e.g. PayPal) leave unset even
+  // when captured_amount is present. Lets the caller avoid re-deriving it.
+  optional int64 minor_amount_captured = 18;
 }
 
 // Request message for creating an order

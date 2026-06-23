@@ -10620,6 +10620,10 @@ pub fn generate_payment_capture_response(
                     mandate_reference: mandate_reference_grpc,
                     mandate_reference_details,
                     captured_amount: router_data_v2.resource_common_data.amount_captured,
+                    minor_amount_captured: router_data_v2
+                        .resource_common_data
+                        .minor_amount_captured
+                        .map(|amount| amount.get_amount_as_i64()),
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
@@ -10687,6 +10691,7 @@ pub fn generate_payment_capture_response(
                 mandate_reference: None,
                 mandate_reference_details: None,
                 captured_amount: None,
+                minor_amount_captured: None,
                 connector_feature_data: None,
                 connector_response,
                 splits: None,
