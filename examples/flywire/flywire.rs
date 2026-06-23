@@ -105,7 +105,7 @@ pub fn build_handle_event_request() -> EventServiceHandleRequest {
             method: HttpMethod::HttpMethodPost.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
             headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"PTU000000000\",\"status\":\"guaranteed\",\"external_reference\":\"sample\"}}".to_string(),  // Body of the HTTP request.
+            body: "{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}".to_string(),  // Body of the HTTP request.
             ..Default::default()
         }),
         ..Default::default()
@@ -118,7 +118,7 @@ pub fn build_parse_event_request() -> EventServiceParseRequest {
             method: HttpMethod::HttpMethodPost.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
             headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"PTU000000000\",\"status\":\"guaranteed\",\"external_reference\":\"sample\"}}".to_string(),  // Body of the HTTP request.
+            body: "{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}".to_string(),  // Body of the HTTP request.
             ..Default::default()
         }),
     }
