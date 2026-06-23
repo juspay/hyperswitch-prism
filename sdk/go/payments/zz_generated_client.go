@@ -415,3 +415,24 @@ func (c *RefundClient) RefundGet(ctx context.Context, req *pb.RefundServiceGetRe
 	err := c.ExecuteFlow(ctx, uniffi.RefundGetReqTransformer, uniffi.RefundGetResTransformer, req, res, opts)
 	return res, err
 }
+
+// ============================================================================
+// SURCHARGECLIENT
+// ============================================================================
+
+// SurchargeClient provides methods for SurchargeService flows.
+type SurchargeClient struct {
+	*ConnectorClient
+}
+
+// NewSurchargeClient creates a new SurchargeClient.
+func NewSurchargeClient(config *pb.ConnectorConfig, defaults *pb.RequestConfig) *SurchargeClient {
+	return &SurchargeClient{ConnectorClient: NewConnectorClient(config, defaults)}
+}
+
+// SurchargeCalculate performs a SurchargeService.Calculate.
+func (c *SurchargeClient) SurchargeCalculate(ctx context.Context, req *pb.SurchargeServiceCalculateRequest, opts *pb.RequestConfig) (*pb.SurchargeServiceCalculateResponse, error) {
+	res := &pb.SurchargeServiceCalculateResponse{}
+	err := c.ExecuteFlow(ctx, uniffi.SurchargeCalculateReqTransformer, uniffi.SurchargeCalculateResTransformer, req, res, opts)
+	return res, err
+}

@@ -338,3 +338,14 @@ export class RefundClient extends _ConnectorClientBase {
   }
 
 }
+
+export class SurchargeClient extends _ConnectorClientBase {
+  /** SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing. */
+  async surchargeCalculate(
+    requestMsg: types.ISurchargeServiceCalculateRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.SurchargeServiceCalculateResponse> {
+    return this._executeFlow('surcharge_calculate', requestMsg, options, 'SurchargeServiceCalculateRequest', 'SurchargeServiceCalculateResponse') as Promise<types.SurchargeServiceCalculateResponse>;
+  }
+
+}

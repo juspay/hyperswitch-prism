@@ -76,6 +76,8 @@ from payments.generated.payment_pb2 import (
     RecurringPaymentServiceRevokeResponse,
     RefundResponse,
     RefundServiceGetRequest,
+    SurchargeServiceCalculateRequest,
+    SurchargeServiceCalculateResponse,
 )
 
 class _ConnectorClientBase:
@@ -250,4 +252,10 @@ class RecurringPaymentClient(_ConnectorClientBase):
 class RefundClient(_ConnectorClientBase):
     def refund_get(self, request: RefundServiceGetRequest, options: RequestConfig | None = ...) -> RefundResponse:
         """RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication."""
+        ...
+
+
+class SurchargeClient(_ConnectorClientBase):
+    def surcharge_calculate(self, request: SurchargeServiceCalculateRequest, options: RequestConfig | None = ...) -> SurchargeServiceCalculateResponse:
+        """SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing."""
         ...

@@ -1,1 +1,104 @@
-{}
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_cc_auto",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_dc_auto",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_cc_man",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_dc_man",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_3ds_cc_man",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_fail",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_alipay": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_alipay",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_ideal": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_ideal",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_giropay": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_giropay",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_eps": {
+      "grpc_req": {
+        "merchant_transaction_id": "msp_no3ds_eps",
+        "customer": {
+          "email": {
+            "value": "test@example.com"
+          }
+        }
+      }
+    }
+  }
+}
