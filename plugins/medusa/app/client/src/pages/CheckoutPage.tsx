@@ -7,6 +7,7 @@ import {
   PayPalWrapper,
   GlobalPayWrapper,
   MollieWrapper,
+  AuthorizedotnetWrapper,
 } from "@juspay-tech/medusa-custom-payments-react";
 
 // The Stripe publishable key and Adyen client key are delivered by the server
@@ -20,9 +21,10 @@ const CONNECTOR_LABELS: Record<string, string> = {
   paypal: "PayPal",
   globalpay: "GlobalPay",
   mollie: "Mollie",
+  authorizedotnet: "Authorize.Net",
 };
 
-const SUPPORTED = ["stripe", "adyen", "paypal", "globalpay", "mollie"];
+const SUPPORTED = ["stripe", "adyen", "paypal", "globalpay", "mollie", "authorizedotnet"];
 
 type SessionState = {
   collectionId: string;
@@ -257,6 +259,36 @@ function ConnectorUI({ connector, sessionId, sessionData, onComplete, onError }:
             if (body.redirectUrl) {
               window.location.assign(body.redirectUrl);
               return;
+            }
+            window.location.assign(`/order/${sessionId}`);
+          }}
+        />
+      );
+
+    case "authorizedotnet":
+      // Authorize.Net raw card: collect the card in-page, persist it (reinitiate),
+      // then authorize (cart complete). No redirect — straight to the order page.
+      return (
+        <AuthorizedotnetWrapper
+          onError={onError}
+          onSubmit={async ({ cardNumber, cardExpMonth, cardExpYear, cardCvc }) => {
+            // 1. persist the raw card on the session
+            await fetch(`/store/payment-sessions/${sessionId}/reinitiate`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                data: { cardNumber, cardExpMonth, cardExpYear, cardCvc, id: sessionData.id },
+              }),
+            });
+            // 2. authorize the payment (cart complete)
+            const res = await fetch(`/store/carts/${CART.cartId}/complete`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({}),
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok) {
+              throw new Error(body.error ?? `Authorize failed (${res.status})`);
             }
             window.location.assign(`/order/${sessionId}`);
           }}

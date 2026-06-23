@@ -187,6 +187,30 @@ class PrismService {
       }
     }
 
+    // Authorize.Net: raw-card flow — there is no SDK session
+    // (createClientAuthenticationToken is not implemented for this connector).
+    // First init returns a synthetic pending session so the card form can render;
+    // re-initiation persists the card entered in the test client.
+    if (this.options_.connector === "authorizedotnet") {
+      if ((data as any)?.cardNumber) {
+        return connectors.authorizedotnet.reInitiatePayment({
+          data,
+          merchantClientSessionId,
+          currencyCode: currency_code,
+          minorAmount,
+        })
+      }
+      return connectors.authorizedotnet.initiatePayment({
+        options: this.options_,
+        merchantClientSessionId,
+        currencyCode: currency_code,
+        minorAmount,
+        sessionData: {},
+        connectorSpecific: {},
+        authClient: this.authClient_,
+      })
+    }
+
     try {
       const req: any = {
         merchantClientSessionId,
@@ -300,6 +324,13 @@ class PrismService {
         options: this.options_,
         paymentClient: this.paymentClient_,
         getPaymentStatus: (i) => this.getPaymentStatus(i),
+      })
+    }
+
+    if (connector === "authorizedotnet") {
+      return connectors.authorizedotnet.authorizePayment(input, {
+        options: this.options_,
+        paymentClient: this.paymentClient_,
       })
     }
 
@@ -463,6 +494,7 @@ class PrismService {
       globalpay: connectors.globalpay.shouldSkipVoid,
       stripe: connectors.stripe.shouldSkipVoid,
       mollie: connectors.mollie.shouldSkipVoid,
+      authorizedotnet: connectors.authorizedotnet.shouldSkipVoid,
     }
     if (shouldSkipVoid[this.options_.connector]?.(data)) {
       return { data }
