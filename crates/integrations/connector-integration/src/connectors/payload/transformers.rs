@@ -29,7 +29,7 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeOptionInterface, Secret};
+use hyperswitch_masking::{ExposeOptionInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests, responses};
@@ -623,12 +623,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
+        // processing_id mirrors hyperswitch's Direct mandate path: it is sourced
+        // solely from the payment metadata's `processing_account_id` (the recurring
+        // flow has no connector-auth fallback), so the shadow UCS request matches
+        // the Direct request byte-for-byte.
+        let processing_id = router_data
+            .request
+            .metadata
+            .as_ref()
+            .and_then(|m| m.peek().get("processing_account_id"))
+            .and_then(|v| v.as_str())
+            .map(|s| Secret::new(s.to_string()));
+
         Ok(Self::PayloadMandateRequest(Box::new(
             requests::PayloadMandateRequestData {
                 amount,
                 transaction_types: requests::TransactionTypes::Payment,
                 payment_method_id: Secret::new(mandate_id),
                 status,
+                processing_id,
             },
         )))
     }
