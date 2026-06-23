@@ -217,11 +217,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             },
         )?;
         // HTTP Basic auth: base64(public_key:private_key)
-        let credentials = format!(
-            "{}:{}",
-            auth.public_key.expose(),
-            auth.private_key.expose()
-        );
+        let credentials = format!("{}:{}", auth.public_key.expose(), auth.private_key.expose());
         let encoded = BASE64_ENGINE.encode(credentials);
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),

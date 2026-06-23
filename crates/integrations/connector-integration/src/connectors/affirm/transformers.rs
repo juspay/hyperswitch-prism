@@ -10,7 +10,7 @@ use domain_types::{
         RefundsResponseData, ResponseId,
     },
     errors,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, PayLaterData},
+    payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
@@ -113,7 +113,12 @@ pub struct AffirmPaymentsRequest {
 /// `redirect_response.params` (single value) or in the `redirect_response.payload`
 /// object under the `checkout_token` key.
 fn extract_checkout_token<T: PaymentMethodDataTypes>(
-    router_data: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+    router_data: &RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
 ) -> Result<Secret<String>, error_stack::Report<errors::IntegrationError>> {
     // Only PayLater (Affirm BNPL redirect) is supported.
     match &router_data.request.payment_method_data {
@@ -166,7 +171,12 @@ fn extract_checkout_token<T: PaymentMethodDataTypes>(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         AffirmRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for AffirmPaymentsRequest
@@ -175,7 +185,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
     fn try_from(
         item: AffirmRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -320,11 +335,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            order_id: item
-                .router_data
-                .resource_common_data
-                .reference_id
-                .clone(),
+            order_id: item.router_data.resource_common_data.reference_id.clone(),
         })
     }
 }
@@ -404,11 +415,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            reference_id: item
-                .router_data
-                .resource_common_data
-                .reference_id
-                .clone(),
+            reference_id: item.router_data.resource_common_data.reference_id.clone(),
         })
     }
 }
@@ -536,13 +543,12 @@ impl TryFrom<ResponseRouterData<AffirmRSyncResponse, Self>>
             .map(|events| events.iter().any(|event| event.event_type == "refund"))
             .unwrap_or(false);
 
-        let refund_status = if refund_event_present
-            || item.response.status == AffirmTransactionStatus::Refunded
-        {
-            RefundStatus::Success
-        } else {
-            RefundStatus::Pending
-        };
+        let refund_status =
+            if refund_event_present || item.response.status == AffirmTransactionStatus::Refunded {
+                RefundStatus::Success
+            } else {
+                RefundStatus::Pending
+            };
 
         Ok(Self {
             response: Ok(RefundsResponseData {
