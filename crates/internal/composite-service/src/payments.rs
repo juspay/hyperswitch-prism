@@ -1,6 +1,6 @@
 use connector_integration::types::ConnectorData;
 use domain_types::{
-    connector_types::{ConnectorEnum, ServerAuthenticationTokenResponseData},
+    connector_types::{ConnectorEnum, ConnectorVariant, ServerAuthenticationTokenResponseData},
     utils::ForeignTryFrom as _,
 };
 use grpc_api_types::payments::{
@@ -43,8 +43,17 @@ pub trait CompositeAccessTokenRequest {
     fn state(&self) -> Option<&ConnectorState>;
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest;
+}
+
+/// Trait for abstracting access to common fields needed for session token creation.
+pub trait CompositeSessionTokenRequest {
+    fn build_session_token_request(
+        &self,
+        connector: &ConnectorEnum,
+    ) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest;
+    fn has_session_token(&self) -> bool;
 }
 
 impl CompositeAccessTokenRequest for CompositeAuthorizeRequest {
@@ -58,11 +67,26 @@ impl CompositeAccessTokenRequest for CompositeAuthorizeRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
         ))
+    }
+}
+
+impl CompositeSessionTokenRequest for CompositeAuthorizeRequest {
+    fn build_session_token_request(
+        &self,
+        connector: &ConnectorEnum,
+    ) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
+    }
+
+    fn has_session_token(&self) -> bool {
+        self.session_token.is_some()
     }
 }
 
@@ -77,7 +101,7 @@ impl CompositeAccessTokenRequest for CompositeGetRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -96,7 +120,7 @@ impl CompositeAccessTokenRequest for CompositeRefundRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -115,7 +139,7 @@ impl CompositeAccessTokenRequest for CompositeRefundGetRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -134,7 +158,7 @@ impl CompositeAccessTokenRequest for CompositeVoidRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
@@ -153,11 +177,49 @@ impl CompositeAccessTokenRequest for CompositeCaptureRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
         MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
             self, connector,
         ))
+    }
+}
+
+impl CompositeAccessTokenRequest
+    for grpc_api_types::payments::CompositeVerifyRedirectResponseRequest
+{
+    fn payment_method(&self) -> Option<PaymentMethod> {
+        self.payment_method.clone()
+    }
+
+    fn state(&self) -> Option<&ConnectorState> {
+        self.state.as_ref()
+    }
+
+    fn build_access_token_request(
+        &self,
+        connector: &ConnectorVariant,
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
+    }
+}
+
+impl CompositeSessionTokenRequest
+    for grpc_api_types::payments::CompositeVerifyRedirectResponseRequest
+{
+    fn build_session_token_request(
+        &self,
+        connector: &ConnectorEnum,
+    ) -> MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
+    }
+
+    fn has_session_token(&self) -> bool {
+        self.session_token.is_some()
     }
 }
 
@@ -241,7 +303,8 @@ where
 
         let access_token_response = match should_create_access_token {
             true => {
-                let access_token_payload = payload.build_access_token_request(connector);
+                let access_token_payload =
+                    payload.build_access_token_request(&ConnectorVariant::Payment(*connector));
                 let mut access_token_request = tonic::Request::new(access_token_payload);
                 *access_token_request.metadata_mut() = metadata.clone();
                 *access_token_request.extensions_mut() = extensions.clone();
@@ -260,10 +323,10 @@ where
         Ok(access_token_response)
     }
 
-    async fn create_server_session_authentication_token(
+    async fn create_server_session_authentication_token<Req: CompositeSessionTokenRequest>(
         &self,
         connector: &ConnectorEnum,
-        payload: &CompositeAuthorizeRequest,
+        payload: &Req,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<
@@ -273,13 +336,11 @@ where
         let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(connector);
         let should_do_session_token = connector_data.connector.should_do_session_token();
 
-        let should_create_session_token =
-            payload.session_token.as_ref().is_none() && should_do_session_token;
+        let should_create_session_token = !payload.has_session_token() && should_do_session_token;
 
         let session_token_response = match should_create_session_token {
             true => {
-                let session_token_payload =
-                    MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest::foreign_from((payload, connector));
+                let session_token_payload = payload.build_session_token_request(connector);
                 let mut session_token_request = tonic::Request::new(session_token_payload);
                 *session_token_request.metadata_mut() = metadata.clone();
                 *session_token_request.extensions_mut() = extensions.clone();
@@ -891,6 +952,130 @@ where
             capture_response: Some(capture_response),
         }))
     }
+    /// Orchestrates access_token + session_token + authorize for post-redirect scenarios.
+    async fn authorize_post_redirect(
+        &self,
+        connector: &ConnectorEnum,
+        payload: &grpc_api_types::payments::CompositeVerifyRedirectResponseRequest,
+        verify_response: &grpc_api_types::payments::PaymentServiceVerifyRedirectResponseResponse,
+        metadata: &tonic::metadata::MetadataMap,
+        extensions: &tonic::Extensions,
+    ) -> Result<
+        (
+            Option<MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+            Option<MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
+            PaymentServiceAuthorizeResponse,
+        ),
+        tonic::Status,
+    > {
+        let access_token_response = self
+            .create_server_authentication_token(connector, payload, metadata, extensions)
+            .await?;
+
+        let session_token_response = self
+            .create_server_session_authentication_token(connector, payload, metadata, extensions)
+            .await?;
+
+        let authorize_payload = PaymentServiceAuthorizeRequest::foreign_from((
+            payload,
+            verify_response,
+            access_token_response.as_ref(),
+            session_token_response.as_ref(),
+        ));
+
+        let mut authorize_request = tonic::Request::new(authorize_payload);
+        *authorize_request.metadata_mut() = metadata.clone();
+        *authorize_request.extensions_mut() = extensions.clone();
+
+        let authorize_response = self
+            .payment_service
+            .authorize(authorize_request)
+            .await?
+            .into_inner();
+
+        Ok((
+            access_token_response,
+            session_token_response,
+            authorize_response,
+        ))
+    }
+
+    /// Helper method to call VerifyRedirectResponse service
+    async fn verify_redirect_response(
+        &self,
+        payload: &grpc_api_types::payments::CompositeVerifyRedirectResponseRequest,
+        metadata: &tonic::metadata::MetadataMap,
+        extensions: &tonic::Extensions,
+    ) -> Result<grpc_api_types::payments::PaymentServiceVerifyRedirectResponseResponse, tonic::Status>
+    {
+        // Build verify request from composite request
+        let verify_payload =
+            grpc_api_types::payments::PaymentServiceVerifyRedirectResponseRequest {
+                merchant_order_id: payload.merchant_order_id.clone(),
+                request_details: payload.request_details.clone(),
+                redirect_response_secrets: payload.redirect_response_secrets.clone(),
+            };
+
+        // Create tonic request with metadata
+        let mut verify_request = tonic::Request::new(verify_payload);
+        *verify_request.metadata_mut() = metadata.clone();
+        *verify_request.extensions_mut() = extensions.clone();
+
+        // Call service and return
+        let verify_response = self
+            .payment_service
+            .verify_redirect_response(verify_request)
+            .await?
+            .into_inner();
+
+        Ok(verify_response)
+    }
+
+    /// Main composite flow: verify redirect response, then conditionally authorize
+    async fn process_composite_verify_redirect_response(
+        &self,
+        request: tonic::Request<grpc_api_types::payments::CompositeVerifyRedirectResponseRequest>,
+    ) -> Result<
+        tonic::Response<grpc_api_types::payments::CompositeVerifyRedirectResponseResponse>,
+        tonic::Status,
+    > {
+        let (metadata, extensions, payload) = request.into_parts();
+        let connector =
+            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+
+        let verify_response = self
+            .verify_redirect_response(&payload, &metadata, &extensions)
+            .await?;
+
+        let connector_data = ConnectorData::<
+            domain_types::payment_method_data::DefaultPCIHolder,
+        >::get_connector_by_name(&connector);
+
+        let (access_token_response, session_token_response, authorize_response) =
+            if connector_data.connector.requires_authorize_post_redirect() {
+                let (access_token, session_token, authorize) = self
+                    .authorize_post_redirect(
+                        &connector,
+                        &payload,
+                        &verify_response,
+                        &metadata,
+                        &extensions,
+                    )
+                    .await?;
+                (Some(access_token), Some(session_token), Some(authorize))
+            } else {
+                (None, None, None)
+            };
+
+        Ok(tonic::Response::new(
+            grpc_api_types::payments::CompositeVerifyRedirectResponseResponse {
+                verify_redirect_response: Some(verify_response),
+                access_token_response: access_token_response.flatten(),
+                session_token_response: session_token_response.flatten(),
+                authorize_response,
+            },
+        ))
+    }
 }
 
 #[tonic::async_trait]
@@ -935,6 +1120,17 @@ where
         request: tonic::Request<CompositeCaptureRequest>,
     ) -> Result<tonic::Response<CompositeCaptureResponse>, tonic::Status> {
         self.process_composite_capture(request).await
+    }
+
+    async fn verify_redirect_response(
+        &self,
+        request: tonic::Request<grpc_api_types::payments::CompositeVerifyRedirectResponseRequest>,
+    ) -> Result<
+        tonic::Response<grpc_api_types::payments::CompositeVerifyRedirectResponseResponse>,
+        tonic::Status,
+    > {
+        self.process_composite_verify_redirect_response(request)
+            .await
     }
 }
 

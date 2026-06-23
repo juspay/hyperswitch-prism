@@ -20,7 +20,7 @@ use domain_types::{
         RefundsResponseData, SupportedPaymentMethodsExt,
     },
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
@@ -469,7 +469,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             code: response.code.clone(),
             message: response.message.clone(),
             reason: Some(response.message),
-            attempt_status: Some(attempt_status),
+            attempt_status: Some(FlowStatus::Payment(attempt_status)),
             connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,
@@ -712,6 +712,7 @@ macros::macro_connector_flow_status_impls!(
         MandateRevoke,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         ServerAuthenticationToken,
         VoidPC,

@@ -12,8 +12,6 @@ use crate::{
         extract_connector_request_reference_id, extract_merchant_id_from_metadata, ForeignTryFrom,
     },
 };
-use std::str::FromStr;
-
 use common_utils::{metadata::MaskedMetadata, types::MinorUnit};
 use error_stack::ResultExt;
 impl
@@ -197,22 +195,13 @@ impl
     type Error = IntegrationError;
 
     fn foreign_try_from(
-        (value, connectors, _metadata): (
+        (value, connectors, metadata): (
             grpc_api_types::payments::NotifyConnectorRequest,
             Connectors,
             &MaskedMetadata,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let merchant_id =
-            common_utils::id_type::MerchantId::from_str(&value.merchant_id).map_err(|_| {
-                IntegrationError::InvalidDataFormat {
-                    field_name: "merchant_id",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Invalid merchant_id format".to_owned()),
-                        ..Default::default()
-                    },
-                }
-            })?;
+        let merchant_id = extract_merchant_id_from_metadata(metadata)?;
 
         Ok(Self {
             merchant_id,
@@ -277,6 +266,7 @@ pub fn generate_surcharge_calculate_response(
                         message: Some(e.message.clone()),
                         reason: e.reason.clone(),
                         connector_transaction_id: e.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -308,6 +298,7 @@ pub fn generate_surcharge_payment_succeeded_response(
                     message: Some(e.message.clone()),
                     reason: e.reason.clone(),
                     connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -338,6 +329,7 @@ pub fn generate_surcharge_refund_succeeded_response(
                     message: Some(e.message.clone()),
                     reason: e.reason.clone(),
                     connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),

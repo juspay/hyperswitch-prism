@@ -511,6 +511,7 @@ macros::macro_connector_flow_status_impls!(
         CreateConnectorCustomer,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         CreateOrder,
         ServerSessionAuthenticationToken,

@@ -617,12 +617,6 @@
         }
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for globalpay"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -651,6 +645,12 @@
         "error": "This feature is not implemented: server_session_authentication_token flow for globalpay"
       }
     },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for globalpay"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_implemented",
@@ -676,7 +676,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by globalpay connector"
       }
     },
     "get": {
@@ -721,6 +722,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

@@ -611,12 +611,6 @@
         "error": "This feature is not implemented: client_authentication_token flow for fiuu"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for fiuu"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -633,6 +627,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for fiuu"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for fiuu"
       }
     },
     "dispute_accept": {
@@ -660,7 +660,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by fiuu connector"
       }
     },
     "get": {
@@ -727,6 +728,11 @@
           "headers": {},
           "body": "tranID=probe_txn_001&orderid=probe_order_001&status=00&domain=probe_domain&amount=10.00&currency=USD&channel=Credit&skey=probe_skey&appcode=probe_appcode&error_code=&error_desc="
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

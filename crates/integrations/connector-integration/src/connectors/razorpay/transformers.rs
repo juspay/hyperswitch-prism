@@ -7,12 +7,16 @@ use domain_types::errors::{
     ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, CreateOrder, RSync, Refund},
+    connector_flow::{
+        Authorize, Capture, CreateOrder, RSync, Refund, ServerSessionAuthenticationToken,
+    },
     connector_types::{
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        RefundsResponseData, ResponseId, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankRedirectData, Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         WalletData,
@@ -300,7 +304,9 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             WalletData::BillDeskRedirect(_) => Ok(Self::BillDesk),
             WalletData::CashfreeRedirect(_) => Ok(Self::Cashfree),
             WalletData::PayURedirect(_) => Ok(Self::PayU),
-            WalletData::EaseBuzzRedirect(_) => Ok(Self::EaseBuzz),
+            WalletData::EaseBuzzRedirect(_) | WalletData::QwikcilverWalletDirect(_) => {
+                Ok(Self::EaseBuzz)
+            }
             WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
@@ -921,10 +927,12 @@ impl<F, Req>
                     })),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: data.resource_common_data.reference_id.clone(),
                     incremental_authorization_allowed: None,
                     mandate_reference: None,
                     status_code: _http_code,
+                    splits: None,
                 };
                 let error = None;
 
@@ -960,10 +968,12 @@ impl<F, Req>
                     redirection_data: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: data.resource_common_data.reference_id.clone(),
                     incremental_authorization_allowed: None,
                     mandate_reference: None,
                     status_code: _http_code,
+                    splits: None,
                 };
                 let error = None;
 
@@ -1183,6 +1193,108 @@ impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16, bool)>
                 connector_order_id: Some(response.id),
                 ..data.resource_common_data
             },
+            ..data
+        })
+    }
+}
+
+// ================================
+// ServerSessionAuthenticationToken (SDKSessionToken) Flow
+// ================================
+//
+// Razorpay's Standard Checkout (SDK Session Token) flow creates an Order
+// server-side (POST /v1/orders, HTTP Basic auth) to obtain an `order_id`,
+// which is surfaced as the session token handed to the client-side
+// Razorpay Checkout JS SDK.
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct RazorpaySessionTokenRequest {
+    // `amount` and `currency` are mandatory because Razorpay's session-token flow creates
+    // an Order server-side (POST /v1/orders); order creation requires both fields.
+    pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub receipt: Option<String>,
+    // Always auto-capture for the standard checkout / SDK session flow, so this is not
+    // optional (Razorpay's `payment_capture` serializes as `1`).
+    pub payment_capture: i8,
+}
+
+impl
+    TryFrom<
+        &RazorpayRouterData<
+            &RouterDataV2<
+                ServerSessionAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+        >,
+    > for RazorpaySessionTokenRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: &RazorpayRouterData<
+            &RouterDataV2<
+                ServerSessionAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request_data = &item.router_data.request;
+
+        // Razorpay rejects orders whose `receipt` exceeds 40 characters, so the
+        // connector request reference id is truncated to stay within that limit.
+        let receipt = {
+            let reference = item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone();
+            if reference.is_empty() {
+                None
+            } else {
+                Some(reference.chars().take(40).collect::<String>())
+            }
+        };
+
+        Ok(Self {
+            amount: item.amount,
+            currency: request_data.currency,
+            receipt,
+            // 1 = auto-capture; Razorpay captures the payment automatically once authorized.
+            payment_capture: 1,
+        })
+    }
+}
+
+// `RazorpayOrderResponse` is reused intentionally: the session-token endpoint IS
+// `POST /v1/orders`, so the response payload is an order response and its `id` is the
+// order id surfaced to the SDK as the session token.
+impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16)>
+    for RouterDataV2<
+        ServerSessionAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
+    >
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (response, data, _status_code): (RazorpayOrderResponse, Self, u16),
+    ) -> Result<Self, Self::Error> {
+        // The order_id returned by Razorpay is the SDK session token.
+        let session_token = response.id.clone();
+
+        Ok(Self {
+            response: Ok(ServerSessionAuthenticationTokenResponseData {
+                session_token: session_token.clone(),
+            }),
             ..data
         })
     }
@@ -1425,10 +1537,12 @@ impl<F, Req> ForeignTryFrom<(RazorpayCaptureResponse, Self, u16)>
                 redirection_data: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.order_id),
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -2010,9 +2124,11 @@ impl<F, Req>
             connector_metadata,
             mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: data.resource_common_data.reference_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,
+            splits: None,
         };
 
         Ok(Self {

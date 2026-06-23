@@ -14,7 +14,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     utils::is_payment_failure,
 };
@@ -76,7 +76,7 @@ fn get_webhook_response(
                 .unwrap_or_else(|| get_error_message(transaction.response_code.as_ref())),
             reason: transaction.error_message.clone(),
             status_code,
-            attempt_status: Some(status),
+            attempt_status: Some(FlowStatus::Payment(status)),
             connector_transaction_id: Some(transaction.transaction_id.clone()),
             network_decline_code: None,
             network_advice_code: None,
@@ -89,9 +89,11 @@ fn get_webhook_response(
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(transaction.reference_id.clone()),
             incremental_authorization_allowed: None,
             status_code,
+            splits: None,
         })
     };
 
@@ -406,7 +408,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         message: get_error_message(data.response_code.as_ref()),
                         reason: Some(get_error_message(data.response_code.as_ref())),
                         status_code: item.http_code,
-                        attempt_status: Some(status),
+                        attempt_status: Some(FlowStatus::Payment(status)),
                         connector_transaction_id: Some(data.transaction_id.clone()),
                         network_decline_code: None,
                         network_advice_code: None,
@@ -419,9 +421,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
                 (status, response)
@@ -459,9 +463,11 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -515,9 +521,11 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -588,9 +596,11 @@ impl TryFrom<ResponseRouterData<responses::PeachpaymentsVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -881,7 +891,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         message: get_error_message(data.response_code.as_ref()),
                         reason: Some(get_error_message(data.response_code.as_ref())),
                         status_code: item.http_code,
-                        attempt_status: Some(status),
+                        attempt_status: Some(FlowStatus::Payment(status)),
                         connector_transaction_id: Some(data.transaction_id.clone()),
                         network_decline_code: None,
                         network_advice_code: None,
@@ -904,9 +914,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(data.reference_id.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
                 (status, response)
@@ -1130,7 +1142,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         message: get_error_message(data.response_code.as_ref()),
                         reason: Some(get_error_message(data.response_code.as_ref())),
                         status_code: item.http_code,
-                        attempt_status: Some(status),
+                        attempt_status: Some(FlowStatus::Payment(status)),
                         connector_transaction_id: Some(data.transaction_id.clone()),
                         network_decline_code: None,
                         network_advice_code: None,
@@ -1145,9 +1157,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(data.reference_id.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
                 (status, response)

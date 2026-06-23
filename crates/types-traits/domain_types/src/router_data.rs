@@ -613,6 +613,12 @@ pub enum ConnectorSpecificConfig {
         developer_id: Secret<String>,
         base_url: Option<String>,
     },
+    TsysTransit {
+        device_id: Secret<String>,
+        transaction_key: Secret<String>,
+        developer_id: Secret<String>,
+        base_url: Option<String>,
+    },
     Wellsfargo {
         api_key: Secret<String>,
         merchant_account: Secret<String>,
@@ -758,6 +764,32 @@ pub enum ConnectorSpecificConfig {
         paco_signing_public_key: Secret<String>,
         paco_encryption_public_key: Secret<String>,
         response_audience: Option<Secret<String>>,
+        base_url: Option<String>,
+    },
+    Juspay {
+        api_key: Secret<String>,
+        merchant_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    Payconex {
+        api_key: Secret<String>,
+        account_id: Secret<String>,
+        base_url: Option<String>,
+    },
+    Tamara {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
+    Hyperswitch {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
+    Qwikcilver {
+        // Long-lived Bearer used only on the `/authorize` bootstrap call.
+        bootstrap_bearer_token: Secret<String>,
+        terminal_id: Secret<String>,
+        username: Secret<String>,
+        password: Secret<String>,
         base_url: Option<String>,
     },
 }
@@ -982,6 +1014,11 @@ impl ConnectorSpecificConfig {
                 transaction_key,
                 developer_id
             },
+            TsysTransit {
+                device_id,
+                transaction_key,
+                developer_id
+            },
             Wellsfargo {
                 api_key,
                 merchant_account,
@@ -1073,12 +1110,28 @@ impl ConnectorSpecificConfig {
                 client_id,
                 client_secret
             },
+            Juspay {
+                api_key,
+                merchant_id
+            },
+            Payconex {
+                api_key,
+                account_id
+            },
+            Tamara { api_key },
+            Hyperswitch { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
                 access_token,
                 office_id,
                 paco_kid
+            },
+            Qwikcilver {
+                bootstrap_bearer_token,
+                terminal_id,
+                username,
+                password
             },
         )
     }
@@ -1393,6 +1446,11 @@ impl ConnectorSpecificConfig {
                     transaction_key,
                     developer_id
                 },
+                TsysTransit {
+                    device_id,
+                    transaction_key,
+                    developer_id
+                },
                 Wellsfargo {
                     api_key,
                     merchant_account,
@@ -1485,12 +1543,28 @@ impl ConnectorSpecificConfig {
                     client_id,
                     client_secret
                 },
+                Juspay {
+                    api_key,
+                    merchant_id
+                },
+                Payconex {
+                    api_key,
+                    account_id
+                },
+                Tamara { api_key },
+                Hyperswitch { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
                     access_token,
                     office_id,
                     paco_kid
+                },
+                Qwikcilver {
+                    bootstrap_bearer_token,
+                    terminal_id,
+                    username,
+                    password
                 },
             ),
             serde_json::Value::Object(connector_patch),
@@ -1583,6 +1657,12 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                         context: Default::default(),
                     })?,
                 base_url: cashtocode.base_url,
+            }),
+            AuthType::Checkout(checkout) => Ok(Self::Checkout {
+                api_key: checkout.api_key.ok_or_else(err)?,
+                api_secret: checkout.api_secret.ok_or_else(err)?,
+                processing_channel_id: checkout.processing_channel_id.ok_or_else(err)?,
+                base_url: checkout.base_url,
             }),
             AuthType::Cryptopay(cryptopay) => Ok(Self::Cryptopay {
                 api_key: cryptopay.api_key.ok_or_else(err)?,
@@ -2025,10 +2105,34 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 base_url: easebuzz.base_url,
                 secondary_base_url: easebuzz.secondary_base_url,
             }),
+            AuthType::Juspay(juspay) => Ok(Self::Juspay {
+                api_key: juspay.api_key.ok_or_else(err)?,
+                merchant_id: juspay.merchant_id.ok_or_else(err)?,
+                base_url: juspay.base_url,
+            }),
+            AuthType::Payconex(payconex) => Ok(Self::Payconex {
+                api_key: payconex.api_key.ok_or_else(err)?,
+                account_id: payconex.account_id.ok_or_else(err)?,
+                base_url: payconex.base_url,
+            }),
+            AuthType::Tamara(tamara) => Ok(Self::Tamara {
+                api_key: tamara.api_key.ok_or_else(err)?,
+                base_url: tamara.base_url,
+            }),
+            AuthType::Hyperswitch(hyperswitch) => Ok(Self::Hyperswitch {
+                api_key: hyperswitch.api_key.ok_or_else(err)?,
+                base_url: hyperswitch.base_url,
+            }),
             AuthType::Imerchantsolutions(imerchantsolutions) => Ok(Self::Imerchantsolutions {
                 api_key: imerchantsolutions.api_key.ok_or_else(err)?,
                 merchant_id: imerchantsolutions.merchant_id,
                 base_url: imerchantsolutions.base_url,
+            }),
+            AuthType::TsysTransit(tsys_transit) => Ok(Self::TsysTransit {
+                device_id: tsys_transit.device_id.ok_or_else(err)?,
+                transaction_key: tsys_transit.transaction_key.ok_or_else(err)?,
+                developer_id: tsys_transit.developer_id.ok_or_else(err)?,
+                base_url: tsys_transit.base_url,
             }),
             AuthType::Interpayments(interpayments) => Ok(Self::Interpayments {
                 api_key: interpayments.api_key.ok_or_else(err)?,
@@ -2068,6 +2172,13 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 merchant_identity_id: finix.merchant_identity_id.ok_or_else(err)?,
                 merchant_id: finix.merchant_id.ok_or_else(err)?,
                 base_url: finix.base_url,
+            }),
+            AuthType::Qwikcilver(qwikcilver) => Ok(Self::Qwikcilver {
+                bootstrap_bearer_token: qwikcilver.bootstrap_bearer_token.ok_or_else(err)?,
+                terminal_id: qwikcilver.terminal_id.ok_or_else(err)?,
+                username: qwikcilver.username.ok_or_else(err)?,
+                password: qwikcilver.password.ok_or_else(err)?,
+                base_url: qwikcilver.base_url,
             }),
         }
     }
@@ -3114,6 +3225,21 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Payconex => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payconex {
+                        api_key: api_key.clone(),
+                        account_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Hyperswitch => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Hyperswitch {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::PinelabsOnline => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::PinelabsOnline {
                         client_id: api_key.clone(),
@@ -3137,7 +3263,41 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Juspay => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Juspay {
+                        api_key: api_key.clone(),
+                        merchant_id: key1.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::TsysTransit => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::TsysTransit {
+                        device_id: key1.clone(),
+                        transaction_key: api_key.clone(),
+                        developer_id: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::TwocTwopPaco => Err(err().into()),
+                ConnectorEnum::Tamara => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Tamara {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                // Qwikcilver requires 4 secrets that don't fit the generic
+                // ConnectorAuthType variants. The runtime path that builds
+                // ConnectorSpecificConfig from per-connector legacy creds
+                // is not used for Qwikcilver — configure via the proto
+                // QwikcilverConfig path instead.
+                ConnectorEnum::Qwikcilver => Err(err().into()),
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {
@@ -3148,6 +3308,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
             },
+            connector_types::ConnectorVariant::Frm(_connector_enum) => Err(err().into()),
             connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
                 PayoutConnectorEnum::Loonio => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {
@@ -3198,7 +3359,69 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                PayoutConnectorEnum::Worldpayxml => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Worldpayxml {
+                        api_username: api_key.clone(),
+                        api_password: key1.clone(),
+                        merchant_code: api_secret.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Cybersource => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Cybersource {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        base_url: None,
+                        disable_avs: None,
+                        disable_cvn: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
+        }
+    }
+}
+
+/// Unified status enum for different flow types in ErrorResponse
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Eq)]
+pub enum FlowStatus {
+    Payment(common_enums::enums::AttemptStatus),
+    Refund(common_enums::enums::RefundStatus),
+    Dispute(common_enums::enums::DisputeStatus),
+}
+
+impl FlowStatus {
+    /// Extract AttemptStatus if this is a Payment variant
+    pub fn as_attempt_status(&self) -> Option<common_enums::enums::AttemptStatus> {
+        match self {
+            FlowStatus::Payment(status) => Some(*status),
+            _ => None,
+        }
+    }
+
+    /// Extract RefundStatus if this is a Refund variant
+    pub fn as_refund_status(&self) -> Option<common_enums::enums::RefundStatus> {
+        match self {
+            FlowStatus::Refund(status) => Some(*status),
+            _ => None,
+        }
+    }
+
+    /// Extract DisputeStatus if this is a Dispute variant
+    pub fn as_dispute_status(&self) -> Option<common_enums::enums::DisputeStatus> {
+        match self {
+            FlowStatus::Dispute(status) => Some(*status),
+            _ => None,
         }
     }
 }
@@ -3209,7 +3432,7 @@ pub struct ErrorResponse {
     pub message: String,
     pub reason: Option<String>,
     pub status_code: u16,
-    pub attempt_status: Option<common_enums::enums::AttemptStatus>,
+    pub attempt_status: Option<FlowStatus>,
     pub connector_transaction_id: Option<String>,
     pub network_decline_code: Option<String>,
     pub network_advice_code: Option<String>,
@@ -3242,13 +3465,16 @@ impl ErrorResponse {
         http_status_code: u16,
         fallback_status: common_enums::enums::AttemptStatus,
     ) -> Option<common_enums::enums::AttemptStatus> {
-        self.attempt_status.or_else(|| {
-            if (200..300).contains(&http_status_code) {
-                Some(fallback_status)
-            } else {
-                None
-            }
-        })
+        self.attempt_status
+            .as_ref()
+            .and_then(|fs| fs.as_attempt_status())
+            .or_else(|| {
+                if (200..300).contains(&http_status_code) {
+                    Some(fallback_status)
+                } else {
+                    None
+                }
+            })
     }
 
     pub fn get_not_implemented() -> Self {

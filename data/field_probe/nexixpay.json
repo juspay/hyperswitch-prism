@@ -90,7 +90,7 @@
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method Voucher(Boleto(BoletoVoucherData { social_security_number: None }))"
+        "error": "This feature is not implemented: Payment method Voucher(Boleto(BoletoVoucherData { social_security_number: None, expiration_date: None }))"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
@@ -480,12 +480,6 @@
         "error": "Field 'payment_id' is too long for connector 'Nexixpay'"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by nexixpay connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -502,6 +496,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for nexixpay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by nexixpay connector"
       }
     },
     "dispute_accept": {
@@ -529,7 +529,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by nexixpay connector"
       }
     },
     "get": {
@@ -567,6 +568,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -609,7 +615,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"Cardholder\",\"billingAddress\":{},\"shippingAddress\":null}},\"card\":{\"pan\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvv\":\"737\"},\"recurrence\":{\"action\":\"NO_RECURRING\",\"contractId\":null,\"contractType\":null}}"
+          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"John Doe\",\"billingAddress\":{},\"shippingAddress\":null}},\"card\":{\"pan\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvv\":\"737\"},\"recurrence\":{\"action\":\"NO_RECURRING\",\"contractId\":null,\"contractType\":null}}"
         }
       }
     },
@@ -621,14 +627,51 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for nexixpay"
+        "status": "error",
+        "error": "Field 'payment_id' is too long for connector 'Nexixpay'"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for nexixpay"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/orders/mit",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"John\",\"billingAddress\":{\"name\":\"John\"},\"shippingAddress\":null}},\"contractId\":\"probe-mandate-123\",\"captureType\":\"IMPLICIT\"}"
+        }
       }
     },
     "recurring_revoke": {
@@ -692,8 +735,46 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for nexixpay"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/orders/3steps/init",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"order\":{\"orderId\":\"probe_mandate_001\",\"amount\":\"0\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"John Doe\",\"billingAddress\":{},\"shippingAddress\":null}},\"card\":{\"pan\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvv\":\"737\"},\"recurrence\":{\"action\":\"CONTRACT_CREATION\",\"contractId\":\"probe_mandate_001\",\"contractType\":\"MIT_UNSCHEDULED\"},\"actionType\":\"VERIFY\"}"
+        }
       }
     },
     "token_authorize": {
@@ -705,7 +786,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for nexixpay"
+        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }) for SetupMandate"
       }
     },
     "tokenize": {

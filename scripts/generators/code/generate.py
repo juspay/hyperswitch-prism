@@ -309,6 +309,8 @@ def discover_flows(desc_set=None) -> tuple[list[dict], list[dict]]:
             if service_name == "SurchargeService"
             else "domain_types::connector_types::PayoutConnectorEnum"
             if service_name == "PayoutService"
+            else "domain_types::connector_types::FrmConnectorEnum"
+            if service_name == "FraudAndRiskManagementService"
             else "domain_types::connector_types::ConnectorEnum"
         )
         flows.append({"name": flow, "module": service_flows[flow], "connector_data_type": connector_data_type, **proto_rpcs[flow]})
@@ -326,6 +328,8 @@ def discover_flows(desc_set=None) -> tuple[list[dict], list[dict]]:
             if service_name == "SurchargeService"
             else "domain_types::connector_types::PayoutConnectorEnum"
             if service_name == "PayoutService"
+            else "domain_types::connector_types::FrmConnectorEnum"
+            if service_name == "FraudAndRiskManagementService"
             else "domain_types::connector_types::ConnectorEnum"
         )
         single_flows.append({"name": flow, "module": single_flow_names[flow], "connector_data_type": connector_data_type, **proto_rpcs[flow]})

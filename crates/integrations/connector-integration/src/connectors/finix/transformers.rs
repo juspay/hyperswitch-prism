@@ -1,5 +1,5 @@
 use crate::types::ResponseRouterData;
-use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_enums::{AttemptStatus, CountryAlpha2, CountryAlpha3, Currency, RefundStatus};
 use common_utils::{consts, pii::Email, types::MinorUnit};
 use domain_types::{
     connector_flow::{
@@ -15,7 +15,10 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorAuthType, ConnectorSpecificConfig, ErrorResponse},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ConnectorSpecificConfig, ErrorResponse, FlowStatus,
+    },
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -54,6 +57,34 @@ impl TryFrom<&ConnectorAuthType> for FinixAuthType {
             )),
         }
     }
+}
+
+pub(crate) fn convert_to_additional_payment_method_connector_response(
+    finix_payments_response: &FinixAuthorizeResponse,
+) -> Option<AdditionalPaymentMethodConnectorResponse> {
+    let address_verification_check = finix_payments_response.address_verification.as_ref();
+    let network_details = finix_payments_response.network_details.as_ref();
+
+    if address_verification_check.is_none() && network_details.is_none() {
+        return None;
+    }
+
+    let mut payment_checks = serde_json::Map::new();
+    if let Some(code) = address_verification_check {
+        payment_checks.insert("avs_result".to_string(), serde_json::json!(code));
+    }
+
+    let card_network = network_details.and_then(|details| details.brand.clone());
+    let auth_code = network_details.and_then(|details| details.authorization_code.clone());
+
+    Some(AdditionalPaymentMethodConnectorResponse::Card {
+        authentication_data: None,
+        payment_checks: (!payment_checks.is_empty())
+            .then(|| serde_json::Value::Object(payment_checks)),
+        card_network,
+        domestic_network: None,
+        auth_code,
+    })
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for FinixAuthType {
@@ -187,7 +218,7 @@ pub struct FinixAddress {
     pub city: Option<String>,
     pub region: Option<Secret<String>>,
     pub postal_code: Option<Secret<String>>,
-    pub country: Option<String>,
+    pub country: Option<CountryAlpha3>,
 }
 
 #[derive(Debug, Serialize)]
@@ -322,6 +353,8 @@ pub struct FinixAuthorizeRequest {
     pub idempotency_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub statement_descriptor: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -335,6 +368,15 @@ pub struct FinixAuthorizeResponse {
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
     pub transfer: Option<String>,
+    pub address_verification: Option<String>,
+    pub source: Option<Secret<String>>,
+    pub network_details: Option<FinixNetworkDetails>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct FinixNetworkDetails {
+    pub brand: Option<String>,
+    pub authorization_code: Option<String>,
 }
 
 // RepeatPayment (MIT) reuses the Authorize request/response shape.
@@ -427,6 +469,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }.into()),
         };
 
+        let statement_descriptor = item
+            .router_data
+            .request
+            .billing_descriptor
+            .clone()
+            .and_then(|billing_descriptor| billing_descriptor.statement_descriptor);
+
         Ok(Self {
             amount: router_data.request.amount,
             currency: router_data.request.currency,
@@ -439,6 +488,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .clone(),
             ),
             tags: None,
+            statement_descriptor,
         })
     }
 }
@@ -454,6 +504,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
+        let connector_response_data =
+            convert_to_additional_payment_method_connector_response(&item.response)
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
         // Handle error vs success responses
         match &response.failure_message {
             Some(_failure_message) => Ok(Self {
@@ -463,9 +517,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Failure,
@@ -505,15 +561,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     response: Ok(PaymentsResponseData::TransactionResponse {
                         resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                         redirection_data: None,
-                        mandate_reference: None,
+                        mandate_reference: Some(Box::new(MandateReference {
+                            connector_mandate_id: response.source.clone().map(|id| id.expose()),
+                            payment_method_id: None,
+                            connector_mandate_request_reference_id: None,
+                        })),
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(response.id.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status,
+                        connector_response: connector_response_data,
                         ..item.router_data.resource_common_data.clone()
                     },
                     ..item.router_data
@@ -535,7 +598,52 @@ pub struct FinixPaymentsResponse {
     pub links: Option<FinixLinks>,
     pub failure_code: Option<String>,
     pub failure_message: Option<String>,
+    pub messages: Option<Vec<String>>,
     pub transfer: Option<String>,
+    pub is_void: Option<bool>,
+    // Stored Payment Instrument backing this transaction (PI...). Hyperswitch maps this
+    // into `mandate_reference.connector_mandate_id` so the sync response stays in parity.
+    pub source: Option<Secret<String>>,
+    // AVS / network details echoed by Finix; surfaced into `connector_response` to mirror HS.
+    pub address_verification: Option<String>,
+    pub network_details: Option<FinixNetworkDetails>,
+}
+
+// Build the additional-payment-method `connector_response` from Finix AVS / network
+// details, mirroring Hyperswitch's `convert_to_additional_payment_method_connector_response`.
+fn build_finix_connector_response(
+    response: &FinixPaymentsResponse,
+) -> Option<ConnectorResponseData> {
+    if response.address_verification.is_none() && response.network_details.is_none() {
+        return None;
+    }
+
+    let mut payment_checks = serde_json::Map::new();
+    if let Some(code) = response.address_verification.as_ref() {
+        payment_checks.insert("avs_result".to_string(), serde_json::json!(code));
+    }
+
+    let card_network = response
+        .network_details
+        .as_ref()
+        .and_then(|details| details.brand.clone());
+    let auth_code = response
+        .network_details
+        .as_ref()
+        .and_then(|details| details.authorization_code.clone());
+
+    let additional = AdditionalPaymentMethodConnectorResponse::Card {
+        authentication_data: None,
+        payment_checks: (!payment_checks.is_empty())
+            .then(|| serde_json::Value::Object(payment_checks)),
+        card_network,
+        domestic_network: None,
+        auth_code,
+    };
+
+    Some(ConnectorResponseData::with_additional_payment_method_data(
+        additional,
+    ))
 }
 
 // Aliases for backward compatibility during migration
@@ -569,19 +677,31 @@ impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
             .clone()
             .unwrap_or_else(|| response.id.clone());
 
+        // Surface the stored Payment Instrument (`source`) as the mandate reference and
+        // propagate AVS / network details via `connector_response`.
+        let mandate_reference = Some(Box::new(MandateReference {
+            connector_mandate_id: response.source.as_ref().map(|s| s.clone().expose()),
+            payment_method_id: None,
+            connector_mandate_request_reference_id: None,
+        }));
+        let connector_response = build_finix_connector_response(response);
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..item.router_data.resource_common_data.clone()
             },
             ..item.router_data
@@ -635,21 +755,87 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
 
     fn try_from(item: ResponseRouterData<FinixCaptureResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
-        let status = AttemptStatus::from(&response.state);
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
+        // A SUCCEEDED capture only confirms the authorization update; the funds
+        // movement (transfer) settles asynchronously, so the attempt stays Pending
+        // until a PSync on the transfer id confirms the charge.
+        let status = if response.is_void == Some(true) {
+            match response.state {
+                FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => {
+                    AttemptStatus::Voided
+                }
+                FinixPaymentStatus::Failed
+                | FinixPaymentStatus::Canceled
+                | FinixPaymentStatus::Unknown => AttemptStatus::VoidFailed,
+            }
+        } else {
+            match response.state {
+                FinixPaymentStatus::Pending | FinixPaymentStatus::Succeeded => {
+                    AttemptStatus::Pending
+                }
+                FinixPaymentStatus::Failed
+                | FinixPaymentStatus::Canceled
+                | FinixPaymentStatus::Unknown => AttemptStatus::Failure,
+            }
+        };
+
+        let connector_response = build_finix_connector_response(&response);
+
+        let is_failure = matches!(
+            response.state,
+            FinixPaymentStatus::Failed | FinixPaymentStatus::Canceled | FinixPaymentStatus::Unknown
+        );
+
+        let flow_response = if is_failure {
+            Err(ErrorResponse {
+                code: response
+                    .failure_code
+                    .clone()
+                    .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string()),
+                message: response
+                    .failure_message
+                    .clone()
+                    .or_else(|| response.messages.clone().map(|msg| msg.join(",")))
+                    .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
+                reason: None,
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id: Some(response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                // The transfer id (TR*) tracks the actual funds movement; fall back
+                // to the authorization id when Finix has not created a transfer yet.
+                resource_id: ResponseId::ConnectorTransactionId(
+                    response
+                        .transfer
+                        .clone()
+                        .unwrap_or_else(|| response.id.clone()),
+                ),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Some(Box::new(MandateReference {
+                    connector_mandate_id: response.source.clone().map(|id| id.expose()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                })),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
-            }),
+                splits: None,
+            })
+        };
+
+        Ok(Self {
+            response: flow_response,
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response,
                 ..item.router_data.resource_common_data.clone()
             },
             ..item.router_data
@@ -758,9 +944,11 @@ impl TryFrom<ResponseRouterData<FinixVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -824,6 +1012,26 @@ impl TryFrom<ResponseRouterData<FinixRefundResponse, Self>>
     }
 }
 
+fn get_billing_address_as_finix_address(
+    resource_common_data: &PaymentFlowData,
+) -> Option<FinixAddress> {
+    resource_common_data
+        .get_optional_billing()
+        .and_then(|address| {
+            let billing = address.address.as_ref();
+            billing.map(|billing_address| FinixAddress {
+                line1: billing_address.line1.clone(),
+                line2: billing_address.line2.clone(),
+                city: billing_address.city.clone().map(|s| s.expose()),
+                region: billing_address.to_state_code_as_optional().ok().flatten(),
+                postal_code: billing_address.get_optional_zip(),
+                country: billing_address
+                    .get_optional_country()
+                    .map(CountryAlpha2::from_alpha2_to_alpha3),
+            })
+        })
+}
+
 // TRYFROM IMPLEMENTATIONS - CREATE CONNECTOR CUSTOMER REQUEST
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -852,32 +1060,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        let personal_address =
+            get_billing_address_as_finix_address(&item.router_data.resource_common_data);
         let customer_data = &item.router_data.request;
 
-        // Parse name into first and last name if available
-        let (first_name, last_name) = customer_data
-            .name
-            .as_ref()
-            .map(|name| {
-                let name_str = name.peek().trim();
-                match name_str.rsplit_once(' ') {
-                    Some((first, last)) => (
-                        Some(Secret::new(first.to_string())),
-                        Some(Secret::new(last.to_string())),
-                    ),
-                    None => (Some(Secret::new(name_str.to_string())), None),
-                }
-            })
-            .unwrap_or((None, None));
+        let entity = FinixIdentityEntity {
+            phone: customer_data.phone.clone(),
+            first_name: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_first_name(),
+            last_name: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_last_name(),
+            email: item
+                .router_data
+                .resource_common_data
+                .get_optional_billing_email(),
+            personal_address,
+        };
 
         Ok(Self {
-            entity: FinixIdentityEntity {
-                phone: customer_data.phone.clone(),
-                first_name,
-                last_name,
-                email: customer_data.email.clone().map(|e| e.expose()),
-                personal_address: None,
-            },
+            entity,
             tags: None,
             identity_type: FinixIdentityType::PERSONAL,
         })
@@ -903,6 +1108,7 @@ impl TryFrom<ResponseRouterData<FinixIdentityResponse, Self>>
         Ok(Self {
             response: Ok(ConnectorCustomerResponse {
                 connector_customer_id: response.id,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })
@@ -960,7 +1166,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 expiration_year: Some(card.get_expiry_year_as_i32()?),
                 identity: customer_id,
                 tags: None,
-                address: None,
+                address: get_billing_address_as_finix_address(
+                    &item.router_data.resource_common_data,
+                ),
                 merchant_identity: None,
                 third_party_token: None,
                 account_number: None,
@@ -1103,7 +1311,7 @@ fn disabled_instrument_error(
         message: message.clone(),
         reason: Some(message),
         status_code,
-        attempt_status: Some(AttemptStatus::Failure),
+        attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
         connector_transaction_id: response.id.clone(),
         network_decline_code: None,
         network_advice_code: None,
@@ -1196,7 +1404,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 expiration_year: Some(card.get_expiry_year_as_i32()?),
                 identity: customer_id,
                 tags,
-                address: None,
+                address: get_billing_address_as_finix_address(
+                    &item.router_data.resource_common_data,
+                ),
                 merchant_identity: None,
                 third_party_token: None,
                 account_number: None,
@@ -1347,9 +1557,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: echoed,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })
@@ -1457,6 +1669,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .connector_request_reference_id
                     .clone(),
             })),
+            statement_descriptor: None,
         })
     }
 }
@@ -1488,7 +1701,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: failure_message.clone(),
                     reason: Some(failure_message),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1510,20 +1723,34 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             (_, FinixPaymentStatus::Unknown) => AttemptStatus::Pending,
         };
 
+        // Mirror the Authorize flow for shadow parity: surface the charged Payment
+        // Instrument (`source`) as the connector mandate id and attach the AVS / network
+        // details as the connector_response.
+        let connector_response_data =
+            convert_to_additional_payment_method_connector_response(&item.response)
+                .map(ConnectorResponseData::with_additional_payment_method_data);
+
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
+                connector_response: connector_response_data,
                 ..item.router_data.resource_common_data.clone()
             },
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference: Some(Box::new(MandateReference {
+                    connector_mandate_id: response.source.clone().map(|id| id.expose()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                })),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })

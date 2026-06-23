@@ -134,14 +134,27 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
         run: |
+          TAG="${{ steps.version.outputs.next_tag }}"
           CALVER_SHA="$(git rev-parse HEAD)"
-          gh api \
-            --method POST \
-            --header 'Accept: application/vnd.github+json' \
-            --header 'X-GitHub-Api-Version: 2022-11-28' \
-            '/repos/{owner}/{repo}/git/refs' \
-            --raw-field "ref=refs/tags/${{ steps.version.outputs.next_tag }}" \
-            --raw-field "sha=${CALVER_SHA}"
+          # Idempotent so a partial-failure re-run works: reuse the tag if it
+          # already points at this SHA; fail only if it points elsewhere.
+          if EXISTING_SHA="$(gh api "/repos/{owner}/{repo}/git/ref/tags/${TAG}" --jq '.object.sha' 2>/dev/null)"; then
+            if [ "${EXISTING_SHA}" = "${CALVER_SHA}" ]; then
+              echo "Tag ${TAG} already exists on ${CALVER_SHA} — reusing it."
+            else
+              echo "::error::tag ${TAG} already exists but points at ${EXISTING_SHA}, not ${CALVER_SHA}. Refusing to move a release tag."
+              exit 1
+            fi
+          else
+            gh api \
+              --method POST \
+              --header 'Accept: application/vnd.github+json' \
+              --header 'X-GitHub-Api-Version: 2022-11-28' \
+              '/repos/{owner}/{repo}/git/refs' \
+              --raw-field "ref=refs/tags/${TAG}" \
+              --raw-field "sha=${CALVER_SHA}"
+            echo "Created tag ${TAG} on ${CALVER_SHA}."
+          fi
 
       - name: Create GitHub release (draft)
         if: ${{ inputs.dry_run == false }}
@@ -149,14 +162,21 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
         run: |
+          TAG="${{ steps.version.outputs.next_tag }}"
           if [ "$(wc -c < release-notes.md)" -gt 124000 ]; then
             truncate -s 124000 release-notes.md
             printf '\n\n_Full changelog available in the release artifact._\n' >> release-notes.md
           fi
-          gh release create "${{ steps.version.outputs.next_tag }}" \
-            --title "${{ steps.version.outputs.next_tag }}" \
-            --notes-file release-notes.md \
-            --draft
+          # Idempotent: refresh notes if a draft from a previous run already exists.
+          if gh release view "${TAG}" >/dev/null 2>&1; then
+            echo "Release ${TAG} already exists — updating its notes."
+            gh release edit "${TAG}" --title "${TAG}" --notes-file release-notes.md
+          else
+            gh release create "${TAG}" \
+              --title "${TAG}" \
+              --notes-file release-notes.md \
+              --draft
+          fi
 
 
   publish-sdks:

@@ -17,7 +17,7 @@ use domain_types::{
         BankDebitData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, WalletData,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils::{get_unimplemented_payment_method_error_message, ForeignTryFrom},
@@ -208,30 +208,38 @@ pub struct NmiMerchantDefinedField {
 
 impl NmiMerchantDefinedField {
     pub fn new(metadata: &serde_json::Value) -> Self {
-        let inner = metadata
-            .as_object()
-            .map(|obj| {
-                obj.iter()
-                    .enumerate()
-                    .map(|(index, (hs_key, hs_value))| {
-                        // Extract string value properly to avoid JSON encoding
-                        let value_str = hs_value
-                            .as_str()
-                            .map(str::to_owned)
-                            .unwrap_or_else(|| hs_value.to_string());
-                        let nmi_key = format!("merchant_defined_field_{}", index + 1);
-                        let nmi_value = format!("{hs_key}={value_str}");
-                        (nmi_key, Secret::new(nmi_value))
-                    })
-                    .collect()
+        // Match Hyperswitch: deserialize into a BTreeMap so the merchant defined
+        // fields are emitted in key-sorted order (e.g. login_date, new_customer,
+        // udf1), independent of the original metadata insertion order.
+        let metadata_as_string = metadata.to_string();
+        let sorted: std::collections::BTreeMap<String, serde_json::Value> =
+            serde_json::from_str(&metadata_as_string).unwrap_or_default();
+        let inner = sorted
+            .into_iter()
+            .enumerate()
+            .map(|(index, (hs_key, hs_value))| {
+                // Extract string value properly to avoid JSON encoding
+                let value_str = match hs_value {
+                    serde_json::Value::Bool(boolean) => boolean.to_string(),
+                    serde_json::Value::Number(number) => number.to_string(),
+                    serde_json::Value::String(string) => string,
+                    other => other.to_string(),
+                };
+                let nmi_key = format!("merchant_defined_field_{}", index + 1);
+                let nmi_value = format!("{hs_key}={value_str}");
+                (nmi_key, Secret::new(nmi_value))
             })
-            .unwrap_or_default();
+            .collect();
         Self { inner }
     }
 }
 
 #[derive(Debug, Serialize)]
 pub struct NmiBillingDetails {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     address1: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -289,6 +297,8 @@ pub struct NmiPaymentsRequest<T: PaymentMethodDataTypes> {
     #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
     merchant_defined_field: Option<NmiMerchantDefinedField>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    customer_vault: Option<CustomerAction>,
     #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
     billing_details: Option<NmiBillingDetails>,
@@ -432,6 +442,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })?,
                 payment_method: None,
                 merchant_defined_field: None,
+                customer_vault: None,
                 billing_details: None,
                 shipping_details: None,
                 customer_vault_id: Some(three_ds_data.customer_vault_id),
@@ -530,7 +541,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .metadata
                     .as_ref()
                     .map(|m| NmiMerchantDefinedField::new(m.peek())),
+                customer_vault: router_data
+                    .request
+                    .is_mandate_payment()
+                    .then_some(CustomerAction::AddCustomer),
                 billing_details: Some(NmiBillingDetails {
+                    first_name: router_data
+                        .resource_common_data
+                        .get_optional_billing_first_name(),
+                    last_name: router_data
+                        .resource_common_data
+                        .get_optional_billing_last_name(),
                     address1: router_data
                         .resource_common_data
                         .get_optional_billing_line1(),
@@ -739,9 +760,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StandardResponse, Sel
                 }),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.orderid.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -806,6 +829,7 @@ pub struct SyncResponse {
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SyncTransactionData {
     pub transaction_id: String,
+    pub order_id: String,
     pub condition: String, // Maps to status
 }
 
@@ -864,9 +888,11 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -963,9 +989,11 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.orderid.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1076,7 +1104,7 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
 
         Ok(Self {
             response: Ok(RefundsResponseData {
-                connector_refund_id: response.transactionid.clone(),
+                connector_refund_id: response.orderid.clone(),
                 refund_status: status,
                 status_code: item.http_code,
             }),
@@ -1138,17 +1166,18 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
     fn try_from(item: ResponseRouterData<SyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        // Try to find exact match first, fallback to last transaction
+        // The query is keyed by order_id (= connector_refund_id), so match on the
+        // echoed order_id, falling back to the last transaction
         let transaction = response
             .transaction
             .iter()
-            .find(|txn| txn.transaction_id == item.router_data.request.connector_refund_id)
+            .find(|txn| txn.order_id == item.router_data.request.connector_refund_id)
             .or_else(|| response.transaction.last());
 
         // Map condition field from XML to RefundStatus using NmiStatus enum
         let (status, connector_refund_id) = if let Some(transaction) = transaction {
             let status = RefundStatus::from(NmiStatus::from(transaction.condition.clone()));
-            (status, transaction.transaction_id.clone())
+            (status, transaction.order_id.clone())
         } else {
             // Empty response - treat as pending with proper error for connector_refund_id
             return Err(error_stack::report!(
@@ -1264,9 +1293,11 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.orderid.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1469,6 +1500,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                 (
                     AttemptStatus::AuthenticationPending,
                     Ok(PaymentsResponseData::PreAuthenticateResponse {
+                        resource_id: None,
                         authentication_data: None,
                         redirection_data: Some(Box::new(RedirectForm::Nmi {
                             amount: Money {
@@ -1518,7 +1550,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NmiVaultResponse, Sel
                     message: response.responsetext.clone(),
                     reason: Some(response.responsetext.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.transactionid.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1570,6 +1602,8 @@ pub struct NmiSetupMandateRequest<
     zip: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     country: Option<common_enums::CountryAlpha2>,
+    #[serde(flatten)]
+    shipping_details: NmiShippingDetails,
 }
 
 /// Payment method for SetupMandate - supports Card and ACH
@@ -1715,6 +1749,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             state: common_data.get_optional_billing_state(),
             zip: common_data.get_optional_billing_zip(),
             country: common_data.get_optional_billing_country(),
+            shipping_details: NmiShippingDetails {
+                shipping_firstname: common_data.get_optional_shipping_first_name(),
+                shipping_lastname: common_data.get_optional_shipping_last_name(),
+                shipping_address1: common_data.get_optional_shipping_line1(),
+                shipping_address2: common_data.get_optional_shipping_line2(),
+                shipping_city: common_data.get_optional_shipping_city(),
+                shipping_state: common_data.get_optional_shipping_state(),
+                shipping_zip: common_data.get_optional_shipping_zip(),
+                shipping_country: common_data.get_optional_shipping_country(),
+                shipping_email: common_data.get_optional_shipping_email(),
+            },
         })
     }
 }
@@ -1760,9 +1805,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(response.transactionid.clone()),
+                        network_txn_link_id: None,
+                        // Hyperswitch parity: NMI maps connector_response_reference_id to the
+                        // merchant `orderid` (echoed back), not the connector `transactionid`
+                        // (which is already the resource_id / ConnectorTransactionId above).
+                        connector_response_reference_id: Some(response.orderid.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                 )
             }
@@ -1773,7 +1823,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: response.responsetext.clone(),
                     reason: Some(response.responsetext.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.transactionid.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1804,6 +1854,27 @@ pub struct NmiRepeatPaymentRequest {
     currency: common_enums::Currency,
     orderid: String,
     customer_vault_id: Secret<String>,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merchant_defined_field: Option<NmiMerchantDefinedField>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    address2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    zip: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    country: Option<common_enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    phone: Option<Secret<String>>,
 }
 
 pub type NmiRepeatPaymentResponse = NmiSetupMandateResponse;
@@ -1864,16 +1935,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
+        let common_data = &router_data.resource_common_data;
+
         Ok(Self {
             transaction_type: TransactionType::Sale,
             security_key: auth.api_key,
             amount,
             currency: router_data.request.currency,
-            orderid: router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            orderid: common_data.connector_request_reference_id.clone(),
             customer_vault_id: Secret::new(customer_vault_id),
+            // Mirror the Authorize/SetupMandate flows: NMI expects the billing
+            // address and merchant_defined_field_* as flat top-level fields, which
+            // the hyperswitch reference also sends on recurring (MIT) charges.
+            merchant_defined_field: router_data
+                .request
+                .metadata
+                .as_ref()
+                .map(|m| NmiMerchantDefinedField::new(m.peek())),
+            first_name: common_data.get_optional_billing_first_name(),
+            last_name: common_data.get_optional_billing_last_name(),
+            address1: common_data.get_optional_billing_line1(),
+            address2: common_data.get_optional_billing_line2(),
+            city: common_data.get_optional_billing_city(),
+            state: common_data.get_optional_billing_state(),
+            zip: common_data.get_optional_billing_zip(),
+            country: common_data.get_optional_billing_country(),
+            phone: common_data.get_optional_billing_phone_number(),
         })
     }
 }
@@ -1898,9 +1985,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
-                    connector_response_reference_id: Some(response.transactionid.clone()),
+                    network_txn_link_id: None,
+                    // Hyperswitch parity: NMI maps connector_response_reference_id to the
+                    // merchant `orderid` (echoed back), not the connector `transactionid`
+                    // (which is already the resource_id / ConnectorTransactionId above).
+                    connector_response_reference_id: Some(response.orderid.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
             ),
             Response::Declined | Response::Error => (
@@ -1910,7 +2002,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: response.responsetext.clone(),
                     reason: Some(response.responsetext.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.transactionid.clone()),
                     network_decline_code: None,
                     network_advice_code: None,

@@ -478,12 +478,6 @@
         "error": "Stuck on field: customer_id. Billwerk checkout sessions require a customer handle to associate the session with a customer record. — Missing required field: customer_id. Billwerk checkout sessions require a customer handle to associate the session with a customer record."
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for billwerk"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -500,6 +494,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for billwerk"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for billwerk"
       }
     },
     "dispute_accept": {
@@ -527,7 +527,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by billwerk connector"
       }
     },
     "get": {
@@ -566,6 +567,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

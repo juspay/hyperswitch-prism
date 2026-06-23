@@ -440,6 +440,11 @@ jobs:
 
     env:
       RUSTFLAGS: "-D warnings"
+      # Compile test artifacts with minimal debug info (line tables only) to keep
+      # target/ small enough for the hosted runner's disk on the full-workspace
+      # build. Keeps file:line in panic backtraces; just much smaller .rlibs.
+      CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
+      CARGO_PROFILE_TEST_DEBUG: "line-tables-only"
       RUN_TESTS: ${{ (github.event_name == 'push') || ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group') }}
 
     steps:

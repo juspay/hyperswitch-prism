@@ -12,6 +12,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -145,7 +146,7 @@ macros::create_all_prerequisites!(
             flow: ServerAuthenticationToken,
             request_body: IatapayAuthUpdateRequest,
             response_body: IatapayAuthUpdateResponse,
-            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         )
     ],
     amount_converters: [
@@ -215,6 +216,13 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.iatapay.base_url
+        }
+
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.iatapay.base_url
         }
@@ -442,7 +450,7 @@ macros::macro_connector_implementation!(
     curl_request: FormUrlEncoded(IatapayAuthUpdateRequest),
     curl_response: IatapayAuthUpdateResponse,
     flow_name: ServerAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerAuthenticationTokenRequestData,
     flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
@@ -451,7 +459,7 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             // For OAuth, extract client_id and client_secret from IatapayAuthType
             let auth = transformers::IatapayAuthType::try_from(&req.connector_config)
@@ -482,46 +490,12 @@ macros::macro_connector_implementation!(
 
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/oauth/token", self.connector_base_url_payments(req)))
+            Ok(format!("{}/oauth/token", self.connector_base_url_merchant_auth(req)))
         }
     }
 );
-
-// Setup Mandate
-
-// Repeat Payment
-
-// Order Create
-
-// Session Token
-
-// Dispute Accept
-
-// Dispute Defend
-
-// Submit Evidence
-
-// Payment Token (required by PaymentTokenV2 trait)
-
-// ===== AUTHENTICATION FLOW CONNECTOR INTEGRATIONS =====
-// Pre Authentication
-
-// Authentication
-
-// Post Authentication
-
-// ===== CONNECTOR CUSTOMER CONNECTOR INTEGRATIONS =====
-// Create Connector Customer
-
-// ===== SOURCE VERIFICATION IMPLEMENTATIONS =====
-
-// ===== AUTHENTICATION FLOW SOURCE VERIFICATION =====
-
-// ===== CONNECTOR CUSTOMER SOURCE VERIFICATION =====
-
-// ===== ACCESS TOKEN SOURCE VERIFICATION =====
 
 macros::macro_connector_flow_status_impls!(
     connector: Iatapay,
@@ -536,6 +510,7 @@ macros::macro_connector_flow_status_impls!(
         ClientAuthenticationToken,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         Void,
         VoidPC,

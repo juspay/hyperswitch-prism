@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_enums::{AttemptStatus, CountryAlpha2, Currency, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::jose::JoseConfig,
@@ -16,7 +16,7 @@ use domain_types::{
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -274,6 +274,40 @@ pub struct PacoNotificationUrls {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PacoBillingAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_line2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_line3: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_post_code: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoShippingAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_addr_city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_addr_country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_addr_line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_addr_line2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_addr_line3: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_addr_post_code: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PacoCreditCardDetails {
     pub card_number: Secret<String>,
     #[serde(rename = "cardExpiryMMYY")]
@@ -344,6 +378,10 @@ pub struct TwocTwopPacoCardAuthorizeRequest {
     pub browser_info: Option<PacoBrowserInfo>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device_details: Option<PacoDeviceDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<PacoBillingAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_address: Option<PacoShippingAddress>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -390,6 +428,10 @@ pub struct TwocTwopPacoWalletAuthorizeRequest {
     #[serde(rename = "notificationURLs")]
     pub notification_urls: PacoNotificationUrls,
     pub device_details: PacoDeviceDetails,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<PacoBillingAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_address: Option<PacoShippingAddress>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -404,25 +446,60 @@ pub enum TwocTwopPacoAuthorizeRequest {
 #[serde(transparent)]
 pub struct TwocTwopPacoVoidPcRequest(pub TwocTwopPacoVoidRequest);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct TwocTwopPacoAuthorizeResponse(pub TwocTwopPacoNonUiResponse);
+/// Pairs a parsed PACO response with the exact JSON it was parsed from.
+///
+/// PACO bodies are JOSE-encrypted on the wire, so the raw HTTP body is
+/// ciphertext. Re-serialising the typed struct for `raw_connector_response`
+/// silently drops every field the struct doesn't model; this keeps the full
+/// decrypted payload instead.
+#[derive(Debug, Clone)]
+pub struct PacoResponseWithRaw<T> {
+    pub parsed_response: T,
+    pub raw_response: serde_json::Value,
+}
+
+impl<'de, T: serde::de::DeserializeOwned> Deserialize<'de> for PacoResponseWithRaw<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw_response = serde_json::Value::deserialize(deserializer)?;
+        let parsed_response = T::deserialize(&raw_response).map_err(serde::de::Error::custom)?;
+        Ok(Self {
+            parsed_response,
+            raw_response,
+        })
+    }
+}
+
+impl<T> Serialize for PacoResponseWithRaw<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.raw_response.serialize(serializer)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TwocTwopPacoCaptureResponse(pub TwocTwopPacoNonUiResponse);
+pub struct TwocTwopPacoAuthorizeResponse(pub PacoResponseWithRaw<TwocTwopPacoNonUiResponse>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TwocTwopPacoVoidResponse(pub TwocTwopPacoNonUiResponse);
+pub struct TwocTwopPacoCaptureResponse(pub PacoResponseWithRaw<TwocTwopPacoNonUiResponse>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TwocTwopPacoVoidPcResponse(pub TwocTwopPacoNonUiResponse);
+pub struct TwocTwopPacoVoidResponse(pub PacoResponseWithRaw<TwocTwopPacoNonUiResponse>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TwocTwopPacoRefundResponse(pub TwocTwopPacoNonUiResponse);
+pub struct TwocTwopPacoVoidPcResponse(pub PacoResponseWithRaw<TwocTwopPacoNonUiResponse>);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct TwocTwopPacoRefundResponse(pub PacoResponseWithRaw<TwocTwopPacoNonUiResponse>);
 
 pub fn build_authorize_request<T>(
     item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
@@ -450,6 +527,35 @@ where
         cancellation_url: item.request.router_return_url.clone(),
         backend_url: item.request.webhook_url.clone(),
     };
+
+    let common = &item.resource_common_data;
+    let paco_billing_address = common
+        .get_optional_billing()
+        .and_then(|billing| billing.address.as_ref())
+        .map(|_| PacoBillingAddress {
+            bill_addr_city: common.get_optional_billing_city(),
+            bill_addr_country: common
+                .get_optional_billing_country()
+                .map(|c| CountryAlpha2::to_numeric(c).to_string()),
+            bill_addr_line1: common.get_optional_billing_line1(),
+            bill_addr_line2: common.get_optional_billing_line2(),
+            bill_addr_line3: common.get_optional_billing_line3(),
+            bill_addr_post_code: common.get_optional_billing_zip(),
+        });
+
+    let paco_shipping_address = common
+        .get_optional_shipping()
+        .and_then(|shipping| shipping.address.as_ref())
+        .map(|_| PacoShippingAddress {
+            ship_addr_city: common.get_optional_shipping_city(),
+            ship_addr_country: common
+                .get_optional_shipping_country()
+                .map(|c| CountryAlpha2::to_numeric(c).to_string()),
+            ship_addr_line1: common.get_optional_shipping_line1(),
+            ship_addr_line2: common.get_optional_shipping_line2(),
+            ship_addr_line3: common.get_optional_shipping_line3(),
+            ship_addr_post_code: common.get_optional_shipping_zip(),
+        });
 
     match &item.request.payment_method_data {
         PaymentMethodData::Card(card) => {
@@ -491,6 +597,8 @@ where
                 request3ds_flag,
                 browser_info,
                 device_details,
+                billing_address: paco_billing_address,
+                shipping_address: paco_shipping_address,
             };
             Ok(TwocTwopPacoAuthorizeRequest::Card(body))
         }
@@ -514,6 +622,8 @@ where
                 transaction_amount: amount,
                 notification_urls,
                 device_details,
+                billing_address: paco_billing_address,
+                shipping_address: paco_shipping_address,
             };
             Ok(TwocTwopPacoAuthorizeRequest::Wallet(body))
         }
@@ -809,6 +919,147 @@ fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Refu
     }
 }
 
+/// PACO refund response codes, classified by terminal/in-flight state.
+///
+/// Source: https://devzone.2c2p.com/docs/api-response-code (sections relevant
+/// to /Refund/refund). Codes outside this enum fall into the `Unknown` arm and
+/// are classified as `Pending` (see `From<PacoRefundResponseCode> for
+/// RefundStatus` for why — duplicate-refund safety).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PacoRefundResponseCode {
+    // --- Terminal Success ---
+    #[serde(rename = "PC-B052407")]
+    Refunded,
+    #[serde(rename = "PC-B053501")]
+    RefundDisbursementSuccess,
+
+    // --- In-flight / Pending (refund accepted, downstream not yet final) ---
+    #[serde(rename = "PC-B053502")]
+    RefundRequestAccepted,
+    #[serde(rename = "PC-B053557")]
+    RefundPendingReview,
+    #[serde(rename = "PC-B053563")]
+    PendingExternalPartyReview,
+    #[serde(rename = "PC-B054042")]
+    RefundPending,
+    #[serde(rename = "PC-B054046")]
+    InsufficientFundsForRefund,
+    #[serde(rename = "PC-B054048")]
+    SubMerchantInsufficientFunds,
+
+    // --- Terminal Failure (request validation + downstream rejection) ---
+    #[serde(rename = "PC-B050040")]
+    InvalidRefundAmount,
+    #[serde(rename = "PC-B050041")]
+    InvalidRefundItemReference,
+    #[serde(rename = "PC-B050042")]
+    ItemizedRefundUnavailable,
+    #[serde(rename = "PC-B050043")]
+    RefundItemsExceedRefundable,
+    #[serde(rename = "PC-B050053")]
+    TransactionCannotBeRefunded,
+    #[serde(rename = "PC-B050054")]
+    InvalidRefundNumber,
+    #[serde(rename = "PC-B050055")]
+    RefundApiFeatureUnavailable,
+    #[serde(rename = "PC-B050056")]
+    RefundAmountInvalid,
+    #[serde(rename = "PC-B050057")]
+    CannotRefundMoreThanTransaction,
+    #[serde(rename = "PC-B050058")]
+    RefundExceedsTransactionAmount,
+    #[serde(rename = "PC-B050059")]
+    RefundNotAllowed,
+    #[serde(rename = "PC-B050060")]
+    PartialRefundNotAllowed,
+    #[serde(rename = "PC-B050061")]
+    SubMerchantRefundExceedsTransaction,
+    #[serde(rename = "PC-B050062")]
+    RefundExceededAllowableTimeframe,
+    #[serde(rename = "PC-B053503")]
+    RefundRejected,
+    #[serde(rename = "PC-B053504")]
+    RefundFailed,
+    #[serde(rename = "PC-B053505")]
+    RefundRejectedByBank,
+    #[serde(rename = "PC-B053506")]
+    RefundEmailDeliveryFailed,
+    #[serde(rename = "PC-B053507")]
+    RefundCancelled,
+    #[serde(rename = "PC-B053508")]
+    RefundLinkExpired,
+    #[serde(rename = "PC-B054043")]
+    RefundRejectedByReviewer,
+    #[serde(rename = "PC-B054044")]
+    RefundRejectedGeneric,
+    #[serde(rename = "PC-B054045")]
+    RefundFailedGeneric,
+
+    /// Catch-all for unenumerated PC-Bxxxxxx codes. Resolves to Pending so we
+    /// don't tell a merchant a refund failed when PACO may actually have
+    /// processed it — see the `From` impl below for rationale.
+    #[serde(other)]
+    Unknown,
+}
+
+impl From<PacoRefundResponseCode> for RefundStatus {
+    fn from(code: PacoRefundResponseCode) -> Self {
+        use PacoRefundResponseCode::*;
+        match code {
+            Refunded | RefundDisbursementSuccess => Self::Success,
+
+            // Why Unknown → Pending (not Failure): returning Failure on an
+            // unknown code is dangerous for refunds. If PACO actually
+            // processed the refund but returned a code we haven't enumerated
+            // yet, the merchant sees "failed" → retries → gets a duplicate
+            // refund → real money loss. Pending is recoverable: RSync will
+            // poll, return a known code, and reclassify correctly. The raw
+            // PC-Bxxxxxx string is still surfaced for ops grep-ability.
+            RefundRequestAccepted
+            | RefundPendingReview
+            | PendingExternalPartyReview
+            | RefundPending
+            | InsufficientFundsForRefund
+            | SubMerchantInsufficientFunds
+            | Unknown => Self::Pending,
+
+            InvalidRefundAmount
+            | InvalidRefundItemReference
+            | ItemizedRefundUnavailable
+            | RefundItemsExceedRefundable
+            | TransactionCannotBeRefunded
+            | InvalidRefundNumber
+            | RefundApiFeatureUnavailable
+            | RefundAmountInvalid
+            | CannotRefundMoreThanTransaction
+            | RefundExceedsTransactionAmount
+            | RefundNotAllowed
+            | PartialRefundNotAllowed
+            | SubMerchantRefundExceedsTransaction
+            | RefundExceededAllowableTimeframe
+            | RefundRejected
+            | RefundFailed
+            | RefundRejectedByBank
+            | RefundEmailDeliveryFailed
+            | RefundCancelled
+            | RefundLinkExpired
+            | RefundRejectedByReviewer
+            | RefundRejectedGeneric
+            | RefundFailedGeneric => Self::Failure,
+        }
+    }
+}
+
+pub fn classify_refund_response_code(code: Option<&str>) -> Option<RefundStatus> {
+    let code = code?.trim();
+    if code.is_empty() {
+        return None;
+    }
+    let parsed: PacoRefundResponseCode =
+        serde_json::from_value(serde_json::Value::String(code.to_string())).ok()?;
+    Some(parsed.into())
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PacoApiResponse {
@@ -1061,7 +1312,7 @@ where
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: connector_txn_id,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -1095,9 +1346,11 @@ where
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1129,7 +1382,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: txn_id,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -1162,9 +1415,11 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: ref_id,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1195,7 +1450,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: txn_id,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -1228,9 +1483,11 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: ref_id,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1261,7 +1518,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: txn_id,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -1294,9 +1551,11 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: ref_id,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1414,11 +1673,11 @@ pub struct PacoInquiryData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TwocTwopPacoPSyncInquiryResponse(pub TwocTwopPacoInquiryResponse);
+pub struct TwocTwopPacoPSyncInquiryResponse(pub PacoResponseWithRaw<TwocTwopPacoInquiryResponse>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TwocTwopPacoRSyncInquiryResponse(pub TwocTwopPacoInquiryResponse);
+pub struct TwocTwopPacoRSyncInquiryResponse(pub PacoResponseWithRaw<TwocTwopPacoInquiryResponse>);
 
 impl TryFrom<ResponseRouterData<TwocTwopPacoPSyncInquiryResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
@@ -1428,10 +1687,21 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoPSyncInquiryResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoPSyncInquiryResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }
@@ -1471,7 +1741,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 message: message.clone(),
                 reason: Some(message),
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: invoice.clone(),
                 network_advice_code: None,
                 network_decline_code: None,
@@ -1505,9 +1775,11 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: order,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1522,10 +1794,21 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoRSyncInquiryResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoRSyncInquiryResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: RefundFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }
@@ -1832,10 +2115,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }
@@ -1848,10 +2142,21 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoCaptureResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }
@@ -1864,10 +2169,21 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoVoidResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoVoidResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }
@@ -1880,10 +2196,21 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoVoidPcResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoVoidPcResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }
@@ -1896,10 +2223,21 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoRefundResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: RefundFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }

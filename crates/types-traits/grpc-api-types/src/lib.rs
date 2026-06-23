@@ -5,8 +5,12 @@
 pub const FILE_DESCRIPTOR_SET: &[u8] =
     tonic::include_file_descriptor_set!("connector_service_descriptor");
 
-pub mod payments {
+mod types {
     tonic::include_proto!("types");
+}
+
+pub mod payments {
+    pub use super::types::*;
 }
 
 pub mod health_check {
@@ -14,9 +18,13 @@ pub mod health_check {
 }
 
 pub mod payouts {
-    tonic::include_proto!("types");
+    pub use super::types::*;
 }
 
 pub mod surcharge {
-    tonic::include_proto!("types");
+    pub use super::types::*;
+}
+
+pub mod frm {
+    pub use super::types::*;
 }

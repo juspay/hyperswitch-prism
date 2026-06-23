@@ -405,6 +405,8 @@ pub struct PaymentMethodToken {
 pub struct BoletoVoucherData {
     /// The shopper's social security number
     pub social_security_number: Option<Secret<String>>,
+    /// Merchant-controlled boleto due date. When absent, connectors fall back to a default window.
+    pub expiration_date: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -746,6 +748,8 @@ pub enum WalletData {
     CashfreeRedirect(CashfreeRedirection),
     PayURedirect(PayURedirection),
     EaseBuzzRedirect(EaseBuzzRedirection),
+    /// Qwikcilver / Pine Labs stored-value wallet — caller supplies the wallet number directly.
+    QwikcilverWalletDirect(Box<QwikcilverWalletDirectData>),
 }
 
 impl WalletData {
@@ -1660,6 +1664,12 @@ pub struct SamsungPayWebWalletData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmazonPayRedirectData {}
 
+/// Qwikcilver / Pine Labs stored-value wallet payload.
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct QwikcilverWalletDirectData {
+    pub wallet_number: Secret<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CoBadgedCardData {
     pub co_badged_card_networks: Vec<CardNetwork>,
@@ -1727,6 +1737,81 @@ pub struct ReceiverDetails {
     amount_remaining: Option<i64>,
 }
 
+/// Customer identification document type (mirrors hyperswitch common_types::customers::DocumentKind)
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DocumentKind {
+    /// Cadastro de Pessoas Físicas - the Brazilian individual taxpayer identifier.
+    Cpf,
+    /// Cadastro Nacional da Pessoa Jurídica - the Brazilian business identifier.
+    Cnpj,
+    /// Philippine PhilSys Number (PSN) — a 12-digit national ID required by dLocal for GCash.
+    Psn,
+    /// Generic / other non-Brazilian national document. Carried through as-is; the
+    /// connector validates it per country. Kept last as the catch-all.
+    Other,
+}
+
+impl DocumentKind {
+    /// Validate a document number against its kind. CPF/CNPJ use the Brazilian
+    /// checksum; PSN must be exactly 12 numeric digits; `Other` is passed through.
+    pub fn validate(&self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
+        match self {
+            Self::Cpf => self.validate_cpf(doc_number),
+            Self::Cnpj => self.validate_cnpj(doc_number),
+            Self::Psn => self.validate_psn(doc_number),
+            // Other non-Brazilian documents are passed through; the connector validates
+            // them per country.
+            Self::Other => Ok(()),
+        }
+    }
+
+    /// The Philippine PhilSys Number (PSN) is a randomly-generated 12-digit national ID
+    /// with no checksum; validate that it is exactly 12 numeric digits.
+    fn validate_psn(self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
+        if doc_number.len() == 12 && doc_number.bytes().all(|b| b.is_ascii_digit()) {
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidValue {
+                message: "Invalid PSN: expected exactly 12 digits".to_string(),
+            }
+            .into())
+        }
+    }
+
+    fn validate_cpf(self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
+        if cpf_cnpj::cpf::validate(doc_number) {
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidValue {
+                message: "Invalid CPF".to_string(),
+            }
+            .into())
+        }
+    }
+
+    fn validate_cnpj(self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
+        if cpf_cnpj::cnpj::validate(doc_number) {
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidValue {
+                message: "Invalid CNPJ".to_string(),
+            }
+            .into())
+        }
+    }
+}
+
+/// Customer's country-specific identification document
+/// (mirrors hyperswitch api_models::customers::CustomerDocumentDetails).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CustomerDocumentDetails {
+    /// The customer's document type
+    pub document_type: DocumentKind,
+    /// The customer's document number
+    pub document_number: Secret<String>,
+}
+
 /// Customer Information Details
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct CustomerInfoDetails {
@@ -1745,4 +1830,48 @@ pub struct CustomerInfoDetails {
     /// Customer Bank Name
     #[schema(value_type = Option<String>)]
     pub customer_bank_name: Option<Secret<String>>,
+}
+
+/// Generic payment method details returned in responses (e.g., after recharge, query operations)
+/// Supports multiple payment method types with their specific metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum PaymentMethodDetails {
+    /// Wallet-specific details (stored value, container, or hybrid wallets)
+    Wallet(WalletDetails),
+    // Future expansions: For gift cards, prepaid cards, loyalty rewards, etc.
+}
+
+/// Represents an item (payment method) stored within a wallet (for container/hybrid wallets)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WalletItem {
+    /// Unique identifier for this wallet item from the connector
+    pub wallet_item_id: String,
+    /// Product identifier under which this item exists
+    pub product_id: String,
+    /// Current status of this wallet item
+    pub status: common_enums::WalletItemStatus,
+    /// Available balance for this item (if applicable)
+    pub available_balance: Option<common_utils::types::Money>,
+    /// Expiry date of this item (ISO 8601 format)
+    pub expiry_date: Option<String>,
+}
+
+/// Represents wallet-specific details after a recharge or query operation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WalletDetails {
+    /// Unique wallet account identifier from connector (e.g., QwikWallet number)
+    pub wallet_account_id: String,
+    /// Wallet PIN for authentication (if applicable)
+    pub wallet_pin: Option<Secret<String>>,
+    /// Current operational status of the wallet
+    pub wallet_status: Option<common_enums::WalletStatus>,
+    /// Name registered on the wallet account
+    pub wallet_holder_name: Option<String>,
+    /// Current wallet balance in minor currency units (for stored value wallets)
+    pub balance: Option<common_utils::types::MinorUnit>,
+    /// Product or program identifier under which the wallet exists
+    pub product_id: Option<String>,
+    /// Payment method items stored in this wallet (for container/hybrid wallets)
+    pub items: Vec<WalletItem>,
 }

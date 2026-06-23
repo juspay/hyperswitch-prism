@@ -17,6 +17,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -612,9 +613,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResp
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.payment_intent_id,
                 incremental_authorization_allowed: Some(false), // Airwallex doesn't support incremental auth
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -652,9 +655,11 @@ impl TryFrom<ResponseRouterData<AirwallexSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(intent_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -758,9 +763,11 @@ impl TryFrom<ResponseRouterData<AirwallexCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.payment_intent_id,
                 incremental_authorization_allowed: Some(false), // Airwallex doesn't support incremental auth
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1014,9 +1021,11 @@ impl TryFrom<ResponseRouterData<AirwallexVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.payment_intent_id,
                 incremental_authorization_allowed: Some(false), // Airwallex doesn't support incremental auth
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1366,7 +1375,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         super::AirwallexRouterData<
             RouterDataV2<
                 domain_types::connector_flow::ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 domain_types::connector_types::ServerAuthenticationTokenRequestData,
                 domain_types::connector_types::ServerAuthenticationTokenResponseData,
             >,
@@ -1380,7 +1389,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _item: super::AirwallexRouterData<
             RouterDataV2<
                 domain_types::connector_flow::ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 domain_types::connector_types::ServerAuthenticationTokenRequestData,
                 domain_types::connector_types::ServerAuthenticationTokenResponseData,
             >,
@@ -1399,7 +1408,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<AirwallexAccessTokenResponse, Self>>
     for RouterDataV2<
         domain_types::connector_flow::ServerAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         domain_types::connector_types::ServerAuthenticationTokenRequestData,
         domain_types::connector_types::ServerAuthenticationTokenResponseData,
     >
@@ -1613,9 +1622,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexSetupMandate
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.payment_intent_id,
                 incremental_authorization_allowed: Some(false),
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1761,9 +1772,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexRepeatPaymen
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.payment_intent_id,
                 incremental_authorization_allowed: Some(false),
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1872,6 +1885,7 @@ impl TryFrom<ResponseRouterData<AirwallexCustomerResponse, Self>>
         let mut router_data = item.router_data;
         router_data.response = Ok(ConnectorCustomerResponse {
             connector_customer_id: item.response.id,
+            status_code: item.http_code,
         });
         router_data.resource_common_data.connector_http_status_code = Some(item.http_code);
         Ok(router_data)
