@@ -11152,8 +11152,8 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
             let has_network_details = err.network_decline_code.is_some()
                 || err.network_advice_code.is_some()
                 || err.network_error_message.is_some();
-            let issuer_details = has_network_details.then(|| {
-                grpc_api_types::payments::IssuerErrorDetails {
+            let issuer_details =
+                has_network_details.then(|| grpc_api_types::payments::IssuerErrorDetails {
                     code: None,
                     message: err.network_error_message.clone(),
                     network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
@@ -11161,8 +11161,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         decline_code: err.network_decline_code.clone(),
                         error_message: err.network_error_message.clone(),
                     }),
-                }
-            });
+                });
             PaymentServiceSetupRecurringResponse {
                 connector_recurring_payment_id: err.connector_transaction_id.clone(),
                 redirection_data: None,
