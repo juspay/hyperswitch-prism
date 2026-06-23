@@ -20,15 +20,16 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceTokenizeRequest,
-    PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
-    PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
-    PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
-    PaymentServiceGetResponse, PaymentServiceRefundRequest, PaymentServiceReverseRequest,
-    PaymentServiceReverseResponse, PaymentServiceSetupRecurringRequest,
-    PaymentServiceSetupRecurringResponse, PaymentServiceVerifyRedirectResponseRequest,
-    PaymentServiceVerifyRedirectResponseResponse, PaymentServiceVoidRequest,
-    PaymentServiceVoidResponse, RecurringPaymentServiceChargeRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse,
+    PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest,
+    PaymentServiceCaptureResponse, PaymentServiceCreateOrderRequest,
+    PaymentServiceCreateOrderResponse, PaymentServiceGetRequest, PaymentServiceGetResponse,
+    PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceReverseResponse,
+    PaymentServiceSetupRecurringRequest, PaymentServiceSetupRecurringResponse,
+    PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVerifyRedirectResponseResponse,
+    PaymentServiceVoidRequest, PaymentServiceVoidResponse, RecurringPaymentServiceChargeRequest,
     RecurringPaymentServiceChargeResponse, RefundResponse,
 };
 use std::sync::Arc;
@@ -39,7 +40,6 @@ use crate::http::{
     transfer_config_to_grpc_request, utils::ValidatedJson,
 };
 use ucs_env::configs::Config;
-
 http_handler!(
     authorize,
     PaymentServiceAuthorizeRequest,
@@ -81,6 +81,13 @@ http_handler!(
     PaymentServiceGetResponse,
     get,
     payments_service
+);
+http_handler!(
+    eligibility,
+    PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceEligibilityResponse,
+    eligibility,
+    payment_method_service
 );
 http_handler!(
     create_order,
