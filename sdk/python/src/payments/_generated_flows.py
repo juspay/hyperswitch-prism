@@ -87,6 +87,12 @@ SERVICE_FLOWS = {
         # payout_void: PayoutService.Void — Void a payout.
         "payout_void": "PayoutServiceVoidResponse",
     },
+    "FraudAndRiskManagementClient": {
+        # post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+        "post_risk_check": "FrmServicePostRiskCheckResponse",
+        # pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+        "pre_risk_check": "FrmServicePreRiskCheckResponse",
+    },
     "RefundClient": {
         # refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
         "refund_get": "RefundResponse",

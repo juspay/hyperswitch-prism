@@ -37,6 +37,17 @@ class EventClient(_ConnectorClientBase):
         """EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit."""
         return self._execute_direct("parse_event", request, _pb2.EventServiceParseResponse, options)
 
+class FraudAndRiskManagementClient(_ConnectorClientBase):
+    """FraudAndRiskManagementService flows"""
+
+    def post_risk_check(self, request, options=None):
+        """FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud."""
+        return self._execute_flow("post_risk_check", request, _pb2.FrmServicePostRiskCheckResponse, options)
+
+    def pre_risk_check(self, request, options=None):
+        """FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review."""
+        return self._execute_flow("pre_risk_check", request, _pb2.FrmServicePreRiskCheckResponse, options)
+
 class MerchantAuthenticationClient(_ConnectorClientBase):
     """MerchantAuthenticationService flows"""
 

@@ -28,6 +28,7 @@ impl HeaderSource for http::HeaderMap {
 /// downstream in metadata extraction, not at the transport layer.
 const HEADERS: &[&str] = &[
     consts::X_CONNECTOR_NAME,
+    consts::X_FRM_CONNECTOR_NAME,
     consts::X_MERCHANT_ID,
     consts::X_REQUEST_ID,
     consts::X_TENANT_ID,

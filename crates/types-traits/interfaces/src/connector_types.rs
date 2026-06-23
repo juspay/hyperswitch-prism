@@ -26,6 +26,12 @@ use domain_types::{
         VerifyWebhookSourceFlowData, WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::WebhookError,
+    frm::frm_types::{
+        FrmChargebackReceivedRequest, FrmChargebackReceivedResponse, FrmFlowData,
+        FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse, FrmRefundProcessedRequest,
+        FrmRefundProcessedResponse, PostRiskCheckRequest, PostRiskCheckResponse,
+        PreRiskCheckRequest, PreRiskCheckResponse,
+    },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     payouts::payouts_types::{
@@ -120,7 +126,22 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
 }
 
 pub trait SurchargeServiceTrait:
-    ConnectorCommon + SurchargeCalculateV2 + SurchargePaymentSucceededV2 + SurchargeRefundSucceededV2
+    ConnectorCommon
+    + ValidationTrait
+    + SurchargeCalculateV2
+    + SurchargePaymentSucceededV2
+    + SurchargeRefundSucceededV2
+{
+}
+
+pub trait FrmServiceTrait:
+    ConnectorCommon
+    + ValidationTrait
+    + PreRiskCheckV2
+    + PostRiskCheckV2
+    + FrmPaymentOutcomeV2
+    + FrmRefundProcessedV2
+    + FrmChargebackReceivedV2
 {
 }
 
@@ -165,6 +186,8 @@ pub trait PaymentMethodEligibilityV2:
 pub type BoxedConnector<T> = Box<&'static (dyn ConnectorServiceTrait<T> + Sync)>;
 
 pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Sync)>;
+
+pub type BoxedFrmConnector = Box<&'static (dyn FrmServiceTrait + Sync)>;
 
 pub type BoxedPayoutConnector = Box<&'static (dyn PayoutServiceTrait + Sync)>;
 
@@ -890,6 +913,56 @@ pub trait SurchargeRefundSucceededV2:
     SurchargeFlowData,
     SurchargeRefundSucceededRequest,
     SurchargeRefundSucceededResponse,
+>
+{
+}
+
+pub trait PreRiskCheckV2:
+    ConnectorIntegrationV2<
+    connector_flow::PreRiskCheck,
+    FrmFlowData,
+    PreRiskCheckRequest,
+    PreRiskCheckResponse,
+>
+{
+}
+
+pub trait PostRiskCheckV2:
+    ConnectorIntegrationV2<
+    connector_flow::PostRiskCheck,
+    FrmFlowData,
+    PostRiskCheckRequest,
+    PostRiskCheckResponse,
+>
+{
+}
+
+pub trait FrmPaymentOutcomeV2:
+    ConnectorIntegrationV2<
+    connector_flow::FrmPaymentOutcome,
+    FrmFlowData,
+    FrmPaymentOutcomeRequest,
+    FrmPaymentOutcomeResponse,
+>
+{
+}
+
+pub trait FrmRefundProcessedV2:
+    ConnectorIntegrationV2<
+    connector_flow::FrmRefundProcessed,
+    FrmFlowData,
+    FrmRefundProcessedRequest,
+    FrmRefundProcessedResponse,
+>
+{
+}
+
+pub trait FrmChargebackReceivedV2:
+    ConnectorIntegrationV2<
+    connector_flow::FrmChargebackReceived,
+    FrmFlowData,
+    FrmChargebackReceivedRequest,
+    FrmChargebackReceivedResponse,
 >
 {
 }

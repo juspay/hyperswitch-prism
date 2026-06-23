@@ -649,6 +649,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
                 connector_response_reference_id: Some(item.response.merchant_ref_num),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -785,6 +786,7 @@ impl<
                 connector_response_reference_id: Some(item.response.merchant_ref_num),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -860,6 +862,7 @@ impl TryFrom<ResponseRouterData<PaysafeSyncResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -921,6 +924,7 @@ impl TryFrom<ResponseRouterData<PaysafeCaptureResponse, Self>>
                 connector_response_reference_id: Some(item.response.merchant_ref_num),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -988,6 +992,7 @@ impl TryFrom<ResponseRouterData<PaysafeVoidResponse, Self>>
                 connector_response_reference_id: Some(item.response.merchant_ref_num),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..router_data
         })

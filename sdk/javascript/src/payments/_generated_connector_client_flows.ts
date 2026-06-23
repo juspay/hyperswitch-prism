@@ -62,6 +62,25 @@ export class EventClient extends _ConnectorClientBase {
 
 }
 
+export class FraudAndRiskManagementClient extends _ConnectorClientBase {
+  /** FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud. */
+  async postRiskCheck(
+    requestMsg: types.IFrmServicePostRiskCheckRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.FrmServicePostRiskCheckResponse> {
+    return this._executeFlow('post_risk_check', requestMsg, options, 'FrmServicePostRiskCheckRequest', 'FrmServicePostRiskCheckResponse') as Promise<types.FrmServicePostRiskCheckResponse>;
+  }
+
+  /** FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review. */
+  async preRiskCheck(
+    requestMsg: types.IFrmServicePreRiskCheckRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.FrmServicePreRiskCheckResponse> {
+    return this._executeFlow('pre_risk_check', requestMsg, options, 'FrmServicePreRiskCheckRequest', 'FrmServicePreRiskCheckResponse') as Promise<types.FrmServicePreRiskCheckResponse>;
+  }
+
+}
+
 export class MerchantAuthenticationClient extends _ConnectorClientBase {
   /** MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI. */
   async createClientAuthenticationToken(

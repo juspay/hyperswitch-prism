@@ -334,6 +334,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         connector_response_reference_id: Some(trace_id),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: enums::AttemptStatus::AuthenticationPending,
@@ -353,6 +354,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: enums::AttemptStatus::AuthenticationPending,
@@ -426,6 +428,7 @@ impl<F> TryFrom<ResponseRouterData<MifinityPsyncResponse, Self>>
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 status_code: item.http_code,
+                                splits: None,
                             }),
                             resource_common_data: PaymentFlowData {
                                 status: enums::AttemptStatus::from(status),
@@ -445,6 +448,7 @@ impl<F> TryFrom<ResponseRouterData<MifinityPsyncResponse, Self>>
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             status: enums::AttemptStatus::from(status),
@@ -465,6 +469,7 @@ impl<F> TryFrom<ResponseRouterData<MifinityPsyncResponse, Self>>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: enums::AttemptStatus::Unspecified,

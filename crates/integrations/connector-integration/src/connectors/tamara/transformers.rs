@@ -354,6 +354,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TamaraPaymentsRespons
                 connector_response_reference_id: item.response.checkout_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data.clone()
         })
@@ -392,6 +393,7 @@ impl TryFrom<ResponseRouterData<TamaraPSyncResponse, Self>>
                 connector_response_reference_id: item.response.order_reference_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data.clone()
         })
@@ -510,6 +512,7 @@ impl TryFrom<ResponseRouterData<TamaraCaptureResponse, Self>>
                 connector_response_reference_id: item.response.capture_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data.clone()
         })
@@ -593,6 +596,7 @@ impl TryFrom<ResponseRouterData<TamaraVoidResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data.clone()
         })

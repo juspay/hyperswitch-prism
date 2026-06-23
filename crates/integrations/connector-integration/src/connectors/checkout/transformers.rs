@@ -1692,6 +1692,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         let (amount_captured, minor_amount_capturable) =
@@ -1806,6 +1807,7 @@ impl<
                     ),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 };
 
                 let (amount_captured, minor_amount_capturable) =
@@ -1925,6 +1927,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2029,6 +2032,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2104,6 +2108,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentVoidResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: http_code_to_attempt_status_for_void_flow(item.http_code),
@@ -2241,6 +2246,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

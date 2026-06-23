@@ -443,6 +443,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<SilverflowPaymentsRes
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -523,6 +524,7 @@ impl TryFrom<ResponseRouterData<SilverflowSyncResponse, Self>>
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -630,6 +632,7 @@ impl TryFrom<ResponseRouterData<SilverflowCaptureResponse, Self>>
                 connector_response_reference_id: Some(item.response.key),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -898,6 +901,7 @@ impl TryFrom<ResponseRouterData<SilverflowVoidResponse, Self>>
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

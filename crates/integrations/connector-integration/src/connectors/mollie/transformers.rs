@@ -3,7 +3,7 @@ use common_utils::{
     pii::Email,
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
@@ -19,7 +19,7 @@ use domain_types::{
         ResponseId,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -107,6 +107,58 @@ pub struct MolliePaymentsRequest {
 pub enum MolliePaymentMethodData {
     #[serde(rename = "creditcard")]
     CreditCard(Box<CreditCardMethodData>),
+    Klarna(Box<KlarnaMethodData>),
+}
+
+// Klarna (PayLater) Method Data
+// For Klarna pay-later, Mollie requires a billing address and order lines.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KlarnaMethodData {
+    pub billing_address: MollieKlarnaAddress,
+    pub lines: Vec<MollieLineItem>,
+}
+
+// Mollie Klarna billing address structure
+// Klarna requires name + email in addition to the postal address fields.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieKlarnaAddress {
+    pub street_and_number: Secret<String>,
+    pub postal_code: Secret<String>,
+    pub city: String,
+    pub region: Option<Secret<String>>,
+    pub country: common_enums::CountryAlpha2,
+    pub given_name: Secret<String>,
+    pub family_name: Secret<String>,
+    pub email: Email,
+}
+
+// Mollie order line item type (Klarna risk assessment).
+// Mollie accepts: physical, digital, shipping_fee, discount, store_credit,
+// gift_card, surcharge. See https://docs.mollie.com/reference/extra-payment-parameters
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MollieLineItemType {
+    Physical,
+    Digital,
+    ShippingFee,
+    Discount,
+    StoreCredit,
+    GiftCard,
+    Surcharge,
+}
+
+// Mollie order line item (required by Klarna)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieLineItem {
+    #[serde(rename = "type")]
+    pub line_type: MollieLineItemType,
+    pub description: String,
+    pub quantity: i32,
+    pub unit_price: MollieAmount,
+    pub total_amount: MollieAmount,
 }
 
 // Credit Card Method Data
@@ -221,6 +273,177 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card_token,
                     billing_address,
                     shipping_address: None,
+                }))
+            }
+            PaymentMethodData::PayLater(PayLaterData::KlarnaRedirect {}) => {
+                // Klarna pay-later requires a billing address (name + email + postal
+                // address) and order line items. Build the billing address from the
+                // payment-method billing details and the email from the request.
+                let billing = item
+                    .resource_common_data
+                    .address
+                    .get_payment_method_billing()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "billing_address",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Mollie Klarna (PayLater) requires billing details (name, email and postal address). Provide payment_method_billing in the request."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    })?;
+                let address =
+                    billing
+                        .address
+                        .as_ref()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "billing_address.address",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires a postal address (line1, city, postal_code, country) in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        })?;
+
+                let line1 = address
+                    .line1
+                    .as_ref()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "billing_address.line1",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Mollie Klarna requires the street address (line1) in the billing address."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    })?
+                    .peek()
+                    .to_string();
+                let street_and_number = match address.line2.as_ref() {
+                    Some(line2) => format!("{},{}", line1, line2.peek().as_str()),
+                    None => line1,
+                };
+
+                let email = billing
+                    .email
+                    .clone()
+                    .or_else(|| item.request.email.clone())
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "email",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Mollie Klarna requires the customer email. Provide it in billing.email or the payment request email."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    })?;
+
+                let billing_address = MollieKlarnaAddress {
+                    street_and_number: Secret::new(street_and_number),
+                    postal_code: Secret::new(
+                        address
+                            .zip
+                            .as_ref()
+                            .ok_or(IntegrationError::MissingRequiredField {
+                                field_name: "billing_address.zip",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "Mollie Klarna requires the postal code (zip) in the billing address."
+                                            .to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
+                            })?
+                            .peek()
+                            .to_string(),
+                    ),
+                    city: address
+                        .city
+                        .as_ref()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "billing_address.city",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires the city in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        })?
+                        .peek()
+                        .to_string(),
+                    region: None,
+                    country: address
+                        .country
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "billing_address.country",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires the country in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        })?,
+                    given_name: address.first_name.clone().ok_or(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "billing_address.first_name",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires the customer's given name (first_name) in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        },
+                    )?,
+                    family_name: address.last_name.clone().ok_or(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "billing_address.last_name",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires the customer's family name (last_name) in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        },
+                    )?,
+                    email,
+                };
+
+                // Mollie requires at least one order line for Klarna. Per-product
+                // line details (and their goods type) are not available in
+                // PaymentsAuthorizeData, so build a single line for the full payment
+                // amount and default its type to `Physical` — the most general type
+                // Klarna accepts for a generic goods purchase. This can be refined
+                // once line-item/product-type data is plumbed through the request.
+                let line = MollieLineItem {
+                    line_type: MollieLineItemType::Physical,
+                    description: item
+                        .resource_common_data
+                        .description
+                        .clone()
+                        .unwrap_or_else(|| "Payment".to_string()),
+                    quantity: 1,
+                    unit_price: MollieAmount {
+                        currency: item.request.currency,
+                        value: amount_value.clone(),
+                    },
+                    total_amount: MollieAmount {
+                        currency: item.request.currency,
+                        value: amount_value.clone(),
+                    },
+                };
+
+                MolliePaymentMethodData::Klarna(Box::new(KlarnaMethodData {
+                    billing_address,
+                    lines: vec![line],
                 }))
             }
             _ => {
@@ -380,6 +603,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MolliePaymentsRespons
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -423,6 +647,7 @@ impl TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -595,6 +820,7 @@ impl TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -840,6 +1066,7 @@ impl TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

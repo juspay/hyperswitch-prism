@@ -12,6 +12,7 @@ use crate::{
         RechargeResponseData,
     },
     payment_method_data::SamsungPayWalletCredentials,
+    router_request_types::AuthoriseIntegrityObject,
     utils::extract_connector_request_reference_id,
 };
 use common_enums::{
@@ -412,6 +413,7 @@ pub struct Connectors {
     pub tamara: ConnectorParams,
     pub hyperswitch: ConnectorParams,
     pub qwikcilver: ConnectorParams,
+    pub kount: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -5703,6 +5705,30 @@ fn convert_connector_metadata_to_secret_string(
     connector_metadata.and_then(|value| serde_json::to_string(&value).ok().map(Secret::new))
 }
 
+impl TryFrom<&AuthoriseIntegrityObject> for grpc_api_types::payments::Money {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(integrity_obj: &AuthoriseIntegrityObject) -> Result<Self, Self::Error> {
+        Ok(Self {
+            minor_amount: integrity_obj.amount.get_amount_as_i64(),
+            currency: grpc_api_types::payments::Currency::foreign_try_from(integrity_obj.currency)
+                .change_context(ConnectorError::ResponseHandlingFailed {
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: None,
+                        additional_context: Some(
+                            "Failed to convert currency to gRPC Currency type".to_string(),
+                        ),
+                    },
+                })
+                .attach_printable(format!(
+                    "source currency for integrity object: {:?}",
+                    integrity_obj.currency
+                ))? as i32,
+        })
+    }
+}
+
+#[allow(deprecated)]
 pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
     router_data_v2: RouterDataV2<
         Authorize,
@@ -5774,6 +5800,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 incremental_authorization_allowed,
                 mandate_reference,
                 status_code,
+                splits,
             } => {
                 let mandate_reference_grpc =
                     mandate_reference.map(|m| grpc_api_types::payments::MandateReference {
@@ -5786,6 +5813,14 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                              }
                         )),
                     });
+
+                let authorized_money = router_data_v2
+                    .request
+                    .integrity_object
+                    .as_ref()
+                    .map(grpc_api_types::payments::Money::try_from)
+                    .transpose()?;
+
                 PaymentServiceAuthorizeResponse {
                     connector_transaction_id: Option::foreign_try_from(resource_id)?,
                     redirection_data: redirection_data
@@ -5814,8 +5849,12 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                         .resource_common_data
                         .minor_amount_authorized
                         .map(|amount_authorized| amount_authorized.get_amount_as_i64()),
+                    authorized_money,
                     connector_response,
                     network_txn_link_id,
+                    splits: splits.map(|s| {
+                        grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(s)
+                    }),
                 }
             }
             _ => {
@@ -5876,8 +5915,10 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 captured_amount: None,
                 capturable_amount: None,
                 authorized_amount: None,
+                authorized_money: None,
                 connector_response,
                 network_txn_link_id: None,
+                splits: None,
             }
         }
     };
@@ -6703,6 +6744,7 @@ pub fn generate_payment_void_response(
                 incremental_authorization_allowed,
                 mandate_reference,
                 status_code,
+                splits,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -6738,6 +6780,11 @@ pub fn generate_payment_void_response(
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
+                    splits: splits.map(|split_response| {
+                        grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(
+                            split_response,
+                        )
+                    }),
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -6785,6 +6832,7 @@ pub fn generate_payment_void_response(
                 mandate_reference: None,
                 incremental_authorization_allowed: None,
                 connector_feature_data: None,
+                splits: None,
             })
         }
     }
@@ -6829,6 +6877,7 @@ pub fn generate_payment_void_post_capture_response(
                 incremental_authorization_allowed: _,
                 mandate_reference: _,
                 status_code,
+                splits: _,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -7077,6 +7126,7 @@ pub fn generate_payment_sync_response(
                 incremental_authorization_allowed,
                 mandate_reference,
                 status_code,
+                splits,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -7152,6 +7202,11 @@ pub fn generate_payment_sync_response(
                         .resource_common_data
                         .sender_payment_instrument_id
                         .clone(),
+                    splits: splits.map(|split_response| {
+                        grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(
+                            split_response,
+                        )
+                    }),
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -7248,6 +7303,7 @@ pub fn generate_payment_sync_response(
                         .resource_common_data
                         .sender_payment_instrument_id
                         .clone(),
+                    splits: None,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -7341,6 +7397,7 @@ pub fn generate_payment_sync_response(
                 incremental_authorization_allowed: None,
                 payment_method_update: None,
                 sender_payment_instrument_id: None,
+                splits: None,
             })
         }
     }
@@ -8222,6 +8279,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             incremental_authorization_allowed: None,
             payment_method_update: payment_method_update_grpc,
             sender_payment_instrument_id: value.sender_payment_instrument_id,
+            splits: None,
         })
     }
 }
@@ -9113,6 +9171,101 @@ impl ForeignTryFrom<grpc_api_types::payments::SplitRefundsDetails>
     }
 }
 
+impl ForeignFrom<common_enums::AdyenSplitType> for grpc_api_types::payments::AdyenSplitType {
+    fn foreign_from(split_type: common_enums::AdyenSplitType) -> Self {
+        match split_type {
+            common_enums::AdyenSplitType::BalanceAccount => Self::BalanceAccount,
+            common_enums::AdyenSplitType::AcquiringFees => Self::AcquiringFees,
+            common_enums::AdyenSplitType::PaymentFee => Self::PaymentFee,
+            common_enums::AdyenSplitType::AdyenFees => Self::AdyenFees,
+            common_enums::AdyenSplitType::AdyenCommission => Self::AdyenCommission,
+            common_enums::AdyenSplitType::AdyenMarkup => Self::AdyenMarkup,
+            common_enums::AdyenSplitType::Interchange => Self::Interchange,
+            common_enums::AdyenSplitType::SchemeFee => Self::SchemeFee,
+            common_enums::AdyenSplitType::Commission => Self::Commission,
+            common_enums::AdyenSplitType::TopUp => Self::TopUp,
+            common_enums::AdyenSplitType::Vat => Self::Vat,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::PaymentChargeType> for grpc_api_types::payments::PaymentChargeType {
+    fn foreign_from(charge_type: common_enums::PaymentChargeType) -> Self {
+        match charge_type {
+            common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct) => {
+                Self::StripeDirect
+            }
+            common_enums::PaymentChargeType::Stripe(
+                common_enums::StripeChargeType::Destination,
+            ) => Self::StripeDestination,
+        }
+    }
+}
+
+impl ForeignFrom<connector_types::AdyenSplitItem> for grpc_api_types::payments::AdyenSplitItem {
+    fn foreign_from(item: connector_types::AdyenSplitItem) -> Self {
+        Self {
+            amount: item.amount.map(|a| a.get_amount_as_i64()),
+            split_type: grpc_api_types::payments::AdyenSplitType::foreign_from(item.split_type)
+                as i32,
+            account: item.account,
+            reference: item.reference,
+            description: item.description,
+        }
+    }
+}
+
+impl ForeignFrom<connector_types::AdyenSplitData> for grpc_api_types::payments::AdyenSplitData {
+    fn foreign_from(data: connector_types::AdyenSplitData) -> Self {
+        Self {
+            store: data.store,
+            split_items: data
+                .split_items
+                .into_iter()
+                .map(grpc_api_types::payments::AdyenSplitItem::foreign_from)
+                .collect(),
+        }
+    }
+}
+
+impl ForeignFrom<connector_types::StripeSplitResponseData>
+    for grpc_api_types::payments::StripeSplitResponseData
+{
+    fn foreign_from(data: connector_types::StripeSplitResponseData) -> Self {
+        Self {
+            charge_id: data.charge_id,
+            charge_type: grpc_api_types::payments::PaymentChargeType::foreign_from(data.charge_type)
+                as i32,
+            application_fees: data.application_fees.map(|a| a.get_amount_as_i64()),
+            transfer_account_id: data.transfer_account_id,
+            on_behalf_of: data.on_behalf_of,
+        }
+    }
+}
+
+impl ForeignFrom<connector_types::ConnectorSplitResponseData>
+    for grpc_api_types::payments::ConnectorSplitResponseData
+{
+    fn foreign_from(data: connector_types::ConnectorSplitResponseData) -> Self {
+        match data {
+            connector_types::ConnectorSplitResponseData::StripeSplitPayment(stripe) => Self {
+                split_response_type: Some(
+                    grpc_api_types::payments::connector_split_response_data::SplitResponseType::StripeSplitResponse(
+                        grpc_api_types::payments::StripeSplitResponseData::foreign_from(stripe),
+                    ),
+                ),
+            },
+            connector_types::ConnectorSplitResponseData::AdyenSplitPayment(adyen) => Self {
+                split_response_type: Some(
+                    grpc_api_types::payments::connector_split_response_data::SplitResponseType::AdyenSplitResponse(
+                        grpc_api_types::payments::AdyenSplitData::foreign_from(adyen),
+                    ),
+                ),
+            },
+        }
+    }
+}
+
 impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceRefundRequest> for RefundsData {
     type Error = IntegrationError;
 
@@ -9874,6 +10027,7 @@ pub fn generate_payment_capture_response(
                 incremental_authorization_allowed,
                 mandate_reference,
                 status_code,
+                splits,
             } => {
                 let status = router_data_v2.resource_common_data.status;
                 let grpc_status = grpc_api_types::payments::PaymentStatus::foreign_from(status);
@@ -9910,6 +10064,11 @@ pub fn generate_payment_capture_response(
                         connector_metadata,
                     ),
                     connector_response,
+                    splits: splits.map(|split_response| {
+                        grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(
+                            split_response,
+                        )
+                    }),
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -9959,6 +10118,7 @@ pub fn generate_payment_capture_response(
                 captured_amount: None,
                 connector_feature_data: None,
                 connector_response,
+                splits: None,
             })
         }
     }
@@ -10607,56 +10767,6 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
     }
 }
 
-impl ForeignTryFrom<&grpc_api_types::payouts::Customer> for CustomerInfo {
-    type Error = IntegrationError;
-    fn foreign_try_from(
-        value: &grpc_api_types::payouts::Customer,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let customer_id = value
-            .id
-            .clone()
-            .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-            .transpose()
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "customer.id",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Failed to parse Customer Id".to_string()),
-                    suggested_action: Some("Provide a valid customer ID".to_string()),
-                    doc_url: None,
-                },
-            })?;
-
-        let customer_email: Option<Email> = match value.email {
-            Some(ref email_str) => {
-                Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
-                    error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                        field_name: "customer.email",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("Invalid customer email format".to_string()),
-                            suggested_action: Some(
-                                "Provide a valid email address in customer.email".to_string(),
-                            ),
-                            doc_url: None,
-                        },
-                    })
-                })?)
-            }
-            None => None,
-        };
-
-        Ok(Self {
-            customer_id,
-            customer_email,
-            customer_name: value.name.clone().map(Into::into),
-            first_name: value.first_name.clone().map(Into::into),
-            last_name: value.last_name.clone().map(Into::into),
-            customer_phone_number: value.phone_number.clone(),
-            customer_phone_country_code: value.phone_country_code.clone(),
-            salutation: value.salutation.clone(),
-        })
-    }
-}
-
 impl ForeignFrom<connector_types::CustomerInfo> for grpc_api_types::payments::Customer {
     fn foreign_from(info: connector_types::CustomerInfo) -> Self {
         Self {
@@ -10928,6 +11038,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 incremental_authorization_allowed,
                 mandate_reference,
                 status_code,
+                splits,
             } => {
                 let mandate_reference_grpc =
                     mandate_reference.map(|m| grpc_api_types::payments::MandateReference {
@@ -11027,6 +11138,11 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         connector_metadata,
                     ),
                     captured_amount: minor_captured_amount,
+                    splits: splits.map(|split_response| {
+                        grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(
+                            split_response,
+                        )
+                    }),
                 }
             }
             _ => {
@@ -11080,6 +11196,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                 connector_response,
                 connector_feature_data: None,
                 captured_amount: None,
+                splits: None,
             }
         }
     };

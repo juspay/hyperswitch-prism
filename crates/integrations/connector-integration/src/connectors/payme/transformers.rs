@@ -357,6 +357,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaymePaymentResponse,
                 connector_response_reference_id: response.transaction_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             };
 
             Ok(Self {
@@ -522,6 +523,7 @@ impl TryFrom<ResponseRouterData<PaymeSyncResponse, Self>>
                 connector_response_reference_id: sale_item.transaction_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             };
 
             Ok(Self {
@@ -657,6 +659,7 @@ impl TryFrom<ResponseRouterData<PaymeCaptureResponse, Self>>
                 connector_response_reference_id: response.transaction_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             };
 
             Ok(Self {
@@ -1032,6 +1035,7 @@ impl TryFrom<ResponseRouterData<PaymeVoidResponse, Self>>
                 connector_response_reference_id: response.transaction_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             };
 
             Ok(Self {
