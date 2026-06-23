@@ -163,32 +163,36 @@ where
         };
 
         let authentication_settings = match router_data.request.payment_method_type {
-            Some(common_enums::PaymentMethodType::UpiIntent) => Some(vec![
-                PproAuthenticationSettings {
+            Some(common_enums::PaymentMethodType::UpiIntent) => {
+                Some(vec![PproAuthenticationSettings {
                     r#type: PproAuthenticationType::AppIntent,
                     settings: Some(PproAuthSettingsDetails {
                         return_url: None,
                         scan_by: None,
                         mobile_intent_uri: router_data.request.router_return_url.clone(),
                     }),
-                },
-            ]),
-            Some(common_enums::PaymentMethodType::UpiQr) => Some(vec![
-                PproAuthenticationSettings {
+                }])
+            }
+            Some(common_enums::PaymentMethodType::UpiQr) => {
+                Some(vec![PproAuthenticationSettings {
                     r#type: PproAuthenticationType::ScanCode,
                     settings: None,
-                },
-            ]),
-            _ => router_data.request.router_return_url.as_ref().map(|return_url| {
-                vec![PproAuthenticationSettings {
-                    r#type: PproAuthenticationType::Redirect,
-                    settings: Some(PproAuthSettingsDetails {
-                        return_url: Some(return_url.to_string()),
-                        scan_by: None,
-                        mobile_intent_uri: None,
-                    }),
-                }]
-            }),
+                }])
+            }
+            _ => router_data
+                .request
+                .router_return_url
+                .as_ref()
+                .map(|return_url| {
+                    vec![PproAuthenticationSettings {
+                        r#type: PproAuthenticationType::Redirect,
+                        settings: Some(PproAuthSettingsDetails {
+                            return_url: Some(return_url.to_string()),
+                            scan_by: None,
+                            mobile_intent_uri: None,
+                        }),
+                    }]
+                }),
         };
 
         let email = router_data
