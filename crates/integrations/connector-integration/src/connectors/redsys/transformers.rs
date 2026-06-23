@@ -612,7 +612,9 @@ fn build_threeds_invoke_response(
         .ok_or_else(|| {
             Report::new(ConnectorError::response_handling_failed_with_context(
                 http_status,
-                Some("webhook_url / continue_redirection_url missing for 3DS method URL".to_string()),
+                Some(
+                    "webhook_url / continue_redirection_url missing for 3DS method URL".to_string(),
+                ),
             ))
         })?;
 
