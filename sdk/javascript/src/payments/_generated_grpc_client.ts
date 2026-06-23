@@ -115,6 +115,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   Address: ["firstName", "lastName", "line1", "line2", "line3", "city", "state", "zipCode", "email", "phoneNumber"],
   AccessToken: ["token"],
   BillingDescriptor: ["name", "city", "phone"],
+  MandateReference: ["mandateMetadata"],
   NetworkTokenWithNTI: ["tokenExpMonth", "tokenExpYear"],
   TaxInfo: ["customerTaxRegistrationId", "merchantTaxRegistrationId"],
   AirlinePassenger: ["passportNumber", "ticketNumber"],

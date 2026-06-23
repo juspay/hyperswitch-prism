@@ -8175,12 +8175,11 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                     .collect()
             })
             .unwrap_or_default();
-        let mandate_reference_grpc =
-            value
-                .mandate_reference
-                .map(|m| {
-                    grpc_api_types::payments::MandateReference {
-                        mandate_metadata: convert_connector_metadata_to_secret_string(m.mandate_metadata.map(|v| v.expose())),
+        let mandate_reference_grpc = value.mandate_reference.map(|m| {
+            grpc_api_types::payments::MandateReference {
+                mandate_metadata: convert_connector_metadata_to_secret_string(
+                    m.mandate_metadata.map(|v| v.expose()),
+                ),
                 mandate_id_type: Some(
                     grpc_api_types::payments::mandate_reference::MandateIdType::ConnectorMandateId(
                         grpc_payment_types::ConnectorMandateReferenceId {
@@ -8192,7 +8191,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                     ),
                 ),
             }
-                });
+        });
         let payment_method_update_grpc = value.payment_method_update.map(|update| {
             grpc_api_types::payments::PaymentMethodUpdate {
                 payment_method_update_data: Some(match update {
