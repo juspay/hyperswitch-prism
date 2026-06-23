@@ -113,6 +113,7 @@ mod tests {
                     ),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: Some(
                         Email::try_from("test@example.com".to_string())
                             .expect("Failed to parse email"),
@@ -186,6 +187,9 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    mit_category: None,
+                    domain_data: None,
+                    partner_merchant_identifier_details: None,
 },
                 response: Err(ErrorResponse::default())
 };
@@ -302,6 +306,7 @@ mod tests {
                     payment_method_data: PaymentMethodData::Card(Default::default()),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: None,
                     customer_name: None,
                     currency: common_enums::Currency::USD,
@@ -344,6 +349,9 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    mit_category: None,
+                    domain_data: None,
+                    partner_merchant_identifier_details: None,
 },
                 response: Err(ErrorResponse::default())
 };

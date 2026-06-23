@@ -1528,6 +1528,29 @@ pub enum DisputeStage {
     PreArbitration,
 }
 
+/// Indicates the payment eligibility status.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EligibilityStatus {
+    #[default]
+    Ineligible,
+    Eligible,
+    Unknown,
+}
+
 /// Indicates the card network.
 #[derive(
     Clone,
@@ -2411,4 +2434,105 @@ pub enum Tokenization {
 pub enum TaxStatus {
     Taxable,
     Exempt,
+}
+
+/// Whether the ticket can be refunded.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TicketRefundability {
+    Refundable,
+    NonRefundable,
+}
+
+/// Ticket medium — electronic vs paper.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TicketDeliveryType {
+    Electronic,
+    Paper,
+}
+
+/// Whether the cardholder is among the passengers (fraud signal).
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CardholderTravelStatus {
+    Traveling,
+    NotTraveling,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "PascalCase")]
+#[serde(rename_all = "PascalCase")]
+pub enum AdyenSplitType {
+    /// Books split amount to the specified account.
+    BalanceAccount,
+    /// The aggregated amount of the interchange and scheme fees.
+    AcquiringFees,
+    /// The aggregated amount of all transaction fees.
+    PaymentFee,
+    /// The aggregated amount of Adyen's commission and markup fees.
+    AdyenFees,
+    ///  The transaction fees due to Adyen under blended rates.
+    AdyenCommission,
+    /// The transaction fees due to Adyen under Interchange ++ pricing.
+    AdyenMarkup,
+    ///  The fees paid to the issuer for each payment made with the card network.
+    Interchange,
+    ///  The fees paid to the card scheme for using their network.
+    SchemeFee,
+    /// Your platform's commission on the payment (specified in amount), booked to your liable balance account.
+    Commission,
+    /// Allows you and your users to top up balance accounts using direct debit, card payments, or other payment methods.
+    TopUp,
+    /// The value-added tax charged on the payment, booked to your platforms liable balance account.
+    Vat,
 }

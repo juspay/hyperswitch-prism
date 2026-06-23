@@ -17,6 +17,9 @@ pub struct RSync;
 pub struct Refund;
 
 #[derive(Debug, Clone)]
+pub struct VoidPostRefund;
+
+#[derive(Debug, Clone)]
 pub struct Capture;
 
 #[derive(Debug, Clone)]
@@ -112,11 +115,15 @@ pub struct CreatePaymentMethod;
 #[derive(Debug, Clone)]
 pub struct GetPaymentMethod;
 
+#[derive(Debug, Clone)]
+pub struct PaymentMethodEligibility;
+
 #[derive(strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum FlowName {
     Authorize,
     Refund,
+    VoidPostRefund,
     Rsync,
     Psync,
     Void,
@@ -154,4 +161,5 @@ pub enum FlowName {
     Recharge,
     CreatePaymentMethod,
     GetPaymentMethod,
+    PaymentMethodEligibility,
 }

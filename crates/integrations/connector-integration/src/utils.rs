@@ -286,21 +286,21 @@ where
 
 pub trait SplitPaymentData {
     fn get_split_payment_data(&self)
-        -> Option<domain_types::connector_types::SplitPaymentsRequest>;
+        -> Option<domain_types::connector_types::SplitPaymentsDetails>;
 }
 
 impl SplitPaymentData for PaymentsCaptureData {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
-        None
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
+        self.split_payments.clone()
     }
 }
 
 impl<T: PaymentMethodDataTypes> SplitPaymentData for PaymentsAuthorizeData<T> {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
         self.split_payments.clone()
     }
 }
@@ -308,7 +308,7 @@ impl<T: PaymentMethodDataTypes> SplitPaymentData for PaymentsAuthorizeData<T> {
 impl<T: PaymentMethodDataTypes> SplitPaymentData for RepeatPaymentData<T> {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
         self.split_payments.clone()
     }
 }
@@ -316,7 +316,7 @@ impl<T: PaymentMethodDataTypes> SplitPaymentData for RepeatPaymentData<T> {
 impl SplitPaymentData for PaymentsSyncData {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
         self.split_payments.clone()
     }
 }
@@ -324,16 +324,16 @@ impl SplitPaymentData for PaymentsSyncData {
 impl SplitPaymentData for PaymentVoidData {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
-        None
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
+        self.split_payments.clone()
     }
 }
 
 impl<T: PaymentMethodDataTypes> SplitPaymentData for SetupMandateRequestData<T> {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
-        None
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
+        self.split_payments.clone()
     }
 }
 

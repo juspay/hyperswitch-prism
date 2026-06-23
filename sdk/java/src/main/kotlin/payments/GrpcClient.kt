@@ -16,6 +16,7 @@ import types.Payment.*
 import types.PaymentMethods.*
 import types.Payouts.*
 import types.Surcharge.*
+import types.Frm.*
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -187,6 +188,24 @@ class GrpcEventClient internal constructor(
 }
 
 /**
+ * FraudAndRiskManagementService — gRPC sub-client.
+ */
+class GrpcFraudAndRiskManagementClient internal constructor(
+    private val config: GrpcConfig,
+) {
+    /**
+     * FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+     */
+    suspend fun pre_risk_check(req: FrmServicePreRiskCheckRequest): FrmServicePreRiskCheckResponse =
+        callGrpc(config, "fraud_and_risk_management/pre_risk_check", req, FrmServicePreRiskCheckResponse.parser())
+    /**
+     * FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+     */
+    suspend fun post_risk_check(req: FrmServicePostRiskCheckRequest): FrmServicePostRiskCheckResponse =
+        callGrpc(config, "fraud_and_risk_management/post_risk_check", req, FrmServicePostRiskCheckResponse.parser())
+}
+
+/**
  * MerchantAuthenticationService — gRPC sub-client.
  */
 class GrpcMerchantAuthenticationClient internal constructor(
@@ -258,6 +277,11 @@ class GrpcPaymentMethodClient internal constructor(
      */
     suspend fun recharge(req: PaymentMethodServiceRechargeRequest): PaymentMethodServiceRechargeResponse =
         callGrpc(config, "payment_method/recharge", req, PaymentMethodServiceRechargeResponse.parser())
+    /**
+     * PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+     */
+    suspend fun eligibility(req: PaymentMethodServiceEligibilityRequest): PaymentMethodServiceEligibilityResponse =
+        callGrpc(config, "payment_method/eligibility", req, PaymentMethodServiceEligibilityResponse.parser())
 }
 
 /**
@@ -387,8 +411,8 @@ class GrpcPayoutClient internal constructor(
     /**
      * PayoutService.Eligibility — Check if the payout method is eligible for the transaction
      */
-    suspend fun eligibility(req: PayoutMethodEligibilityRequest): PayoutMethodEligibilityResponse =
-        callGrpc(config, "payout/eligibility", req, PayoutMethodEligibilityResponse.parser())
+    suspend fun payout_eligibility(req: PayoutMethodEligibilityRequest): PayoutMethodEligibilityResponse =
+        callGrpc(config, "payout/payout_eligibility", req, PayoutMethodEligibilityResponse.parser())
 }
 
 /**
@@ -420,6 +444,11 @@ class GrpcRefundClient internal constructor(
      */
     suspend fun refund_get(req: RefundServiceGetRequest): RefundResponse =
         callGrpc(config, "refund/refund_get", req, RefundResponse.parser())
+    /**
+     * RefundService.VoidPostRefund — Void/reverse a refund before processor settlement.
+     */
+    suspend fun void_post_refund(req: RefundServiceVoidPostRefundRequest): RefundResponse =
+        callGrpc(config, "refund/void_post_refund", req, RefundResponse.parser())
 }
 
 /**
@@ -444,6 +473,8 @@ class GrpcClient(config: GrpcConfig) {
         GrpcDisputeClient(config)
     val event: GrpcEventClient =
         GrpcEventClient(config)
+    val fraud_and_risk_management: GrpcFraudAndRiskManagementClient =
+        GrpcFraudAndRiskManagementClient(config)
     val merchant_authentication: GrpcMerchantAuthenticationClient =
         GrpcMerchantAuthenticationClient(config)
     val payment_method_authentication: GrpcPaymentMethodAuthenticationClient =

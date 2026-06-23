@@ -1020,6 +1020,7 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
     ],
     not_supported: [
+        VoidPostRefund,
         VoidPC,
         CreateConnectorCustomer,
         IncrementalAuthorization,

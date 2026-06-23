@@ -10,12 +10,13 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use domain_types::connector_types::{
     AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
     CreatePaymentMethodData, DisputeDefendData, GetPaymentMethodData, MandateRevokeRequestData,
-    PaymentCreateOrderData, PaymentMethodTokenizationData, PaymentVoidData,
-    PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-    PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-    PaymentsPreAuthenticateData, PaymentsSyncData, RechargeRequestData, RefundSyncData,
-    RefundsData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
-    ServerSessionAuthenticationTokenRequestData, SetupMandateRequestData, SubmitEvidenceData,
+    PaymentCreateOrderData, PaymentMethodEligibilityData, PaymentMethodTokenizationData,
+    PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+    PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+    PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsSyncData,
+    RechargeRequestData, RefundSyncData, RefundVoidPostRefundData, RefundsData, RepeatPaymentData,
+    ServerAuthenticationTokenRequestData, ServerSessionAuthenticationTokenRequestData,
+    SetupMandateRequestData, SubmitEvidenceData,
 };
 use domain_types::payouts::payouts_types::{
     PayoutCreateLinkRequest, PayoutCreateRecipientRequest, PayoutCreateRequest,
@@ -42,7 +43,8 @@ use domain_types::{
         CreateOrderIntegrityObject, CreatePaymentMethodIntegrityObject,
         DefendDisputeIntegrityObject, GetPaymentMethodIntegrityObject,
         IncrementalAuthorizationIntegrityObject, MandateRevokeIntegrityObject,
-        PaymentMethodTokenIntegrityObject, PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
+        PaymentMethodEligibilityIntegrityObject, PaymentMethodTokenIntegrityObject,
+        PaymentSynIntegrityObject, PaymentVoidIntegrityObject,
         PaymentVoidPostCaptureIntegrityObject, PostAuthenticateIntegrityObject,
         PreAuthenticateIntegrityObject, RechargeIntegrityObject, RefundIntegrityObject,
         RefundSyncIntegrityObject, RepeatPaymentIntegrityObject, SessionTokenIntegrityObject,
@@ -179,6 +181,7 @@ impl_check_integrity!(PaymentsCaptureData);
 impl_check_integrity!(AcceptDisputeData);
 impl_check_integrity!(DisputeDefendData);
 impl_check_integrity!(RefundSyncData);
+impl_check_integrity!(RefundVoidPostRefundData);
 impl_check_integrity!(ServerSessionAuthenticationTokenRequestData);
 impl_check_integrity!(ServerAuthenticationTokenRequestData);
 impl_check_integrity!(PaymentMethodTokenizationData<S>);
@@ -206,6 +209,7 @@ impl_check_integrity!(SurchargeRefundSucceededRequest);
 impl_check_integrity!(RechargeRequestData);
 impl_check_integrity!(CreatePaymentMethodData);
 impl_check_integrity!(GetPaymentMethodData);
+impl_check_integrity!(PaymentMethodEligibilityData);
 
 // ========================================================================
 // GET INTEGRITY OBJECT IMPLEMENTATIONS
@@ -355,6 +359,19 @@ impl GetIntegrityObject<RefundSyncIntegrityObject> for RefundSyncData {
     }
 }
 
+impl GetIntegrityObject<RefundSyncIntegrityObject> for RefundVoidPostRefundData {
+    fn get_response_integrity_object(&self) -> Option<RefundSyncIntegrityObject> {
+        self.integrity_object.clone()
+    }
+
+    fn get_request_integrity_object(&self) -> RefundSyncIntegrityObject {
+        RefundSyncIntegrityObject {
+            connector_transaction_id: String::new(),
+            connector_refund_id: self.connector_refund_id.clone(),
+        }
+    }
+}
+
 impl GetIntegrityObject<SubmitEvidenceIntegrityObject> for SubmitEvidenceData {
     fn get_response_integrity_object(&self) -> Option<SubmitEvidenceIntegrityObject> {
         self.integrity_object.clone()
@@ -405,6 +422,16 @@ impl GetIntegrityObject<MandateRevokeIntegrityObject> for MandateRevokeRequestDa
         MandateRevokeIntegrityObject {
             mandate_id: self.mandate_id.clone(),
         }
+    }
+}
+
+impl GetIntegrityObject<PaymentMethodEligibilityIntegrityObject> for PaymentMethodEligibilityData {
+    fn get_response_integrity_object(&self) -> Option<PaymentMethodEligibilityIntegrityObject> {
+        None
+    }
+
+    fn get_request_integrity_object(&self) -> PaymentMethodEligibilityIntegrityObject {
+        PaymentMethodEligibilityIntegrityObject {}
     }
 }
 
@@ -966,6 +993,18 @@ impl FlowIntegrity for MandateRevokeIntegrityObject {
     }
 }
 
+impl FlowIntegrity for PaymentMethodEligibilityIntegrityObject {
+    type IntegrityObject = Self;
+
+    fn compare(
+        _req_integrity_object: Self,
+        _res_integrity_object: Self,
+        _connector_transaction_id: Option<String>,
+    ) -> Result<(), IntegrityCheckError> {
+        Ok(())
+    }
+}
+
 impl FlowIntegrity for VerifyWebhookSourceIntegrityObject {
     type IntegrityObject = Self;
 
@@ -1249,6 +1288,7 @@ fn check_integrity_result(
     connector_transaction_id: Option<String>,
 ) -> Result<(), IntegrityCheckError> {
     if mismatched_fields.is_empty() {
+        tracing::info!("Integrity check passed");
         Ok(())
     } else {
         let field_names = mismatched_fields.join(", ");

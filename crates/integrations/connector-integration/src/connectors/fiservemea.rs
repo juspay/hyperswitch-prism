@@ -592,6 +592,7 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
     ],
     not_supported: [
+        VoidPostRefund,
         CreateOrder,
         ClientAuthenticationToken,
         Accept,

@@ -736,6 +736,7 @@ macros::macro_connector_flow_status_impls!(
         ClientAuthenticationToken,
     ],
     not_supported: [
+        VoidPostRefund,
         SubmitEvidence,
         DefendDispute,
         Accept,

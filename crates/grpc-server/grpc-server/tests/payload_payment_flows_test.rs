@@ -184,7 +184,7 @@ fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServ
         connector_order_reference_id: None,
         test_mode: None,
         payment_experience: None,
-
+        split_payments: None,
         merchant_request_id: None,
         payment_method_type: None,
     }
@@ -537,7 +537,7 @@ async fn test_authorize_capture_refund_rsync() {
             connector_order_reference_id: None,
             test_mode: None,
             payment_experience: None,
-
+            split_payments: None,
             merchant_request_id: None,
             payment_method_type: None,
         };
@@ -660,8 +660,8 @@ async fn test_repeat_payment() {
         let mut repeat_grpc_request = Request::new(repeat_request);
         add_payload_metadata(&mut repeat_grpc_request);
 
-        let repeat_response = recurring_client
-            .charge(repeat_grpc_request)
+        let repeat_response = Box::pin(recurring_client
+            .charge(repeat_grpc_request))
             .await
             .expect("gRPC charge call failed")
             .into_inner();

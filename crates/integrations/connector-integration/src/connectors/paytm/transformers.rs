@@ -618,6 +618,7 @@ impl<
                 connector_response_reference_id: connector_ref_id,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -760,6 +761,7 @@ impl TryFrom<ResponseRouterData<PaytmTransactionStatusResponse, Self>>
                 connector_response_reference_id: connector_ref_id,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 

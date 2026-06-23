@@ -321,6 +321,7 @@ impl Event {
 pub enum FlowName {
     Authorize,
     Refund,
+    VoidPostRefund,
     Capture,
     Void,
     VoidPostCapture,
@@ -359,6 +360,7 @@ pub enum FlowName {
     Recharge,
     CreatePaymentMethod,
     GetPaymentMethod,
+    PaymentMethodEligibility,
 }
 
 impl FlowName {
@@ -366,6 +368,7 @@ impl FlowName {
         match self {
             Self::Authorize => "Authorize",
             Self::Refund => "Refund",
+            Self::VoidPostRefund => "VoidPostRefund",
             Self::Capture => "Capture",
             Self::Void => "Void",
             Self::VoidPostCapture => "VoidPostCapture",
@@ -403,6 +406,7 @@ impl FlowName {
             Self::Recharge => "Recharge",
             Self::CreatePaymentMethod => "CreatePaymentMethod",
             Self::GetPaymentMethod => "GetPaymentMethod",
+            Self::PaymentMethodEligibility => "PaymentMethodEligibility",
             Self::Unknown => "Unknown",
         }
     }

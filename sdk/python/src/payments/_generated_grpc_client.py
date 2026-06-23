@@ -181,6 +181,28 @@ class GrpcEventClient:
             req, payment_pb2.NotifyConnectorResponse,
         )
 
+class GrpcFraudAndRiskManagementClient:
+    """FraudAndRiskManagementService — gRPC sub-client."""
+
+    def __init__(self, ffi: _GrpcFfi, config: GrpcConfig) -> None:
+        self._ffi    = ffi
+        self._config = config
+
+    def pre_risk_check(self, req: payment_pb2.FrmServicePreRiskCheckRequest) -> payment_pb2.FrmServicePreRiskCheckResponse:
+        """FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "fraud_and_risk_management/pre_risk_check",
+            req, payment_pb2.FrmServicePreRiskCheckResponse,
+        )
+    def post_risk_check(self, req: payment_pb2.FrmServicePostRiskCheckRequest) -> payment_pb2.FrmServicePostRiskCheckResponse:
+        """FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "fraud_and_risk_management/post_risk_check",
+            req, payment_pb2.FrmServicePostRiskCheckResponse,
+        )
+
 class GrpcMerchantAuthenticationClient:
     """MerchantAuthenticationService — gRPC sub-client."""
 
@@ -273,6 +295,13 @@ class GrpcPaymentMethodClient:
             self._ffi, self._config,
             "payment_method/recharge",
             req, payment_pb2.PaymentMethodServiceRechargeResponse,
+        )
+    def eligibility(self, req: payment_pb2.PaymentMethodServiceEligibilityRequest) -> payment_pb2.PaymentMethodServiceEligibilityResponse:
+        """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/eligibility",
+            req, payment_pb2.PaymentMethodServiceEligibilityResponse,
         )
 
 class GrpcPaymentClient:
@@ -444,11 +473,11 @@ class GrpcPayoutClient:
             "payout/enroll_disburse_account",
             req, payment_pb2.PayoutServiceEnrollDisburseAccountResponse,
         )
-    def eligibility(self, req: payment_pb2.PayoutMethodEligibilityRequest) -> payment_pb2.PayoutMethodEligibilityResponse:
+    def payout_eligibility(self, req: payment_pb2.PayoutMethodEligibilityRequest) -> payment_pb2.PayoutMethodEligibilityResponse:
         """PayoutService.Eligibility — Check if the payout method is eligible for the transaction"""
         return _call_grpc(
             self._ffi, self._config,
-            "payout/eligibility",
+            "payout/payout_eligibility",
             req, payment_pb2.PayoutMethodEligibilityResponse,
         )
 
@@ -488,6 +517,13 @@ class GrpcRefundClient:
             "refund/refund_get",
             req, payment_pb2.RefundResponse,
         )
+    def void_post_refund(self, req: payment_pb2.RefundServiceVoidPostRefundRequest) -> payment_pb2.RefundResponse:
+        """RefundService.VoidPostRefund — Void/reverse a refund before processor settlement."""
+        return _call_grpc(
+            self._ffi, self._config,
+            "refund/void_post_refund",
+            req, payment_pb2.RefundResponse,
+        )
 
 class GrpcSurchargeClient:
     """SurchargeService — gRPC sub-client."""
@@ -523,12 +559,13 @@ class GrpcClient:
         res = client.customer.customer_create(...)
         res = client.dispute.submit_evidence(...)
         res = client.event.parse_event(...)
-        res = client.merchant_authentication.create_server_authentication_token(...)
+        res = client.fraud_and_risk_management.pre_risk_check(...)
     """
 
     customer: GrpcCustomerClient
     dispute: GrpcDisputeClient
     event: GrpcEventClient
+    fraud_and_risk_management: GrpcFraudAndRiskManagementClient
     merchant_authentication: GrpcMerchantAuthenticationClient
     payment_method_authentication: GrpcPaymentMethodAuthenticationClient
     payment_method: GrpcPaymentMethodClient
@@ -543,6 +580,7 @@ class GrpcClient:
         self.customer = GrpcCustomerClient(ffi, config)
         self.dispute = GrpcDisputeClient(ffi, config)
         self.event = GrpcEventClient(ffi, config)
+        self.fraud_and_risk_management = GrpcFraudAndRiskManagementClient(ffi, config)
         self.merchant_authentication = GrpcMerchantAuthenticationClient(ffi, config)
         self.payment_method_authentication = GrpcPaymentMethodAuthenticationClient(ffi, config)
         self.payment_method = GrpcPaymentMethodClient(ffi, config)
