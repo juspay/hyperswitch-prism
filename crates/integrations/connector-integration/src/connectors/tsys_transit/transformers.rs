@@ -700,6 +700,19 @@ pub struct TsysTransitCardAuthenticationRequest {
     pub zip: Secret<String>,
     #[serde(rename = "externalReferenceID")]
     pub external_reference_id: String,
+    // TSYS cert: cardOnFile must be sent on Visa CIT-setup card auth
+    // (storing credential for future MIT). Schema slot matches Sale —
+    // sits between externalReferenceID and terminalCapability.
+    #[serde(rename = "cardOnFile", skip_serializing_if = "Option::is_none")]
+    pub card_on_file: Option<TsysTransitCardOnFile>,
+    #[serde(rename = "citStatusIndicator", skip_serializing_if = "Option::is_none")]
+    pub cit_status_indicator: Option<TsysTransitMcCitStatusIndicator>,
+    // TSYS cert: authorizationIndicator missing on MC card auth.
+    #[serde(
+        rename = "authorizationIndicator",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authorization_indicator: Option<TsysTransitAuthorizationIndicator>,
     #[serde(rename = "firstName", skip_serializing_if = "Option::is_none")]
     pub first_name: Option<Secret<String>>,
     #[serde(rename = "middleName", skip_serializing_if = "Option::is_none")]
@@ -732,32 +745,14 @@ pub struct TsysTransitCardAuthenticationRequest {
     pub cardholder_authentication_entity: TsysTransitCardholderAuthenticationEntity,
     #[serde(rename = "cardDataOutputCapability")]
     pub card_data_output_capability: TsysTransitCardDataOutputCapability,
-    // TSYS' SBX XSD on CardAuthentication enforces a strict sequence
-    // here that requires BOTH:
-    //   1. mPosAcceptanceDeviceType
-    //   2. one of {acceptorStreetAddress, serviceLocationCity,
-    //      serviceLocationGeoCoordinates, merchantTokenRequesterID}
-    // The cert csv asked us to drop mPosAcceptanceDeviceType, but
-    // omitting it alone leaves the schema rejecting with F9901
-    // ("Invalid content was found starting with element 'cvv2'" /
-    // "Invalid content was found starting with element 'cardOnFile'").
-    // We satisfy (1) with "0" and (2) by mirroring billing addressLine1
-    // into acceptorStreetAddress.
+    // TSYS' SBX XSD requires mPosAcceptanceDeviceType as the LAST
+    // element on CardAuthentication. The cert csv asked us to remove
+    // it, but removing it alone trips a different XSD complaint
+    // (F9901). Keep "0" as a placeholder; downstream fields
+    // (cardOnFile, citStatusIndicator, authorizationIndicator) all
+    // moved earlier in the body to match Sale's schema order.
     #[serde(rename = "mPosAcceptanceDeviceType")]
     pub m_pos_acceptance_device_type: String,
-    #[serde(rename = "acceptorStreetAddress")]
-    pub acceptor_street_address: Secret<String>,
-    // TSYS cert: authorizationIndicator is missing on Mastercard
-    // card-authentication transactions in step 3.
-    #[serde(
-        rename = "authorizationIndicator",
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub authorization_indicator: Option<TsysTransitAuthorizationIndicator>,
-    #[serde(rename = "cardOnFile", skip_serializing_if = "Option::is_none")]
-    pub card_on_file: Option<TsysTransitCardOnFile>,
-    #[serde(rename = "citStatusIndicator", skip_serializing_if = "Option::is_none")]
-    pub cit_status_indicator: Option<TsysTransitMcCitStatusIndicator>,
 }
 
 impl GetSoapXml for TsysTransitCardAuthenticationRequest {
@@ -3543,11 +3538,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             card_data_input_mode,
             cardholder_authentication_entity,
             card_data_output_capability,
-            // XSD enforces BOTH mPos AND one of {acceptor*, serviceLocation*,
-            // merchantTokenRequesterID}. See struct doc for cert vs XSD
-            // trade-off.
+            // mPos must be the LAST element on CardAuthentication per
+            // the SBX XSD; downstream fields (cardOnFile, etc.) live
+            // earlier in the struct now.
             m_pos_acceptance_device_type: "0".to_string(),
-            acceptor_street_address: address_line1.clone(),
             authorization_indicator,
             card_on_file,
             cit_status_indicator,
