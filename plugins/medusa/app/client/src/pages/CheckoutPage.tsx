@@ -7,6 +7,7 @@ import {
   PayPalWrapper,
   GlobalPayWrapper,
   MollieWrapper,
+  BraintreeWrapper,
 } from "@juspay-tech/medusa-custom-payments-react";
 
 // The Stripe publishable key and Adyen client key are delivered by the server
@@ -20,9 +21,10 @@ const CONNECTOR_LABELS: Record<string, string> = {
   paypal: "PayPal",
   globalpay: "GlobalPay",
   mollie: "Mollie",
+  braintree: "Braintree",
 };
 
-const SUPPORTED = ["stripe", "adyen", "paypal", "globalpay", "mollie"];
+const SUPPORTED = ["stripe", "adyen", "paypal", "globalpay", "mollie", "braintree"];
 
 type SessionState = {
   collectionId: string;
@@ -259,6 +261,37 @@ function ConnectorUI({ connector, sessionId, sessionData, onComplete, onError }:
               return;
             }
             window.location.assign(`/order/${sessionId}`);
+          }}
+        />
+      );
+
+    case "braintree":
+      // Braintree is wallet-only (PayPal / Google Pay / Apple Pay). The wrapper
+      // tokenizes the chosen wallet to a single Braintree nonce; we persist it
+      // on the session (reinitiate) so cart-complete can authorize+capture it.
+      // Mirrors the GlobalPay persist-then-authorize flow.
+      return (
+        <BraintreeWrapper
+          clientToken={sessionData.clientToken ?? ""}
+          currency={sessionData.currency ?? CART.currency}
+          amount={CART.amount}
+          environment="sandbox"
+          googlePay={sessionData.googlePay}
+          applePay={sessionData.applePay}
+          onError={onError}
+          onSubmit={async ({ walletType, nonce }) => {
+            await fetch(`/store/payment-sessions/${sessionId}/reinitiate`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                data: {
+                  braintreeNonce: nonce,
+                  braintreeWalletType: walletType,
+                  id: sessionData.id,
+                },
+              }),
+            });
+            await onComplete();
           }}
         />
       );
