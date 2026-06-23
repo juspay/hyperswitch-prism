@@ -649,6 +649,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
                 {
                     item.response.token.clone().map(|token| {
                         Box::new(MandateReference {
+                            mandate_metadata: None,
                             connector_mandate_id: Some(token),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
@@ -1139,6 +1140,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     redirection_data: None,
                     mandate_reference: item.response.token.clone().map(|token| {
                         Box::new(MandateReference {
+                            mandate_metadata: None,
                             connector_mandate_id: Some(token),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,

@@ -2709,7 +2709,7 @@ where
             let connector_mandate_id = Some(payment_method_id.clone().expose());
             let payment_method_id = Some(payment_method_id.expose());
 
-            let _mandate_metadata: Option<Secret<Value>> =
+            let mandate_metadata: Option<Secret<Value>> =
                 match item.router_data.request.get_split_payment_data() {
                     Some(
                         SplitPaymentsDetails::StripeSplitPayment(
@@ -2718,7 +2718,8 @@ where
                     ) => Some(Secret::new(serde_json::json!({
                         "transfer_account_id": stripe_split_data.transfer_account_id,
                         "charge_type": stripe_split_data.charge_type,
-                        "application_fees": stripe_split_data.application_fees
+                        "application_fees": stripe_split_data.application_fees,
+                        "on_behalf_of": stripe_split_data.on_behalf_of,
 }))),
                     _ => None
 };
@@ -2726,6 +2727,7 @@ where
             MandateReference {
                 connector_mandate_id,
                 payment_method_id,
+                mandate_metadata,
                 connector_mandate_request_reference_id: None,
             }
         });
@@ -3017,6 +3019,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
                     get_payment_method_id(item.response.latest_charge.clone(), payment_method_id);
 
                 MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: Some(payment_method_id.clone()),
                     payment_method_id: Some(payment_method_id),
                     connector_mandate_request_reference_id: None,
@@ -3160,6 +3163,7 @@ impl<F, T> TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
             let connector_mandate_id = Some(payment_method_id.clone());
             let payment_method_id = Some(payment_method_id);
             MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id,
                 payment_method_id,
                 connector_mandate_request_reference_id: None,

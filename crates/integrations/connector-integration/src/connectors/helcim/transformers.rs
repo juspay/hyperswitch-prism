@@ -677,6 +677,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let status = common_enums::AttemptStatus::from(item.response.clone());
         let mandate_reference = MandateReference {
+            mandate_metadata: None,
             connector_mandate_id: Some(item.response.transaction_id.to_string()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,

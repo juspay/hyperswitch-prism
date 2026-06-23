@@ -1436,6 +1436,7 @@ where
                             .as_ref()
                             .and_then(|extra_p| {
                                 extra_p.token.as_ref().map(|token| MandateReference {
+                                    mandate_metadata: None,
                                     connector_mandate_id: Some(token.clone().expose()),
                                     payment_method_id: None,
                                     connector_mandate_request_reference_id: None,
@@ -2002,6 +2003,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                         serde_json::from_str(&extra_p.clone().expose());
                     match mandate_token {
                         Ok(token) => token.token.as_ref().map(|token| MandateReference {
+                            mandate_metadata: None,
                             connector_mandate_id: Some(token.clone().expose()),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,

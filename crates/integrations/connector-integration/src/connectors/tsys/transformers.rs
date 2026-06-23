@@ -1162,6 +1162,7 @@ fn get_setup_mandate_response(
         resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
         redirection_data: None,
         mandate_reference: Some(Box::new(MandateReference {
+            mandate_metadata: None,
             connector_mandate_id: Some(transaction_id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,

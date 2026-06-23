@@ -5831,6 +5831,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                             grpc_payment_types::ConnectorMandateReferenceId {
                                 connector_mandate_id: m.connector_mandate_id,
                                 payment_method_id: m.payment_method_id,
+                                mandate_metadata: m.mandate_metadata.and_then(|v| serde_json::to_string(&v.expose()).ok()),
                                 connector_mandate_request_reference_id: m
                                     .connector_mandate_request_reference_id,
                              }
@@ -6512,6 +6513,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
             mandate_reference: value
                 .mandate_reference
                 .map(|m| connector_types::MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: m.connector_mandate_id,
                     payment_method_id: m.payment_method_id,
                     connector_mandate_request_reference_id: m
@@ -6793,6 +6795,7 @@ pub fn generate_payment_void_response(
                             grpc_payment_types::ConnectorMandateReferenceId {
                                 connector_mandate_id: m.connector_mandate_id,
                         payment_method_id: m.payment_method_id,
+                        mandate_metadata: m.mandate_metadata.and_then(|v| serde_json::to_string(&v.expose()).ok()),
                         connector_mandate_request_reference_id: m
                             .connector_mandate_request_reference_id,
                             }))
@@ -7181,6 +7184,7 @@ pub fn generate_payment_sync_response(
                             grpc_payment_types::ConnectorMandateReferenceId {
                                 connector_mandate_id: m.connector_mandate_id,
                         payment_method_id: m.payment_method_id,
+                        mandate_metadata: m.mandate_metadata.and_then(|v| serde_json::to_string(&v.expose()).ok()),
                         connector_mandate_request_reference_id: m
                             .connector_mandate_request_reference_id,
                             }))
@@ -8271,6 +8275,9 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                         grpc_payment_types::ConnectorMandateReferenceId {
                             connector_mandate_id: m.connector_mandate_id,
                             payment_method_id: m.payment_method_id,
+                            mandate_metadata: m
+                                .mandate_metadata
+                                .and_then(|v| serde_json::to_string(&v.expose()).ok()),
                             connector_mandate_request_reference_id: m
                                 .connector_mandate_request_reference_id,
                         },
@@ -10121,6 +10128,7 @@ pub fn generate_payment_capture_response(
                             grpc_payment_types::ConnectorMandateReferenceId {
                                 connector_mandate_id: m.connector_mandate_id,
                         payment_method_id: m.payment_method_id,
+                        mandate_metadata: m.mandate_metadata.and_then(|v| serde_json::to_string(&v.expose()).ok()),
                         connector_mandate_request_reference_id: m
                             .connector_mandate_request_reference_id,
                             })),
@@ -11159,6 +11167,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         mandate_id_type: Some(grpc_api_types::payments::mandate_reference::MandateIdType::ConnectorMandateId(
                             grpc_payment_types::ConnectorMandateReferenceId { connector_mandate_id: m.connector_mandate_id,
                         payment_method_id: m.payment_method_id,
+                        mandate_metadata: m.mandate_metadata.and_then(|v| serde_json::to_string(&v.expose()).ok()),
                         connector_mandate_request_reference_id: m
                             .connector_mandate_request_reference_id, }
                         )),
@@ -13192,6 +13201,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                             mandate_id_type: Some(grpc_api_types::payments::mandate_reference::MandateIdType::ConnectorMandateId(grpc_api_types::payments::ConnectorMandateReferenceId {
                             connector_mandate_id: m.connector_mandate_id,
                             payment_method_id: m.payment_method_id,
+                            mandate_metadata: m.mandate_metadata.and_then(|v| serde_json::to_string(&v.expose()).ok()),
                             connector_mandate_request_reference_id: m
                                 .connector_mandate_request_reference_id,
                         })),

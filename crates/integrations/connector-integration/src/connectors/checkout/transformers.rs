@@ -1664,6 +1664,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref()
                 .and_then(|src| src.id.clone())
                 .map(|id| MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: Some(item.response.id.clone()),
@@ -1784,6 +1785,7 @@ impl<
                     .as_ref()
                     .and_then(|src| src.id.clone())
                     .map(|id| MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: Some(id),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: Some(item.response.id.clone()),
@@ -1907,6 +1909,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .as_ref()
             .and_then(|src| src.id.clone())
             .map(|id| MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(id),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: Some(item.response.id.clone()),
@@ -2005,6 +2008,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
                 .as_ref()
                 .and_then(|src| src.id.clone())
                 .map(|id| MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: Some(item.response.id.clone()),

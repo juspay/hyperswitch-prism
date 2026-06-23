@@ -806,6 +806,7 @@ impl<
                     };
                 let mandate_reference = ssl_token.map(|token| {
                     Box::new(MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: None,
                         payment_method_id: Some(token),
                         connector_mandate_request_reference_id: None,

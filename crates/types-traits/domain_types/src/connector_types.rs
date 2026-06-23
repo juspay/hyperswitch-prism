@@ -1887,6 +1887,7 @@ pub enum PaymentsResponseData {
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
+    pub mandate_metadata: Option<SecretSerdeValue>,
     pub connector_mandate_request_reference_id: Option<String>,
 }
 

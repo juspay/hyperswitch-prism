@@ -1607,6 +1607,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexSetupMandate
             .payment_consent_id
             .clone()
             .map(|id| MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(id.expose()),
                 // Surface the Airwallex payment_method.id so the MIT transformer can
                 // reference it as `payment_method.id`.

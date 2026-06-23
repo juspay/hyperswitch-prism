@@ -635,6 +635,7 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
         });
         let mandate_reference = item.response.result.subscription.map(|subscription_data| {
             Box::new(MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(subscription_data.identifier.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
@@ -1445,6 +1446,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
         });
         let mandate_reference = item.response.result.subscription.map(|subscription_data| {
             Box::new(MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(subscription_data.identifier.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
@@ -1668,6 +1670,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .subscription
             .map(|subscription_data| {
                 Box::new(MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: Some(subscription_data.identifier.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,

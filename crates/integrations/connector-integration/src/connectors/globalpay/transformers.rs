@@ -1382,6 +1382,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpaySetupMandate
         // surface the PMT_ id through MandateReference.connector_mandate_id for
         // later RepeatPayment use and leave resource_id as NoResponseId.
         let mandate_reference = Some(Box::new(MandateReference {
+            mandate_metadata: None,
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,

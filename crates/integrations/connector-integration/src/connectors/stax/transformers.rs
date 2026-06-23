@@ -1312,6 +1312,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateRespo
 
         let mandate_reference = mandate_token.map(|token| {
             Box::new(MandateReference {
+                mandate_metadata: None,
                 connector_mandate_id: Some(token),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,

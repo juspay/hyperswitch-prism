@@ -3360,6 +3360,7 @@ fn get_payment_response(
                     .token_information
                     .clone()
                     .map(|token_info| MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: token_info
                             .payment_instrument
                             .map(|payment_instrument| payment_instrument.id.expose()),
@@ -4313,6 +4314,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 .token_information
                 .clone()
                 .map(|token_info| MandateReference {
+                    mandate_metadata: None,
                     connector_mandate_id: token_info
                         .payment_instrument
                         .map(|payment_instrument| payment_instrument.id.expose()),

@@ -1232,6 +1232,8 @@ message ConnectorMandateReferenceId {
   optional string connector_mandate_id = 1;
   optional string payment_method_id = 2;
   optional string connector_mandate_request_reference_id = 3;
+  // connector-specific mandate metadata (JSON-serialized), e.g. Stripe split-payment routing
+  optional string mandate_metadata = 4;
 }
 
 message NetworkTokenWithNTI {

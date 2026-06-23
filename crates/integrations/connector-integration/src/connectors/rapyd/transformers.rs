@@ -1276,6 +1276,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             {
                                 connector_customer = Some(cus.to_owned());
                                 let mandate_reference = Some(Box::new(MandateReference {
+                                    mandate_metadata: None,
                                     connector_mandate_id: Some(card.to_owned()),
                                     payment_method_id: None,
                                     connector_mandate_request_reference_id: None,

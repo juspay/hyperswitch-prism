@@ -901,6 +901,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     // Use the transaction_id as the connector_mandate_id
                     // This ID will be used as a reference for subsequent MIT payments
                     let mandate_reference = Some(Box::new(MandateReference {
+                        mandate_metadata: None,
                         connector_mandate_id: Some(data.transaction_id.clone()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
