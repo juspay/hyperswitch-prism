@@ -24,10 +24,10 @@ func NewCustomerClient(config *pb.ConnectorConfig, defaults *pb.RequestConfig) *
 	return &CustomerClient{ConnectorClient: NewConnectorClient(config, defaults)}
 }
 
-// Create performs a CustomerService.Create.
-func (c *CustomerClient) Create(ctx context.Context, req *pb.CustomerServiceCreateRequest, opts *pb.RequestConfig) (*pb.CustomerServiceCreateResponse, error) {
+// CustomerCreate performs a CustomerService.Create.
+func (c *CustomerClient) CustomerCreate(ctx context.Context, req *pb.CustomerServiceCreateRequest, opts *pb.RequestConfig) (*pb.CustomerServiceCreateResponse, error) {
 	res := &pb.CustomerServiceCreateResponse{}
-	err := c.ExecuteFlow(ctx, uniffi.CreateReqTransformer, uniffi.CreateResTransformer, req, res, opts)
+	err := c.ExecuteFlow(ctx, uniffi.CustomerCreateReqTransformer, uniffi.CustomerCreateResTransformer, req, res, opts)
 	return res, err
 }
 
@@ -91,6 +91,34 @@ func (c *EventClient) HandleEvent(ctx context.Context, req *pb.EventServiceHandl
 func (c *EventClient) ParseEvent(ctx context.Context, req *pb.EventServiceParseRequest, opts *pb.RequestConfig) (*pb.EventServiceParseResponse, error) {
 	res := &pb.EventServiceParseResponse{}
 	err := c.ExecuteDirect(ctx, uniffi.ParseEventTransformer, req, res, opts)
+	return res, err
+}
+
+// ============================================================================
+// FRAUDANDRISKMANAGEMENTCLIENT
+// ============================================================================
+
+// FraudAndRiskManagementClient provides methods for FraudAndRiskManagementService flows.
+type FraudAndRiskManagementClient struct {
+	*ConnectorClient
+}
+
+// NewFraudAndRiskManagementClient creates a new FraudAndRiskManagementClient.
+func NewFraudAndRiskManagementClient(config *pb.ConnectorConfig, defaults *pb.RequestConfig) *FraudAndRiskManagementClient {
+	return &FraudAndRiskManagementClient{ConnectorClient: NewConnectorClient(config, defaults)}
+}
+
+// PostRiskCheck performs a FraudAndRiskManagementService.PostRiskCheck.
+func (c *FraudAndRiskManagementClient) PostRiskCheck(ctx context.Context, req *pb.FrmServicePostRiskCheckRequest, opts *pb.RequestConfig) (*pb.FrmServicePostRiskCheckResponse, error) {
+	res := &pb.FrmServicePostRiskCheckResponse{}
+	err := c.ExecuteFlow(ctx, uniffi.PostRiskCheckReqTransformer, uniffi.PostRiskCheckResTransformer, req, res, opts)
+	return res, err
+}
+
+// PreRiskCheck performs a FraudAndRiskManagementService.PreRiskCheck.
+func (c *FraudAndRiskManagementClient) PreRiskCheck(ctx context.Context, req *pb.FrmServicePreRiskCheckRequest, opts *pb.RequestConfig) (*pb.FrmServicePreRiskCheckResponse, error) {
+	res := &pb.FrmServicePreRiskCheckResponse{}
+	err := c.ExecuteFlow(ctx, uniffi.PreRiskCheckReqTransformer, uniffi.PreRiskCheckResTransformer, req, res, opts)
 	return res, err
 }
 
@@ -176,6 +204,13 @@ type PaymentMethodClient struct {
 // NewPaymentMethodClient creates a new PaymentMethodClient.
 func NewPaymentMethodClient(config *pb.ConnectorConfig, defaults *pb.RequestConfig) *PaymentMethodClient {
 	return &PaymentMethodClient{ConnectorClient: NewConnectorClient(config, defaults)}
+}
+
+// Eligibility performs a PaymentMethodService.Eligibility.
+func (c *PaymentMethodClient) Eligibility(ctx context.Context, req *pb.PaymentMethodServiceEligibilityRequest, opts *pb.RequestConfig) (*pb.PaymentMethodServiceEligibilityResponse, error) {
+	res := &pb.PaymentMethodServiceEligibilityResponse{}
+	err := c.ExecuteFlow(ctx, uniffi.EligibilityReqTransformer, uniffi.EligibilityResTransformer, req, res, opts)
+	return res, err
 }
 
 // Tokenize performs a PaymentMethodService.Tokenize.
