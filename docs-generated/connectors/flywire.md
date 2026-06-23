@@ -131,25 +131,24 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/flywire/flywire.py#L157) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L99) · [Rust](../../examples/flywire/flywire.rs#L222)
+**Examples:** [Python](../../examples/flywire/flywire.py#L135) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L98) · [Rust](../../examples/flywire/flywire.rs#L194)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/flywire/flywire.py#L176) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L115) · [Rust](../../examples/flywire/flywire.rs#L238)
+**Examples:** [Python](../../examples/flywire/flywire.py#L154) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L114) · [Rust](../../examples/flywire/flywire.rs#L210)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/flywire/flywire.py#L201) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L137) · [Rust](../../examples/flywire/flywire.rs#L261)
+**Examples:** [Python](../../examples/flywire/flywire.py#L179) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L136) · [Rust](../../examples/flywire/flywire.rs#L233)
 
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentMethodAuthenticationService.Authenticate](#paymentmethodauthenticationserviceauthenticate) | Authentication | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
@@ -460,7 +459,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 }
 ```
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L262) · [Kotlin](../../examples/flywire/flywire.kt#L182) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L230) · [Kotlin](../../examples/flywire/flywire.kt#L154) · [Rust](../../examples/flywire/flywire.rs)
 
 #### PaymentService.Get
 
@@ -471,7 +470,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L271) · [Kotlin](../../examples/flywire/flywire.kt#L194) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L239) · [Kotlin](../../examples/flywire/flywire.kt#L166) · [Rust](../../examples/flywire/flywire.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -482,7 +481,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L298) · [Kotlin](../../examples/flywire/flywire.kt#L233) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L266) · [Kotlin](../../examples/flywire/flywire.kt#L205) · [Rust](../../examples/flywire/flywire.rs)
 
 #### PaymentService.Refund
 
@@ -493,7 +492,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L307) · [Kotlin](../../examples/flywire/flywire.kt#L263) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L275) · [Kotlin](../../examples/flywire/flywire.kt#L235) · [Rust](../../examples/flywire/flywire.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -504,7 +503,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L325) · [Kotlin](../../examples/flywire/flywire.kt#L285) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L293) · [Kotlin](../../examples/flywire/flywire.kt#L257) · [Rust](../../examples/flywire/flywire.rs)
 
 #### PaymentService.VerifyRedirectResponse
 
@@ -515,7 +514,7 @@ Verify and process redirect responses from 3D Secure or other external flows. Va
 | **Request** | `PaymentServiceVerifyRedirectResponseRequest` |
 | **Response** | `PaymentServiceVerifyRedirectResponseResponse` |
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L334) · [Kotlin](../../examples/flywire/flywire.kt#L307) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L302) · [Kotlin](../../examples/flywire/flywire.kt#L279) · [Rust](../../examples/flywire/flywire.rs)
 
 ### Refunds
 
@@ -528,17 +527,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L316) · [Kotlin](../../examples/flywire/flywire.kt#L273) · [Rust](../../examples/flywire/flywire.rs)
-
-### Authentication
-
-#### PaymentMethodAuthenticationService.Authenticate
-
-Execute 3DS challenge or frictionless verification. Authenticates customer via bank challenge or behind-the-scenes verification for fraud prevention.
-
-| | Message |
-|---|---------|
-| **Request** | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
-| **Response** | `PaymentMethodAuthenticationServiceAuthenticateResponse` |
-
-**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L253) · [Kotlin](../../examples/flywire/flywire.kt#L155) · [Rust](../../examples/flywire/flywire.rs)
+**Examples:** [Python](../../examples/flywire/flywire.py) · [TypeScript](../../examples/flywire/flywire.ts#L284) · [Kotlin](../../examples/flywire/flywire.kt#L245) · [Rust](../../examples/flywire/flywire.rs)

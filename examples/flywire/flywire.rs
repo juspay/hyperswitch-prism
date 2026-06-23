@@ -15,7 +15,6 @@ use std::str::FromStr;
 
 #[allow(dead_code)]
 pub const SUPPORTED_FLOWS: &[&str] = &[
-    "authenticate",
     "authorize",
     "get",
     "parse_event",
@@ -45,37 +44,6 @@ fn build_client() -> ConnectorClient {
         }),
     };
     ConnectorClient::new(config, None).unwrap()
-}
-
-pub fn build_authenticate_request() -> PaymentMethodAuthenticationServiceAuthenticateRequest {
-    PaymentMethodAuthenticationServiceAuthenticateRequest {
-        amount: Some(Money {
-            // Amount Information.
-            minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
-            currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
-        }),
-        payment_method: Some(PaymentMethod {
-            // Payment Method.
-            payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
-                card_number: Some(CardNumber::from_str("4111111111111111").unwrap()), // Card Identification.
-                card_exp_month: Some(Secret::new("03".to_string())),
-                card_exp_year: Some(Secret::new("2030".to_string())),
-                card_cvc: Some(Secret::new("737".to_string())),
-                card_holder_name: Some(Secret::new("John Doe".to_string())), // Cardholder Information.
-                ..Default::default()
-            })),
-            ..Default::default()
-        }),
-        address: Some(PaymentAddress {
-            // Address Information.
-            billing_address: Some(Address {
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
-        return_url: Some("https://example.com/3ds-return".to_string()), // URLs for Redirection.
-        ..Default::default()
-    }
 }
 
 pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeRequest {
@@ -345,18 +313,6 @@ pub async fn process_get_payment(
     Ok(format!("Status: {:?}", get_response.status()))
 }
 
-// Flow: PaymentMethodAuthenticationService.Authenticate
-#[allow(dead_code)]
-pub async fn process_authenticate(
-    client: &ConnectorClient,
-    _merchant_transaction_id: &str,
-) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .authenticate(build_authenticate_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
-}
-
 // Flow: PaymentService.Authorize (Card)
 #[allow(dead_code)]
 pub async fn process_authorize(
@@ -453,7 +409,6 @@ async fn main() {
         "process_checkout_autocapture" => process_checkout_autocapture(&client, "order_001").await,
         "process_refund" => process_refund(&client, "order_001").await,
         "process_get_payment" => process_get_payment(&client, "order_001").await,
-        "process_authenticate" => process_authenticate(&client, "txn_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
@@ -461,7 +416,7 @@ async fn main() {
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         "process_token_authorize" => process_token_authorize(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_get_payment, process_authenticate, process_authorize, process_get, process_parse_event, process_proxy_authorize, process_refund_get, process_token_authorize", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_get_payment, process_authorize, process_get, process_parse_event, process_proxy_authorize, process_refund_get, process_token_authorize", flow);
             return;
         }
     };

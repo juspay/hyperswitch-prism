@@ -278,7 +278,6 @@ fn build_recipient_fields(
     Some(out)
 }
 
-
 fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {
     use hyperswitch_masking::ExposeInterface;
     let billing = common.get_optional_billing()?;
