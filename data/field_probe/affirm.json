@@ -17,8 +17,37 @@
         "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method"
       },
       "Affirm": {
-        "status": "error",
-        "error": "Stuck on field: checkout_token. Affirm checkout_token must be supplied via the redirect response — Missing required field: checkout_token. Affirm checkout_token must be supplied via the redirect response (redirect_response.params or redirect_response.payload.checkout_token)"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "affirm": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "last_name": "Doe"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "complete_authorize_url": "https://example.com/complete"
+        },
+        "sample": {
+          "url": "https://sandbox.affirm.com/api/v2/checkout/direct",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchant\":{\"public_api_key\":\"probe_user\",\"user_confirmation_url\":\"https://example.com/complete\",\"user_cancel_url\":\"https://example.com/return\"},\"billing\":{\"name\":{\"first\":\"John\",\"last\":\"Doe\",\"full\":\"John Doe\"},\"address\":{}},\"total\":1000,\"order_id\":\"probe_txn_001\"}"
+        }
       },
       "Afterpay": {
         "status": "not_implemented",
@@ -468,7 +497,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{}"
+          "body": "{\"amount\":1000}"
         }
       }
     },

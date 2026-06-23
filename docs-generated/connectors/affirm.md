@@ -115,6 +115,7 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
+| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
@@ -122,6 +123,132 @@ let config = ConnectorConfig {
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
+
+#### PaymentService.Authorize
+
+Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceAuthorizeRequest` |
+| **Response** | `PaymentServiceAuthorizeResponse` |
+
+**Supported payment method types:**
+
+| Payment Method | Supported |
+|----------------|:---------:|
+| Card | ⚠ |
+| Bancontact | ⚠ |
+| Apple Pay | ⚠ |
+| Apple Pay Dec | ⚠ |
+| Apple Pay SDK | ⚠ |
+| Google Pay | ⚠ |
+| Google Pay Dec | ⚠ |
+| Google Pay SDK | ⚠ |
+| PayPal SDK | ⚠ |
+| Amazon Pay | ⚠ |
+| Cash App | ⚠ |
+| PayPal | ⚠ |
+| WeChat Pay | ⚠ |
+| Alipay | ⚠ |
+| Revolut Pay | ⚠ |
+| MiFinity | ⚠ |
+| Bluecode | ⚠ |
+| Paze | x |
+| Samsung Pay | ⚠ |
+| MB Way | ⚠ |
+| Satispay | ⚠ |
+| Wero | ⚠ |
+| GoPay | ⚠ |
+| GCash | ⚠ |
+| Momo | ⚠ |
+| Dana | ⚠ |
+| Kakao Pay | ⚠ |
+| Touch 'n Go | ⚠ |
+| Twint | ⚠ |
+| Vipps | ⚠ |
+| Swish | ⚠ |
+| Affirm | ✓ |
+| Afterpay | ⚠ |
+| Klarna | ⚠ |
+| UPI Collect | ⚠ |
+| UPI Intent | ⚠ |
+| UPI QR | ⚠ |
+| Thailand | ⚠ |
+| Czech | ⚠ |
+| Finland | ⚠ |
+| FPX | ⚠ |
+| Poland | ⚠ |
+| Slovakia | ⚠ |
+| UK | ⚠ |
+| PIS | x |
+| Generic | ⚠ |
+| Local | ⚠ |
+| iDEAL | ⚠ |
+| Sofort | ⚠ |
+| Trustly | ⚠ |
+| Giropay | ⚠ |
+| EPS | ⚠ |
+| Przelewy24 | ⚠ |
+| PSE | ⚠ |
+| BLIK | ⚠ |
+| Interac | ⚠ |
+| Bizum | ⚠ |
+| EFT | ⚠ |
+| DuitNow | x |
+| ACH | ⚠ |
+| SEPA | ⚠ |
+| BACS | ⚠ |
+| Multibanco | ⚠ |
+| Instant | ⚠ |
+| Instant FI | ⚠ |
+| Instant PL | ⚠ |
+| Pix | ⚠ |
+| Permata | ⚠ |
+| BCA | ⚠ |
+| BNI VA | ⚠ |
+| BRI VA | ⚠ |
+| CIMB VA | ⚠ |
+| Danamon VA | ⚠ |
+| Mandiri VA | ⚠ |
+| Local | ⚠ |
+| Indonesian | ⚠ |
+| ACH | ⚠ |
+| SEPA | ⚠ |
+| BACS | ⚠ |
+| BECS | ⚠ |
+| SEPA Guaranteed | ⚠ |
+| Crypto | x |
+| Reward | ⚠ |
+| Givex | x |
+| PaySafeCard | x |
+| E-Voucher | ⚠ |
+| Boleto | ⚠ |
+| Efecty | ⚠ |
+| Pago Efectivo | ⚠ |
+| Red Compra | ⚠ |
+| Red Pagos | ⚠ |
+| Alfamart | ⚠ |
+| Indomaret | ⚠ |
+| Oxxo | ⚠ |
+| 7-Eleven | ⚠ |
+| Lawson | ⚠ |
+| Mini Stop | ⚠ |
+| Family Mart | ⚠ |
+| Seicomart | ⚠ |
+| Pay Easy | ⚠ |
+
+**Payment method objects** — use these in the `payment_method` field of the Authorize request.
+
+##### Affirm
+
+```python
+"payment_method": {
+  "affirm": {}
+}
+```
+
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L103) · [Kotlin](../../examples/affirm/affirm.kt#L108) · [Rust](../../examples/affirm/affirm.rs)
 
 #### PaymentService.Capture
 
@@ -132,7 +259,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L79) · [Kotlin](../../examples/affirm/affirm.kt#L82) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L112) · [Kotlin](../../examples/affirm/affirm.kt#L120) · [Rust](../../examples/affirm/affirm.rs)
 
 #### PaymentService.Get
 
@@ -143,7 +270,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L88) · [Kotlin](../../examples/affirm/affirm.kt#L92) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L121) · [Kotlin](../../examples/affirm/affirm.kt#L130) · [Rust](../../examples/affirm/affirm.rs)
 
 #### PaymentService.Refund
 
@@ -154,7 +281,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L97) · [Kotlin](../../examples/affirm/affirm.kt#L100) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L130) · [Kotlin](../../examples/affirm/affirm.kt#L138) · [Rust](../../examples/affirm/affirm.rs)
 
 #### PaymentService.Void
 
@@ -165,7 +292,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts) · [Kotlin](../../examples/affirm/affirm.kt#L122) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts) · [Kotlin](../../examples/affirm/affirm.kt#L160) · [Rust](../../examples/affirm/affirm.rs)
 
 ### Refunds
 
@@ -178,4 +305,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L106) · [Kotlin](../../examples/affirm/affirm.kt#L110) · [Rust](../../examples/affirm/affirm.rs)
+**Examples:** [Python](../../examples/affirm/affirm.py) · [TypeScript](../../examples/affirm/affirm.ts#L139) · [Kotlin](../../examples/affirm/affirm.kt#L148) · [Rust](../../examples/affirm/affirm.rs)
