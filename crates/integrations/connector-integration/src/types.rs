@@ -168,7 +168,9 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
             PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),
             PayoutConnectorEnum::Deutschebank => {
-                Box::new(payout_connectors::DeutschebankPayouts::new())
+                Box::new(payout_connectors::DeutschebankPayouts::<
+                    domain_types::payment_method_data::DefaultPCIHolder,
+                >::new())
             }
             PayoutConnectorEnum::Worldpayxml => {
                 Box::new(payout_connectors::WorldpayxmlPayouts::new())

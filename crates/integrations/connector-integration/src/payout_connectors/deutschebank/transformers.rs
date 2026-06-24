@@ -1,9 +1,11 @@
+use super::DeutschebankPayoutsRouterData;
 use crate::types::ResponseRouterData;
 use common_enums::PayoutStatus;
 use common_utils::types::FloatMajorUnitForConnector;
 use domain_types::{
     connector_flow::{PayoutEligibility, PayoutGet, PayoutTransfer},
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    payment_method_data::PaymentMethodDataTypes,
     payouts::{
         payout_method_data::{Bank, PayoutMethodData, SepaBankTransfer},
         payouts_types::{
@@ -18,6 +20,7 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
 const DEUTSCHEBANK_BICFI: &str = "DEUTDEDDXXX";
 const VOP_ID_SEPARATOR: char = '|';
@@ -89,6 +92,9 @@ pub struct DeutschebankErrorResponse {
     pub error_code: Option<String>,
     pub error_message: Option<String>,
     pub errors: Option<Vec<DeutschebankErrorEntry>>,
+
+    #[serde(flatten)]
+    pub additional: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,26 +167,33 @@ pub struct DeutschebankVopResponse {
     pub additional_info: Option<String>,
 }
 
-impl
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
     TryFrom<
-        &RouterDataV2<
-            PayoutEligibility,
-            PayoutFlowData,
-            PayoutEligibilityRequest,
-            PayoutEligibilityResponse,
+        DeutschebankPayoutsRouterData<
+            RouterDataV2<
+                PayoutEligibility,
+                PayoutFlowData,
+                PayoutEligibilityRequest,
+                PayoutEligibilityResponse,
+            >,
+            T,
         >,
     > for DeutschebankVopRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        req: &RouterDataV2<
-            PayoutEligibility,
-            PayoutFlowData,
-            PayoutEligibilityRequest,
-            PayoutEligibilityResponse,
+        item: DeutschebankPayoutsRouterData<
+            RouterDataV2<
+                PayoutEligibility,
+                PayoutFlowData,
+                PayoutEligibilityRequest,
+                PayoutEligibilityResponse,
+            >,
+            T,
         >,
     ) -> Result<Self, Self::Error> {
+        let req = &item.router_data;
         let payee_iban = extract_payee_iban(req.request.payout_method_data.as_ref())?;
         let debtor_iban = extract_debtor_iban(req.request.source_bank_data.as_ref())?;
         let payee_name = extract_customer_name(
@@ -236,7 +249,7 @@ pub fn build_eligibility_response(
     })
 }
 
-impl TryFrom<ResponseRouterData<PayoutEligibilityResponse, Self>>
+impl TryFrom<ResponseRouterData<DeutschebankVopResponse, Self>>
     for RouterDataV2<
         PayoutEligibility,
         PayoutFlowData,
@@ -247,10 +260,21 @@ impl TryFrom<ResponseRouterData<PayoutEligibilityResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
-        item: ResponseRouterData<PayoutEligibilityResponse, Self>,
+        item: ResponseRouterData<DeutschebankVopResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let vop_id = derive_vop_id(
+            item.router_data
+                .resource_common_data
+                .merchant_id
+                .get_string_repr(),
+            &item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id,
+        );
+        let response = build_eligibility_response(item.response, vop_id, item.http_code)?;
         Ok(Self {
-            response: Ok(item.response),
+            response: Ok(response),
             ..item.router_data
         })
     }
@@ -561,6 +585,36 @@ impl
     }
 }
 
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<
+        DeutschebankPayoutsRouterData<
+            RouterDataV2<
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest,
+                PayoutTransferResponse,
+            >,
+            T,
+        >,
+    > for DeutschebankSepaPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: DeutschebankPayoutsRouterData<
+            RouterDataV2<
+                PayoutTransfer,
+                PayoutFlowData,
+                PayoutTransferRequest,
+                PayoutTransferResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(DeutschebankSepaPaymentBuilt::try_from(&item.router_data)?.request)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeutschebankSepaPaymentResponse {
     #[serde(rename = "customerPaymentStatusReport")]
@@ -660,14 +714,23 @@ impl DeutschebankStatusResponse {
     }
 }
 
-impl TryFrom<&RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>>
-    for DeutschebankStatusRequest
+impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
+    TryFrom<
+        DeutschebankPayoutsRouterData<
+            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+            T,
+        >,
+    > for DeutschebankStatusRequest
 {
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        req: &RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+        item: DeutschebankPayoutsRouterData<
+            RouterDataV2<PayoutGet, PayoutFlowData, PayoutGetRequest, PayoutGetResponse>,
+            T,
+        >,
     ) -> Result<Self, Self::Error> {
+        let req = &item.router_data;
         let connector_payout_id = req.request.connector_payout_id.as_deref().ok_or_else(|| {
             error_stack::report!(IntegrationError::MissingRequiredField {
                 field_name: "connector_payout_id",
@@ -703,6 +766,19 @@ impl TryFrom<ResponseRouterData<DeutschebankSepaPaymentResponse, Self>>
     fn try_from(
         item: ResponseRouterData<DeutschebankSepaPaymentResponse, Self>,
     ) -> Result<Self, Self::Error> {
+        let built =
+            DeutschebankSepaPaymentBuilt::try_from(&item.router_data)
+                .change_context(ConnectorError::ResponseDeserializationFailed {
+                context: domain_types::errors::ResponseTransformationErrorContext {
+                    http_status_code: Some(item.http_code),
+                    additional_context: Some(
+                        "rebuilding SEPA endToEndId + debtor IBAN to encode connector_payout_id"
+                            .to_string(),
+                    ),
+                },
+            })?;
+        let compound = encode_connector_payout_id(&built.end_to_end_id, &built.debtor_iban);
+
         let payout_status = item
             .response
             .extract_status()
@@ -712,7 +788,7 @@ impl TryFrom<ResponseRouterData<DeutschebankSepaPaymentResponse, Self>>
             response: Ok(PayoutTransferResponse {
                 merchant_payout_id: None,
                 payout_status,
-                connector_payout_id: None,
+                connector_payout_id: Some(compound),
                 status_code: item.http_code,
             }),
             ..item.router_data

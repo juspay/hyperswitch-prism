@@ -122,4 +122,82 @@ mod tests {
             "Debug-rendered error leaked input bytes: {rendered}"
         );
     }
+
+    #[test]
+    fn connector_payout_id_round_trips() {
+        use super::super::transformers::{decode_connector_payout_id, encode_connector_payout_id};
+        use hyperswitch_masking::{PeekInterface, Secret};
+
+        let end_to_end_id = "E2EABC123";
+        let iban = Secret::new("DE89370400440532013000".to_string());
+        let encoded = encode_connector_payout_id(end_to_end_id, &iban);
+
+        let (decoded_e2e, decoded_iban) = decode_connector_payout_id(&encoded).unwrap();
+        assert_eq!(decoded_e2e, end_to_end_id);
+        assert_eq!(decoded_iban.peek(), iban.peek());
+    }
+
+    #[test]
+    fn decode_connector_payout_id_rejects_missing_separator() {
+        use super::super::transformers::decode_connector_payout_id;
+        assert!(decode_connector_payout_id("no-separator-present").is_err());
+    }
+
+    #[test]
+    fn eligible_vop_carries_connector_payout_id() {
+        use super::super::transformers::{
+            build_eligibility_response, DeutschebankVopMatchStatus, DeutschebankVopResponse,
+        };
+        use common_enums::PayoutStatus;
+
+        let resp = DeutschebankVopResponse {
+            match_status: Some(DeutschebankVopMatchStatus::Mtch),
+            additional_info: None,
+        };
+        let out = build_eligibility_response(resp, "vop-123".to_string(), 200).unwrap();
+        assert_eq!(out.payout_eligible, Some(true));
+        assert_eq!(out.connector_payout_id.as_deref(), Some("vop-123"));
+        assert_eq!(out.payout_status, PayoutStatus::RequiresFulfillment);
+    }
+
+    #[test]
+    fn ineligible_vop_drops_connector_payout_id() {
+        use super::super::transformers::{
+            build_eligibility_response, DeutschebankVopMatchStatus, DeutschebankVopResponse,
+        };
+        use common_enums::PayoutStatus;
+
+        let resp = DeutschebankVopResponse {
+            match_status: Some(DeutschebankVopMatchStatus::Nmtc),
+            additional_info: None,
+        };
+        let out = build_eligibility_response(resp, "vop-123".to_string(), 200).unwrap();
+        assert_eq!(out.payout_eligible, Some(false));
+        assert_eq!(out.connector_payout_id, None);
+        assert_eq!(out.payout_status, PayoutStatus::Ineligible);
+    }
+
+    #[test]
+    fn vop_without_match_status_is_error() {
+        use super::super::transformers::{build_eligibility_response, DeutschebankVopResponse};
+
+        let resp = DeutschebankVopResponse {
+            match_status: None,
+            additional_info: None,
+        };
+        assert!(build_eligibility_response(resp, "vop-123".to_string(), 200).is_err());
+    }
+
+    #[test]
+    fn error_response_captures_unmodeled_fields() {
+        use super::super::transformers::DeutschebankErrorResponse;
+
+        let raw = r#"{"code":"APP-RULE","detail":"IBAN failed scheme rule","violationId":42}"#;
+        let parsed: DeutschebankErrorResponse = serde_json::from_str(raw).unwrap();
+
+        assert_eq!(parsed.code.as_deref(), Some("APP-RULE"));
+        assert!(parsed.message.is_none());
+        assert!(parsed.additional.contains_key("detail"));
+        assert!(parsed.additional.contains_key("violationId"));
+    }
 }
