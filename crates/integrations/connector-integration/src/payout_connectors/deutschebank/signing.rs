@@ -32,19 +32,22 @@ pub fn build_cseal_headers(
         Method::Patch => "patch",
     };
 
-    let (digest, signing_string, headers_covered) = if matches!(method, Method::Get) {
-        let signing_string = format!("date: {date}\n(request-target): {method_lower} {path}");
-        (None, signing_string, "date (request-target)")
-    } else {
-        let digest_value = compute_digest(body);
-        let signing_string = format!(
-            "date: {date}\n(request-target): {method_lower} {path}\ndigest: {digest_value}"
-        );
-        (
-            Some(digest_value),
-            signing_string,
-            "date (request-target) digest",
-        )
+    let (digest, signing_string, headers_covered) = match method {
+        Method::Get => {
+            let signing_string = format!("date: {date}\n(request-target): {method_lower} {path}");
+            (None, signing_string, "date (request-target)")
+        }
+        _ => {
+            let digest_value = compute_digest(body);
+            let signing_string = format!(
+                "date: {date}\n(request-target): {method_lower} {path}\ndigest: {digest_value}"
+            );
+            (
+                Some(digest_value),
+                signing_string,
+                "date (request-target) digest",
+            )
+        }
     };
 
     let signature_b64 = sign_rsa_sha256(signing_string.as_bytes(), signing_private_key)?;
@@ -90,29 +93,28 @@ fn sign_rsa_sha256(
     private_key_pem: &Secret<String>,
 ) -> Result<String, error_stack::Report<IntegrationError>> {
     let pem = private_key_pem.peek();
-    let der =
-        extract_der_from_pem(pem).ok_or_else(|| IntegrationError::InvalidConnectorConfig {
-            config: "signing_private_key",
-            context: IntegrationErrorContext {
-                additional_context: Some("PEM body could not be base64-decoded".to_string()),
-                suggested_action: Some(
-                    "Re-upload `signing_private_key` as a well-formed PEM block.".to_string(),
-                ),
-                doc_url: None,
-            },
-        })?;
+    let der = extract_der_from_pem(pem).map_err(|e| IntegrationError::InvalidConnectorConfig {
+        config: "signing_private_key",
+        context: IntegrationErrorContext {
+            additional_context: Some(format!("PEM body could not be base64-decoded: {e}")),
+            suggested_action: Some(
+                "Re-upload `signing_private_key` as a well-formed PEM block.".to_string(),
+            ),
+            doc_url: None,
+        },
+    })?;
 
     let key_pair = signature::RsaKeyPair::from_pkcs8(&der)
         .or_else(|_| {
             let wrapped = wrap_pkcs1_as_pkcs8(&der);
             signature::RsaKeyPair::from_pkcs8(&wrapped)
         })
-        .map_err(|_| IntegrationError::InvalidConnectorConfig {
+        .map_err(|rejection| IntegrationError::InvalidConnectorConfig {
             config: "signing_private_key",
             context: IntegrationErrorContext {
-                additional_context: Some(
-                    "Could not parse RSA private key; expected PKCS#8 or PKCS#1 PEM".to_string(),
-                ),
+                additional_context: Some(format!(
+                    "Could not parse RSA private key (expected PKCS#8 or PKCS#1 PEM): {rejection}"
+                )),
                 suggested_action: Some(
                     "Provide an RSA private key in PEM PKCS#8 or PKCS#1 form.".to_string(),
                 ),
@@ -139,14 +141,12 @@ fn sign_rsa_sha256(
     Ok(base64::engine::general_purpose::STANDARD.encode(&sig))
 }
 
-fn extract_der_from_pem(pem: &str) -> Option<Vec<u8>> {
+fn extract_der_from_pem(pem: &str) -> Result<Vec<u8>, base64::DecodeError> {
     let stripped: String = pem
         .lines()
         .filter(|l| !l.starts_with("-----") && !l.trim().is_empty())
         .collect();
-    base64::engine::general_purpose::STANDARD
-        .decode(stripped.trim())
-        .ok()
+    base64::engine::general_purpose::STANDARD.decode(stripped.trim())
 }
 
 fn wrap_pkcs1_as_pkcs8(pkcs1: &[u8]) -> Vec<u8> {
@@ -168,15 +168,10 @@ fn encode_der_tlv(tag: u8, data: &[u8]) -> Vec<u8> {
     out.push(tag);
     let len = data.len();
     let len_bytes = len.to_le_bytes();
-    if len < 0x80 {
-        out.push(len_bytes[0]);
-    } else if len < 0x100 {
-        out.push(0x81);
-        out.push(len_bytes[0]);
-    } else {
-        out.push(0x82);
-        out.push(len_bytes[1]);
-        out.push(len_bytes[0]);
+    match len {
+        0..=0x7f => out.push(len_bytes[0]),
+        0x80..=0xff => out.extend_from_slice(&[0x81, len_bytes[0]]),
+        _ => out.extend_from_slice(&[0x82, len_bytes[1], len_bytes[0]]),
     }
     out.extend_from_slice(data);
     out

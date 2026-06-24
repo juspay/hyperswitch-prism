@@ -238,7 +238,7 @@ pub fn build_eligibility_response(
         DeutschebankVopMatchStatus::Mtch | DeutschebankVopMatchStatus::Cmtc
     );
 
-    let connector_payout_id = if is_eligible { Some(vop_id) } else { None };
+    let connector_payout_id = is_eligible.then_some(vop_id);
 
     Ok(PayoutEligibilityResponse {
         merchant_payout_id: None,

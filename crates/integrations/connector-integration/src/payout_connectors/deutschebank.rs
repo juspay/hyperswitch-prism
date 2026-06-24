@@ -63,6 +63,11 @@ const STATUS_PATH: &str = "/v2/cseal/payments/credit-transfer/sepa/status";
 const CORRELATION_PREFIX_VOP: &str = "ACID";
 const CORRELATION_PREFIX_PAYMENT: &str = "PYMT";
 
+/// Connector id; also the `tracing` connector-field value.
+const CONNECTOR_NAME: &str = "deutschebank";
+/// The sole content type accepted by every Deutsche Bank CSEAL endpoint.
+const APPLICATION_JSON: &str = "application/json";
+
 macros::create_all_prerequisites!(
     connector_name: DeutschebankPayouts,
     generic_type: T,
@@ -100,7 +105,7 @@ macros::create_all_prerequisites!(
             Ok(vec![
                 (
                     headers::CONTENT_TYPE.to_string(),
-                    "application/json".to_string().into(),
+                    APPLICATION_JSON.to_string().into(),
                 ),
                 (
                     headers::X_CUSTOMER_IDENTIFIER.to_string(),
@@ -226,7 +231,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     for DeutschebankPayouts<T>
 {
     fn id(&self) -> &'static str {
-        "deutschebank"
+        CONNECTOR_NAME
     }
 
     fn get_currency_unit(&self) -> CurrencyUnit {
@@ -234,7 +239,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/json"
+        APPLICATION_JSON
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -281,15 +286,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             .clone()
             .or_else(|| response.error_message.clone())
             .or_else(|| first_error.and_then(|e| e.message.clone()))
-            .unwrap_or_else(|| {
-                if code == NO_ERROR_CODE {
+            .unwrap_or_else(|| match code.as_str() {
+                NO_ERROR_CODE => {
                     format!("Deutsche Bank request failed (HTTP {})", res.status_code)
-                } else {
-                    format!(
-                        "Deutsche Bank request failed: {code} (HTTP {})",
-                        res.status_code
-                    )
                 }
+                _ => format!(
+                    "Deutsche Bank request failed: {code} (HTTP {})",
+                    res.status_code
+                ),
             });
 
         let mut details: Vec<String> = Vec::new();
@@ -313,17 +317,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         if !response.additional.is_empty() {
             tracing::warn!(
-                connector = "deutschebank",
+                connector = CONNECTOR_NAME,
                 status_code = res.status_code,
                 unmapped_error_fields = ?response.additional,
                 "Deutsche Bank error response carried fields outside our model",
             );
         }
 
-        let reason = if details.is_empty() {
-            Some(message.clone())
-        } else {
-            Some(details.join(" | "))
+        let reason = match details.as_slice() {
+            [] => Some(message.clone()),
+            _ => Some(details.join(" | ")),
         };
 
         Ok(ErrorResponse {
