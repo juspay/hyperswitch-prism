@@ -1156,7 +1156,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         .error_code_description
                         .clone()
                         .unwrap_or_else(|| err.error_code.clone()),
-                    reason: err.error_code_description.clone(),
+                    // Always populate `reason` (matching the Direct gateway, which uses the
+                    // error code) — redsys frequently omits `error_code_description`, which
+                    // previously left `reason` null versus Direct's string on the
+                    // authenticate error path.
+                    reason: Some(err.error_code.clone()),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,

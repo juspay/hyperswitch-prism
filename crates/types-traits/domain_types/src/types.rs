@@ -15238,12 +15238,22 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
             }
         },
         Err(err) => {
+            // Fall back to the flow status (`grpc_status`, derived from
+            // `resource_common_data.status`) when the connector does not set an explicit
+            // `attempt_status` on the error — mirrors the Ok branch. Using
+            // `unwrap_or_default()` here previously emitted PAYMENT_STATUS_UNSPECIFIED,
+            // which the HS readback decoded to `None`, leaving router_data.status at the
+            // prior `authentication_pending` instead of `failure` on a declined authenticate.
             let status = err
                 .attempt_status
                 .map(grpc_api_types::payments::PaymentStatus::foreign_from)
-                .unwrap_or_default();
+                .unwrap_or(grpc_status);
             PaymentMethodAuthenticationServiceAuthenticateResponse {
-                connector_transaction_id: Some("session_created".to_string()),
+                // Echo the connector's transaction id (None when the connector returns a
+                // bare error envelope) instead of the hardcoded "session_created"
+                // placeholder, which surfaced as a spurious connector_transaction_id on the
+                // error path versus Direct's null.
+                connector_transaction_id: err.connector_transaction_id.clone(),
                 redirection_data: None,
                 network_transaction_id: None,
                 merchant_order_id: None,
