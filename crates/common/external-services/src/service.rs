@@ -212,6 +212,8 @@ impl AdditionalHeaders for domain_types::frm::frm_types::FrmFlowData {
 }
 use common_utils::events::{Event, EventConfig, FlowName};
 #[cfg(feature = "injector-client")]
+use common_utils::types::ExecutionMode;
+#[cfg(feature = "injector-client")]
 // TokenData is now imported from hyperswitch_injector
 use common_utils::{consts, emit_event_with_config};
 use error_stack::{report, ResultExt};
@@ -1056,6 +1058,7 @@ fn create_event(
         url,
         method,
         stage: EventStage::ConnectorCall,
+        execution_mode: ExecutionMode::from_shadow_flag(event_params.shadow_mode),
         latency_ms,
         status_code,
         request_data: MaskedSerdeValue::from_masked_optional(masked_request, "connector_request"),

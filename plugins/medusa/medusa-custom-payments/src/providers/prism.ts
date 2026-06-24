@@ -161,8 +161,13 @@ class PrismService {
     // Mollie Components: in-page card fields tokenize client-side. Skip the hosted
     // client-auth (which would create an orphan redirect payment). The first init
     // returns the public profileId for mollie.js; reinitiate stores the cardToken.
+    // Klarna (PayLater redirect) has no client-side tokenization: the storefront
+    // reinitiates with paymentMethodType="klarna" + billing, which is stored as-is
+    // and consumed by authorizePayment (which builds the Klarna redirect payment).
     if (this.options_.connector === "mollie") {
-      if ((data as any)?.cardToken) {
+      const isKlarnaReinit =
+        String((data as any)?.paymentMethodType ?? "").toLowerCase() === "klarna"
+      if ((data as any)?.cardToken || isKlarnaReinit) {
         return connectors.mollie.reInitiatePayment({
           data,
           merchantClientSessionId,

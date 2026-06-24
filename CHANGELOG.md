@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.24.0
+
+### Features
+
+- **connector:**
+  - Implement Authorize for mollie klarna ([#1579](https://github.com/juspay/connector-service/pull/1579)) ([`2741410`](https://github.com/juspay/connector-service/commit/274141004bc922b5a6bb4585e3390908d4e864d6))
+  - Add Kount FRM connector (DDC + Evaluate/Update Order) ([#1584](https://github.com/juspay/connector-service/pull/1584)) ([`a2186ce`](https://github.com/juspay/connector-service/commit/a2186cea7b58adba3b39946a83180d8055b5e636))
+- **core:** Add Fraud and risk management core changes ([#1573](https://github.com/juspay/connector-service/pull/1573)) ([`bf5566d`](https://github.com/juspay/connector-service/commit/bf5566db5cfda91c5b9bda1aaa20eb284400111c))
+
+### Bug Fixes
+
+- **payload:** Serialize amount as string and emit processing_id on repeat_payment ([#1593](https://github.com/juspay/connector-service/pull/1593)) ([`f223469`](https://github.com/juspay/connector-service/commit/f2234695ac60f17d94068c7dc6f9c6a9fb383737))
+
+**Full Changelog:** [`2026.06.23.1...2026.06.24.0`](https://github.com/juspay/connector-service/compare/2026.06.23.1...2026.06.24.0)
+
+- - -
+
 ## 2026.06.23.1
 
 ### Features
