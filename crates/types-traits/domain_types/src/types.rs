@@ -11159,7 +11159,15 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         connector_transaction_id: err.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
+                        code: None, // To be filled with card network specific error code if available
+                        message: err.network_error_message.clone(),
+                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                            advice_code: err.network_advice_code,
+                            decline_code: err.network_decline_code,
+                            error_message: err.network_error_message.clone(),
+                        }),
+                    }),
                 }),
                 status_code: err.status_code as u32,
                 response_headers: router_data_v2
