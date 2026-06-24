@@ -1,0 +1,60 @@
+{
+  "name": "hs-prism-learn-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that helps newcomers understand the hyperswitch-prism (UCS) codebase: plain-language concept explainers, repo wayfinding, learning paths, flow/connector walkthroughs, and doc search — every answer grounded in the repo's real files, never hallucinated.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "hs-prism-learn-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "dist/data/*.json",
+    "README.md"
+  ],
+  "scripts": {
+    "gen:knowledge": "tsx scripts/gen-knowledge.ts",
+    "validate": "tsx scripts/validate-content.ts",
+    "prebuild": "npm run gen:knowledge && npm run validate",
+    "build": "tsc && node scripts/copy-data.mjs",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "smoke": "node scripts/smoke-tools-list.mjs",
+    "inspect": "npx @modelcontextprotocol/inspector node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "hyperswitch",
+    "prism",
+    "payments",
+    "onboarding",
+    "documentation",
+    "developer-tools",
+    "codebase-navigation"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juspay/hyperswitch-prism.git",
+    "directory": "hs-prism-learn-mcp"
+  },
+  "homepage": "https://github.com/juspay/hyperswitch-prism/tree/main/hs-prism-learn-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/juspay/hyperswitch-prism/issues"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}
