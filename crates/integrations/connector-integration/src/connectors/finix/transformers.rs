@@ -627,7 +627,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(response.id.clone()),
+                // Match Hyperswitch's `get_finix_response`, which leaves
+                // `connector_response_reference_id` as `None` for the Authorize flow.
+                connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
