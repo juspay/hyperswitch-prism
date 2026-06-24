@@ -15238,7 +15238,7 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                 .map(grpc_api_types::payments::PaymentStatus::foreign_from)
                 .unwrap_or_default();
             PaymentMethodAuthenticationServiceAuthenticateResponse {
-                connector_transaction_id: Some("session_created".to_string()),
+                connector_transaction_id: err.connector_transaction_id.clone(),
                 redirection_data: None,
                 network_transaction_id: None,
                 merchant_order_id: None,
