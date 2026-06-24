@@ -408,7 +408,7 @@ pub struct Connectors {
     pub tsys_transit: ConnectorParams,
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
-    pub deutschebank: ConnectorParams,
+    pub deutschebank: ConnectorParamsWithCaBundle,
     pub juspay: ConnectorParams,
     pub payconex: ConnectorParams,
     pub tamara: ConnectorParams,
@@ -428,8 +428,6 @@ pub struct ConnectorParams {
     pub secondary_base_url: Option<String>,
     #[serde(default)]
     pub third_base_url: Option<String>,
-    #[serde(default)]
-    pub server_ca_bundle: Option<String>,
 }
 
 impl ConnectorParams {
@@ -439,7 +437,6 @@ impl ConnectorParams {
             dispute_base_url,
             secondary_base_url: None,
             third_base_url: None,
-            server_ca_bundle: None,
         }
     }
 
@@ -460,7 +457,6 @@ impl ConnectorParams {
             dispute_base_url: dispute_base_url.or(self.dispute_base_url.clone()),
             secondary_base_url: secondary_base_url.or(self.secondary_base_url.clone()),
             third_base_url: third_base_url.or(self.third_base_url.clone()),
-            server_ca_bundle: self.server_ca_bundle.clone(),
         }
     }
 }
@@ -471,6 +467,22 @@ pub struct ConnectorParamsWithMoreUrls {
     pub base_url: String,
     /// base url for bank redirects
     pub base_url_bank_redirects: String,
+}
+
+#[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
+pub struct ConnectorParamsWithCaBundle {
+    /// base url
+    #[serde(default)]
+    pub base_url: String,
+    #[serde(default)]
+    pub dispute_base_url: Option<String>,
+    #[serde(default)]
+    pub secondary_base_url: Option<String>,
+    #[serde(default)]
+    pub third_base_url: Option<String>,
+    /// PEM trust anchor for verifying the connector's server certificate
+    #[serde(default)]
+    pub server_ca_bundle: Option<String>,
 }
 
 // Trait to provide access to connectors field
@@ -540,7 +552,6 @@ impl Connectors {
             dispute_base_url: Some(urls.dispute_base_url.clone()),
             secondary_base_url: Some(urls.secondary_base_url.clone()),
             third_base_url: Some(urls.third_base_url.clone()),
-            server_ca_bundle: None,
         };
 
         // Apply the patch to the appropriate connector field
@@ -732,7 +743,14 @@ impl Connectors {
                 patched.twoc_twop_paco.apply(params_patch);
             }
             ConnectorEnum::Deutschebank => {
-                patched.deutschebank.apply(params_patch);
+                let deutschebank_patch = ConnectorParamsWithCaBundlePatch {
+                    base_url: urls.base_url.clone(),
+                    dispute_base_url: Some(urls.dispute_base_url.clone()),
+                    secondary_base_url: Some(urls.secondary_base_url.clone()),
+                    third_base_url: Some(urls.third_base_url.clone()),
+                    server_ca_bundle: None,
+                };
+                patched.deutschebank.apply(deutschebank_patch);
             }
             _ => {
                 // Connector not supported for URL patching - return error
