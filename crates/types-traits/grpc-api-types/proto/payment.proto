@@ -3398,6 +3398,10 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Description
   optional string description = 14;
+
+  // Merchant webhook URL (used by some connectors, e.g. Redsys, as the
+  // 3DS method notification URL embedded in threeDSMethodData)
+  optional string webhook_url = 15;
 }
 
 // Response message for pre-authentication step

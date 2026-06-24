@@ -2014,6 +2014,7 @@ pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     pub payment_method_type: Option<PaymentMethodType>,
     pub router_return_url: Option<Url>,
     pub continue_redirection_url: Option<Url>,
+    pub webhook_url: Option<Url>,
     pub browser_info: Option<BrowserInformation>,
     pub enrolled_for_3ds: bool,
     pub redirect_response: Option<ContinueRedirectionResponse>,

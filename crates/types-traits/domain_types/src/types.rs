@@ -14200,6 +14200,15 @@ impl<
                     })
                 })
                 .transpose()?,
+            webhook_url: value
+                .webhook_url
+                .map(|url_str| {
+                    url::Url::parse(&url_str).change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "webhook_url",
+                        context: IntegrationErrorContext::default(),
+                    })
+                })
+                .transpose()?,
             router_return_url: return_url
                 .map(|url_str| {
                     url::Url::parse(&url_str).change_context(IntegrationError::InvalidDataFormat {

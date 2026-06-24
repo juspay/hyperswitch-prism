@@ -539,6 +539,7 @@ fn build_threeds_form(
 fn get_preauthenticate_response(
     response_data: &responses::RedsysPaymentsResponse,
     continue_redirection_url: Option<&url::Url>,
+    webhook_url: Option<&url::Url>,
     existing_connector_meta: Option<Secret<serde_json::Value>>,
     http_status: u16,
 ) -> Result<responses::PreAuthenticateResponseData, ResponseError> {
@@ -585,6 +586,7 @@ fn get_preauthenticate_response(
             &three_d_s_server_trans_i_d,
             three_ds_method_url,
             continue_redirection_url,
+            webhook_url,
             semantic_version,
             http_status,
         ),
@@ -597,15 +599,21 @@ fn build_threeds_invoke_response(
     three_d_s_server_trans_i_d: &str,
     three_ds_method_url: &str,
     continue_redirection_url: Option<&url::Url>,
+    webhook_url: Option<&url::Url>,
     protocol_version: common_utils::types::SemanticVersion,
     http_status: u16,
 ) -> Result<responses::PreAuthenticateResponseData, ResponseError> {
-    let notification_url = continue_redirection_url
+    // Hyperswitch embeds the merchant webhook URL as the 3DS method notification
+    // URL inside threeDSMethodData. Mirror that here so the encoded
+    // three_ds_method_data matches hyperswitch byte-for-byte; fall back to the
+    // continue_redirection_url only when no webhook_url is supplied.
+    let notification_url = webhook_url
+        .or(continue_redirection_url)
         .map(|url| url.to_string())
         .ok_or_else(|| {
             Report::new(ConnectorError::response_handling_failed_with_context(
                 http_status,
-                Some("continue_redirection_url missing for 3DS method URL".to_string()),
+                Some("webhook_url/continue_redirection_url missing for 3DS method URL".to_string()),
             ))
         })?;
 
@@ -929,6 +937,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 } = get_preauthenticate_response(
                     &response_data,
                     item.router_data.request.continue_redirection_url.as_ref(),
+                    item.router_data.request.webhook_url.as_ref(),
                     item.router_data
                         .resource_common_data
                         .connector_feature_data
