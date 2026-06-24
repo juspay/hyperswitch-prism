@@ -15,6 +15,7 @@ use domain_types::{
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankRedirectData, BankTransferData, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, VoucherData,
@@ -1104,6 +1105,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1197,6 +1199,7 @@ impl TryFrom<ResponseRouterData<GetnetCaptureResponse, Self>>
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1266,6 +1269,7 @@ impl TryFrom<ResponseRouterData<GetnetSyncResponse, Self>>
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1384,7 +1388,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         GetnetRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -1398,7 +1402,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
         item: GetnetRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -1421,7 +1425,7 @@ pub struct GetnetAccessTokenResponse {
 }
 
 impl<F, T> TryFrom<ResponseRouterData<GetnetAccessTokenResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
+    for RouterDataV2<F, MerchantAuthenticationFlowData, T, ServerAuthenticationTokenResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -1514,6 +1518,7 @@ impl TryFrom<ResponseRouterData<GetnetVoidResponse, Self>>
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -2010,6 +2015,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                resource_id: None,
                 authentication_data,
                 redirection_data,
                 connector_response_reference_id: item.response.transaction_id.clone(),
@@ -2077,6 +2083,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 resource_id,
                 redirection_data,
                 authentication_data,
+                connector_feature_data: None,
                 connector_response_reference_id: item.response.transaction_id.clone(),
                 status_code: item.http_code,
             }),

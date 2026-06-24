@@ -95,6 +95,25 @@ pub enum PaymentType {
     Moto,
 }
 
+// Maps the UCS request to PayConex `payment_type`. MOTO has a real signal
+// (`payment_channel` = mail / telephone order); a merchant-initiated payment
+// (`off_session`) maps to RECURRING, which PayConex accepts without a stored
+// credential. INSTALLMENT needs `installment_count` / `installment_number`, which
+// UCS does not surface, so it is not inferred here.
+fn map_payment_type(
+    payment_channel: Option<&common_enums::PaymentChannel>,
+    off_session: Option<bool>,
+) -> PaymentType {
+    match payment_channel {
+        Some(common_enums::PaymentChannel::MailOrder)
+        | Some(common_enums::PaymentChannel::TelephoneOrder) => PaymentType::Moto,
+        _ => match off_session {
+            Some(true) => PaymentType::Recurring,
+            _ => PaymentType::Ecommerce,
+        },
+    }
+}
+
 // =============================================================================
 // FLEXIBLE BOOLEAN — PayConex returns "1"/"0"/true/false/null for booleans
 // =============================================================================
@@ -203,13 +222,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => TransactionType::Sale,
         };
 
-        // Off-session (merchant-initiated) card payments are recurring; everything
-        // else is a customer-present e-commerce transaction. MOTO / INSTALLMENT
-        // have no corresponding UCS signal, so they are not inferred here.
-        let payment_type = match request.off_session {
-            Some(true) => PaymentType::Recurring,
-            _ => PaymentType::Ecommerce,
-        };
+        let payment_type = map_payment_type(request.payment_channel.as_ref(), request.off_session);
 
         let transaction_amount = item
             .connector
@@ -614,6 +627,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayconexPaymentsRespo
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
         };
         Ok(Self {
@@ -676,6 +690,7 @@ impl TryFrom<ResponseRouterData<PayconexCaptureResponse, Self>>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 ..item.router_data
             })
@@ -752,6 +767,7 @@ impl TryFrom<ResponseRouterData<PayconexVoidResponse, Self>>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 ..item.router_data
             })
@@ -841,6 +857,7 @@ impl TryFrom<ResponseRouterData<PayconexSyncResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
         };
 

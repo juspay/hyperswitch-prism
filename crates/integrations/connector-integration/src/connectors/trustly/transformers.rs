@@ -197,8 +197,8 @@ fn serialize_value(value: &serde_json::Value) -> String {
     }
 }
 
-fn generate_trustly_signature<T: Serialize>(
-    method: &TrustlyMethod,
+pub fn generate_trustly_signature<T: Serialize>(
+    method: &str,
     uuid: &str,
     data: &T,
     private_key: &str,
@@ -219,7 +219,7 @@ fn generate_trustly_signature<T: Serialize>(
             context: Default::default(),
         })?;
 
-    let plaintext = format!("{}{}{}", method.as_str(), uuid, trustly_serialize(data));
+    let plaintext = format!("{}{}{}", method, uuid, trustly_serialize(data));
 
     let mut signer = Signer::new(algorithm.message_digest(), &private_key).map_err(|_| {
         errors::IntegrationError::RequestEncodingFailed {
@@ -390,7 +390,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
 
                 let signature = generate_trustly_signature(
-                    &TrustlyMethod::Deposit,
+                    TrustlyMethod::Deposit.as_str(),
                     uuid.as_str(),
                     &data,
                     &auth_details.private_key.expose(),
@@ -496,6 +496,7 @@ impl<F, T> TryFrom<ResponseRouterData<TrustlyPaymentsResponse, Self>>
                         connector_response_reference_id: Some(response.result.uuid),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })
@@ -607,7 +608,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         let signature = generate_trustly_signature(
-            &TrustlyMethod::Refund,
+            TrustlyMethod::Refund.as_str(),
             uuid.as_str(),
             &data,
             &auth_details.private_key.expose(),
@@ -870,4 +871,23 @@ pub fn get_trustly_refund_webhook_status(
         TrustlyWebhookMethod::PayoutFailed => common_enums::RefundStatus::Failure,
         _ => common_enums::RefundStatus::Pending,
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponse {
+    pub result: TrustlyWebhookResponseResult,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponseResult {
+    pub signature: Secret<String>,
+    pub uuid: String,
+    pub method: String,
+    pub data: TrustlyWebhookResponseResultData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponseResultData {
+    pub status: String,
 }

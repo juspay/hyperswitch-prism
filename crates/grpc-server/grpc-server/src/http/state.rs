@@ -6,13 +6,27 @@ type CompositePaymentsService = composite_service::payments::Payments<
     crate::server::payments::PaymentMethodAuthentication,
 >;
 
-type CompositeEventService =
-    composite_service::events::CompositeEvents<crate::server::events::EventServiceImpl>;
+type CompositeEventService = composite_service::events::CompositeEvents<
+    crate::server::events::EventServiceImpl,
+    crate::server::payments::MerchantAuthentication,
+>;
+
+type CompositePaymentMethodService = composite_service::payment_methods::PaymentMethods<
+    crate::server::payments::PaymentMethod,
+    crate::server::payments::MerchantAuthentication,
+>;
+
+type CompositeFrmService = composite_service::frm::Frm<
+    crate::server::frm::FraudAndRiskManagement,
+    crate::server::payments::MerchantAuthentication,
+>;
 
 #[derive(Clone)]
 pub struct AppState {
     pub composite_payments_service: CompositePaymentsService,
     pub composite_event_service: CompositeEventService,
+    pub composite_payment_method_service: CompositePaymentMethodService,
+    pub composite_frm_service: CompositeFrmService,
     pub payments_service: crate::server::payments::Payments,
     pub refunds_service: crate::server::refunds::Refunds,
     pub disputes_service: crate::server::disputes::Disputes,
@@ -29,6 +43,8 @@ impl AppState {
     pub fn new(
         composite_payments_service: CompositePaymentsService,
         composite_event_service: CompositeEventService,
+        composite_payment_method_service: CompositePaymentMethodService,
+        composite_frm_service: CompositeFrmService,
         payments_service: crate::server::payments::Payments,
         refund_service: crate::server::refunds::Refunds,
         dispute_service: crate::server::disputes::Disputes,
@@ -42,6 +58,8 @@ impl AppState {
         Self {
             composite_payments_service,
             composite_event_service,
+            composite_payment_method_service,
+            composite_frm_service,
             payments_service,
             refunds_service: refund_service,
             disputes_service: dispute_service,

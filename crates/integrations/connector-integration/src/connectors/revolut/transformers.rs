@@ -10,6 +10,7 @@ use domain_types::{
         WebhookDetailsResponse,
     },
     errors::{ConnectorError, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -664,6 +665,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 connector_response_reference_id: merchant_reference,
                 incremental_authorization_allowed: None,
                 status_code: 200,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -727,6 +729,7 @@ impl TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
                 connector_response_reference_id: merchant_reference,
                 incremental_authorization_allowed: None,
                 status_code: 200,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -955,6 +958,7 @@ impl<F> TryFrom<ResponseRouterData<RevolutOrderCreateResponse, Self>>
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1054,7 +1058,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         RevolutRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -1067,7 +1071,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         item: RevolutRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -1093,7 +1097,7 @@ pub struct RevolutClientAuthResponse {
 impl TryFrom<ResponseRouterData<RevolutClientAuthResponse, Self>>
     for RouterDataV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     >

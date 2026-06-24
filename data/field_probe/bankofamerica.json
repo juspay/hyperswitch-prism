@@ -615,12 +615,6 @@
         "error": "This feature is not implemented: client_authentication_token flow for bankofamerica"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for bankofamerica"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -637,6 +631,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for bankofamerica"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for bankofamerica"
       }
     },
     "dispute_accept": {
@@ -664,7 +664,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by bankofamerica connector"
       }
     },
     "get": {
@@ -706,6 +707,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

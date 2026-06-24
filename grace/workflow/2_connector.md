@@ -29,6 +29,7 @@ Follow the phases below in order. Do not skip or reorder. Do not run phases in p
 | ------------------- | --------------------------------------- | ----------------- |
 | `{CONNECTOR}`       | Connector name (exact casing from JSON) | `Adyen`           |
 | `{FLOW}`            | Payment flow being implemented          | `BankDebit`       |
+| `{PAYMENT_METHOD}`  | Payment method being added; empty for new-flow runs | `BankDebit` or *(empty)* |
 | `{CONNECTORS_FILE}` | JSON file with connector names          | `connectors.json` |
 | `{BRANCH}`          | Git branch all work happens on          | `feat/bank-debit` |
 
@@ -76,7 +77,8 @@ Task(
 
 Variables:
   CONNECTOR: <connector name, exact casing>
-  FLOW: <the payment flow>"
+  FLOW: <the payment flow>
+  PAYMENT_METHOD: <payment method being added, or empty for new-flow runs>"
 )
 ```
 
@@ -150,6 +152,7 @@ Task(
 Variables:
   CONNECTOR: <connector name>
   FLOW: <the payment flow>
+  PAYMENT_METHOD: <payment method being added, or empty for new-flow runs>
   TECHSPEC_PATH: <path to the tech spec file found in Phase 3>
   CONNECTOR_SOURCE_FILES: <paths to connector source files found in Phase 3>"
 )
@@ -184,7 +187,7 @@ Task(
 Variables:
   CONNECTOR: <connector name, lowercase for branches, original casing for display>
   FLOW: <the payment flow>
-  DEV_BRANCH: <the shared dev branch>
+  BRANCH: <the branch the implementation checkpoint committed on — same as {BRANCH} in this agent's Inputs>
   CONNECTOR_STATUS: <SUCCESS or FAILED>
   FAILURE_REASON: <reason string, empty if SUCCESS>
   GRPCURL_OUTPUT: <the full grpcurl test output from the Codegen Agent, raw text>

@@ -41,6 +41,8 @@ pub const X_CONNECTOR_NAME: &str = "x-connector";
 pub const X_SURCHARGE_CONNECTOR_NAME: &str = "x-surcharge-connector";
 /// Header key for payout connector identification
 pub const X_PAYOUT_CONNECTOR_NAME: &str = "x-payout-connector";
+/// Header key for frm connector identification
+pub const X_FRM_CONNECTOR_NAME: &str = "x-frm-connector";
 /// Header key for merchant identification
 pub const X_MERCHANT_ID: &str = "x-merchant-id";
 /// Header key for reference identification
@@ -171,6 +173,8 @@ pub const LOG_TIME: &str = "time";
 pub const NAME: &str = "UCS";
 /// Constant variable for payment service name
 pub const PAYMENT_SERVICE_NAME: &str = "payment_service";
+pub const PAYMENT_METHOD_SERVICE_NAME: &str = "payment_method_service";
+pub const FRM_SERVICE_NAME: &str = "frm_service";
 
 pub const CONST_DEVELOPMENT: &str = "development";
 pub const CONST_PRODUCTION: &str = "production";

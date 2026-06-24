@@ -10,6 +10,7 @@ use common_utils::{
     events::{Event, EventStage, FlowName, MaskedSerdeValue},
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
+    types::ExecutionMode,
 };
 use domain_types::{
     connector_types, errors::IntegrationError, router_data::ConnectorSpecificConfig,
@@ -430,6 +431,9 @@ fn create_and_emit_grpc_event<R>(
         url: None,
         method: None,
         stage: EventStage::GrpcRequest,
+        execution_mode: ExecutionMode::from_shadow_flag(
+            metadata_payload.map(|md| md.shadow_mode).unwrap_or(false),
+        ),
         latency_ms: Some(u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX)),
         status_code: None,
         request_data: masked_request_data,
@@ -631,6 +635,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
             };
+            let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -638,7 +643,7 @@ macro_rules! implement_connector_operation {
                 $all_keys_required,
                 event_params,
                 None,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             )
@@ -781,6 +786,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
             };
+            let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -788,7 +794,7 @@ macro_rules! implement_connector_operation {
                 $all_keys_required,
                 event_params,
                 None,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             )
@@ -912,6 +918,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
             };
+            let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -919,7 +926,7 @@ macro_rules! implement_connector_operation {
                 $all_keys_required,
                 event_params,
                 None,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             )

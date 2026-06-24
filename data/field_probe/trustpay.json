@@ -871,12 +871,6 @@
         "error": "client_authentication_token flow not supported by trustpay connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by trustpay connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "supported",
@@ -928,6 +922,12 @@
         "error": "server_session_authentication_token flow not supported by trustpay connector"
       }
     },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by trustpay connector"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_supported",
@@ -953,7 +953,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by trustpay connector"
       }
     },
     "get": {
@@ -1029,6 +1030,11 @@
           "headers": {},
           "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

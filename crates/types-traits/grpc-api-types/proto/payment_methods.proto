@@ -96,6 +96,9 @@ message PaymentMethod {
     SkrillRedirectWallet skrill_redirect = 174;          // Skrill
     PayseraRedirectWallet paysera_redirect = 175;        // Paysera
 
+    // --- DIRECT WALLETS --- (server-to-server; wallet id rides on the payment_method itself)
+    QwikcilverDirectWallet qwikcilver_wallet_direct = 185; // Qwikcilver / Pine Labs stored-value wallet
+
     // --- DEPRECATED REDIRECT WALLETS ---
     RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
     MBWay mb_way = 182;                                   // MB WAY
@@ -473,6 +476,11 @@ message VenmoRedirectWallet {
 // Amazon Pay - Online payment service by Amazon
 message AmazonPayRedirectWallet {
   // Fields will be added as needed for Amazon Pay integration
+}
+
+// Qwikcilver / Pine Labs stored-value wallet.
+message QwikcilverDirectWallet {
+  SecretString wallet_number = 1;
 }
 
 // TODO: Should we keep both Paze options, or just one?
@@ -1475,6 +1483,41 @@ enum BankNames {
   IndianOverseasBank = 160;
   CentralBankOfIndia = 161;
   Absa = 162;
+  AccessBank = 163;
+  Albaraka = 164;
+  ChinaConstructionBank = 165;
+  Discovery = 166;
+  EnlBank = 167;
+  FirstNationalBank = 168;
+  GotymeBank = 169;
+  HabibOverseas = 170;
+  HbzBank = 171;
+  Investec = 172;
+  JpMorganChase = 173;
+  MtnBanking = 174;
+  Olympus = 175;
+  OldMutual = 176;
+  PermanentBank = 177;
+  SocieteGenerale = 178;
+  StandardBank = 179;
+  StateBankOfIndia = 180;
+  Ubank = 181;
+  VbsMutualBank = 182;
+  BankZero = 183;
+  BidvestBank = 184;
+  BidvestBankAlliances = 185;
+  FbcFidelityBank = 186;
+  FinbondEpe = 187;
+  FinbondMutualBank = 188;
+  Ithala = 189;
+  PeoplesBankPepBank = 190;
+  PeoplesBank = 191;
+  PostBank = 192;
+  Nedbank = 193;
+  Capitec = 194;
+  CapitecBusiness = 195;
+  AfricanBank = 196;
+  AfricanBankBusiness = 197;
 }
 
 // ============================================================================

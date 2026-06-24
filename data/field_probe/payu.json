@@ -478,12 +478,6 @@
         "error": "This feature is not implemented: client_authentication_token flow for payu"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for payu"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -521,6 +515,12 @@
         }
       }
     },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for payu"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_supported",
@@ -546,7 +546,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by payu connector"
       }
     },
     "get": {
@@ -584,6 +585,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

@@ -232,7 +232,8 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::BillDeskRedirect(_)
             | WalletDataPaymentMethod::CashfreeRedirect(_)
             | WalletDataPaymentMethod::PayURedirect(_)
-            | WalletDataPaymentMethod::EaseBuzzRedirect(_) => {
+            | WalletDataPaymentMethod::EaseBuzzRedirect(_)
+            | WalletDataPaymentMethod::QwikcilverWalletDirect(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("worldpay"),
                     connector: "Worldpay",
@@ -969,6 +970,7 @@ impl<F, T>
                 connector_response_reference_id: optional_correlation_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: router_data.http_code,
+                splits: None,
             }),
             (Some(reason), _) => Err(ErrorResponse {
                 code: worldpay_status.to_string(),
@@ -1064,6 +1066,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         });
 
         Ok(Self {
@@ -1135,6 +1138,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayEventResponse, Self>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         });
 
         Ok(Self {
@@ -1267,6 +1271,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         });
 
         Ok(Self {
@@ -1417,6 +1422,7 @@ where
         let _connector_metadata = extract_three_ds_metadata(&item.response);
 
         let response = Ok(PaymentsResponseData::PreAuthenticateResponse {
+            resource_id: None,
             redirection_data: redirection_data.map(Box::new),
             connector_response_reference_id,
             status_code: item.http_code,

@@ -29,6 +29,7 @@ use domain_types::{
         SetupMandateRequestData, ThirdPartySdkSessionResponse,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankRedirectData, BankTransferData, Card, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber,
@@ -617,6 +618,7 @@ fn handle_cards_response(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         status_code,
+        splits: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -647,6 +649,7 @@ fn handle_bank_redirects_response(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         status_code,
+        splits: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -693,6 +696,7 @@ fn handle_bank_redirects_error_response(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         status_code,
+        splits: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -758,6 +762,7 @@ fn handle_bank_redirects_sync_response(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         status_code,
+        splits: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -810,6 +815,7 @@ pub fn handle_webhook_response(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         status_code,
+        splits: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -870,6 +876,7 @@ pub fn handle_webhook_response_incoming_webhook(
         connector_response_reference_id: None,
         incremental_authorization_allowed: None,
         status_code,
+        splits: None,
     };
     Ok((status, error, payment_response_data))
 }
@@ -1048,7 +1055,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         TrustpayRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -1062,7 +1069,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         _item: TrustpayRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -1087,7 +1094,7 @@ pub struct TrustpayAuthUpdateResponse {
 impl TryFrom<ResponseRouterData<TrustpayAuthUpdateResponse, Self>>
     for RouterDataV2<
         ServerAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData,
     >
@@ -2797,6 +2804,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -2951,6 +2959,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {

@@ -15,6 +15,7 @@ use domain_types::{
         RefundSyncData, RefundsData, RefundsResponseData, ServerAuthenticationTokenRequestData,
         ServerAuthenticationTokenResponseData, VerifyWebhookSourceFlowData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -136,7 +137,7 @@ macros::create_all_prerequisites!(
             flow: ServerAuthenticationToken,
             request_body: TruelayerServerAuthenticationTokenRequestData,
             response_body: TruelayerServerAuthenticationTokenResponseData,
-            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         (
             flow: Authorize,
@@ -407,7 +408,7 @@ macros::macro_connector_implementation!(
     curl_request: FormUrlEncoded(TruelayerServerAuthenticationTokenRequestData),
     curl_response: TruelayerServerAuthenticationTokenResponseData,
     flow_name: ServerAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerAuthenticationTokenRequestData,
     flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
@@ -416,7 +417,7 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = req.resource_common_data.connectors.truelayer.secondary_base_url.as_ref()
                 .ok_or(IntegrationError::FailedToObtainIntegrationUrl { context: Default::default() })?;
@@ -425,7 +426,7 @@ macros::macro_connector_implementation!(
 
         fn get_headers(
             &self,
-            _req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            _req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![(
                 headers::CONTENT_TYPE.to_string(),
@@ -937,6 +938,7 @@ macros::macro_connector_flow_status_impls!(
         MandateRevoke,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         Capture,
         CreateOrder,

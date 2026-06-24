@@ -14,6 +14,7 @@ use domain_types::{
         SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankDebitData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         VaultTokenHolder,
@@ -2191,6 +2192,7 @@ impl<
                         ),
                         incremental_authorization_allowed: None,
                         status_code: http_code,
+                        splits: None,
                     }),
                 }
             }
@@ -2319,6 +2321,7 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                     connector_response_reference_id: Some(transaction.transaction_id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: http_code,
+                    splits: None,
                 });
 
                 Ok(new_router_data)
@@ -2710,6 +2713,7 @@ pub fn convert_to_payments_response_data_or_error(
                     connector_response_reference_id: Some(trans_res.transaction_id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: http_status_code,
+                    splits: None,
                 })
             }
         }
@@ -2747,6 +2751,7 @@ pub fn convert_to_payments_response_data_or_error(
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_status_code,
+                splits: None,
             })
         }
         None if status == AttemptStatus::VoidedPostCapture
@@ -2820,10 +2825,12 @@ impl From<SyncStatus> for AttemptStatus {
             SyncStatus::Voided => Self::Voided,
             SyncStatus::CouldNotVoid => Self::VoidFailed,
             SyncStatus::GeneralError => Self::Failure,
-            SyncStatus::RefundSettledSuccessfully
-            | SyncStatus::RefundPendingSettlement
-            | SyncStatus::FDSPendingReview
-            | SyncStatus::FDSAuthorizedPendingReview => Self::Pending,
+            SyncStatus::RefundSettledSuccessfully | SyncStatus::RefundPendingSettlement => {
+                Self::Charged
+            }
+            SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
+                Self::Unresolved
+            }
         }
     }
 }
@@ -3140,6 +3147,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             });
         } else {
             let error_response = ErrorResponse {
@@ -3601,7 +3609,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         AuthorizedotnetRouterData<
             RouterDataV2<
                 ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerSessionAuthenticationTokenRequestData,
                 ServerSessionAuthenticationTokenResponseData,
             >,
@@ -3615,7 +3623,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: AuthorizedotnetRouterData<
             RouterDataV2<
                 ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerSessionAuthenticationTokenRequestData,
                 ServerSessionAuthenticationTokenResponseData,
             >,
@@ -3644,7 +3652,7 @@ pub struct AuthorizedotnetSdkSessionTokenResponse {
 impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
     for RouterDataV2<
         ServerSessionAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData,
     >
@@ -3667,10 +3675,6 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
                 .map(|m| m.text.clone())
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
             return Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    status: AttemptStatus::Failure,
-                    ..router_data.resource_common_data.clone()
-                },
                 response: Err(ErrorResponse {
                     code,
                     message: message.clone(),
@@ -3700,10 +3704,6 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
         // This flow only issues a session token; no payment has been authorized yet, so the
         // attempt status is left unchanged (it is not Pending).
         Ok(Self {
-            resource_common_data: PaymentFlowData {
-                session_token: Some(session_token.clone()),
-                ..router_data.resource_common_data.clone()
-            },
             response: Ok(ServerSessionAuthenticationTokenResponseData { session_token }),
             ..router_data.clone()
         })

@@ -18,6 +18,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -128,7 +129,7 @@ pub(crate) mod headers {
     pub(crate) const X_PAYLOAD_SIGNATURE: &str = "X-PAYLOAD-SIGNATURE";
 }
 
-macros::create_amount_converter_wrapper!(connector_name: Payload, amount_type: FloatMajorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Payload, amount_type: StringMajorUnit);
 macros::create_all_prerequisites!(
     connector_name: Payload,
     generic_type: T,
@@ -183,7 +184,7 @@ macros::create_all_prerequisites!(
             flow: ClientAuthenticationToken,
             request_body: PayloadClientAuthRequest,
             response_body: PayloadClientAuthResponse,
-            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            router_data: RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ),
         (
             flow: CreateConnectorCustomer,
@@ -220,6 +221,13 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.payload.base_url
+        }
+
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.payload.base_url
         }
@@ -575,7 +583,7 @@ macros::macro_connector_implementation!(
     curl_request: Json(PayloadClientAuthRequest),
     curl_response: PayloadClientAuthResponse,
     flow_name: ClientAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ClientAuthenticationTokenRequestData,
     flow_response: PaymentsResponseData,
     http_method: Post,
@@ -587,7 +595,7 @@ macros::macro_connector_implementation!(
         }
         fn get_headers(
             &self,
-            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let mut header = vec![(
                 headers::CONTENT_TYPE.to_string(),
@@ -599,9 +607,9 @@ macros::macro_connector_implementation!(
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/access_tokens", self.connector_base_url_payments(req)))
+            Ok(format!("{}/access_tokens", self.connector_base_url_merchant_auth(req)))
         }
     }
 );
@@ -742,6 +750,7 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         CreateOrder,
         SubmitEvidence,

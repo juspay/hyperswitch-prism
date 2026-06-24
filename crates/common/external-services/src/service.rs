@@ -182,7 +182,37 @@ impl AdditionalHeaders for domain_types::surcharge::surcharge_types::SurchargeFl
         None
     }
 }
+
+impl ConnectorRequestReference
+    for domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData
+{
+    fn get_connector_request_reference_id(&self) -> &str {
+        &self.connector_request_reference_id
+    }
+}
+
+impl AdditionalHeaders
+    for domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData
+{
+    fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
+        None
+    }
+}
+// `ConnectorRequestReference` is a compile-time bound on `execute_connector_processing_step` but `get_connector_request_reference_id`
+// is never called at runtime for FRM flows — the empty string satisfies the trait without affecting behaviour.
+impl ConnectorRequestReference for domain_types::frm::frm_types::FrmFlowData {
+    fn get_connector_request_reference_id(&self) -> &str {
+        ""
+    }
+}
+impl AdditionalHeaders for domain_types::frm::frm_types::FrmFlowData {
+    fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
+        None
+    }
+}
 use common_utils::events::{Event, EventConfig, FlowName};
+#[cfg(feature = "injector-client")]
+use common_utils::types::ExecutionMode;
 #[cfg(feature = "injector-client")]
 // TokenData is now imported from hyperswitch_injector
 use common_utils::{consts, emit_event_with_config};
@@ -215,6 +245,70 @@ pub async fn publish_to_kafka(
     Err(KafkaClientError::NotEnabled)?
 }
 
+/// Exposes a flow's outcome as a unified [`FlowStatus`], so the generic connector
+/// response handler can record the payment-outcome metric for any flow without
+/// knowing the concrete status type. Flows without a payment-style status return
+/// `None`.
+pub trait GetFlowStatus {
+    /// The flow's current outcome as a unified `FlowStatus`, if it has one.
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus>;
+}
+
+impl GetFlowStatus for domain_types::connector_types::PaymentFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        Some(domain_types::router_data::FlowStatus::Payment(self.status))
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::RefundFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        Some(domain_types::router_data::FlowStatus::Refund(self.status))
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::DisputeFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::connector_types::VerifyWebhookSourceFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::payouts::payouts_types::PayoutFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus for domain_types::surcharge::surcharge_types::SurchargeFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+impl GetFlowStatus
+    for domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData
+{
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+
+impl GetFlowStatus for domain_types::frm::frm_types::FrmFlowData {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+
+/// Stringify a unified `FlowStatus` into a bounded metric label (e.g. `payment_charged`).
+#[cfg(feature = "otel")]
+fn flow_status_label(flow_status: &domain_types::router_data::FlowStatus) -> String {
+    use domain_types::router_data::FlowStatus;
+    match flow_status {
+        FlowStatus::Payment(status) => format!("payment_{status}"),
+        FlowStatus::Refund(status) => format!("refund_{status}"),
+        FlowStatus::Dispute(status) => format!("dispute_{status}"),
+    }
+}
+
 /// Handles the connector response, processing both successful and error responses
 #[allow(clippy::too_many_arguments)]
 pub fn handle_connector_response<F, ResourceCommonData, Req, Resp>(
@@ -231,7 +325,8 @@ where
     F: Clone + 'static,
     Req: Clone + 'static + std::fmt::Debug,
     Resp: Clone + 'static + std::fmt::Debug,
-    ResourceCommonData: Clone + RawConnectorRequestResponse + ConnectorResponseHeaders,
+    ResourceCommonData:
+        Clone + RawConnectorRequestResponse + ConnectorResponseHeaders + GetFlowStatus,
 {
     let return_raw = event_params.is_none_or(|p| p.return_raw_connector_data);
     match response {
@@ -287,6 +382,18 @@ where
                                 body.status_code.to_string().as_str(),
                             ])
                             .inc();
+                        #[cfg(feature = "otel")]
+                        crate::otel_metrics::record_external_error(
+                            method,
+                            params.service_name,
+                            params.connector_name,
+                            if params.shadow_mode {
+                                "shadow"
+                            } else {
+                                "primary"
+                            },
+                            body.status_code.to_string().as_str(),
+                        );
                     }
 
                     if all_keys_required.unwrap_or(true) && return_raw {
@@ -322,11 +429,46 @@ where
                         "response.status_code",
                         tracing::field::display(error_response.status_code),
                     );
+                    // Additive: record the connector flow outcome (FlowStatus) so a
+                    // decline is visible even though the gRPC call "succeeded".
+                    #[cfg(feature = "otel")]
+                    if let (Some(params), Some(flow_status)) =
+                        (event_params, error_response.attempt_status.as_ref())
+                    {
+                        crate::otel_metrics::record_payment_status(
+                            params.connector_name,
+                            params.flow_name.as_str(),
+                            if params.shadow_mode {
+                                "shadow"
+                            } else {
+                                "primary"
+                            },
+                            &flow_status_label(flow_status),
+                        );
+                    }
                     Err(error_stack::report!(
                         ConnectorError::ConnectorErrorResponse(error_response)
                     ))?
                 }
             };
+            // Centralised success-path payment outcome: every connector flow returns
+            // through here, so the final status is recorded once without per-handler
+            // code. Additive, feature-gated.
+            #[cfg(feature = "otel")]
+            if let (Some(params), Some(flow_status)) =
+                (event_params, response.resource_common_data.flow_status())
+            {
+                crate::otel_metrics::record_payment_status(
+                    params.connector_name,
+                    params.flow_name.as_str(),
+                    if params.shadow_mode {
+                        "shadow"
+                    } else {
+                        "primary"
+                    },
+                    &flow_status_label(&flow_status),
+                );
+            }
             Ok(response)
         }
         Err(err) => {
@@ -412,12 +554,23 @@ where
         + RawConnectorRequestResponse
         + ConnectorResponseHeaders
         + ConnectorRequestReference
-        + AdditionalHeaders,
+        + AdditionalHeaders
+        + GetFlowStatus,
 {
     let start = tokio::time::Instant::now();
     let proxy_name = event_params.proxy_name.unwrap_or("primary");
     let transport_type = connector.get_transport_type();
     let result = match (call_connector_action, transport_type) {
+        (common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest, _) => {
+            let response = Response {
+                headers: None,
+                response: bytes::Bytes::new(),
+                status_code: 200,
+            };
+            connector
+                .handle_response_v2(&router_data, None, response)
+                .map_err(report_connector_response_to_flow)
+        }
         // handle_response removed from proto (PaymentServiceGetRequest field 5 reserved)
         (common_enums::CallConnectorAction::HandleResponse(_), _) => {
             return Err(error_stack::report!(ConnectorFlowError::from(
@@ -513,6 +666,17 @@ where
                             event_params.connector_name,
                         ])
                         .inc();
+                    #[cfg(feature = "otel")]
+                    crate::otel_metrics::record_external_call(
+                        &method.to_string(),
+                        event_params.service_name,
+                        event_params.connector_name,
+                        if event_params.shadow_mode {
+                            "shadow"
+                        } else {
+                            "primary"
+                        },
+                    );
                     let external_service_start_latency = tokio::time::Instant::now();
                     tracing::Span::current().record("request.url", tracing::field::display(&url));
                     tracing::Span::current()
@@ -660,6 +824,18 @@ where
                             event_params.connector_name,
                         ])
                         .observe(external_service_elapsed.as_secs_f64());
+                    #[cfg(feature = "otel")]
+                    crate::otel_metrics::record_external_latency(
+                        &method.to_string(),
+                        event_params.service_name,
+                        event_params.connector_name,
+                        if event_params.shadow_mode {
+                            "shadow"
+                        } else {
+                            "primary"
+                        },
+                        external_service_elapsed.as_secs_f64(),
+                    );
                     // Extract status code BEFORE creating event - one liner
                     let status_code = response.as_ref().ok().map(|result| match result {
                         Ok(body) | Err(body) => i32::from(body.status_code),
@@ -713,6 +889,17 @@ where
                             event_params.connector_name,
                         ])
                         .inc();
+                    #[cfg(feature = "otel")]
+                    crate::otel_metrics::record_external_call(
+                        "PUBLISH",
+                        event_params.service_name,
+                        event_params.connector_name,
+                        if event_params.shadow_mode {
+                            "shadow"
+                        } else {
+                            "primary"
+                        },
+                    );
                     let external_service_start_latency = tokio::time::Instant::now();
 
                     let topic = record.topic.clone();
@@ -749,6 +936,18 @@ where
                             event_params.connector_name,
                         ])
                         .observe(external_service_elapsed.as_secs_f64());
+                    #[cfg(feature = "otel")]
+                    crate::otel_metrics::record_external_latency(
+                        "PUBLISH",
+                        event_params.service_name,
+                        event_params.connector_name,
+                        if event_params.shadow_mode {
+                            "shadow"
+                        } else {
+                            "primary"
+                        },
+                        external_service_elapsed.as_secs_f64(),
+                    );
                     tracing::info!(?response, "response from connector");
 
                     // Extract status code BEFORE creating event - one liner
@@ -859,6 +1058,7 @@ fn create_event(
         url,
         method,
         stage: EventStage::ConnectorCall,
+        execution_mode: ExecutionMode::from_shadow_flag(event_params.shadow_mode),
         latency_ms,
         status_code,
         request_data: MaskedSerdeValue::from_masked_optional(masked_request, "connector_request"),

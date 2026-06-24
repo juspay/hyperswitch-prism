@@ -1,0 +1,644 @@
+{
+  "connector": "qwikcilver",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "authenticate flow not supported by qwikcilver connector"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Affirm": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Afterpay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Alfamart": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "AliPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "AmazonPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "ApplePay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Bacs": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "BacsBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "BancontactCard": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "BcaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Becs": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Bizum": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Blik": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Bluecode": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "BniVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Boleto": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "BriVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "CashappQr": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "CimbVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "ClassicReward": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "DanamonVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "EaseBuzzRedirect": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Efecty": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Eft": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Eps": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "FamilyMart": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "GCash": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Giropay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Ideal": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Indomaret": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "IndonesianBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "InstantBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "InstantBankTransferFinland": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "InstantBankTransferPoland": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Interac": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "KakaoPay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Klarna": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Lawson": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "LocalBankRedirect": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "LocalBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "MandiriVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "MbWay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Mifinity": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "MiniStop": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "OnlineBankingFinland": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "OnlineBankingFpx": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "OnlineBankingPoland": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "OnlineBankingSlovakia": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "OnlineBankingThailand": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "OpenBanking": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Oxxo": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "PagoEfectivo": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "PayEasy": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "PaypalRedirect": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "PaypalSdk": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "PhonePeRedirect": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Pix": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Przelewy24": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Pse": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "RedCompra": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "RedPagos": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "RevolutPay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "SamsungPay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Satispay": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Seicomart": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Sepa": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "SepaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "SepaGuaranteedDebit": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "SevenEleven": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Sofort": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Swish": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "TouchNGo": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Trustly": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Twint": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Vipps": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "WeChatPayQr": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      },
+      "Wero": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_supported",
+        "error": "capture flow not supported by qwikcilver connector"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by qwikcilver connector"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by qwikcilver connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "supported",
+        "proto_request": {},
+        "sample": {
+          "url": "https://qc3.qwikcilver.com/Qwikcilver/eGMS.RestApi/api/v2/authorize",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"TerminalID\":\"probe_key\",\"Username\":\"probe_key\",\"Password\":\"probe_key\",\"TransactionId\":1,\"DateAtClient\":\"2020-01-01T00:00:00+00:00\"}"
+        }
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by qwikcilver connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by qwikcilver connector"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by qwikcilver connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by qwikcilver connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by qwikcilver connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by qwikcilver connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_sync flow for qwikcilver"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by qwikcilver connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by qwikcilver connector"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by qwikcilver connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by qwikcilver connector"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_supported",
+        "error": "repeat_payment flow not supported by qwikcilver connector"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by qwikcilver connector"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Cancel Redeem needs the wallet number of the wallet whose Redeem is being reversed. Pass it on the typed `payment_method.qwikcilver_wallet_direct` variant — the same shape Authorize uses. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Cancel Redeem needs the wallet number of the wallet whose Redeem is being reversed. Pass it on the typed `payment_method.qwikcilver_wallet_direct` variant — the same shape Authorize uses."
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for qwikcilver"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by qwikcilver connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by qwikcilver connector"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector. — Missing required field: payment_method.qwikcilver_wallet_direct.wallet_number. Qwikcilver Redeem requires the destination wallet number via the typed `qwikcilver_wallet_direct` payment_method variant — no other PaymentMethod variant is supported on this connector."
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by qwikcilver connector"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by qwikcilver connector"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_supported",
+        "error": "void flow not supported by qwikcilver connector"
+      }
+    }
+  }
+}

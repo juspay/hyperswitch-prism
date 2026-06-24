@@ -1930,7 +1930,7 @@ macro_rules! expand_flow_status_impl {
             connector: $c, status: $st, generic_type: $g, [$($b)*],
             flow: ::domain_types::connector_flow::ClientAuthenticationToken,
             flow_name: "client_authentication_token",
-            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            flow_common_data: ::domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData,
             request: ::domain_types::connector_types::ClientAuthenticationTokenRequestData,
             response: ::domain_types::connector_types::PaymentsResponseData,
         );
@@ -1941,7 +1941,7 @@ macro_rules! expand_flow_status_impl {
             connector: $c, status: $st, generic_type: $g, [$($b)*],
             flow: ::domain_types::connector_flow::ServerAuthenticationToken,
             flow_name: "server_authentication_token",
-            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            flow_common_data: ::domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData,
             request: ::domain_types::connector_types::ServerAuthenticationTokenRequestData,
             response: ::domain_types::connector_types::ServerAuthenticationTokenResponseData,
         );
@@ -1952,7 +1952,7 @@ macro_rules! expand_flow_status_impl {
             connector: $c, status: $st, generic_type: $g, [$($b)*],
             flow: ::domain_types::connector_flow::ServerSessionAuthenticationToken,
             flow_name: "server_session_authentication_token",
-            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            flow_common_data: ::domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData,
             request: ::domain_types::connector_types::ServerSessionAuthenticationTokenRequestData,
             response: ::domain_types::connector_types::ServerSessionAuthenticationTokenResponseData,
         );
@@ -2037,6 +2037,19 @@ macro_rules! expand_flow_status_impl {
         );
     };
 
+    // ---- PaymentMethodEligibility ----
+    (connector: $c:ident, flow: PaymentMethodEligibility, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::PaymentMethodEligibilityV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::PaymentMethodEligibility,
+            flow_name: "eligibility",
+            flow_common_data: ::domain_types::connector_types::PaymentFlowData,
+            request: ::domain_types::connector_types::PaymentMethodEligibilityData,
+            response: ::domain_types::connector_types::PaymentMethodEligibilityResponse,
+        );
+    };
+
     // ---- Refund family ----
     (connector: $c:ident, flow: Refund, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
         impl<$g: $($b)*> ::interfaces::connector_types::RefundV2 for $c<$g> {}
@@ -2046,6 +2059,17 @@ macro_rules! expand_flow_status_impl {
             flow_name: "refund",
             flow_common_data: ::domain_types::connector_types::RefundFlowData,
             request: ::domain_types::connector_types::RefundsData,
+            response: ::domain_types::connector_types::RefundsResponseData,
+        );
+    };
+    (connector: $c:ident, flow: VoidPostRefund, status: $st:ident, generic_type: $g:tt, [$($b:tt)*]) => {
+        impl<$g: $($b)*> ::interfaces::connector_types::RefundVoidPostRefundV2 for $c<$g> {}
+        $crate::connectors::macros::flow_status_emit!(
+            connector: $c, status: $st, generic_type: $g, [$($b)*],
+            flow: ::domain_types::connector_flow::VoidPostRefund,
+            flow_name: "void_post_refund",
+            flow_common_data: ::domain_types::connector_types::RefundFlowData,
+            request: ::domain_types::connector_types::RefundVoidPostRefundData,
             response: ::domain_types::connector_types::RefundsResponseData,
         );
     };
@@ -2163,3 +2187,59 @@ macro_rules! flow_status_emit {
     };
 }
 pub(crate) use flow_status_emit;
+
+/// Emit a `ConnectorIntegrationV2` stub for an FRM flow that a connector does
+/// not implement, so the FRM service surfaces a clear "flow not implemented"
+/// error instead of the connector failing to compile. All FRM flows share
+/// [`FrmFlowData`] as their common data, so this only needs the connector type
+/// (with its generic parameter + bounds) and the flow's request/response types.
+/// Generic over the connector, so any FRM connector can reuse it.
+macro_rules! frm_flow_not_implemented {
+    (
+        connector: $c:ident,
+        generic_type: $g:tt,
+        [$($b:tt)*],
+        flow: $flow:ty,
+        request: $req:ty,
+        response: $resp:ty,
+        flow_name: $name:literal $(,)?
+    ) => {
+        impl<$g: $($b)*>
+            ::interfaces::connector_integration_v2::ConnectorIntegrationV2<
+                $flow,
+                ::domain_types::frm::frm_types::FrmFlowData,
+                $req,
+                $resp,
+            > for $c<$g>
+        {
+            fn get_url(
+                &self,
+                _req: &::domain_types::router_data_v2::RouterDataV2<
+                    $flow,
+                    ::domain_types::frm::frm_types::FrmFlowData,
+                    $req,
+                    $resp,
+                >,
+            ) -> ::common_utils::CustomResult<String, ::domain_types::errors::IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::connector_flow_not_implemented(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    $name,
+                    ::domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some(format!(
+                            "{} does not implement the `{}` FRM flow",
+                            ::interfaces::api::ConnectorCommon::id(self),
+                            $name
+                        )),
+                        suggested_action: Some(format!(
+                            "Do not route the `{}` FRM flow to this connector",
+                            $name
+                        )),
+                        doc_url: None,
+                    },
+                )
+                .into())
+            }
+        }
+    };
+}
+pub(crate) use frm_flow_not_implemented;

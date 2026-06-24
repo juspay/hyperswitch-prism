@@ -461,12 +461,6 @@
         "error": "client_authentication_token flow not supported by absa_sanlam connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by absa_sanlam connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_supported",
@@ -483,6 +477,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by absa_sanlam connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by absa_sanlam connector"
       }
     },
     "dispute_accept": {
@@ -510,7 +510,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by absa_sanlam connector"
       }
     },
     "get": {
@@ -562,6 +563,11 @@
           "headers": {},
           "body": "{}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

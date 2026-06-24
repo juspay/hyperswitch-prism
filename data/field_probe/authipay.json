@@ -517,12 +517,6 @@
         "error": "client_authentication_token flow not supported by authipay connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by authipay connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_supported",
@@ -539,6 +533,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for authipay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by authipay connector"
       }
     },
     "dispute_accept": {
@@ -566,7 +566,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by authipay connector"
       }
     },
     "get": {
@@ -608,6 +609,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

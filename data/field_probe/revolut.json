@@ -3255,12 +3255,6 @@
         }
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for revolut"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -3277,6 +3271,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for revolut"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for revolut"
       }
     },
     "dispute_accept": {
@@ -3304,7 +3304,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by revolut connector"
       }
     },
     "get": {
@@ -3374,6 +3375,11 @@
           "headers": {},
           "body": "{\"event\":\"ORDER_COMPLETED\",\"order_id\":\"probe_order_001\"}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

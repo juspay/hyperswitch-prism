@@ -13,6 +13,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, SetupMandateRequestData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankDebitData, BankRedirectData, BankTransferData, PaymentMethodData,
         PaymentMethodDataTypes, RawCardNumber,
@@ -561,7 +562,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         NuveiRouterData<
             RouterDataV2<
                 domain_types::connector_flow::ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 domain_types::connector_types::ServerSessionAuthenticationTokenRequestData,
                 domain_types::connector_types::ServerSessionAuthenticationTokenResponseData,
             >,
@@ -575,7 +576,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: NuveiRouterData<
             RouterDataV2<
                 domain_types::connector_flow::ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 domain_types::connector_types::ServerSessionAuthenticationTokenRequestData,
                 domain_types::connector_types::ServerSessionAuthenticationTokenResponseData,
             >,
@@ -615,7 +616,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<NuveiSessionTokenResponse, Self>>
     for RouterDataV2<
         domain_types::connector_flow::ServerSessionAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         domain_types::connector_types::ServerSessionAuthenticationTokenRequestData,
         domain_types::connector_types::ServerSessionAuthenticationTokenResponseData,
     >
@@ -637,10 +638,6 @@ impl TryFrom<ResponseRouterData<NuveiSessionTokenResponse, Self>>
                 .unwrap_or_else(|| "Unknown error".to_string());
 
             return Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    status: common_enums::AttemptStatus::Failure,
-                    ..router_data.resource_common_data.clone()
-                },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: error_code,
                     message: error_message.clone(),
@@ -670,11 +667,6 @@ impl TryFrom<ResponseRouterData<NuveiSessionTokenResponse, Self>>
             };
 
         Ok(Self {
-            resource_common_data: PaymentFlowData {
-                status: common_enums::AttemptStatus::Pending,
-                session_token: Some(session_token),
-                ..router_data.resource_common_data.clone()
-            },
             response: Ok(session_response_data),
             ..router_data.clone()
         })
@@ -1218,6 +1210,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_response_reference_id: response.client_request_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1410,6 +1403,7 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
             connector_response_reference_id: transaction_details.client_unique_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1495,6 +1489,7 @@ impl TryFrom<ResponseRouterData<NuveiCaptureResponse, Self>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1965,6 +1960,7 @@ impl TryFrom<ResponseRouterData<NuveiVoidResponse, Self>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -2014,7 +2010,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         NuveiRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -2028,7 +2024,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: NuveiRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -2068,7 +2064,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<NuveiClientAuthResponse, Self>>
     for RouterDataV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     >
@@ -2737,6 +2733,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_response_reference_id: response.client_request_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -3053,6 +3050,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_response_reference_id: response.client_request_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {

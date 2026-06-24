@@ -17,6 +17,9 @@ pub struct RSync;
 pub struct Refund;
 
 #[derive(Debug, Clone)]
+pub struct VoidPostRefund;
+
+#[derive(Debug, Clone)]
 pub struct Capture;
 
 #[derive(Debug, Clone)]
@@ -103,11 +106,39 @@ pub struct SurchargePaymentSucceeded;
 #[derive(Debug, Clone)]
 pub struct SurchargeRefundSucceeded;
 
+#[derive(Debug, Clone)]
+pub struct Recharge;
+
+#[derive(Debug, Clone)]
+pub struct CreatePaymentMethod;
+
+#[derive(Debug, Clone)]
+pub struct GetPaymentMethod;
+
+#[derive(Debug, Clone)]
+pub struct PreRiskCheck;
+
+#[derive(Debug, Clone)]
+pub struct PostRiskCheck;
+
+#[derive(Debug, Clone)]
+pub struct FrmPaymentOutcome;
+
+#[derive(Debug, Clone)]
+pub struct FrmRefundProcessed;
+
+#[derive(Debug, Clone)]
+pub struct FrmChargebackReceived;
+
+#[derive(Debug, Clone)]
+pub struct PaymentMethodEligibility;
+
 #[derive(strum::Display)]
 #[strum(serialize_all = "snake_case")]
 pub enum FlowName {
     Authorize,
     Refund,
+    VoidPostRefund,
     Rsync,
     Psync,
     Void,
@@ -142,4 +173,13 @@ pub enum FlowName {
     SurchargeCalculate,
     SurchargePaymentSucceeded,
     SurchargeRefundSucceeded,
+    Recharge,
+    CreatePaymentMethod,
+    GetPaymentMethod,
+    PreRiskCheck,
+    PostRiskCheck,
+    FrmPaymentOutcome,
+    FrmRefundProcessed,
+    FrmChargebackReceived,
+    PaymentMethodEligibility,
 }

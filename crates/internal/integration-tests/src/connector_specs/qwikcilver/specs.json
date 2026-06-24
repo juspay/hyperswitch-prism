@@ -1,0 +1,8 @@
+{
+  "connector": "qwikcilver",
+  "supported_suites": [
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentService/Authorize",
+    "PaymentService/Refund"
+  ]
+}

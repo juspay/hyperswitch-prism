@@ -1,5 +1,5 @@
 use crate::types::ResponseRouterData;
-use common_enums::{AttemptStatus, CardNetwork, RefundStatus};
+use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::consts;
 use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::payment_method_data::Card as DomainCard;
@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 // Re-export from common utils for use in this connector
+use crate::utils::CardTypeCode;
 pub use crate::utils::{convert_metadata_to_merchant_defined_info, MerchantDefinedInformation};
 
 // Type alias for WellsfargoRouterData to avoid using super::
@@ -478,22 +479,6 @@ fn card_issuer_to_string(card_issuer: CardIssuer) -> String {
     card_type.to_string()
 }
 
-/// Convert CardNetwork to CyberSource card type code (for vault token flows where BIN is unavailable)
-fn card_network_to_type_code(network: &CardNetwork) -> Option<&'static str> {
-    match network {
-        CardNetwork::Visa => Some("001"),
-        CardNetwork::Mastercard => Some("002"),
-        CardNetwork::AmericanExpress => Some("003"),
-        CardNetwork::Discover => Some("004"),
-        CardNetwork::DinersClub => Some("005"),
-        CardNetwork::JCB => Some("007"),
-        CardNetwork::UnionPay => Some("062"),
-        CardNetwork::Maestro => Some("042"),
-        CardNetwork::CartesBancaires => Some("036"),
-        _ => None,
-    }
-}
-
 /// Get card type code.
 /// - If BIN detection succeeds (real card number), use the card issuer code.
 /// - If BIN detection fails (e.g. vault token placeholder), fall back to card_network.
@@ -505,7 +490,7 @@ fn get_card_type_code(
         Err(_) => match card_data
             .card_network
             .as_ref()
-            .and_then(|network| card_network_to_type_code(network))
+            .and_then(|network| network.type_code())
         {
             Some(code) => Ok(code.to_string()),
             None => Err(IntegrationError::MissingRequiredField {
@@ -1204,6 +1189,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             // Build error response using helper function
@@ -1278,6 +1264,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             // Build error response using helper function
@@ -1332,6 +1319,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             // Build error response using helper function
@@ -1386,6 +1374,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             // Build error response using helper function
@@ -1467,7 +1456,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                     .and_then(|info| info.code.clone())
                     .or_else(|| Some(response.id.clone())),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
-
+                splits: None,
                 status_code: item.http_code,
             })
         } else {

@@ -13,7 +13,14 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { checkout: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        checkout: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            apiSecret: { value: 'YOUR_API_SECRET' },
+            processingChannelId: { value: 'YOUR_PROCESSING_CHANNEL_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 

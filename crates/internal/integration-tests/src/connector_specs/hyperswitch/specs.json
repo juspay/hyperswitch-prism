@@ -1,0 +1,16 @@
+{
+  "connector": "hyperswitch",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge",
+    "PaymentMethodService/Tokenize",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "MerchantAuthenticationService/CreateServerSessionAuthenticationToken"
+  ]
+}

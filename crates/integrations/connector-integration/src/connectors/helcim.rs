@@ -467,6 +467,7 @@ macros::macro_connector_flow_status_impls!(
         ServerAuthenticationToken,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         PreAuthenticate,
         Authenticate,

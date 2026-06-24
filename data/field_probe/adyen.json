@@ -2184,12 +2184,6 @@
         }
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by adyen connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "supported",
@@ -2222,6 +2216,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by adyen connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by adyen connector"
       }
     },
     "dispute_accept": {
@@ -2299,7 +2299,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by adyen connector"
       }
     },
     "get": {
@@ -2368,6 +2369,11 @@
           "headers": {},
           "body": "{\"notificationItems\":[{\"NotificationRequestItem\":{\"pspReference\":\"probe_ref_001\",\"merchantReference\":\"probe_order_001\",\"merchantAccountCode\":\"ProbeAccount\",\"eventCode\":\"AUTHORISATION\",\"success\":\"true\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"additionalData\":{}}}]}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

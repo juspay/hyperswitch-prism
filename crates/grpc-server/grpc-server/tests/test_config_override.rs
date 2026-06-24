@@ -33,12 +33,16 @@ async fn test_config_override() -> Result<(), Box<dyn std::error::Error>> {
                 currency: Currency::Inr as i32,
             }),
             customer: Some(grpc_api_types::payments::Customer {
+                customer_document_details: None,
                 email: Some(Secret::new("example@gmail.com".to_string())),
                 name: None,
                 id: None,
                 connector_customer_id: None,
                 phone_number: None,
                 phone_country_code: None,
+                first_name: None,
+                last_name: None,
+                salutation: None,
             }),
             payment_method: Some(PaymentMethod {
                 payment_method: Some(payment_method::PaymentMethod::Card(CardDetails {
@@ -115,7 +119,7 @@ async fn test_config_override() -> Result<(), Box<dyn std::error::Error>> {
             .insert("x-key1", "".parse().expect("valid header value"));
 
         // Make the request
-        let response = client.authorize(request).await;
+        let response = Box::pin(client.authorize(request)).await;
 
         // The config override was processed if the request reached the connector layer.
         // Integration errors (missing required fields) now correctly return tonic::Status
@@ -440,9 +444,11 @@ mod unit {
         let override_json = json!({
             "events": {
                 "enabled": true,
-                "topic": "events-override",
                 "brokers": ["broker1:9092", "broker2:9092"],
-                "partition_key_field": "merchant_id",
+                // connector_events overrides both fields; api_events overrides only the topic,
+                // so its partition_key_field must be preserved from the base config.
+                "connector_events": { "topic": "connector-override", "partition_key_field": "merchant_id" },
+                "api_events": { "topic": "api-override" },
                 "transformations": { "order_id": "payment_id" },
                 "static_values": { "app": "grpc" },
                 "extractions": { "path": "metadata.path" }
@@ -450,14 +456,28 @@ mod unit {
         });
         let new_config = apply_override(override_json);
         assert!(new_config.events.enabled);
-        assert_eq!(new_config.events.topic.as_str(), "events-override");
+        // Each topic carries its own topic name and partition key.
+        assert_eq!(
+            new_config.events.connector_events.topic.as_str(),
+            "connector-override"
+        );
+        assert_eq!(
+            new_config
+                .events
+                .connector_events
+                .partition_key_field
+                .as_str(),
+            "merchant_id"
+        );
+        assert_eq!(new_config.events.api_events.topic.as_str(), "api-override");
+        // Untouched by the override, so it keeps the base config's partition key.
+        assert_eq!(
+            new_config.events.api_events.partition_key_field.as_str(),
+            "request_id"
+        );
         assert_eq!(
             new_config.events.brokers,
             vec!["broker1:9092".to_string(), "broker2:9092".to_string()]
-        );
-        assert_eq!(
-            new_config.events.partition_key_field.as_str(),
-            "merchant_id"
         );
         assert_eq!(
             new_config

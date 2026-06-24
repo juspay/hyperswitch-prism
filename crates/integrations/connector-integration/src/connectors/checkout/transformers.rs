@@ -1567,6 +1567,8 @@ pub struct PaymentsResponse {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentProcessingDetails {
+    /// A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+    pub scheme_transaction_link_id: Option<String>,
     /// The Merchant Advice Code (MAC) provided by Mastercard, which contains additional information about the transaction.
     pub partner_merchant_advice_code: Option<String>,
     /// The original authorization response code sent by the scheme.
@@ -1680,12 +1682,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
-            network_txn_link_id: None,
+            network_txn_link_id: item
+                .response
+                .processing
+                .clone()
+                .and_then(|processing| processing.scheme_transaction_link_id.clone()),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         let (amount_captured, minor_amount_capturable) =
@@ -1800,6 +1807,7 @@ impl<
                     ),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 };
 
                 let (amount_captured, minor_amount_capturable) =
@@ -1910,12 +1918,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
-            network_txn_link_id: None,
+            network_txn_link_id: item
+                .response
+                .processing
+                .and_then(|processing| processing.scheme_transaction_link_id.clone()),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2011,12 +2023,16 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: None,
             network_txn_id: item.response.scheme_id.clone(),
-            network_txn_link_id: None,
+            network_txn_link_id: item
+                .response
+                .processing
+                .and_then(|processing| processing.scheme_transaction_link_id.clone()),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2092,6 +2108,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentVoidResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: http_code_to_attempt_status_for_void_flow(item.http_code),
@@ -2229,6 +2246,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

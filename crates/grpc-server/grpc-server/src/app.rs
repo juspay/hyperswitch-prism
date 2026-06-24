@@ -2,11 +2,12 @@ use axum::{extract::Request, http};
 use common_utils::consts;
 use external_services::shared_metrics as metrics;
 use grpc_api_types::{
+    frm::fraud_and_risk_management_service_server,
     health_check::health_server,
     payments::{
-        composite_event_service_server, composite_payment_service_server,
-        composite_refund_service_server, customer_service_server, dispute_service_server,
-        event_service_server, merchant_authentication_service_server,
+        composite_event_service_server, composite_payment_method_service_server,
+        composite_payment_service_server, composite_refund_service_server, customer_service_server,
+        dispute_service_server, event_service_server, merchant_authentication_service_server,
         payment_method_authentication_service_server, payment_method_service_server,
         payment_service_server, recurring_payment_service_server, refund_service_server,
     },
@@ -109,8 +110,18 @@ pub struct Service {
         crate::server::refunds::Refunds,
         crate::server::payments::PaymentMethodAuthentication,
     >,
-    pub composite_event_service:
-        composite_service::events::CompositeEvents<crate::server::events::EventServiceImpl>,
+    pub composite_event_service: composite_service::events::CompositeEvents<
+        crate::server::events::EventServiceImpl,
+        crate::server::payments::MerchantAuthentication,
+    >,
+    pub composite_payment_method_service: composite_service::payment_methods::PaymentMethods<
+        crate::server::payments::PaymentMethod,
+        crate::server::payments::MerchantAuthentication,
+    >,
+    pub composite_frm_service: composite_service::frm::Frm<
+        crate::server::frm::FraudAndRiskManagement,
+        crate::server::payments::MerchantAuthentication,
+    >,
     pub payments_service: crate::server::payments::Payments,
     pub refunds_service: crate::server::refunds::Refunds,
     pub disputes_service: crate::server::disputes::Disputes,
@@ -122,6 +133,7 @@ pub struct Service {
     pub payment_method_authentication_service: crate::server::payments::PaymentMethodAuthentication,
     pub payouts_service: crate::server::payouts::Payouts,
     pub surcharges_service: crate::server::surcharges::Surcharges,
+    pub frm_service: crate::server::frm::FraudAndRiskManagement,
 }
 
 impl Service {
@@ -167,25 +179,42 @@ impl Service {
         );
 
         let event_service = crate::server::events::EventServiceImpl;
-        let composite_event_service =
-            composite_service::events::CompositeEvents::new(event_service.clone());
+        let composite_event_service = composite_service::events::CompositeEvents::new(
+            event_service.clone(),
+            merchant_authentication_service.clone(),
+        );
+
+        let payment_method_service = crate::server::payments::PaymentMethod;
+        let composite_payment_method_service =
+            composite_service::payment_methods::PaymentMethods::new(
+                payment_method_service.clone(),
+                merchant_authentication_service.clone(),
+            );
+
+        let composite_frm_service = composite_service::frm::Frm::new(
+            crate::server::frm::FraudAndRiskManagement,
+            merchant_authentication_service.clone(),
+        );
 
         Self {
             health_check_service: crate::server::health_check::HealthCheck,
             composite_payments_service,
             composite_event_service,
+            composite_payment_method_service,
+            composite_frm_service,
             payments_service,
             refunds_service,
             disputes_service: crate::server::disputes::Disputes,
             recurring_payment_service: crate::server::payments::RecurringPayments,
             event_service,
-            payment_method_service: crate::server::payments::PaymentMethod,
+            payment_method_service,
             merchant_authentication_service,
             customer_service,
             payment_method_authentication_service:
                 crate::server::payments::PaymentMethodAuthentication,
             payouts_service: crate::server::payouts::Payouts,
             surcharges_service: crate::server::surcharges::Surcharges,
+            frm_service: crate::server::frm::FraudAndRiskManagement,
         }
     }
 
@@ -222,6 +251,8 @@ impl Service {
         let app_state = crate::http::AppState::new(
             self.composite_payments_service,
             self.composite_event_service,
+            self.composite_payment_method_service,
+            self.composite_frm_service,
             self.payments_service,
             self.refunds_service,
             self.disputes_service,
@@ -319,6 +350,11 @@ impl Service {
                     self.composite_payments_service,
                 ),
             )
+            .add_service(
+                composite_payment_method_service_server::CompositePaymentMethodServiceServer::new(
+                    self.composite_payment_method_service,
+                ),
+            )
             .add_service(customer_service_server::CustomerServiceServer::new(
                 self.customer_service,
             ))
@@ -346,6 +382,16 @@ impl Service {
             .add_service(surcharge_service_server::SurchargeServiceServer::new(
                 self.surcharges_service,
             ))
+            .add_service(
+                fraud_and_risk_management_service_server::FraudAndRiskManagementServiceServer::new(
+                    self.frm_service,
+                ),
+            )
+            .add_service(
+                grpc_api_types::frm::composite_fraud_and_risk_management_service_server::CompositeFraudAndRiskManagementServiceServer::new(
+                    self.composite_frm_service,
+                ),
+            )
             .serve_with_shutdown(socket, shutdown_signal)
             .await?;
 
