@@ -12969,7 +12969,12 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                 grpc_api_types::payments::PaymentMethodServiceTokenizeResponse {
                     payment_method_token: response.token,
                     error: None,
-                    status_code: 200,
+                    // Report the connector's real HTTP status (Finix returns 201) instead of a
+                    // hardcoded 200, mirroring the Direct gateway's connector_http_status_code.
+                    status_code: router_data_v2
+                        .resource_common_data
+                        .connector_http_status_code
+                        .unwrap_or(200) as u32,
                     response_headers: router_data_v2
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
