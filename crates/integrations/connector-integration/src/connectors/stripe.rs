@@ -748,6 +748,17 @@ macros::macro_connector_implementation!(
             )];
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
+
+            if let Some(domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(
+                stripe_split_payment,
+            )) = &req.request.split_payments
+            {
+                transformers::transform_headers_for_connect_platform(
+                    stripe_split_payment.charge_type.clone(),
+                    Secret::new(stripe_split_payment.transfer_account_id.clone()),
+                    &mut header,
+                );
+            }
             Ok(header)
         }
         fn get_url(
