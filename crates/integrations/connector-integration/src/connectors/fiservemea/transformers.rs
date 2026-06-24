@@ -15,7 +15,9 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{
+        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
@@ -121,6 +123,8 @@ impl Default for FiservemeaErrorResponse {
 pub enum FiservemeaRequestType {
     PaymentCardSaleTransaction,
     PaymentCardPreAuthTransaction,
+    WalletSaleTransaction,
+    WalletPreAuthTransaction,
     PostAuthTransaction,
     VoidPreAuthTransactions,
     VoidTransaction,
@@ -134,7 +138,93 @@ pub struct FiservemeaPaymentsRequest<T: PaymentMethodDataTypes> {
     pub merchant_transaction_id: String,
     pub transaction_amount: TransactionAmount,
     pub order: OrderDetails,
-    pub payment_method: PaymentMethod<T>,
+    #[serde(flatten)]
+    pub payment_data: FiservemeaPaymentData<T>,
+}
+
+/// Flattened union for card vs. wallet payment methods.
+/// `#[serde(untagged)]` omits the variant name; `#[serde(flatten)]` on the
+/// parent field inlines the variant's fields directly into the request body.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum FiservemeaPaymentData<T: PaymentMethodDataTypes> {
+    Card {
+        payment_method: PaymentMethod<T>,
+    },
+    GooglePay {
+        wallet_payment_method: WalletPaymentMethod,
+    },
+}
+
+/// Google Pay wallet payment method container.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WalletPaymentMethod {
+    pub wallet_type: String,
+    pub encrypted_google_pay: EncryptedGooglePay,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EncryptedGooglePay {
+    pub data: EncryptedGooglePayData,
+    pub intermediate_signing_key: IntermediateSigningKey,
+    pub signature: Secret<String>,
+    pub version: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EncryptedGooglePayData {
+    pub encrypted_message: Secret<String>,
+    pub ephemeral_public_key: Secret<String>,
+    pub tag: Secret<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IntermediateSigningKey {
+    pub signed_key: SignedKey,
+    pub signatures: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignedKey {
+    pub key_value: Secret<String>,
+    pub key_expiration: String,
+}
+
+/// Helper structs for deserializing the Google Pay encrypted token JSON string.
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GpayTokenJson {
+    signature: String,
+    intermediate_signing_key: GpayIntermediateSigningKeyJson,
+    protocol_version: String,
+    signed_message: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GpayIntermediateSigningKeyJson {
+    signed_key: String,
+    signatures: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GpaySignedMessageJson {
+    encrypted_message: String,
+    ephemeral_public_key: String,
+    tag: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GpaySignedKeyJson {
+    key_value: String,
+    key_expiration: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -394,8 +484,26 @@ impl<T: PaymentMethodDataTypes>
             currency: item.request.currency,
         };
 
+        // Determine transaction type based on capture_method
+        let is_manual_capture = item
+            .request
+            .capture_method
+            .map(|cm| matches!(cm, common_enums::CaptureMethod::Manual))
+            .unwrap_or(false);
+
+        // Generate unique merchant transaction ID using connector request reference ID
+        let merchant_transaction_id = item
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        // Create order details with same ID
+        let order = OrderDetails {
+            order_id: merchant_transaction_id.clone(),
+        };
+
         // Extract payment method data
-        let payment_method = match &item.request.payment_method_data {
+        let (payment_data, request_type) = match &item.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
                 // Convert year to YY format (last 2 digits)
                 let year_str = card_data.card_exp_year.peek();
@@ -416,50 +524,113 @@ impl<T: PaymentMethodDataTypes>
                     security_code: Some(card_data.card_cvc.clone()),
                     holder: item.request.customer_name.clone().map(Secret::new),
                 };
-                PaymentMethod { payment_card }
+
+                let request_type = if is_manual_capture {
+                    FiservemeaRequestType::PaymentCardPreAuthTransaction
+                } else {
+                    FiservemeaRequestType::PaymentCardSaleTransaction
+                };
+
+                (
+                    FiservemeaPaymentData::Card {
+                        payment_method: PaymentMethod { payment_card },
+                    },
+                    request_type,
+                )
+            }
+            PaymentMethodData::Wallet(WalletData::GooglePay(ref gpay_data)) => {
+                match &gpay_data.tokenization_data {
+                    GpayTokenizationData::Encrypted(encrypted_data) => {
+                        // Parse the outer Google Pay token JSON
+                        let token: GpayTokenJson = serde_json::from_str(&encrypted_data.token)
+                            .change_context(IntegrationError::RequestEncodingFailed {
+                                context: Default::default(),
+                            })?;
+
+                        // Parse the inner signedMessage JSON string
+                        let signed_message: GpaySignedMessageJson = serde_json::from_str(
+                            &token.signed_message,
+                        )
+                        .change_context(IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        })?;
+
+                        // Parse the inner signedKey JSON string
+                        let signed_key: GpaySignedKeyJson =
+                            serde_json::from_str(&token.intermediate_signing_key.signed_key)
+                                .change_context(IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                })?;
+
+                        let wallet_payment_method = WalletPaymentMethod {
+                            wallet_type: "EncryptedGooglePayWalletPaymentMethod".to_string(),
+                            encrypted_google_pay: EncryptedGooglePay {
+                                data: EncryptedGooglePayData {
+                                    encrypted_message: Secret::new(
+                                        signed_message.encrypted_message,
+                                    ),
+                                    ephemeral_public_key: Secret::new(
+                                        signed_message.ephemeral_public_key,
+                                    ),
+                                    tag: Secret::new(signed_message.tag),
+                                },
+                                intermediate_signing_key: IntermediateSigningKey {
+                                    signed_key: SignedKey {
+                                        key_value: Secret::new(signed_key.key_value),
+                                        key_expiration: signed_key.key_expiration,
+                                    },
+                                    signatures: token.intermediate_signing_key.signatures,
+                                },
+                                signature: Secret::new(token.signature),
+                                version: token.protocol_version,
+                            },
+                        };
+
+                        let request_type = if is_manual_capture {
+                            FiservemeaRequestType::WalletPreAuthTransaction
+                        } else {
+                            FiservemeaRequestType::WalletSaleTransaction
+                        };
+
+                        (
+                            FiservemeaPaymentData::GooglePay {
+                                wallet_payment_method,
+                            },
+                            request_type,
+                        )
+                    }
+                    GpayTokenizationData::Decrypted(_) => {
+                        return Err(error_stack::report!(IntegrationError::NotImplemented(
+                            "Google Pay DIRECT (decrypted) mode is not supported by FiservEmea"
+                                .to_string(),
+                            Default::default(),
+                        )))
+                    }
+                }
             }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
-                    "Only card payments are supported".to_string(),
+                    "Only card and Google Pay payments are supported".to_string(),
                     Default::default()
                 )))
             }
         };
 
-        // Determine transaction type based on capture_method
-        let is_manual_capture = item
-            .request
-            .capture_method
-            .map(|cm| matches!(cm, common_enums::CaptureMethod::Manual))
-            .unwrap_or(false);
-
-        // Generate unique merchant transaction ID using connector request reference ID
-        // This provides a meaningful, unique identifier for each transaction
-        let merchant_transaction_id = item
-            .resource_common_data
-            .connector_request_reference_id
-            .clone();
-
-        // Create order details with same ID
-        let order = OrderDetails {
-            order_id: merchant_transaction_id.clone(),
-        };
-
         if is_manual_capture {
             Ok(Self {
-                request_type: FiservemeaRequestType::PaymentCardPreAuthTransaction,
+                request_type,
                 merchant_transaction_id,
                 transaction_amount,
                 order,
-                payment_method,
+                payment_data,
             })
         } else {
             Ok(Self {
-                request_type: FiservemeaRequestType::PaymentCardSaleTransaction,
+                request_type,
                 merchant_transaction_id,
                 transaction_amount,
                 order,
-                payment_method,
+                payment_data,
             })
         }
     }
