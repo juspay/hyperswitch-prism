@@ -15048,10 +15048,16 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
             }
         },
         Err(err) => {
+            // `unwrap_or_default()` here previously emitted PAYMENT_STATUS_UNSPECIFIED,
+            // which the HS UCS-client maps back to None → router keeps the prior status
+            // (e.g. payment_method_awaited). Connectors like redsys leave
+            // `err.attempt_status` as None while setting resource_common_data.status to
+            // Failure, so fall back to `grpc_status` (the flow's resolved status) to match
+            // the Direct gateway's failure status on error envelopes.
             let status = err
                 .attempt_status
                 .map(grpc_api_types::payments::PaymentStatus::foreign_from)
-                .unwrap_or_default();
+                .unwrap_or(grpc_status);
             PaymentMethodAuthenticationServicePreAuthenticateResponse {
                 connector_transaction_id: None,
                 redirection_data: None,
