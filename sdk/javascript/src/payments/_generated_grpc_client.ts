@@ -399,7 +399,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentServiceGetRequest: { "amount": "Money", "state": "ConnectorState", "splitPayments": "SplitPaymentsDetails" },
   PaymentServiceGetResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "mandateReference": "MandateReference", "amount": "Money", "connectorResponse": "ConnectorResponseData", "state": "ConnectorState", "redirectionData": "RedirectForm", "paymentMethodUpdate": "PaymentMethodUpdate", "splits": "ConnectorSplitResponseData" },
   PaymentServiceVoidRequest: { "browserInfo": "BrowserInformation", "amount": "Money", "state": "ConnectorState" },
-  PaymentServiceVoidResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState", "mandateReference": "MandateReference", "splits": "ConnectorSplitResponseData" },
+  PaymentServiceVoidResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState", "mandateReference": "MandateReference", "splits": "ConnectorSplitResponseData", "connectorResponse": "ConnectorResponseData" },
   PaymentServiceReverseRequest: { "browserInfo": "BrowserInformation" },
   PaymentServiceReverseResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse: { "error": "ErrorInfo" },
