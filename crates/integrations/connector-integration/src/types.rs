@@ -130,6 +130,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Tamara => Box::new(connectors::Tamara::<T>::new()),
             ConnectorEnum::Hyperswitch => Box::new(connectors::Hyperswitch::<T>::new()),
             ConnectorEnum::Qwikcilver => Box::new(connectors::Qwikcilver::<T>::new()),
+            ConnectorEnum::Kount => Box::new(connectors::Kount::<T>::new()),
         }
     }
 }
@@ -169,7 +170,9 @@ impl FrmConnectorData {
 
     fn convert_connector(connector_name: FrmConnectorEnum) -> BoxedFrmConnector {
         match connector_name {
-            // No variants yet — exhaustive empty match
+            FrmConnectorEnum::Kount => Box::new(connectors::Kount::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
         }
     }
 }
