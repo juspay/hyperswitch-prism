@@ -198,6 +198,8 @@ message CompositeGetRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 19;
+
+  optional ConnectorMandateReferenceId mandate_reference = 20;
 }
 
 // Response message for composite get flow.
