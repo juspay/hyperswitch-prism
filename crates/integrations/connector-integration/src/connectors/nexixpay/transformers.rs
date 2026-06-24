@@ -625,7 +625,15 @@ impl TryFrom<ResponseRouterData<NexixpaySyncResponse, Self>>
                 resource_id: ResponseId::ConnectorTransactionId(item.response.operation_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
-                connector_metadata: None,
+                // Echo back the connector metadata carried in the sync request
+                // (stored at authorize time), mirroring HS which sets
+                // connector_metadata = request.connector_meta on PSync.
+                connector_metadata: item
+                    .router_data
+                    .request
+                    .connector_feature_data
+                    .as_ref()
+                    .map(|meta| meta.peek().clone()),
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
