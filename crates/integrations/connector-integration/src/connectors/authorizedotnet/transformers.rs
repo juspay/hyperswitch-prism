@@ -888,8 +888,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let currency = item.router_data.request.currency;
 
-        // Handle different mandate reference types with appropriate MIT structures
-        let (profile, processing_options, subsequent_auth_information) = match &item
+        // Handle different mandate reference types with appropriate MIT structures.
+        // `omit_customer` mirrors Hyperswitch: the ConnectorMandateId (stored customer
+        // profile) MIT path sends no `customer` object, while the NetworkMandateId path does.
+        let (profile, processing_options, subsequent_auth_information, omit_customer) = match &item
             .router_data
             .request
             .mandate_reference
@@ -929,6 +931,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         is_subsequent_auth: true,
                     }),
                     None, // No network transaction ID for mandate-based flow
+                    true, // Hyperswitch sends customer: None on the stored-profile MIT path
                 )
             }
 
@@ -942,6 +945,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     original_network_trans_id: Secret::new(network_trans_id.clone()),
                     reason: Reason::Resubmission,
                 }),
+                false, // Network-trans-id path includes the customer object
             ),
 
             // Case 3: Network token with NTI - NOT SUPPORTED (same as Hyperswitch)
@@ -1001,10 +1005,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .map(|cid| cid.get_string_repr().to_owned()),
         );
 
-        let customer_details = customer_id_string.map(|cid| CustomerDetails {
-            id: cid,
-            email: item.router_data.request.email.clone(),
-        });
+        let customer_details = if omit_customer {
+            None
+        } else {
+            customer_id_string.map(|cid| CustomerDetails {
+                id: cid,
+                email: item.router_data.request.email.clone(),
+            })
+        };
 
         let transaction_type = match item.router_data.request.capture_method {
             Some(enums::CaptureMethod::Manual) => TransactionType::AuthOnlyTransaction,
