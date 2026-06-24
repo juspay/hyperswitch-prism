@@ -747,8 +747,24 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StandardResponse, Sel
             _ => AttemptStatus::Pending,
         };
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
+        // A declined ("2") or errored ("3") NMI response must surface as `Err(ErrorResponse)`,
+        // mirroring the HS NMI connector (`get_standard_error_response`). Returning `Ok` with
+        // only status=Failure makes the router response variant diverge from HS — observed as
+        // `response.Ok` (ucs) vs `response.Err` (hs) in the router-data comparison (#17004).
+        let payment_response = if matches!(response.response.as_str(), "2" | "3") {
+            Err(domain_types::router_data::ErrorResponse {
+                code: response.response_code.clone(),
+                message: response.responsetext.clone(),
+                reason: Some(response.responsetext.clone()),
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                connector_transaction_id: Some(response.transactionid.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.transactionid.clone()),
                 redirection_data: None,
                 mandate_reference: response.customer_vault_id.as_ref().map(|vault_id| {
@@ -765,7 +781,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StandardResponse, Sel
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response: payment_response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
