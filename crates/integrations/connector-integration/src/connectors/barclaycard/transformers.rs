@@ -334,6 +334,7 @@ fn transform_payment_response<F, Req>(
                     ),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 })
             };
 
@@ -809,6 +810,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardTransactionResponse, Self>
                                 .or(Some(item.response.id)),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             status,
@@ -829,6 +831,7 @@ impl TryFrom<ResponseRouterData<responses::BarclaycardTransactionResponse, Self>
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 ..item.router_data
             }),
@@ -1142,6 +1145,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         ),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
 
@@ -1446,6 +1450,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         ),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
 

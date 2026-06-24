@@ -73,8 +73,12 @@ export interface PayPalPaymentButtonProps extends BasePaymentButtonProps {
 export interface PaymentButtonProps extends BasePaymentButtonProps {
   /** Medusa provider_id, e.g. "pp_hyperswitch-prism_hyperswitch-prism-globalpay" */
   providerId?: string;
-  /** Cart object (required for stripe / paypal connectors) */
-  cart?: StripePaymentButtonProps["cart"];
+  /** Cart object (required for stripe / paypal / mollie connectors) */
+  cart?: StripePaymentButtonProps["cart"] & { id?: string };
   /** Callback to update cart metadata (required for globalpay connector) */
   onUpdateCart?: (metadata: Record<string, unknown>) => Promise<void>;
+  /** Medusa backend URL (required for mollie — reads the 3DS redirect). */
+  backendUrl?: string;
+  /** Medusa publishable API key (required for mollie). */
+  publishableKey?: string;
 }

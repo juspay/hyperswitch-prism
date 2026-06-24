@@ -257,6 +257,8 @@ pub mod juspay_upi_stack;
 pub mod axisbank;
 pub use self::axisbank::Axisbank;
 
+pub mod tsys_transit;
+pub use self::tsys_transit::TsysTransit;
 pub mod twoc_twop_paco;
 pub use self::twoc_twop_paco::TwocTwopPaco;
 
@@ -268,5 +270,10 @@ pub use self::payconex::Payconex;
 pub mod tamara;
 pub use self::tamara::Tamara;
 
+pub mod hyperswitch;
+pub use self::hyperswitch::Hyperswitch;
 pub mod qwikcilver;
 pub use self::qwikcilver::Qwikcilver;
+
+pub mod kount;
+pub use self::kount::Kount;

@@ -19,6 +19,109 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.24.0
+
+### Features
+
+- **connector:**
+  - Implement Authorize for mollie klarna ([#1579](https://github.com/juspay/connector-service/pull/1579)) ([`2741410`](https://github.com/juspay/connector-service/commit/274141004bc922b5a6bb4585e3390908d4e864d6))
+  - Add Kount FRM connector (DDC + Evaluate/Update Order) ([#1584](https://github.com/juspay/connector-service/pull/1584)) ([`a2186ce`](https://github.com/juspay/connector-service/commit/a2186cea7b58adba3b39946a83180d8055b5e636))
+- **core:** Add Fraud and risk management core changes ([#1573](https://github.com/juspay/connector-service/pull/1573)) ([`bf5566d`](https://github.com/juspay/connector-service/commit/bf5566db5cfda91c5b9bda1aaa20eb284400111c))
+
+### Bug Fixes
+
+- **payload:** Serialize amount as string and emit processing_id on repeat_payment ([#1593](https://github.com/juspay/connector-service/pull/1593)) ([`f223469`](https://github.com/juspay/connector-service/commit/f2234695ac60f17d94068c7dc6f9c6a9fb383737))
+
+**Full Changelog:** [`2026.06.23.1...2026.06.24.0`](https://github.com/juspay/connector-service/compare/2026.06.23.1...2026.06.24.0)
+
+- - -
+
+## 2026.06.23.1
+
+### Features
+
+- **framework:** Added splits field in transaction response ([#1582](https://github.com/juspay/connector-service/pull/1582)) ([`5a61d2d`](https://github.com/juspay/connector-service/commit/5a61d2dde272376dc876f068c02644845ca81d9c))
+
+**Full Changelog:** [`2026.06.23.0...2026.06.23.1`](https://github.com/juspay/connector-service/compare/2026.06.23.0...2026.06.23.1)
+
+- - -
+
+## 2026.06.23.0
+
+### Features
+
+- **connector:** 2c2p_paco address raw response ([#1583](https://github.com/juspay/connector-service/pull/1583)) ([`32b792c`](https://github.com/juspay/connector-service/commit/32b792cde690ede6f36dbb9c541f21886c878bf8))
+- **core:** Add payment method eligibility flow ([#1511](https://github.com/juspay/connector-service/pull/1511)) ([`1351f63`](https://github.com/juspay/connector-service/commit/1351f63bae08ae787e0eb59d8789895814e4d8c8))
+
+### Bug Fixes
+
+- **payload:** Match hyperswitch request parity (string amount + ACH bank_debit fields) ([#1561](https://github.com/juspay/connector-service/pull/1561)) ([`230b8e4`](https://github.com/juspay/connector-service/commit/230b8e4854a628f8257c63e207c1dc69df0c9529))
+- **ucs:** Populate amount in PaymentServiceAuthorizeResponse for integrity check ([#1572](https://github.com/juspay/connector-service/pull/1572)) ([`83944da`](https://github.com/juspay/connector-service/commit/83944dab7187447700b626ea748e00e5f48c4224))
+
+### Miscellaneous Tasks
+
+- Add logger for integrity check when it passes ([#1581](https://github.com/juspay/connector-service/pull/1581)) ([`02e639f`](https://github.com/juspay/connector-service/commit/02e639f8c03a383ba8540286eff67c36d1bc192e))
+
+**Full Changelog:** [`2026.06.19.0...2026.06.23.0`](https://github.com/juspay/connector-service/compare/2026.06.19.0...2026.06.23.0)
+
+- - -
+
+## 2026.06.19.0
+
+### Features
+
+- **connector:** Add tsys_transit XML connector with VoidPostRefund flow ([#1508](https://github.com/juspay/connector-service/pull/1508)) ([`caa52b3`](https://github.com/juspay/connector-service/commit/caa52b3cede74b1eb8831f52dc7953ce5856a58e))
+- **medusa:** Mollie Components in-page checkout with 3DS ([#1578](https://github.com/juspay/connector-service/pull/1578)) ([`9f54f19`](https://github.com/juspay/connector-service/commit/9f54f195f5d9418fe78cf0b56c4218e8e3ef626c))
+
+### Bug Fixes
+
+- **connector:** [Adyen] captureDelayHours + applicationInfo + metadata parity ([#16707](https://github.com/juspay/connector-service/pull/16707)) ([#1537](https://github.com/juspay/connector-service/pull/1537)) ([`f53043e`](https://github.com/juspay/connector-service/commit/f53043edac6b61a3b2574b91fd5624527ffec893))
+
+### Miscellaneous Tasks
+
+- **docker:** Add curl to probe outbound connector reachability ([#1576](https://github.com/juspay/connector-service/pull/1576)) ([`5dbf089`](https://github.com/juspay/connector-service/commit/5dbf089e74cc27ea2a41e5cd2a61be76889e0a1d))
+
+**Full Changelog:** [`2026.06.18.1...2026.06.19.0`](https://github.com/juspay/connector-service/compare/2026.06.18.1...2026.06.19.0)
+
+- - -
+
+## 2026.06.18.1
+
+### Features
+
+- **connector:** Add Hyperswitch connector (PSync, RepeatPayment + incoming webhooks) ([#1507](https://github.com/juspay/connector-service/pull/1507)) ([`e3b943e`](https://github.com/juspay/connector-service/commit/e3b943e1aed4ea7c65084d2207a888c1a54531ef))
+- **proto:** Add domain_data with unified airline data to authorize flows ([#1519](https://github.com/juspay/connector-service/pull/1519)) ([`47558b9`](https://github.com/juspay/connector-service/commit/47558b995faa5996de591e83ba676de922abb5ba))
+
+### Bug Fixes
+
+- **framework:** Added split payment and Split Refund Support ([#1565](https://github.com/juspay/connector-service/pull/1565)) ([`f3d040c`](https://github.com/juspay/connector-service/commit/f3d040c56e1ee16a4173c9bd67c4def3e375c7f5))
+
+### Miscellaneous Tasks
+
+- Update hyperswitch version ([#1577](https://github.com/juspay/connector-service/pull/1577)) ([`9899332`](https://github.com/juspay/connector-service/commit/9899332924ba87bf777a55231d5cc4242c4a92d0))
+
+**Full Changelog:** [`2026.06.18.0...2026.06.18.1`](https://github.com/juspay/connector-service/compare/2026.06.18.0...2026.06.18.1)
+
+- - -
+
+## 2026.06.18.0
+
+### Features
+
+- **proto:** Add API contract for FRM service ([#1520](https://github.com/juspay/connector-service/pull/1520)) ([`053e305`](https://github.com/juspay/connector-service/commit/053e3053561a76ed9cade34529faecbf6b5b7faa))
+
+### Bug Fixes
+
+- **connector:** [checkout] populate network_txn_link_id from payments response ([#1509](https://github.com/juspay/connector-service/pull/1509)) ([`4d81b80`](https://github.com/juspay/connector-service/commit/4d81b8063531f6d1058f7c2eec6a6a719f047fc5))
+
+### Miscellaneous Tasks
+
+- Update sdk license ([#1562](https://github.com/juspay/connector-service/pull/1562)) ([`552285e`](https://github.com/juspay/connector-service/commit/552285e18c804d690018d7ff3fbf2686056e8a1a))
+
+**Full Changelog:** [`2026.06.17.0...2026.06.18.0`](https://github.com/juspay/connector-service/compare/2026.06.17.0...2026.06.18.0)
+
+- - -
+
 ## 2026.06.17.0
 
 ### Features

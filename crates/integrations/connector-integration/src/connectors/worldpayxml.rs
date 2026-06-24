@@ -557,6 +557,7 @@ macros::macro_connector_flow_status_impls!(
         CreateOrder,
     ],
     not_supported: [
+        VoidPostRefund,
         Accept,
     ],
 );

@@ -527,7 +527,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: customer. Customer details are required for Tamara eligibility check — Missing required field: customer. Customer details are required for Tamara eligibility check"
       }
     },
     "get": {
@@ -596,6 +597,11 @@
           "headers": {},
           "body": "{}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

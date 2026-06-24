@@ -163,9 +163,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::Customer> for payouts::payouts_type
             email,
             merchant_customer_id: customer.id,
             connector_customer_id: customer.connector_customer_id,
-            phone_number: customer
-                .phone_number
-                .map(::hyperswitch_masking::Secret::new),
+            phone_number: customer.phone_number,
             phone_country_code: customer.phone_country_code,
         })
     }

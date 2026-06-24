@@ -492,6 +492,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: AttemptStatus::Pending,
@@ -576,6 +577,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_response_reference_id: get_str("txnid"),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -812,6 +814,7 @@ impl TryFrom<ResponseRouterData<EasebuzzCaptureResponse, Self>>
                         connector_response_reference_id: txn_data.txnid.clone(),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..router_data
                 })
@@ -1260,6 +1263,7 @@ impl TryFrom<ResponseRouterData<EasebuzzSyncResponse, Self>>
                         connector_response_reference_id: txn_resp.txnid.clone(),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..router_data
                 })

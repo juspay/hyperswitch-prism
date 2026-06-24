@@ -631,6 +631,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
             };
+            let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -638,7 +639,7 @@ macro_rules! implement_connector_operation {
                 $all_keys_required,
                 event_params,
                 None,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             )
@@ -781,6 +782,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
             };
+            let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -788,7 +790,7 @@ macro_rules! implement_connector_operation {
                 $all_keys_required,
                 event_params,
                 None,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             )
@@ -912,6 +914,7 @@ macro_rules! implement_connector_operation {
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
             };
+            let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -919,7 +922,7 @@ macro_rules! implement_connector_operation {
                 $all_keys_required,
                 event_params,
                 None,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             )

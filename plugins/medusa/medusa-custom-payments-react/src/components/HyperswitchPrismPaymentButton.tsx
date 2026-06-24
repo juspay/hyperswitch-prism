@@ -6,12 +6,14 @@ import {
   AdyenPaymentButton,
   PayPalPaymentButton,
   GlobalPayPaymentButton,
+  MolliePaymentButton,
 } from "./payment-buttons"
 import {
   isHyperswitchPrismStripe,
   isHyperswitchPrismAdyen,
   isHyperswitchPrismPaypal,
   isHyperswitchPrismGlobalpay,
+  isHyperswitchPrismMollie,
 } from "../utils/predicates"
 
 interface HyperswitchPrismPaymentButtonProps {
@@ -27,6 +29,13 @@ interface HyperswitchPrismPaymentButtonProps {
    * completes the drop-in, preventing race conditions with the webhook.
    */
   isAuthorized?: boolean
+  /**
+   * Mollie only: Medusa backend URL + publishable key, used to re-read the
+   * active session's 3DS redirect after the place-order call returns
+   * `requires_more`. (e.g. NEXT_PUBLIC_MEDUSA_BACKEND_URL / _PUBLISHABLE_KEY)
+   */
+  backendUrl?: string
+  publishableKey?: string
   "data-testid"?: string
 }
 
@@ -42,6 +51,8 @@ export function HyperswitchPrismPaymentButton({
   onPlaceOrder,
   buttonComponent,
   isAuthorized = true,
+  backendUrl,
+  publishableKey,
   "data-testid": dataTestId,
 }: HyperswitchPrismPaymentButtonProps) {
   const shared = { notReady, onPlaceOrder, buttonComponent, "data-testid": dataTestId }
@@ -60,6 +71,17 @@ export function HyperswitchPrismPaymentButton({
 
   if (isHyperswitchPrismGlobalpay(providerId)) {
     return <GlobalPayPaymentButton {...shared} />
+  }
+
+  if (isHyperswitchPrismMollie(providerId)) {
+    return (
+      <MolliePaymentButton
+        {...shared}
+        cart={cart}
+        backendUrl={backendUrl ?? ""}
+        publishableKey={publishableKey ?? ""}
+      />
+    )
   }
 
   return null

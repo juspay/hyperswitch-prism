@@ -238,7 +238,12 @@ fn generate_flow_runners(flows: &[FlowInfo]) {
 
     // Generate not_implemented probes
     generate_not_implemented_probe(&mut f, "dispute_get", "DisputeService", "Get");
-    generate_not_implemented_probe(&mut f, "eligibility", "PaymentMethodService", "Eligibility");
+    generate_not_implemented_probe(
+        &mut f,
+        "payment_method_eligibility",
+        "PaymentMethodService",
+        "PaymentMethodEligibility",
+    );
 
     // Generate FLOW_DEFINITIONS
     generate_flow_definitions(&mut f, flows);
@@ -713,14 +718,14 @@ fn generate_flow_definitions(f: &mut fs::File, flows: &[FlowInfo]) {
     writeln!(f, "            has_payment_methods: false,").unwrap();
     writeln!(f, "        }},").unwrap();
 
-    // eligibility
+    // payment_method_eligibility
     writeln!(f, "        FlowDefinition {{").unwrap();
-    writeln!(f, "            key: \"eligibility\",").unwrap();
+    writeln!(f, "            key: \"payment_method_eligibility\",").unwrap();
     writeln!(f, "            service: \"PaymentMethodService\",").unwrap();
-    writeln!(f, "            rpc: \"Eligibility\",").unwrap();
+    writeln!(f, "            rpc: \"PaymentMethodEligibility\",").unwrap();
     writeln!(
         f,
-        "            request_type: \"PayoutMethodEligibilityRequest\","
+        "            request_type: \"PaymentMethodServiceEligibilityRequest\","
     )
     .unwrap();
     writeln!(f, "            transformer_fn: \"none\",").unwrap();
@@ -781,7 +786,7 @@ fn generate_dispatcher(f: &mut fs::File, flows: &[FlowInfo]) {
 
     writeln!(f, "            \"verify_redirect\" => Some(probe_verify_redirect(connector, config, auth, metadata)),").unwrap();
     writeln!(f, "            \"dispute_get\" => Some(probe_dispute_get(connector, config, auth, metadata)),").unwrap();
-    writeln!(f, "            \"eligibility\" => Some(probe_eligibility(connector, config, auth, metadata)),").unwrap();
+    writeln!(f, "            \"payment_method_eligibility\" => Some(probe_payment_method_eligibility(connector, config, auth, metadata)),").unwrap();
 
     writeln!(f, "            _ => None,").unwrap();
     writeln!(f, "        }}").unwrap();
