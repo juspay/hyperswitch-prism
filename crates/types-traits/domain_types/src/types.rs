@@ -15233,10 +15233,16 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
             }
         },
         Err(err) => {
-            let status = err
-                .attempt_status
-                .map(grpc_api_types::payments::PaymentStatus::foreign_from)
-                .unwrap_or_default();
+            // Fall back to the connector-computed attempt status (e.g. Failure) when the
+            // error carries no explicit attempt_status, instead of defaulting to Unspecified.
+            // Unspecified makes the router keep the previous status (AuthenticationPending),
+            // diverging from hyperswitch-native which reports the real failure status.
+            let status = match err.get_attempt_status_for_grpc(err.status_code, status) {
+                Some(attempt_status) => {
+                    grpc_api_types::payments::PaymentStatus::foreign_from(attempt_status)
+                }
+                None => grpc_api_types::payments::PaymentStatus::Unspecified,
+            };
             PaymentMethodAuthenticationServiceAuthenticateResponse {
                 connector_transaction_id: Some("session_created".to_string()),
                 redirection_data: None,
