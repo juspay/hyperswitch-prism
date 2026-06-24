@@ -709,6 +709,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
                 Ok(Self {
@@ -743,6 +744,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         connector_response_reference_id: transaction_data.legacy_id.clone(),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
 
@@ -797,6 +799,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })
@@ -960,6 +963,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
                 Ok(Self {
@@ -1000,6 +1004,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         connector_response_reference_id: transaction_data.legacy_id.clone(),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
 
@@ -1055,6 +1060,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })
@@ -1818,6 +1824,7 @@ impl<F, T> TryFrom<ResponseRouterData<BraintreeCaptureResponse, Self>>
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
                 Ok(Self {
@@ -2267,6 +2274,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreeCancelResponse, Self>>
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
                 Ok(Self {
@@ -2391,6 +2399,7 @@ impl<F> TryFrom<ResponseRouterData<BraintreePSyncResponse, Self>>
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
                 Ok(Self {
@@ -2939,6 +2948,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 };
                 Ok(Self {
@@ -3241,6 +3251,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })

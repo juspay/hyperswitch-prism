@@ -812,6 +812,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_response_reference_id: response.cf_payment_id.map(|id| id.to_string()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1015,6 +1016,7 @@ impl TryFrom<ResponseRouterData<CashfreeCaptureResponse, Self>>
                 connector_response_reference_id: Some(cf_payment_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1142,6 +1144,7 @@ impl TryFrom<ResponseRouterData<CashfreeVoidResponse, Self>>
                 connector_response_reference_id: Some(cf_payment_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1232,6 +1235,7 @@ impl TryFrom<ResponseRouterData<CashfreeSyncResponse, Self>>
                 connector_response_reference_id: Some(cf_payment_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..router_data
         })

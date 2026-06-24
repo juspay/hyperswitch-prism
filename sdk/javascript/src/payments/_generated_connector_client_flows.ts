@@ -62,6 +62,25 @@ export class EventClient extends _ConnectorClientBase {
 
 }
 
+export class FraudAndRiskManagementClient extends _ConnectorClientBase {
+  /** FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud. */
+  async postRiskCheck(
+    requestMsg: types.IFrmServicePostRiskCheckRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.FrmServicePostRiskCheckResponse> {
+    return this._executeFlow('post_risk_check', requestMsg, options, 'FrmServicePostRiskCheckRequest', 'FrmServicePostRiskCheckResponse') as Promise<types.FrmServicePostRiskCheckResponse>;
+  }
+
+  /** FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review. */
+  async preRiskCheck(
+    requestMsg: types.IFrmServicePreRiskCheckRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.FrmServicePreRiskCheckResponse> {
+    return this._executeFlow('pre_risk_check', requestMsg, options, 'FrmServicePreRiskCheckRequest', 'FrmServicePreRiskCheckResponse') as Promise<types.FrmServicePreRiskCheckResponse>;
+  }
+
+}
+
 export class MerchantAuthenticationClient extends _ConnectorClientBase {
   /** MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI. */
   async createClientAuthenticationToken(
@@ -117,6 +136,14 @@ export class PaymentMethodAuthenticationClient extends _ConnectorClientBase {
 }
 
 export class PaymentMethodClient extends _ConnectorClientBase {
+  /** PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check) */
+  async eligibility(
+    requestMsg: types.IPaymentMethodServiceEligibilityRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentMethodServiceEligibilityResponse> {
+    return this._executeFlow('eligibility', requestMsg, options, 'PaymentMethodServiceEligibilityRequest', 'PaymentMethodServiceEligibilityResponse') as Promise<types.PaymentMethodServiceEligibilityResponse>;
+  }
+
   /** PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing. */
   async tokenize(
     requestMsg: types.IPaymentMethodServiceTokenizeRequest,

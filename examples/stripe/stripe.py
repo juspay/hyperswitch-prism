@@ -80,7 +80,7 @@ def _build_customer_create_request():
         merchant_customer_id="cust_probe_123",  # Identification.
         customer_name="John Doe",  # Name of the customer.
         email=payment_methods_pb2.SecretString(value="test@example.com"),  # Email address of the customer.
-        phone_number="4155552671",  # Phone number of the customer.
+        phone_number=payment_methods_pb2.SecretString(value="4155552671"),  # Phone number of the customer.
     )
 
 def _build_get_request(connector_transaction_id: str):

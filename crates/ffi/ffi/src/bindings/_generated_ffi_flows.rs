@@ -12,6 +12,7 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
+    PaymentMethodServiceEligibilityRequest,
     PaymentMethodServiceTokenizeRequest,
     PaymentServiceAuthorizeRequest,
     PaymentServiceCaptureRequest,
@@ -41,6 +42,10 @@ use grpc_api_types::payouts::{
     PayoutServiceTransferRequest,
     PayoutServiceVoidRequest,
 };
+use grpc_api_types::frm::{
+    FrmServicePostRiskCheckRequest,
+    FrmServicePreRiskCheckRequest,
+};
 use grpc_api_types::surcharge::{
     SurchargeServiceCalculateRequest,
 };
@@ -57,6 +62,7 @@ use crate::handlers::payments::{
     create_server_session_authentication_token_req_handler, create_server_session_authentication_token_res_handler,
     customer_create_req_handler, customer_create_res_handler,
     defend_req_handler, defend_res_handler,
+    eligibility_req_handler, eligibility_res_handler,
     get_req_handler, get_res_handler,
     incremental_authorization_req_handler, incremental_authorization_res_handler,
     payout_create_req_handler, payout_create_res_handler,
@@ -69,7 +75,9 @@ use crate::handlers::payments::{
     payout_transfer_req_handler, payout_transfer_res_handler,
     payout_void_req_handler, payout_void_res_handler,
     post_authenticate_req_handler, post_authenticate_res_handler,
+    post_risk_check_req_handler, post_risk_check_res_handler,
     pre_authenticate_req_handler, pre_authenticate_res_handler,
+    pre_risk_check_req_handler, pre_risk_check_res_handler,
     proxy_authorize_req_handler, proxy_authorize_res_handler,
     proxy_setup_recurring_req_handler, proxy_setup_recurring_res_handler,
     recurring_revoke_req_handler, recurring_revoke_res_handler,
@@ -107,6 +115,8 @@ define_ffi_flow!(create_server_session_authentication_token, MerchantAuthenticat
 define_ffi_flow!(customer_create, CustomerServiceCreateRequest, customer_create_req_handler, customer_create_res_handler);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 define_ffi_flow!(defend, DisputeServiceDefendRequest, defend_req_handler, defend_res_handler);
+// eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+define_ffi_flow!(eligibility, PaymentMethodServiceEligibilityRequest, eligibility_req_handler, eligibility_res_handler);
 // get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
 define_ffi_flow!(get, PaymentServiceGetRequest, get_req_handler, get_res_handler);
 // incremental_authorization: PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
@@ -131,8 +141,12 @@ define_ffi_flow!(payout_transfer, PayoutServiceTransferRequest, payout_transfer_
 define_ffi_flow!(payout_void, PayoutServiceVoidRequest, payout_void_req_handler, payout_void_res_handler);
 // post_authenticate: PaymentMethodAuthenticationService.PostAuthenticate — Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.
 define_ffi_flow!(post_authenticate, PaymentMethodAuthenticationServicePostAuthenticateRequest, post_authenticate_req_handler, post_authenticate_res_handler);
+// post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+define_ffi_flow!(post_risk_check, FrmServicePostRiskCheckRequest, post_risk_check_req_handler, post_risk_check_res_handler);
 // pre_authenticate: PaymentMethodAuthenticationService.PreAuthenticate — Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.
 define_ffi_flow!(pre_authenticate, PaymentMethodAuthenticationServicePreAuthenticateRequest, pre_authenticate_req_handler, pre_authenticate_res_handler);
+// pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+define_ffi_flow!(pre_risk_check, FrmServicePreRiskCheckRequest, pre_risk_check_req_handler, pre_risk_check_res_handler);
 // proxy_authorize: PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector.
 define_ffi_flow!(proxy_authorize, PaymentServiceProxyAuthorizeRequest, proxy_authorize_req_handler, proxy_authorize_res_handler);
 // proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.

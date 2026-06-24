@@ -123,6 +123,8 @@ macros::macro_connector_flow_status_impls!(
         RepeatPayment,
         Void,
         VoidPC,
+        VoidPostRefund,
+        PaymentMethodEligibility,
         Capture,
         ClientAuthenticationToken,
         MandateRevoke,

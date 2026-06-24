@@ -1,7 +1,9 @@
 use std::str::FromStr;
 
-use common_utils::consts::X_CONNECTOR_NAME;
-use domain_types::connector_types::ConnectorEnum;
+use common_utils::consts::{X_CONNECTOR_NAME, X_FRM_CONNECTOR_NAME, X_SURCHARGE_CONNECTOR_NAME};
+use domain_types::connector_types::{
+    ConnectorEnum, ConnectorVariant, FrmConnectorEnum, SurchargeConnectorEnum,
+};
 use grpc_api_types::payments::{
     AccessToken, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
@@ -32,6 +34,79 @@ pub fn connector_from_composite_authorize_metadata(
                 )))
             })
         })
+}
+
+pub fn frm_connector_from_composite_frm_metadata(
+    metadata: &tonic::metadata::MetadataMap,
+) -> Result<Option<FrmConnectorEnum>, Box<tonic::Status>> {
+    metadata
+        .get(X_FRM_CONNECTOR_NAME)
+        .map(|connector| {
+            connector
+                .to_str()
+                .map_err(|_| {
+                    Box::new(tonic::Status::invalid_argument(
+                        "invalid x-frm-connector metadata value",
+                    ))
+                })
+                .and_then(|connector_from_metadata| {
+                    FrmConnectorEnum::from_str(connector_from_metadata).map_err(|err| {
+                        Box::new(tonic::Status::invalid_argument(format!(
+                            "FRM connector not supported: {err}"
+                        )))
+                    })
+                })
+        })
+        .transpose()
+}
+
+pub fn surcharge_connector_from_composite_surcharge_metadata(
+    metadata: &tonic::metadata::MetadataMap,
+) -> Result<Option<SurchargeConnectorEnum>, Box<tonic::Status>> {
+    metadata
+        .get(X_SURCHARGE_CONNECTOR_NAME)
+        .map(|connector| {
+            connector
+                .to_str()
+                .map_err(|_| {
+                    Box::new(tonic::Status::invalid_argument(
+                        "invalid x-surcharge-connector metadata value",
+                    ))
+                })
+                .and_then(|connector_from_metadata| {
+                    SurchargeConnectorEnum::from_str(connector_from_metadata).map_err(|err| {
+                        Box::new(tonic::Status::invalid_argument(format!(
+                            "Surcharge connector not supported: {err}"
+                        )))
+                    })
+                })
+        })
+        .transpose()
+}
+
+/// Resolves the connector variant from composite metadata headers.
+/// Priority: x-frm-connector → x-surcharge-connector → x-connector (payment).
+/// Returns `Err` when a specialised header is present but malformed/unknown.
+pub fn connector_variant_from_composite_metadata(
+    metadata: &tonic::metadata::MetadataMap,
+) -> Result<ConnectorVariant, Box<tonic::Status>> {
+    if let Some(connector) = frm_connector_from_composite_frm_metadata(metadata)? {
+        return Ok(ConnectorVariant::Frm(connector));
+    }
+
+    if let Some(connector) = surcharge_connector_from_composite_surcharge_metadata(metadata)? {
+        return Ok(ConnectorVariant::Surcharge(connector));
+    }
+
+    connector_from_composite_authorize_metadata(metadata).map(ConnectorVariant::Payment)
+}
+
+pub fn grpc_connector_from_connector_variant(connector: &ConnectorVariant) -> i32 {
+    let grpc_connector_name = connector.get_connector_name().to_ascii_uppercase();
+    let grpc_connector =
+        grpc_api_types::payments::Connector::from_str_name(grpc_connector_name.as_str())
+            .unwrap_or(grpc_api_types::payments::Connector::Unspecified);
+    i32::from(grpc_connector)
 }
 
 pub fn grpc_connector_from_connector_enum(connector: &ConnectorEnum) -> i32 {

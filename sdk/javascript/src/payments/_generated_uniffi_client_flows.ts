@@ -191,6 +191,23 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('defend', responseBytes, requestBytes, optionsBytes);
   }
 
+  /** Build connector HTTP request for eligibility flow. */
+  eligibilityReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('eligibility', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for eligibility flow. */
+  eligibilityRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('eligibility', responseBytes, requestBytes, optionsBytes);
+  }
+
   /** Build connector HTTP request for get flow. */
   getReq(
     requestBytes: Buffer | Uint8Array,
@@ -395,6 +412,23 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('post_authenticate', responseBytes, requestBytes, optionsBytes);
   }
 
+  /** Build connector HTTP request for post_risk_check flow. */
+  postRiskCheckReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('post_risk_check', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for post_risk_check flow. */
+  postRiskCheckRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('post_risk_check', responseBytes, requestBytes, optionsBytes);
+  }
+
   /** Build connector HTTP request for pre_authenticate flow. */
   preAuthenticateReq(
     requestBytes: Buffer | Uint8Array,
@@ -410,6 +444,23 @@ export class UniffiClient extends _UniffiClientBase {
     optionsBytes: Buffer | Uint8Array
   ): Buffer {
     return this.callRes('pre_authenticate', responseBytes, requestBytes, optionsBytes);
+  }
+
+  /** Build connector HTTP request for pre_risk_check flow. */
+  preRiskCheckReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('pre_risk_check', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for pre_risk_check flow. */
+  preRiskCheckRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('pre_risk_check', responseBytes, requestBytes, optionsBytes);
   }
 
   /** Build connector HTTP request for proxy_authorize flow. */

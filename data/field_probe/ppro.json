@@ -816,7 +816,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by ppro connector"
       }
     },
     "get": {
@@ -886,6 +887,11 @@
           "headers": {},
           "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

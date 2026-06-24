@@ -1376,6 +1376,7 @@ where
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 ..router_data
             }),
@@ -1423,6 +1424,7 @@ where
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         ..router_data
                     })
@@ -1483,6 +1485,7 @@ where
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         })
                     };
                     Ok(Self {
@@ -1536,6 +1539,7 @@ where
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 status_code: item.http_code,
+                                splits: None,
                             })
                         };
                         Self {
@@ -1559,6 +1563,7 @@ where
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         });
                         Self {
                             response,
@@ -1975,6 +1980,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: http_code,
+                    splits: None,
                 };
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
@@ -2035,6 +2041,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: http_code,
+                    splits: None,
                 };
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
@@ -2250,6 +2257,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2385,6 +2393,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentCancelResponse, Self>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {

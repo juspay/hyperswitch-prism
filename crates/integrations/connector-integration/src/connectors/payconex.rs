@@ -477,6 +477,7 @@ macros::macro_connector_flow_status_impls!(
     // no-3DS card connector), client/server SDK session tokens (direct server-to-server
     // only), disputes, and partial-capture void.
     not_supported: [
+        VoidPostRefund,
         Accept,
         Authenticate,
         ClientAuthenticationToken,

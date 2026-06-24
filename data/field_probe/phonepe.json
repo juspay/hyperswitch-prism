@@ -617,7 +617,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by phonepe connector"
       }
     },
     "get": {
@@ -688,6 +689,11 @@
           "headers": {},
           "body": "{}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

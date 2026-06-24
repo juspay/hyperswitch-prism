@@ -531,7 +531,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by dlocal connector"
       }
     },
     "get": {
@@ -604,6 +605,11 @@
           "headers": {},
           "body": "{\"id\":\"F-probe-001\",\"status\":\"PAID\",\"status_code\":\"200\",\"order_id\":\"probe_order_001\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

@@ -558,7 +558,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by zift connector"
       }
     },
     "get": {
@@ -595,6 +596,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

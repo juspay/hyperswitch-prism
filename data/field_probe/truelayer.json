@@ -519,7 +519,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by truelayer connector"
       }
     },
     "get": {
@@ -595,6 +596,11 @@
           "headers": {},
           "body": "{\"type\":\"payment_executed\",\"payment_id\":\"probe_payment_001\"}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

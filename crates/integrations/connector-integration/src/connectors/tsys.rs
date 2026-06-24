@@ -495,8 +495,10 @@ macros::macro_connector_flow_status_impls!(
     connector: Tsys,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
-    not_implemented: [],
+    not_implemented: [
+    ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         PreAuthenticate,
         Authenticate,

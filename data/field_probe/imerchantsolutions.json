@@ -558,7 +558,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by imerchantsolutions connector"
       }
     },
     "get": {
@@ -627,6 +628,11 @@
           "headers": {},
           "body": "{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

@@ -17,6 +17,10 @@ from payments.generated.payment_pb2 import (
     EventServiceHandleResponse,
     EventServiceParseRequest,
     EventServiceParseResponse,
+    FrmServicePostRiskCheckRequest,
+    FrmServicePostRiskCheckResponse,
+    FrmServicePreRiskCheckRequest,
+    FrmServicePreRiskCheckResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
@@ -29,6 +33,8 @@ from payments.generated.payment_pb2 import (
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
+    PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceEligibilityResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -115,6 +121,16 @@ class EventClient(_ConnectorClientBase):
         ...
 
 
+class FraudAndRiskManagementClient(_ConnectorClientBase):
+    def post_risk_check(self, request: FrmServicePostRiskCheckRequest, options: RequestConfig | None = ...) -> FrmServicePostRiskCheckResponse:
+        """FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud."""
+        ...
+
+    def pre_risk_check(self, request: FrmServicePreRiskCheckRequest, options: RequestConfig | None = ...) -> FrmServicePreRiskCheckResponse:
+        """FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review."""
+        ...
+
+
 class MerchantAuthenticationClient(_ConnectorClientBase):
     def create_client_authentication_token(self, request: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest, options: RequestConfig | None = ...) -> MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse:
         """MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI."""
@@ -144,6 +160,10 @@ class PaymentMethodAuthenticationClient(_ConnectorClientBase):
 
 
 class PaymentMethodClient(_ConnectorClientBase):
+    def eligibility(self, request: PaymentMethodServiceEligibilityRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceEligibilityResponse:
+        """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
+        ...
+
     def tokenize(self, request: PaymentMethodServiceTokenizeRequest, options: RequestConfig | None = ...) -> PaymentMethodServiceTokenizeResponse:
         """PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing."""
         ...

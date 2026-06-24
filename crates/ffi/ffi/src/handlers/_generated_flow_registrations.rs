@@ -22,6 +22,8 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse,
+    PaymentMethodServiceEligibilityRequest,
+    PaymentMethodServiceEligibilityResponse,
     PaymentMethodServiceTokenizeRequest,
     PaymentMethodServiceTokenizeResponse,
     PaymentServiceAuthorizeRequest,
@@ -72,6 +74,12 @@ use grpc_api_types::payouts::{
     PayoutServiceVoidRequest,
     PayoutServiceVoidResponse,
 };
+use grpc_api_types::frm::{
+    FrmServicePostRiskCheckRequest,
+    FrmServicePostRiskCheckResponse,
+    FrmServicePreRiskCheckRequest,
+    FrmServicePreRiskCheckResponse,
+};
 use grpc_api_types::surcharge::{
     SurchargeServiceCalculateRequest,
     SurchargeServiceCalculateResponse,
@@ -89,6 +97,7 @@ use crate::services::payments::{
     create_server_session_authentication_token_req_transformer, create_server_session_authentication_token_res_transformer,
     customer_create_req_transformer, customer_create_res_transformer,
     defend_req_transformer, defend_res_transformer,
+    eligibility_req_transformer, eligibility_res_transformer,
     get_req_transformer, get_res_transformer,
     incremental_authorization_req_transformer, incremental_authorization_res_transformer,
     post_authenticate_req_transformer, post_authenticate_res_transformer,
@@ -117,6 +126,10 @@ use crate::services::payouts::{
     payout_transfer_req_transformer, payout_transfer_res_transformer,
     payout_void_req_transformer, payout_void_res_transformer,
 };
+use crate::services::frm::{
+    post_risk_check_req_transformer, post_risk_check_res_transformer,
+    pre_risk_check_req_transformer, pre_risk_check_res_transformer,
+};
 use crate::services::surcharge::{
     surcharge_calculate_req_transformer, surcharge_calculate_res_transformer,
 };
@@ -143,6 +156,8 @@ impl_flow_handlers!(create_server_session_authentication_token, MerchantAuthenti
 impl_flow_handlers!(customer_create, CustomerServiceCreateRequest, CustomerServiceCreateResponse, customer_create_req_transformer, customer_create_res_transformer, domain_types::connector_types::ConnectorEnum);
 // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
 impl_flow_handlers!(defend, DisputeServiceDefendRequest, DisputeServiceDefendResponse, defend_req_transformer, defend_res_transformer, domain_types::connector_types::ConnectorEnum);
+// eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+impl_flow_handlers!(eligibility, PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse, eligibility_req_transformer, eligibility_res_transformer, domain_types::connector_types::ConnectorEnum);
 // get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
 impl_flow_handlers!(get, PaymentServiceGetRequest, PaymentServiceGetResponse, get_req_transformer, get_res_transformer, domain_types::connector_types::ConnectorEnum);
 // incremental_authorization: PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
@@ -167,8 +182,12 @@ impl_flow_handlers!(payout_transfer, PayoutServiceTransferRequest, PayoutService
 impl_flow_handlers!(payout_void, PayoutServiceVoidRequest, PayoutServiceVoidResponse, payout_void_req_transformer, payout_void_res_transformer, domain_types::connector_types::PayoutConnectorEnum);
 // post_authenticate: PaymentMethodAuthenticationService.PostAuthenticate — Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.
 impl_flow_handlers!(post_authenticate, PaymentMethodAuthenticationServicePostAuthenticateRequest, PaymentMethodAuthenticationServicePostAuthenticateResponse, post_authenticate_req_transformer, post_authenticate_res_transformer, domain_types::connector_types::ConnectorEnum);
+// post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+impl_flow_handlers!(post_risk_check, FrmServicePostRiskCheckRequest, FrmServicePostRiskCheckResponse, post_risk_check_req_transformer, post_risk_check_res_transformer, domain_types::connector_types::FrmConnectorEnum);
 // pre_authenticate: PaymentMethodAuthenticationService.PreAuthenticate — Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.
 impl_flow_handlers!(pre_authenticate, PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentMethodAuthenticationServicePreAuthenticateResponse, pre_authenticate_req_transformer, pre_authenticate_res_transformer, domain_types::connector_types::ConnectorEnum);
+// pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+impl_flow_handlers!(pre_risk_check, FrmServicePreRiskCheckRequest, FrmServicePreRiskCheckResponse, pre_risk_check_req_transformer, pre_risk_check_res_transformer, domain_types::connector_types::FrmConnectorEnum);
 // proxy_authorize: PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector.
 impl_flow_handlers!(proxy_authorize, PaymentServiceProxyAuthorizeRequest, PaymentServiceAuthorizeResponse, proxy_authorize_req_transformer, proxy_authorize_res_transformer, domain_types::connector_types::ConnectorEnum);
 // proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.

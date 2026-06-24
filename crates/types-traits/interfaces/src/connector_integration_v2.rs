@@ -250,7 +250,6 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
     ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
         Ok(None)
     }
-
     /// returns an extra CA certificate (PEM, may be a bundle) to add as a trust
     /// anchor for this connector's outbound HTTPS client
     fn get_ca_certificate(
@@ -258,5 +257,9 @@ pub trait ConnectorIntegrationV2<Flow, ResourceCommonData, Req, Resp>:
         _req: &RouterDataV2<Flow, ResourceCommonData, Req, Resp>,
     ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
         Ok(None)
+    }
+
+    fn get_call_connector_action(&self) -> common_enums::CallConnectorAction {
+        common_enums::CallConnectorAction::Trigger
     }
 }

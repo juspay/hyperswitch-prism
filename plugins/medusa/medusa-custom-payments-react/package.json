@@ -1,6 +1,6 @@
 {
   "name": "@juspay-tech/medusa-custom-payments-react",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "Generic payment UI components for Medusa v2 storefronts",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -19,7 +19,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm --dts --external react,react-dom,@medusajs/js-sdk,@adyen/adyen-web,@stripe/react-stripe-js,@stripe/stripe-js",
-    "watch": "tsup src/index.ts --format cjs,esm --dts --external react,@medusajs/js-sdk --watch",
+    "watch": "tsup src/index.ts --format cjs,esm --dts --watch --external react,react-dom,@medusajs/js-sdk,@adyen/adyen-web,@stripe/react-stripe-js,@stripe/stripe-js",
     "lint": "tsc --noEmit"
   },
   "peerDependencies": {

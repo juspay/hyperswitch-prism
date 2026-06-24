@@ -28,7 +28,7 @@ message FrmServicePreRiskCheckRequest {
   Money amount = 1;
 
   // Customer information
-  optional CustomerInfo customer_info = 2;
+  optional Customer customer_info = 2;
 
   // Payment method details
   optional PaymentMethod payment_method = 3;
@@ -94,7 +94,7 @@ message FrmServicePostRiskCheckRequest {
   Money amount = 1;
 
   // Customer information
-  optional CustomerInfo customer_info = 2;
+  optional Customer customer_info = 2;
 
   // Payment method details
   optional PaymentMethod payment_method = 3;
