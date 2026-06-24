@@ -2327,6 +2327,36 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                 Ok(new_router_data)
             }
             None => {
+                // E00053 indicates "server too busy" and E00104 indicates "server in
+                // maintenance". In both cases Authorize.Net replies HTTP 200 with no
+                // transaction record while the underlying payment is unchanged. Mirror
+                // hyperswitch native (authorizedotnet/transformers.rs `AuthorizedotnetSyncResponse`
+                // -> RouterData): preserve the already-available payment state (status +
+                // Ok response) instead of forcing the attempt to Failure.
+                let is_transient_server_error = response
+                    .messages
+                    .message
+                    .iter()
+                    .any(|m| m.code == "E00053" || m.code == "E00104");
+
+                if is_transient_server_error {
+                    let mut new_router_data = router_data;
+                    // Leave resource_common_data.status untouched (prior attempt status).
+                    new_router_data.response = Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: new_router_data.request.connector_transaction_id.clone(),
+                        redirection_data: None,
+                        mandate_reference: None,
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        network_txn_link_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        status_code: http_code,
+                        splits: None,
+                    });
+                    return Ok(new_router_data);
+                }
+
                 // Handle missing transaction response
                 let status = match response.messages.result_code {
                     ResultCode::Error => AttemptStatus::Failure,
