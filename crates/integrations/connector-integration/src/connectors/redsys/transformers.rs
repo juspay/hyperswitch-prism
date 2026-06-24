@@ -631,6 +631,20 @@ fn build_threeds_invoke_response(
 
     let three_ds_method_data = BASE64_ENGINE.encode(&three_ds_data_string);
 
+    // Mirror hyperswitch-native redsys, which stores the 3DS-method-invoke data on the
+    // PreAuthenticate response `connector_metadata` (serialized `RedsysThreeDsInvokeData`,
+    // snake_case keys, `three_ds_method_data_submission` as a bool). The HS→UCS mapping
+    // reads it back from the gRPC `connector_feature_data` field into
+    // `TransactionResponse.connector_metadata`. Leaving it None made UCS emit a null
+    // connector_metadata while HS emitted an object → response.Ok router typeDiff.
+    let connector_meta_data = Some(Secret::new(serde_json::json!({
+        "directory_server_id": three_d_s_server_trans_i_d.to_string(),
+        "message_version": protocol_version.to_string(),
+        "three_ds_method_data": three_ds_method_data.clone(),
+        "three_ds_method_data_submission": true,
+        "three_ds_method_url": three_ds_method_url.to_string(),
+    })));
+
     let three_ds_invoke_data = requests::RedsysThreeDsInvokeData {
         message_version: protocol_version,
         three_ds_method_data: three_ds_method_data.clone(),
@@ -656,7 +670,7 @@ fn build_threeds_invoke_response(
 
     Ok(responses::PreAuthenticateResponseData {
         redirection_data: redirect_form,
-        connector_meta_data: None,
+        connector_meta_data,
         response_ref_id: Some(response_data.ds_order.clone()),
         authentication_data: None,
     })
@@ -666,9 +680,27 @@ fn build_threeds_exempt_response(
     response_data: &responses::RedsysPaymentsResponse,
     authentication_data: Option<domain_types::router_request_types::AuthenticationData>,
 ) -> Result<responses::PreAuthenticateResponseData, ResponseError> {
+    // Mirror hyperswitch-native redsys, which stores the 3DS-method-exempt data on the
+    // PreAuthenticate response `connector_metadata` (serialized `ThreeDsInvokeExempt`,
+    // snake_case keys). Same null-vs-object typeDiff class as the invoke path above.
+    let connector_meta_data = authentication_data.as_ref().and_then(|auth| {
+        match (
+            auth.message_version.as_ref(),
+            auth.threeds_server_transaction_id.as_ref(),
+        ) {
+            (Some(message_version), Some(threeds_server_transaction_id)) => {
+                Some(Secret::new(serde_json::json!({
+                    "message_version": message_version.to_string(),
+                    "three_d_s_server_trans_i_d": threeds_server_transaction_id,
+                })))
+            }
+            _ => None,
+        }
+    });
+
     Ok(responses::PreAuthenticateResponseData {
         redirection_data: None,
-        connector_meta_data: None,
+        connector_meta_data,
         response_ref_id: Some(response_data.ds_order.clone()),
         authentication_data,
     })
