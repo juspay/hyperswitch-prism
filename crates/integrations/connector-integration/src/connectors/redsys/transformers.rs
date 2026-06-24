@@ -944,7 +944,14 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         ..item.router_data.resource_common_data
                     },
                     response: Ok(PaymentsResponseData::PreAuthenticateResponse {
-                        resource_id: None,
+                        // Mirror hyperswitch-native redsys: resource_id is the
+                        // connector order id (ds_order), the same value used for
+                        // connector_response_reference_id. Leaving it None made HS
+                        // map the gRPC response to ResponseId::NoResponseId, diverging
+                        // from native ResponseId::ConnectorTransactionId(ds_order).
+                        resource_id: response_ref_id
+                            .clone()
+                            .map(ResponseId::ConnectorTransactionId),
                         redirection_data,
                         connector_response_reference_id: response_ref_id,
                         status_code: item.http_code,
