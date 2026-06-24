@@ -121,6 +121,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
                     common_enums::PayoutPriority::foreign_try_from(pp)
                 })
                 .transpose()?,
+            connector_payout_method_id: value.connector_payout_method_id.clone(),
             webhook_url: value.webhook_url.clone(),
             payout_method_data,
             source_bank_data: value
@@ -1157,6 +1158,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
             source_currency,
             destination_currency,
             priority,
+            connector_payout_method_id: value.connector_payout_method_id,
             webhook_url: value.webhook_url,
             payout_method_data,
             source_bank_data: value
@@ -1221,6 +1223,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id,
             connector_payout_id: value.connector_payout_id,
+            connector_payout_method_id: value.connector_payout_method_id,
             customer: value
                 .customer
                 .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
@@ -1376,6 +1379,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateLinkRequest>
             source_currency,
             destination_currency,
             priority,
+            connector_payout_method_id: value.connector_payout_method_id,
             webhook_url: value.webhook_url,
             payout_method_data,
         })
@@ -1494,53 +1498,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRecipientRequest
 
         let customer = value
             .customer
-            .map(|cust| -> Result<_, error_stack::Report<IntegrationError>> {
-                let customer_id = cust
-                    .id
-                    .map(|id| {
-                        common_utils::id_type::CustomerId::try_from(std::borrow::Cow::from(id))
-                            .change_context(IntegrationError::InvalidDataFormat {
-                                field_name: "customer.id",
-                                context: IntegrationErrorContext {
-                                    additional_context: Some("Invalid customer id".to_owned()),
-                                    ..Default::default()
-                                },
-                            })
-                            .inspect_err(|err| {
-                                tracing::warn!(?err, "Failed to parse customer id");
-                            })
-                    })
-                    .transpose()?;
-
-                let customer_email = cust
-                    .email
-                    .as_ref()
-                    .map(|e| {
-                        common_utils::pii::Email::try_from(e.peek().clone()).map_err(|err| {
-                            tracing::warn!(?err, "Failed to parse customer email");
-                            error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                                field_name: "customer.email",
-                                context: IntegrationErrorContext {
-                                    additional_context: Some("Invalid customer email".to_owned()),
-                                    ..Default::default()
-                                },
-                            })
-                            .attach_printable(format!("{err:?}"))
-                        })
-                    })
-                    .transpose()?;
-
-                Ok(crate::connector_types::CustomerInfo {
-                    customer_id,
-                    customer_email,
-                    customer_name: cust.name.map(hyperswitch_masking::Secret::new),
-                    first_name: cust.first_name.clone().map(Into::into),
-                    last_name: cust.last_name.clone().map(Into::into),
-                    customer_phone_number: cust.phone_number.map(hyperswitch_masking::Secret::new),
-                    customer_phone_country_code: cust.phone_country_code.clone(),
-                    salutation: cust.salutation.clone(),
-                })
-            })
+            .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
             .transpose()?;
 
         let vendor_account_details = value.vendor_account_details.map(|v| {
@@ -1627,53 +1585,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceEnrollDisburseAccountR
 
         let customer = value
             .customer
-            .map(|cust| -> Result<_, error_stack::Report<IntegrationError>> {
-                let customer_id = cust
-                    .id
-                    .map(|id| {
-                        common_utils::id_type::CustomerId::try_from(std::borrow::Cow::from(id))
-                            .change_context(IntegrationError::InvalidDataFormat {
-                                field_name: "customer.id",
-                                context: IntegrationErrorContext {
-                                    additional_context: Some("Invalid customer id".to_owned()),
-                                    ..Default::default()
-                                },
-                            })
-                            .inspect_err(|err| {
-                                tracing::warn!(?err, "Failed to parse customer id");
-                            })
-                    })
-                    .transpose()?;
-
-                let customer_email = cust
-                    .email
-                    .as_ref()
-                    .map(|e| {
-                        common_utils::pii::Email::try_from(e.peek().clone()).map_err(|err| {
-                            tracing::warn!(?err, "Failed to parse customer email");
-                            error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                                field_name: "customer.email",
-                                context: IntegrationErrorContext {
-                                    additional_context: Some("Invalid customer email".to_owned()),
-                                    ..Default::default()
-                                },
-                            })
-                            .attach_printable(format!("{err:?}"))
-                        })
-                    })
-                    .transpose()?;
-
-                Ok(crate::connector_types::CustomerInfo {
-                    customer_id,
-                    customer_email,
-                    customer_name: cust.name.map(hyperswitch_masking::Secret::new),
-                    first_name: cust.first_name.clone().map(Into::into),
-                    last_name: cust.last_name.clone().map(Into::into),
-                    customer_phone_number: cust.phone_number.map(hyperswitch_masking::Secret::new),
-                    customer_phone_country_code: cust.phone_country_code.clone(),
-                    salutation: cust.salutation.clone(),
-                })
-            })
+            .map(payouts::payouts_types::PayoutCustomer::foreign_try_from)
             .transpose()?;
 
         Ok(Self {

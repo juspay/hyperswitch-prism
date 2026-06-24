@@ -86,6 +86,7 @@ pub struct PayoutCreateRequest {
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
     pub priority: Option<common_enums::PayoutPriority>,
+    pub connector_payout_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub payout_method_data: Option<PayoutMethodData>,
     pub source_bank_data: Option<Bank>,
@@ -115,6 +116,7 @@ pub struct PayoutTransferRequest {
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
     pub priority: Option<common_enums::PayoutPriority>,
+    pub connector_payout_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub payout_method_data: Option<PayoutMethodData>,
     pub address: Option<PayoutAddress>,
@@ -300,6 +302,7 @@ pub struct PayoutTransferResponse {
 pub struct PayoutGetRequest {
     pub merchant_payout_id: Option<String>,
     pub connector_payout_id: Option<String>,
+    pub connector_payout_method_id: Option<String>,
     pub customer: Option<PayoutCustomer>,
 }
 
@@ -350,6 +353,7 @@ pub struct PayoutCreateLinkRequest {
     pub source_currency: common_enums::Currency,
     pub destination_currency: common_enums::Currency,
     pub priority: Option<common_enums::PayoutPriority>,
+    pub connector_payout_method_id: Option<String>,
     pub webhook_url: Option<String>,
     pub payout_method_data: Option<PayoutMethodData>,
 }
@@ -372,7 +376,7 @@ pub struct PayoutCreateRecipientRequest {
 
     pub address: Option<super::super::payment_address::Address>,
 
-    pub customer: Option<crate::connector_types::CustomerInfo>,
+    pub customer: Option<PayoutCustomer>,
 
     pub vendor_account_details: Option<PayoutVendorAccountDetails>,
 }
@@ -576,7 +580,7 @@ impl PayoutCreateRecipientRequest {
     pub fn get_email_with_fallback(&self) -> Option<common_utils::pii::Email> {
         self.customer
             .as_ref()
-            .and_then(|c| c.customer_email.clone())
+            .and_then(|c| c.email.clone())
             .or_else(|| self.address.as_ref().and_then(|a| a.email.clone()))
     }
 
@@ -596,7 +600,10 @@ impl PayoutEnrollDisburseAccountRequest {
     }
 
     pub fn get_customer_name(&self) -> Option<Secret<String>> {
-        self.customer.as_ref().and_then(|c| c.customer_name.clone())
+        self.customer
+            .as_ref()
+            .and_then(|c| c.name.clone())
+            .map(Secret::new)
     }
 }
 
@@ -616,7 +623,7 @@ pub struct PayoutEnrollDisburseAccountRequest {
     pub source_currency: common_enums::Currency,
     pub payout_method_data: Option<PayoutMethodData>,
 
-    pub customer: Option<crate::connector_types::CustomerInfo>,
+    pub customer: Option<PayoutCustomer>,
 }
 
 #[derive(Debug, Clone)]
