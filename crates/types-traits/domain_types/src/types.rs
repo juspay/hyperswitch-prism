@@ -6193,7 +6193,13 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 connector_transaction_id: err.connector_transaction_id.clone(),
                 redirection_data: None,
                 network_transaction_id: None,
-                merchant_transaction_id: err.connector_transaction_id.clone(),
+                // `merchant_transaction_id` is decoded by the HS UCS-client as
+                // `connector_response_reference_id`. On the error path that reference is
+                // absent (the connector `ErrorResponse` carries no reference id), so leave
+                // it `None` to mirror Direct connectors (e.g. finix) which set
+                // `connector_response_reference_id: None` on a decline — rather than
+                // leaking the connector transaction id into the reference field.
+                merchant_transaction_id: None,
                 mandate_reference: None,
                 mandate_reference_details: None,
                 incremental_authorization_allowed: None,
