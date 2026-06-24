@@ -6466,11 +6466,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
                 .map(connector_types::SplitPaymentsDetails::foreign_try_from)
                 .transpose()?,
             setup_future_usage,
-            mandate_reference: value.mandate_reference.map(|m| connector_types::MandateReference {
-                connector_mandate_id: m.connector_mandate_id,
-                payment_method_id: m.payment_method_id,
-                connector_mandate_request_reference_id: m.connector_mandate_request_reference_id,
-            }),
+            mandate_reference: value
+                .mandate_reference
+                .map(|m| connector_types::MandateReference {
+                    connector_mandate_id: m.connector_mandate_id,
+                    payment_method_id: m.payment_method_id,
+                    connector_mandate_request_reference_id: m
+                        .connector_mandate_request_reference_id,
+                }),
         })
     }
 }
