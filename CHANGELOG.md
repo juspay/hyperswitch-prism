@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.24.1
+
+### Features
+
+- **events:** Route connector and inbound events to separate topics ([#1501](https://github.com/juspay/connector-service/pull/1501)) ([`f0892f6`](https://github.com/juspay/connector-service/commit/f0892f6bdaca0dc20be0bf65b5cc1d448587fe08))
+- **medusa:** Add Klarna (Pay later) via Mollie ([#1622](https://github.com/juspay/connector-service/pull/1622)) ([`41b9e0a`](https://github.com/juspay/connector-service/commit/41b9e0aa7b69116d5cacf90a5646c82449a09dbf))
+
+### Bug Fixes
+
+- **authorizedotnet/psync:** Map FDSPendingReview to Unresolved ([#1211](https://github.com/juspay/connector-service/pull/1211)) ([`fb90fca`](https://github.com/juspay/connector-service/commit/fb90fca11ad519d4419f6a804d0b2dfbeeb2c5ee))
+- **connector:** Mirror hyperswitch DLOCAL for OXXO + Card ([#1610](https://github.com/juspay/connector-service/pull/1610)) ([`92760b4`](https://github.com/juspay/connector-service/commit/92760b4c29081ae079c2ce181346a86004944f8b))
+- **cybersource:** Use Flex Microform clientVersion v2.0 ([#1613](https://github.com/juspay/connector-service/pull/1613)) ([`6d88bdf`](https://github.com/juspay/connector-service/commit/6d88bdfd520e5976b1f29cc0d94079b82dbe7972))
+
+**Full Changelog:** [`2026.06.24.0...2026.06.24.1`](https://github.com/juspay/connector-service/compare/2026.06.24.0...2026.06.24.1)
+
+- - -
+
 ## 2026.06.24.0
 
 ### Features
