@@ -34,6 +34,7 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         version = ?request.version(),
         tenant_id = tracing::field::Empty,
         request_id = tracing::field::Empty,
+        execution_mode = tracing::field::Empty,
     );
     request
         .headers()
@@ -46,6 +47,17 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         .get(consts::X_REQUEST_ID)
         .and_then(|value| value.to_str().ok())
         .map(|request_id| span.record("request_id", request_id));
+
+    // On the request span so every log line of the request carries primary/shadow.
+    let shadow = request
+        .headers()
+        .get(consts::X_SHADOW_MODE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.eq_ignore_ascii_case("true"));
+    span.record(
+        "execution_mode",
+        ExecutionMode::from_shadow_flag(shadow).as_str(),
+    );
 
     span
 }
@@ -288,7 +300,7 @@ where
             current_span.record("status_code", status.code().to_string());
         }
     }
-    tracing::info!("Golden Log Line (incoming)");
+    tracing::info!("Golden Log Line (response)");
 }
 
 /// Generic gRPC logging wrapper that accepts a custom parser function.
