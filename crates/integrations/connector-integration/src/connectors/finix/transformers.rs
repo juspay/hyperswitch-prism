@@ -1839,7 +1839,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id: Some(response.id.clone()),
+                // Mirror Direct finix, which routes repeat payments through the Authorize
+                // ConnectorIntegration and leaves connector_response_reference_id as None.
+                // Finix's /transfers response has no dedicated reference field (only `id`,
+                // already surfaced as resource_id), so emitting Some(id) here produced a
+                // null-vs-string typeDiff against Direct (#17007).
+                connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
