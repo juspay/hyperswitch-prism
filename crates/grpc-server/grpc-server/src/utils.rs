@@ -10,6 +10,7 @@ use common_utils::{
     events::{Event, EventStage, FlowName, MaskedSerdeValue},
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
+    types::ExecutionMode,
 };
 use domain_types::{
     connector_types, errors::IntegrationError, router_data::ConnectorSpecificConfig,
@@ -430,6 +431,9 @@ fn create_and_emit_grpc_event<R>(
         url: None,
         method: None,
         stage: EventStage::GrpcRequest,
+        execution_mode: ExecutionMode::from_shadow_flag(
+            metadata_payload.map(|md| md.shadow_mode).unwrap_or(false),
+        ),
         latency_ms: Some(u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX)),
         status_code: None,
         request_data: masked_request_data,
