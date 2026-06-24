@@ -138,7 +138,15 @@ tsys_transit.base_url = "https://gwapi.transit-pass.com/"
 [events]
 enabled = false
 brokers = ["localhost:9092"]
-topic = "audit-trail-events"
+
+# Outbound connector-call events.
+[events.connector_events]
+topic = "unified-connector-service-connector-events"
+partition_key_field = "request_id"
+
+# Inbound request events.
+[events.api_events]
+topic = "unified-connector-service-api-events"
 partition_key_field = "request_id"
 
 [connector_request_kafka]

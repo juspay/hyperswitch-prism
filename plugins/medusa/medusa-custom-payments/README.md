@@ -44,6 +44,10 @@ PAYPAL_WEBHOOK_ID=...       # webhook ID — required for webhook processing
 GLOBALPAY_APP_ID=...
 GLOBALPAY_APP_KEY=...
 
+# Mollie
+MOLLIE_API_KEY=test_...          # Mollie API key (test_… / live_…)
+MOLLIE_PROFILE_TOKEN=pfl_...     # public profile id; surfaced to the storefront for Mollie Components
+
 # Authorize.Net
 AUTHORIZEDOTNET_NAME=...              # API Login ID
 AUTHORIZEDOTNET_TRANSACTION_KEY=...   # Transaction Key
@@ -116,6 +120,21 @@ export default defineConfig({
               connectorConfig: {
                 appId: { value: process.env.GLOBALPAY_APP_ID ?? "" },
                 appKey: { value: process.env.GLOBALPAY_APP_KEY ?? "" },
+              },
+              environment: "SANDBOX",
+            },
+          },
+          {
+            resolve: "@juspay-tech/medusa-custom-payments",
+            id: "mollie",
+            options: {
+              connector: "mollie",
+              connectorConfig: {
+                apiKey: { value: process.env.MOLLIE_API_KEY ?? "" },
+                // Public profile id (pfl_…), not a secret — surfaced in the
+                // payment session as `profileId` for the storefront's Mollie
+                // Components. The same credentials serve Card and Klarna.
+                profileToken: { value: process.env.MOLLIE_PROFILE_TOKEN ?? "" },
               },
               environment: "SANDBOX",
             },
@@ -207,7 +226,7 @@ Each credential value is provided as `{ value: string }` to support secret manag
 
 > **Authorize result by connector**
 > - `adyen`, `stripe`, `braintree`, `cybersource` → payment lands as **AUTHORIZED** (funds reserved; Capture or Void available next)
-> - `paypal`, `globalpay`, `mollie`, `authorizedotnet` → payment lands as **CAPTURED** (funds collected immediately via `CaptureMethod.AUTOMATIC`; Refund only). For `mollie` this is reached after the customer completes the 3DS redirect; `authorizedotnet` authorizes a raw card with no redirect.
+> - `paypal`, `globalpay`, `mollie`, `authorizedotnet` → payment lands as **CAPTURED** (funds collected immediately via `CaptureMethod.AUTOMATIC`; Refund only). For `mollie` this is reached after the customer completes the redirect — the 3DS page for Card, or the Mollie-hosted Klarna checkout for Klarna (Pay later, EUR-only); `authorizedotnet` authorizes a raw card with no redirect.
 
 > **Note:** All flows in the matrix above are tested and verified under the **sandbox / test environment** of each connector. Production behavior should be validated separately before go-live.
 
