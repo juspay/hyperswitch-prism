@@ -254,10 +254,26 @@ function MollieCheckout({
 }) {
   const [method, setMethod] = useState<"card" | "klarna">("card");
 
+  // Parse a JSON response, surfacing a clear error if the request failed.
+  // Without this, a non-2xx body silently flows on and derefs `undefined`
+  // (e.g. coll.payment_collection.id), crashing with an opaque message — or, for
+  // the reinitiate call, loses the billing data and fails later as "missing
+  // billing" at authorize. Mirrors the /complete handling below.
+  const readJson = async (res: Response, what: string) => {
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) {
+      throw new Error(body.error ?? `${what} failed (${res.status})`);
+    }
+    return body;
+  };
+
   const payKlarna = async (billing: MollieKlarnaBilling) => {
     // Klarna via Mollie is EU-only → create a fresh EUR Mollie session for the
     // cart. createSession overwrites cartToSession, so this becomes the active
-    // session that /complete authorizes.
+    // session that /complete authorizes. NOTE: the original USD session created
+    // on page load is left as-is (not voided) — harmless here since /complete
+    // authorizes whichever session is active, but a production flow should cancel
+    // the abandoned session.
     const collRes = await fetch("/store/payment-collections", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -267,7 +283,7 @@ function MollieCheckout({
         amount: CART.amount,
       }),
     });
-    const coll = await collRes.json();
+    const coll = await readJson(collRes, "Create payment collection");
     const collectionId = coll.payment_collection.id;
 
     const sessRes = await fetch(
@@ -278,23 +294,27 @@ function MollieCheckout({
         body: JSON.stringify({ provider_id: "mollie" }),
       }
     );
-    const sess = await sessRes.json();
+    const sess = await readJson(sessRes, "Create payment session");
     const ps = sess.payment_collection.payment_sessions[0];
     const klarnaSessionId = ps.id;
 
     // Persist the Klarna billing + method on the (EUR) session.
-    await fetch(`/store/payment-sessions/${klarnaSessionId}/reinitiate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        data: {
-          paymentMethodType: "klarna",
-          billing,
-          id: ps.data?.id,
-          returnUrl: `${window.location.origin}/order/${klarnaSessionId}`,
-        },
-      }),
-    });
+    const reinitRes = await fetch(
+      `/store/payment-sessions/${klarnaSessionId}/reinitiate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: {
+            paymentMethodType: "klarna",
+            billing,
+            id: ps.data?.id,
+            returnUrl: `${window.location.origin}/order/${klarnaSessionId}`,
+          },
+        }),
+      }
+    );
+    await readJson(reinitRes, "Persist Klarna billing");
 
     // Authorize (cart complete) → Klarna hosted-checkout redirect.
     const res = await fetch(`/store/carts/${CART.cartId}/complete`, {
@@ -343,17 +363,21 @@ function MollieCheckout({
           testmode
           onError={onError}
           onSubmit={async ({ cardToken }) => {
-            await fetch(`/store/payment-sessions/${sessionId}/reinitiate`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                data: {
-                  cardToken,
-                  id: sessionData.id,
-                  returnUrl: `${window.location.origin}/order/${sessionId}`,
-                },
-              }),
-            });
+            const reinitRes = await fetch(
+              `/store/payment-sessions/${sessionId}/reinitiate`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  data: {
+                    cardToken,
+                    id: sessionData.id,
+                    returnUrl: `${window.location.origin}/order/${sessionId}`,
+                  },
+                }),
+              }
+            );
+            await readJson(reinitRes, "Persist card token");
             const res = await fetch(`/store/carts/${CART.cartId}/complete`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },

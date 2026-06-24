@@ -106,11 +106,31 @@ export type KlarnaBilling = {
 // Map the storefront billing form to the SDK billing address. The connector's
 // Klarna arm reads it via get_payment_method_billing(), which falls back to the
 // request billing_address when no payment-method billing is set.
-function toKlarnaBillingAddress(b: KlarnaBilling): any {
-  const sec = (v?: string) => (v ? { value: v } : undefined)
-  const countryAlpha2Code = b.country
-    ? (types.CountryAlpha2 as any)[b.country.toUpperCase()]
-    : undefined
+function toKlarnaBillingAddress(b: KlarnaBilling): types.IAddress {
+  const sec = (v?: string): types.ISecretString | undefined =>
+    v ? { value: v } : undefined
+  // CountryAlpha2 is a numeric enum keyed by ISO 3166-1 alpha-2 code; index it by
+  // the (uppercased) storefront value. An unknown/invalid code resolves to
+  // undefined — surface that instead of silently dropping the country, since
+  // Klarna's risk assessment needs the billing country and would otherwise reject
+  // the order with an opaque error.
+  let countryAlpha2Code: types.CountryAlpha2 | undefined
+  if (b.country) {
+    const key = b.country.toUpperCase()
+    // Double-cast: CountryAlpha2 is a numeric enum (it carries a reverse
+    // number→string map), so it isn't directly a Record<string, …>.
+    const code = (
+      types.CountryAlpha2 as unknown as Record<string, types.CountryAlpha2 | undefined>
+    )[key]
+    if (code === undefined) {
+      logger.error(
+        "[PrismService.authorizePayment] mollie klarna: unknown country code %s — omitting from billing address",
+        key
+      )
+    } else {
+      countryAlpha2Code = code
+    }
+  }
   return {
     firstName: sec(b.firstName),
     lastName: sec(b.lastName),
