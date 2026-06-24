@@ -843,7 +843,7 @@ export class GrpcPayoutClient {
     return callGrpc(this.ffi, this.config, "payout/enroll_disburse_account",
       req, types.PayoutServiceEnrollDisburseAccountRequest, types.PayoutServiceEnrollDisburseAccountResponse);
   }
-  /** PayoutService.Eligibility — Check if the payout method is eligible for the transaction */
+  /** PayoutService.Eligibility — Check eligibility of a payout before initiating it (e.g. SEPA VoP / payee verification). */
   async payoutEligibility(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "payout/payout_eligibility",
       req, types.PayoutMethodEligibilityRequest, types.PayoutMethodEligibilityResponse);

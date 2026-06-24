@@ -553,7 +553,7 @@ impl ConnectorClient {
         payout_create_recipient_res_handler
     );
     impl_flow_method!(
-        payout_eligibility,
+        eligibility,
         PayoutMethodEligibilityRequest,
         PayoutMethodEligibilityResponse,
         payout_eligibility_req_handler,
