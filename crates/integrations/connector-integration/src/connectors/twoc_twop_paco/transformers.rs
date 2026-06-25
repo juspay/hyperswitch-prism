@@ -658,7 +658,9 @@ impl From<&connector_types::AirlineLocation> for PacoAirlineLocation {
     }
 }
 
-fn missing_airline_field(field_name: &'static str) -> error_stack::Report<errors::IntegrationError> {
+fn missing_airline_field(
+    field_name: &'static str,
+) -> error_stack::Report<errors::IntegrationError> {
     error_stack::Report::new(errors::IntegrationError::MissingRequiredField {
         field_name,
         context: errors::IntegrationErrorContext {
@@ -675,9 +677,9 @@ impl TryFrom<&connector_types::AirlineSegment> for PacoFlightSegment {
     type Error = error_stack::Report<errors::IntegrationError>;
     fn try_from(segment: &connector_types::AirlineSegment) -> Result<Self, Self::Error> {
         Ok(Self {
-            sequence_no: segment
-                .sequence_no
-                .ok_or_else(|| missing_airline_field("airline_data.flight_segments[].sequence_no"))?,
+            sequence_no: segment.sequence_no.ok_or_else(|| {
+                missing_airline_field("airline_data.flight_segments[].sequence_no")
+            })?,
             marketing_airline_code: segment.marketing_carrier_code.clone().ok_or_else(|| {
                 missing_airline_field("airline_data.flight_segments[].marketing_carrier_code")
             })?,
@@ -710,7 +712,9 @@ impl TryFrom<&connector_types::AirlinePassenger> for PacoPassenger {
         let customer = passenger.customer.as_ref();
         let first_name = customer
             .and_then(|cust| cust.first_name.clone())
-            .ok_or_else(|| missing_airline_field("airline_data.passengers[].customer.first_name"))?;
+            .ok_or_else(|| {
+                missing_airline_field("airline_data.passengers[].customer.first_name")
+            })?;
         let last_name = customer
             .and_then(|cust| cust.last_name.clone())
             .ok_or_else(|| missing_airline_field("airline_data.passengers[].customer.last_name"))?;
