@@ -50,6 +50,25 @@ impl ConnectorResponseHeaders for FrmFlowData {
     }
 }
 
+/// Recurring / mandate (merchant-initiated subscription) context for an FRM
+/// risk check. Mirrors the gRPC `MandateInfo` and maps to a connector's
+/// recurring/subscription block (e.g. Kount Orders `items[].recurring`).
+/// Amounts are in the smallest currency unit.
+#[derive(Debug, Clone, Default)]
+pub struct MandateInfo {
+    pub is_recurring: bool,
+    pub external_subscription_id: Option<String>,
+    pub period: Option<String>,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub initial_billing_amount: Option<u64>,
+    pub period_billing_amount: Option<u64>,
+    pub next_billing_date: Option<String>,
+    pub billing_cycle: Option<i32>,
+    pub status: Option<String>,
+    pub description: Option<String>,
+}
+
 /// Request data for pre-risk check
 #[derive(Debug, Clone)]
 pub struct PreRiskCheckRequest {
@@ -63,6 +82,7 @@ pub struct PreRiskCheckRequest {
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,
     pub test_mode: Option<bool>,
+    pub mandate_info: Option<MandateInfo>,
 }
 
 /// Response data for pre-risk check

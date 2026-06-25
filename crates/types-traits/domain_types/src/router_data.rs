@@ -797,6 +797,9 @@ pub enum ConnectorSpecificConfig {
         /// Kount OAuth authorization-server id; account/environment specific.
         /// Falls back to the sandbox auth server when `None`.
         auth_server_id: Option<String>,
+        /// Salt for the Orders `payment.paymentToken` (salted SHA-256 of the
+        /// PAN). When `None`, `paymentToken` is omitted (bin/last4 still sent).
+        payment_token_salt: Option<Secret<String>>,
         base_url: Option<String>,
     },
 }
@@ -2131,6 +2134,7 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Kount(kount) => Ok(Self::Kount {
                 api_key: kount.api_key.ok_or_else(err)?,
                 auth_server_id: kount.auth_server_id,
+                payment_token_salt: kount.payment_token_salt,
                 base_url: kount.base_url,
             }),
             AuthType::Hyperswitch(hyperswitch) => Ok(Self::Hyperswitch {
@@ -3251,6 +3255,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
                         api_key: api_key.clone(),
                         auth_server_id: None,
+                        payment_token_salt: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),
@@ -3335,6 +3340,7 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
                         api_key: api_key.clone(),
                         auth_server_id: None,
+                        payment_token_salt: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),

@@ -1067,6 +1067,7 @@ impl
                 access_token,
                 connector_customer_id,
             }),
+            mandate_info: item.mandate_info.clone(),
         }
     }
 }

@@ -56,6 +56,10 @@ message FrmServicePreRiskCheckRequest {
 
   // State Information
   optional ConnectorState state = 11;
+
+  // Recurring / mandate (subscription) context, when the order is a
+  // merchant-initiated recurring charge.
+  optional MandateInfo mandate_info = 12;
 }
 
 // Response for FrmService.PreRiskCheck

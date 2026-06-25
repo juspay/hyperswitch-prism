@@ -10,7 +10,7 @@ use domain_types::{
     errors,
     frm::frm_types::{
         FrmFlowData, FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse,
-        FrmRefundProcessedRequest, FrmRefundProcessedResponse, PreRiskCheckRequest,
+        FrmRefundProcessedRequest, FrmRefundProcessedResponse, MandateInfo, PreRiskCheckRequest,
         PreRiskCheckResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -48,6 +48,8 @@ pub const KOUNT_DOC_URL: &str = "https://developer.kount.com/";
 pub struct KountAuthType {
     pub api_key: Secret<String>,
     pub auth_server_id: Option<String>,
+    /// Salt for the `payment.paymentToken` salted SHA-256; `None` omits the token.
+    pub payment_token_salt: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for KountAuthType {
@@ -58,10 +60,12 @@ impl TryFrom<&ConnectorSpecificConfig> for KountAuthType {
             ConnectorSpecificConfig::Kount {
                 api_key,
                 auth_server_id,
+                payment_token_salt,
                 ..
             } => Ok(Self {
                 api_key: api_key.to_owned(),
                 auth_server_id: auth_server_id.to_owned(),
+                payment_token_salt: payment_token_salt.to_owned(),
             }),
             _ => Err(error_stack::report!(
                 errors::IntegrationError::FailedToObtainAuthType {
@@ -374,6 +378,46 @@ pub struct KountItem {
     pub is_digital: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sku: Option<String>,
+    /// Recurring / subscription context for this line item (Kount
+    /// `RecurringDetails`), set when the order is a recurring charge.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring: Option<KountRecurring>,
+}
+
+/// Kount Orders `RecurringDetails` block (subscription/mandate context).
+#[derive(Debug, Clone, Serialize)]
+pub struct KountRecurring {
+    #[serde(rename = "startDate", skip_serializing_if = "Option::is_none")]
+    pub start_date: Option<String>,
+    #[serde(rename = "endDate", skip_serializing_if = "Option::is_none")]
+    pub end_date: Option<String>,
+    /// First billing amount, smallest currency unit (string per Kount schema).
+    #[serde(
+        rename = "initialBillingAmount",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub initial_billing_amount: Option<String>,
+    /// Per-period billing amount, smallest currency unit (string per Kount schema).
+    #[serde(
+        rename = "periodBillingAmount",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub period_billing_amount: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub period: Option<String>,
+    #[serde(
+        rename = "externalSubscriptionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub external_subscription_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    #[serde(rename = "nextBillingDate", skip_serializing_if = "Option::is_none")]
+    pub next_billing_date: Option<String>,
+    #[serde(rename = "billingCycle", skip_serializing_if = "Option::is_none")]
+    pub billing_cycle: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -402,6 +446,10 @@ pub struct KountTransaction {
 pub struct KountPayment {
     #[serde(rename = "type")]
     pub payment_type: KountPaymentType,
+    /// Salted SHA-256 hash of the payment instrument (PAN). Omitted when no salt
+    /// is configured. No full PAN is ever sent.
+    #[serde(rename = "paymentToken", skip_serializing_if = "Option::is_none")]
+    pub payment_token: Option<String>,
     /// Card BIN (first 6 digits) — no full PAN is sent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bin: Option<String>,
@@ -541,6 +589,40 @@ fn card_bin_last4(pan: &str) -> (Option<String>, Option<String>) {
     (bin, last4)
 }
 
+/// Kount `payment.paymentToken` = salted SHA-256 of the PAN (digits only),
+/// lowercase hex. Stable for the same PAN+salt; never reveals the PAN.
+fn kount_payment_token(salt: &str, pan: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let digits: String = pan.chars().filter(|c| c.is_ascii_digit()).collect();
+    let mut hasher = Sha256::new();
+    hasher.update(salt.as_bytes());
+    hasher.update(digits.as_bytes());
+    hasher
+        .finalize()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+impl KountRecurring {
+    /// Build the recurring block from `mandate_info`, only when the order is
+    /// flagged recurring. Amounts (minor units) are stringified per Kount schema.
+    fn from_mandate(info: &MandateInfo) -> Option<Self> {
+        info.is_recurring.then(|| Self {
+            start_date: info.start_date.clone(),
+            end_date: info.end_date.clone(),
+            initial_billing_amount: info.initial_billing_amount.map(|amt| amt.to_string()),
+            period_billing_amount: info.period_billing_amount.map(|amt| amt.to_string()),
+            period: info.period.clone(),
+            external_subscription_id: info.external_subscription_id.clone(),
+            status: info.status.clone(),
+            next_billing_date: info.next_billing_date.clone(),
+            billing_cycle: info.billing_cycle,
+            description: info.description.clone(),
+        })
+    }
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         KountRouterData<
@@ -609,6 +691,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let currency = req.amount.currency;
 
+        // Recurring / subscription block, derived from mandate_info and applied to
+        // each line item (the FRM request carries order-level recurring context).
+        let recurring = req
+            .mandate_info
+            .as_ref()
+            .and_then(KountRecurring::from_mandate);
+
+        // Salt for the payment.paymentToken hash, from the Kount connector config.
+        let payment_token_salt = KountAuthType::try_from(&item.router_data.connector_config)
+            .ok()
+            .and_then(|auth| auth.payment_token_salt);
+
         // Line items from order details.
         let items = match req.order_details.as_ref() {
             Some(details) => details
@@ -622,6 +716,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         category: detail.category.clone(),
                         is_digital: detail.requires_shipping.map(|ships| !ships),
                         sku: detail.sku.clone(),
+                        recurring: recurring.clone(),
                     })
                 })
                 .collect::<Result<Vec<_>, _>>()?,
@@ -668,12 +763,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
             .unwrap_or_default();
 
-        // Payment instrument (BIN/last4 only) from the payment method.
+        // Payment instrument (paymentToken hash + BIN/last4) from the payment method.
         let payment = match req.payment_method.as_ref() {
             Some(PaymentMethodData::Card(card)) => {
                 let (bin, last4) = card_bin_last4(card.card_number.peek());
+                // Salted SHA-256 of the PAN, only when a salt is configured.
+                let payment_token = payment_token_salt
+                    .as_ref()
+                    .map(|salt| kount_payment_token(salt.peek(), card.card_number.peek()));
                 Some(KountPayment {
                     payment_type: KountPaymentType::CreditCard,
+                    payment_token,
                     bin,
                     last4,
                 })

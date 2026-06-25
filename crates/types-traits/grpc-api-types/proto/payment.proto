@@ -1608,6 +1608,34 @@ enum FrmDecision {
   ERROR = 4;                    // The FRM check itself failed (network, timeout, misconfiguration).
 }
 
+// Recurring / mandate (merchant-initiated subscription) context for an FRM
+// risk check. Maps to a connector's recurring/subscription block (e.g. Kount
+// Orders `items[].recurring`). Amounts are in the smallest currency unit.
+message MandateInfo {
+  // Whether this order is a recurring / merchant-initiated subscription charge.
+  bool is_recurring = 1;
+  // Merchant/PSP subscription identifier.
+  optional string external_subscription_id = 2;
+  // Billing period (e.g. "MONTHLY", "WEEKLY").
+  optional string period = 3;
+  // Subscription start date (RFC 3339 / ISO 8601).
+  optional string start_date = 4;
+  // Subscription end date (RFC 3339 / ISO 8601).
+  optional string end_date = 5;
+  // First billing amount, in minor units.
+  optional uint64 initial_billing_amount = 6;
+  // Per-period billing amount, in minor units.
+  optional uint64 period_billing_amount = 7;
+  // Next scheduled billing date.
+  optional string next_billing_date = 8;
+  // Current billing cycle number.
+  optional int32 billing_cycle = 9;
+  // Subscription status (e.g. "ACTIVE", "CANCELLED").
+  optional string status = 10;
+  // Free-text description of the subscription.
+  optional string description = 11;
+}
+
 // Unified FRM notification content.
 // Used for all FRM lifecycle events (payment success, refund, chargeback).
 message FrmNotificationContent {
@@ -4952,6 +4980,10 @@ message KountConfig {
   // (`login.kount.com/oauth2/{auth_server_id}/v1/token`). Account/environment
   // specific; falls back to the sandbox auth server when unset.
   optional string auth_server_id = 2;
+  // Salt used to compute the Kount Orders `payment.paymentToken` as a salted
+  // SHA-256 of the card PAN. Must be stable so the same instrument hashes
+  // consistently; when unset, `paymentToken` is omitted (bin/last4 still sent).
+  optional SecretString payment_token_salt = 3;
   optional string base_url = 50;
 }
 

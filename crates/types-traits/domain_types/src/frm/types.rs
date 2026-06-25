@@ -1,6 +1,7 @@
 use super::frm_types::{
     FrmChargebackReceivedRequest, FrmFlowData, FrmPaymentOutcomeRequest, FrmRefundProcessedRequest,
-    PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest, PreRiskCheckResponse,
+    MandateInfo, PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest,
+    PreRiskCheckResponse,
 };
 use crate::{
     connector_types::{
@@ -21,6 +22,23 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::ExposeInterface;
+
+/// Map the gRPC `MandateInfo` (recurring/subscription context) to the domain type.
+fn map_mandate_info(value: Option<grpc_api_types::payments::MandateInfo>) -> Option<MandateInfo> {
+    value.map(|info| MandateInfo {
+        is_recurring: info.is_recurring,
+        external_subscription_id: info.external_subscription_id,
+        period: info.period,
+        start_date: info.start_date,
+        end_date: info.end_date,
+        initial_billing_amount: info.initial_billing_amount,
+        period_billing_amount: info.period_billing_amount,
+        next_billing_date: info.next_billing_date,
+        billing_cycle: info.billing_cycle,
+        status: info.status,
+        description: info.description,
+    })
+}
 
 // ── FrmDecision conversions ───────────────────────────────────────────────────
 
@@ -282,6 +300,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             metadata: value.metadata,
             connector_feature_data: value.connector_feature_data,
             test_mode: value.test_mode,
+            mandate_info: map_mandate_info(value.mandate_info),
         })
     }
 }
