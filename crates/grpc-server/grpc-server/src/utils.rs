@@ -18,6 +18,7 @@ use domain_types::{
 use error_stack::Report;
 use http::request::Request;
 use hyperswitch_masking;
+use prost::Message;
 use serde_json::Value;
 use std::{collections::HashMap, sync::Arc};
 use ucs_env::{configs, error::ResultExtGrpc};
@@ -34,6 +35,7 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         version = ?request.version(),
         tenant_id = tracing::field::Empty,
         request_id = tracing::field::Empty,
+        execution_mode = tracing::field::Empty,
     );
     request
         .headers()
@@ -46,6 +48,17 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         .get(consts::X_REQUEST_ID)
         .and_then(|value| value.to_str().ok())
         .map(|request_id| span.record("request_id", request_id));
+
+    // On the request span so every log line of the request carries primary/shadow.
+    let shadow = request
+        .headers()
+        .get(consts::X_SHADOW_MODE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.eq_ignore_ascii_case("true"));
+    span.record(
+        "execution_mode",
+        ExecutionMode::from_shadow_flag(shadow).as_str(),
+    );
 
     span
 }
@@ -247,7 +260,7 @@ where
     current_span.record("merchant_id", merchant_id);
     current_span.record("tenant_id", tenant_id);
     current_span.record("request_id", request_id);
-    tracing::info!("Golden Log Line (incoming)");
+    tracing::info!("Golden Log Line (incoming - request)");
     Ok(())
 }
 
@@ -288,7 +301,7 @@ where
             current_span.record("status_code", status.code().to_string());
         }
     }
-    tracing::info!("Golden Log Line (incoming)");
+    tracing::info!("Golden Log Line (incoming - response)");
 }
 
 /// Generic gRPC logging wrapper that accepts a custom parser function.
@@ -459,10 +472,36 @@ fn create_and_emit_grpc_event<R>(
 
     match grpc_response {
         Ok(response) => grpc_event.set_grpc_success_response(response.get_ref()),
-        Err(error) => grpc_event.set_grpc_error_response(error),
+        Err(error) => {
+            grpc_event.set_grpc_error_response(error);
+            grpc_event.set_error_response(&build_error_detail(error));
+        }
     }
 
     common_utils::emit_event_with_config(grpc_event, &config.events);
+}
+
+fn build_error_detail(status: &tonic::Status) -> Value {
+    use grpc_api_types::payments::{ConnectorError, IntegrationError};
+
+    let details = status.details();
+    let (error_code, http_status_code) = if details.is_empty() {
+        (None, None)
+    } else {
+        IntegrationError::decode(details)
+            .map(|e| (Some(e.error_code), None))
+            .or_else(|_| {
+                ConnectorError::decode(details).map(|e| (Some(e.error_code), e.http_status_code))
+            })
+            .unwrap_or((None, None))
+    };
+    serde_json::json!({
+        "grpc_code": i32::from(status.code()),
+        "grpc_code_name": format!("{:?}", status.code()),
+        "error_code": error_code,
+        "http_status_code": http_status_code,
+        "error_message": status.message(),
+    })
 }
 
 #[allow(clippy::result_large_err)]
