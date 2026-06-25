@@ -210,6 +210,8 @@ pub enum AdyenPaymentMethod<
     AlmaPayLater,
     #[serde(rename = "atome")]
     Atome,
+    #[serde(rename = "tamara")]
+    AdyenTamaraPayLater,
     #[serde(rename = "scheme")]
     AdyenCard(Box<AdyenCard<T>>),
     #[serde(rename = "networkToken")]
@@ -2189,6 +2191,37 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         context: Default::default(),
                     })?;
                 Ok(Self::AlmaPayLater)
+            }
+            PayLaterData::TamaraRedirect { .. } => {
+                router_data
+                    .resource_common_data
+                    .get_billing_phone_number()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name: "billing.phone",
+                        context: Default::default(),
+                    })?;
+                router_data
+                    .resource_common_data
+                    .get_billing_email()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name: "billing.email",
+                        context: Default::default(),
+                    })?;
+                router_data
+                    .resource_common_data
+                    .get_billing_address()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name: "billing.address",
+                        context: Default::default(),
+                    })?;
+                router_data
+                    .resource_common_data
+                    .get_shipping_address()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name: "shipping.address",
+                        context: Default::default(),
+                    })?;
+                Ok(Self::AdyenTamaraPayLater)
             }
             PayLaterData::AtomeRedirect { .. } => {
                 router_data

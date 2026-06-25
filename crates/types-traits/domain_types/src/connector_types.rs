@@ -3733,6 +3733,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                payment_method_data::PayLaterData::TamaraRedirect {} => Self::TamaraRedirect,
                 payment_method_data::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
