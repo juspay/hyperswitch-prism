@@ -3471,7 +3471,6 @@ pub struct DisputeFlowData {
     pub raw_connector_response: Option<Secret<String>>,
     pub raw_connector_request: Option<Secret<String>>,
     pub connector_response_headers: Option<http::HeaderMap>,
-    pub return_raw_connector_response: Option<bool>,
 }
 
 impl RawConnectorRequestResponse for DisputeFlowData {

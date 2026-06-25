@@ -482,6 +482,29 @@ where
     }
 }
 
+/// Helper to coerce a concrete reference to `&dyn Any` without an explicit `as`.
+fn as_dyn_any<T: 'static>(value: &T) -> &dyn std::any::Any {
+    value
+}
+
+/// Extract the `return_raw_connector_response` flag from arbitrary resource-common data.
+///
+/// Only a few flow-data types carry this field. For every other type the function
+/// returns `None`, so callers don't need to implement anything to opt out.
+pub fn extract_return_raw_connector_response<ResourceCommonData: 'static>(
+    data: &ResourceCommonData,
+) -> Option<bool> {
+    if let Some(data) = as_dyn_any(data).downcast_ref::<connector_types::PaymentFlowData>() {
+        return data.return_raw_connector_response;
+    }
+
+    if let Some(data) = as_dyn_any(data).downcast_ref::<connector_types::RefundFlowData>() {
+        return data.return_raw_connector_response;
+    }
+
+    None
+}
+
 #[macro_export]
 macro_rules! implement_connector_operation {
     // Pattern with payment method data processing and action matching
@@ -613,7 +636,10 @@ macro_rules! implement_connector_operation {
                 tonic::Status::internal(format!("Test mode configuration error: {e}"))
             })?;
 
-            let return_raw_connector_response = router_data.resource_common_data.return_raw_connector_response;
+            let return_raw_connector_response =
+                $crate::utils::extract_return_raw_connector_response(
+                    &router_data.resource_common_data,
+                );
 
             // Execute connector processing
             let event_params = external_services::service::EventProcessingParams {
@@ -764,7 +790,10 @@ macro_rules! implement_connector_operation {
                 tonic::Status::internal(format!("Test mode configuration error: {e}"))
             })?;
 
-            let return_raw_connector_response = router_data.resource_common_data.return_raw_connector_response;
+            let return_raw_connector_response =
+                $crate::utils::extract_return_raw_connector_response(
+                    &router_data.resource_common_data,
+                );
 
             // Execute connector processing
             let event_params = external_services::service::EventProcessingParams {
@@ -896,7 +925,10 @@ macro_rules! implement_connector_operation {
                 tonic::Status::internal(format!("Test mode configuration error: {e}"))
             })?;
 
-            let return_raw_connector_response = router_data.resource_common_data.return_raw_connector_response;
+            let return_raw_connector_response =
+                $crate::utils::extract_return_raw_connector_response(
+                    &router_data.resource_common_data,
+                );
 
             // Execute connector processing
             let event_params = external_services::service::EventProcessingParams {

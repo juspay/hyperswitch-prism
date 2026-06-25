@@ -140,9 +140,6 @@ impl DisputeService for Disputes {
                         DisputeFlowData::foreign_try_from((payload.clone(), connectors))
                             .map_err(|e| e.into_grpc_status())?;
 
-                    let return_raw_connector_response =
-                        dispute_flow_data.return_raw_connector_response;
-
                     let router_data: RouterDataV2<
                         SubmitEvidence,
                         DisputeFlowData,
@@ -176,7 +173,7 @@ impl DisputeService for Disputes {
                             &config.proxy,
                             connector_integration,
                             router_data,
-                            return_raw_connector_response,
+                            None,
                             event_params,
                             None,
                             common_enums::CallConnectorAction::Trigger,
@@ -366,8 +363,6 @@ impl DisputeService for Disputes {
                     let dispute_flow_data =
                         DisputeFlowData::foreign_try_from((payload.clone(), connectors))
                             .map_err(|e| e.into_grpc_status())?;
-                    let return_raw_connector_response =
-                        dispute_flow_data.return_raw_connector_response;
 
                     let router_data: RouterDataV2<
                         Accept,
@@ -403,7 +398,7 @@ impl DisputeService for Disputes {
                             &config.proxy,
                             connector_integration,
                             router_data,
-                            return_raw_connector_response,
+                            None,
                             event_params,
                             None,
                             common_enums::CallConnectorAction::Trigger,

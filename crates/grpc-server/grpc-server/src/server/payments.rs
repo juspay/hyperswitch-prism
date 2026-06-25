@@ -2510,8 +2510,6 @@ impl MerchantAuthentication {
             response: Err(ErrorResponse::default()),
         };
 
-        let return_raw_connector_response = merchant_auth_flow_data.return_raw_connector_response;
-
         // Get API tag for ServerSessionAuthenticationToken flow with payment method type if available
         let api_tag = config
             .api_tags
@@ -2546,7 +2544,7 @@ impl MerchantAuthentication {
                 &config.proxy,
                 connector_integration,
                 session_token_router_data,
-                return_raw_connector_response,
+                None,
                 external_event_params,
                 None,
                 common_enums::CallConnectorAction::Trigger,
@@ -2627,8 +2625,6 @@ impl MerchantAuthentication {
             response: Err(ErrorResponse::default()),
         };
 
-        let return_raw_connector_response = merchant_auth_flow_data.return_raw_connector_response;
-
         // Get API tag for ServerAuthenticationToken flow with payment method type if available
         let api_tag = config
             .api_tags
@@ -2662,7 +2658,7 @@ impl MerchantAuthentication {
                 &config.proxy,
                 connector_integration,
                 access_token_router_data,
-                return_raw_connector_response,
+                None,
                 external_event_params,
                 None,
                 common_enums::CallConnectorAction::Trigger,

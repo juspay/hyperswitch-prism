@@ -5376,9 +5376,6 @@ message PaymentServiceProxyAuthorizeRequest {
 
   // Domain-specific data (e.g. airline itinerary) for connectors that need it.
   optional DomainData domain_data = 28;
-
-  // If true, the whole connector response will be included in the response  
-  optional bool return_raw_connector_response = 29;
 }
 
 message PaymentServiceProxySetupRecurringRequest {
@@ -5401,8 +5398,6 @@ message PaymentServiceProxySetupRecurringRequest {
   // Order Details
   optional string order_category = 16; // Category of the order/service
   optional string description = 17; // Description of the mandate setup
-  // If true, the whole connector response will be included in the response  
-  optional bool return_raw_connector_response = 18;
 }
 
 // ============================================================================

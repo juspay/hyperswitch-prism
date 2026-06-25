@@ -410,8 +410,6 @@ impl EventServiceImpl {
         ))
         .into_grpc_status()?;
 
-        let return_raw_connector_response = common_flow_data.return_raw_connector_response;
-
         let router_data = RouterDataV2::<
             SurchargePaymentSucceeded,
             SurchargeFlowData,
@@ -446,7 +444,7 @@ impl EventServiceImpl {
                 &config.proxy,
                 connector_integration,
                 router_data,
-                return_raw_connector_response,
+                None,
                 event_params,
                 None,
                 common_enums::CallConnectorAction::Trigger,
@@ -500,8 +498,6 @@ impl EventServiceImpl {
         ))
         .into_grpc_status()?;
 
-        let return_raw_connector_response = common_flow_data.return_raw_connector_response;
-
         let router_data = RouterDataV2::<
             SurchargeRefundSucceeded,
             SurchargeFlowData,
@@ -536,7 +532,7 @@ impl EventServiceImpl {
                 &config.proxy,
                 connector_integration,
                 router_data,
-                return_raw_connector_response,
+                None,
                 event_params,
                 None,
                 common_enums::CallConnectorAction::Trigger,
@@ -617,7 +613,6 @@ impl EventServiceImpl {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
         let response_result = Box::pin(
@@ -703,7 +698,6 @@ impl EventServiceImpl {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
         let response_result = Box::pin(
@@ -789,7 +783,6 @@ impl EventServiceImpl {
             proxy_name: metadata_payload.proxy_name.as_deref(),
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
-            return_raw_connector_data: config.common.return_raw_connector_data,
         };
 
         let response_result = Box::pin(

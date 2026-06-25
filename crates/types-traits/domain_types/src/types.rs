@@ -3131,7 +3131,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             domain_data: req.domain_data,
             split_payments: None,
             partner_merchant_identifier_details: None,
-            return_raw_connector_response: req.return_raw_connector_response,
+            return_raw_connector_response: None,
         }
     }
 }
@@ -3227,7 +3227,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             connector_testing_data: None,
             l2_l3_data: None,
             mit_category: None,
-            return_raw_connector_response: req.return_raw_connector_response,
+            return_raw_connector_response: None,
         }
     }
 }
@@ -4616,7 +4616,6 @@ impl
             raw_connector_request: None,
             connector_response_headers: None,
             merchant_request_id: value.merchant_request_id,
-            return_raw_connector_response: None,
         })
     }
 }
@@ -7915,7 +7914,6 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
-            return_raw_connector_response: None,
         })
     }
 }
@@ -7947,7 +7945,6 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
-            return_raw_connector_response: None,
         })
     }
 }
@@ -8040,7 +8037,6 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
-            return_raw_connector_response: None,
         })
     }
 }
@@ -8073,7 +8069,6 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
-            return_raw_connector_response: None,
         })
     }
 }
@@ -9866,7 +9861,6 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
-            return_raw_connector_response: None,
         })
     }
 }
@@ -11220,7 +11214,6 @@ impl ForeignTryFrom<(DisputeServiceDefendRequest, Connectors)> for DisputeFlowDa
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
-            return_raw_connector_response: None,
         })
     }
 }
@@ -11244,7 +11237,6 @@ impl ForeignTryFrom<(DisputeServiceDefendRequest, Connectors, &MaskedMetadata)>
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
-            return_raw_connector_response: None,
         })
     }
 }
@@ -12055,7 +12047,6 @@ impl
             raw_connector_response: None,
             raw_connector_request: None,
             connector_response_headers: None,
-            return_raw_connector_response: None,
         })
     }
 }
@@ -15672,7 +15663,7 @@ pub fn proxied_authorize_to_base(
         merchant_request_id: None,
         domain_data: None,
         partner_merchant_identifier_details: None,
-        return_raw_connector_response: v.return_raw_connector_response,
+        return_raw_connector_response: None,
     })
 }
 

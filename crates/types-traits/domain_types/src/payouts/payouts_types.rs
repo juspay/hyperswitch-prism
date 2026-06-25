@@ -24,7 +24,6 @@ pub struct PayoutFlowData {
     pub access_token: Option<ServerAuthenticationTokenResponseData>,
     pub test_mode: Option<bool>,
     pub description: Option<String>,
-    pub return_raw_connector_response: Option<bool>,
 }
 
 impl RawConnectorRequestResponse for PayoutFlowData {
