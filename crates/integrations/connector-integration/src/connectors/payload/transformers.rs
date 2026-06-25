@@ -215,8 +215,11 @@ fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
             processing_id: get_processing_account_id_from_metadata(metadata)
                 .or(payload_auth.processing_account_id),
             customer_id: resource_common_data.connector_customer.clone(),
-            description: None,
-            attrs: None,
+            // Mirror hyperswitch (and the bank_account builder below): the card authorize
+            // request carries the payment description and filtered metadata. Previously these
+            // were hard-coded to None, dropping `description` that HS sends -> request diff.
+            description: resource_common_data.description.clone(),
+            attrs: get_filtered_metadata(metadata),
         })
     } else {
         Err(IntegrationError::NotSupported {
