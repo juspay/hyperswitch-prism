@@ -2327,6 +2327,20 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                 Ok(new_router_data)
             }
             None => {
+                // E00053 indicates "server too busy" and E00104 indicates
+                // "Server in maintenance". These are transient conditions on a
+                // psync poll, not a payment failure, so (mirroring hyperswitch)
+                // we keep the existing router data unchanged instead of flipping
+                // the attempt to an error/failure.
+                if response
+                    .messages
+                    .message
+                    .iter()
+                    .any(|m| m.code == "E00053" || m.code == "E00104")
+                {
+                    return Ok(router_data);
+                }
+
                 // Handle missing transaction response
                 let status = match response.messages.result_code {
                     ResultCode::Error => AttemptStatus::Failure,
