@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.09.0-hotfix1
+
+### Miscellaneous Tasks
+
+- Propagate connector-request-Kafka feature to external-services ([#1685](https://github.com/juspay/connector-service/pull/1685)) ([`4a9cdea`](https://github.com/juspay/connector-service/commit/4a9cdea5605728e5e247d8c8a28c1c636e4e2367))
+
+**Full Changelog:** [`2026.06.09.0...2026.06.09.0-hotfix1`](https://github.com/juspay/connector-service/compare/2026.06.09.0...2026.06.09.0-hotfix1)
+
+- - -
+
 ## 2026.06.09.0
 
 ### Bug Fixes
