@@ -597,7 +597,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let connector_transaction_id = match &req.request.connector_transaction_id {
-                ResponseId::ConnectorTransactionId(id) => Ok(id),
+                ResponseId::ConnectorTransactionId(id) if !id.is_empty() => Ok(id),
                 _ => Err(IntegrationError::MissingConnectorTransactionID { context: Default::default() })
 }?;
             Ok(format!(
@@ -767,14 +767,33 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: responses::BarclaycardErrorResponse = res
+        let response: responses::BarclaycardErrorResponse = match res
             .response
             .parse_struct("BarclaycardErrorResponse")
-            .change_context(
-                crate::utils::response_deserialization_fail(
-                    res.status_code,
-                "barclaycard: response body did not match the expected format; confirm API version and connector documentation."),
-            )?;
+        {
+            Ok(parsed) => parsed,
+            Err(_) => {
+                // Some upstream/proxy failures (e.g. a 404/5xx) return a non-JSON body
+                // (HTML or plain text) that matches no BarclaycardErrorResponse variant.
+                // Surface a clean error carrying the raw body instead of failing to
+                // deserialize, which would otherwise mask the real status with an
+                // opaque internal error.
+                let raw_body = String::from_utf8_lossy(res.response.as_ref());
+                let reason = (!raw_body.trim().is_empty())
+                    .then(|| raw_body.chars().take(1024).collect::<String>());
+                return Ok(ErrorResponse {
+                    status_code: res.status_code,
+                    code: res.status_code.to_string(),
+                    message: common_utils::consts::NO_ERROR_MESSAGE.to_string(),
+                    reason,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                });
+            }
+        };
 
         match response {
             responses::BarclaycardErrorResponse::Standard(error_response) => {
