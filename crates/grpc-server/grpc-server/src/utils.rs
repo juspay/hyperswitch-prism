@@ -474,39 +474,34 @@ fn create_and_emit_grpc_event<R>(
         Ok(response) => grpc_event.set_grpc_success_response(response.get_ref()),
         Err(error) => {
             grpc_event.set_grpc_error_response(error);
-            // populate structured `error` (error_code/http_status_code) for event consumers
-            if let Some(detail) = decode_error_detail(error) {
-                grpc_event.set_error_response(&detail);
-            }
+            grpc_event.set_error_response(&build_error_detail(error));
         }
     }
 
     common_utils::emit_event_with_config(grpc_event, &config.events);
 }
 
-/// Recover error_code / http_status_code from a gRPC Status's proto details for the audit event.
-/// IntegrationError is decoded first: a ConnectorError's varint http_status_code (field 3) makes
-/// the IntegrationError decode fail on a wire-type mismatch, so the order is unambiguous.
-fn decode_error_detail(status: &tonic::Status) -> Option<Value> {
+fn build_error_detail(status: &tonic::Status) -> Value {
     use grpc_api_types::payments::{ConnectorError, IntegrationError};
 
     let details = status.details();
-    if details.is_empty() {
-        return None;
-    }
-    let (error_code, http_status_code, message) = IntegrationError::decode(details)
-        .map(|e| (e.error_code, None, e.error_message))
-        .or_else(|_| {
-            ConnectorError::decode(details)
-                .map(|e| (e.error_code, e.http_status_code, e.error_message))
-        })
-        .ok()?;
-    Some(serde_json::json!({
+    let (error_code, http_status_code) = if details.is_empty() {
+        (None, None)
+    } else {
+        IntegrationError::decode(details)
+            .map(|e| (Some(e.error_code), None))
+            .or_else(|_| {
+                ConnectorError::decode(details).map(|e| (Some(e.error_code), e.http_status_code))
+            })
+            .unwrap_or((None, None))
+    };
+    serde_json::json!({
+        "grpc_code": i32::from(status.code()),
         "grpc_code_name": format!("{:?}", status.code()),
         "error_code": error_code,
         "http_status_code": http_status_code,
-        "error_message": message,
-    }))
+        "error_message": status.message(),
+    })
 }
 
 #[allow(clippy::result_large_err)]
