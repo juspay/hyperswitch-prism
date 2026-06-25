@@ -163,6 +163,7 @@ fn create_payment_sync_request(
     request_ref_id: &str,
 ) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        status: None,
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),
         }),

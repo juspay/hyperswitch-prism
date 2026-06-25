@@ -274,7 +274,7 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             payment_method_type: item.payment_method_type,
             split_payments: item.split_payments.clone(),
-            status: None,
+            status: item.status,
         }
     }
 }

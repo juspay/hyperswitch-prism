@@ -123,6 +123,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
 // Helper function to create a payment sync request
 fn create_payment_sync_request(request_ref_id: &str) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        status: None,
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id("not_required".to_string())),
         }),

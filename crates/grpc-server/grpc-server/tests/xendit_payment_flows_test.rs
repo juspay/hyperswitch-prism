@@ -159,6 +159,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
 // Helper function to create a payment sync request
 fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        status: None,
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         merchant_transaction_id: None,

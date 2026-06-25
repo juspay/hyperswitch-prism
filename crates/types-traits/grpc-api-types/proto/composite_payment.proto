@@ -198,6 +198,11 @@ message CompositeGetRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 19;
+
+  // Current attempt status, supplied by the caller so connectors that preserve
+  // the prior status on sync (e.g. Redsys on an errored consultaOperaciones)
+  // keep the real status instead of defaulting to PENDING.
+  optional PaymentStatus status = 20;
 }
 
 // Response message for composite get flow.

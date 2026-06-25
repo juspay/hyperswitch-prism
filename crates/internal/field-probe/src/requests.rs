@@ -132,6 +132,7 @@ pub(crate) fn base_void_request() -> PaymentServiceVoidRequest {
 
 pub(crate) fn base_get_request() -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        status: None,
         connector_transaction_id: "probe_connector_txn_001".to_string(),
         merchant_transaction_id: Some("probe_merchant_txn_001".to_string()),
         amount: Some(usd_money(1000)),

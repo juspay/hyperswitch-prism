@@ -179,6 +179,7 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
 
 fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
+        status: None,
         transaction_id: Some(Identifier {
             id_type: Some(IdType::Id(transaction_id.to_string())),
         }),
