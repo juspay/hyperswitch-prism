@@ -134,8 +134,8 @@ function _buildTokenSetupRecurringRequest(): types.IPaymentServiceTokenSetupRecu
         "setupMandateDetails": {
             "mandateType": {  // Type of mandate (single_use or multi_use) with amount details.
                 "multiUse": {  // Multi use mandate with amount details (for recurring payments).
-                    "amount": 0,  // Amount.
-                    "currency": Currency.USD  // Currency code (ISO 4217).
+                    "amount": 0,  // Use amount_money instead (will be removed in a future release).
+                    "currency": Currency.USD  // Use amount_money.currency instead (will be removed in a future release).
                 }
             }
         },
