@@ -640,6 +640,7 @@ pub enum NovalnetTransactionStatus {
     Pending,
     Deactivated,
     Progress,
+    Error,
 }
 
 #[derive(Debug, Copy, Display, Clone, Serialize, Deserialize, PartialEq)]
@@ -660,7 +661,7 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
             NovalnetTransactionStatus::Pending => Self::Pending,
             NovalnetTransactionStatus::Progress => Self::AuthenticationPending,
             NovalnetTransactionStatus::Deactivated => Self::Voided,
-            NovalnetTransactionStatus::Failure => Self::Failure,
+            NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error => Self::Failure,
         }
     }
 }
@@ -1296,6 +1297,7 @@ impl From<NovalnetTransactionStatus> for common_enums::RefundStatus {
             }
             NovalnetTransactionStatus::Pending => Self::Pending,
             NovalnetTransactionStatus::Failure
+            | NovalnetTransactionStatus::Error
             | NovalnetTransactionStatus::OnHold
             | NovalnetTransactionStatus::Deactivated
             | NovalnetTransactionStatus::Progress => Self::Failure,
@@ -2756,6 +2758,7 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                         common_enums::AuthorizationStatus::Processing
                     }
                     Some(NovalnetTransactionStatus::Failure)
+                    | Some(NovalnetTransactionStatus::Error)
                     | Some(NovalnetTransactionStatus::Deactivated) => {
                         common_enums::AuthorizationStatus::Failure
                     }
@@ -2802,5 +2805,30 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                 })
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Novalnet can return a transaction-level status of "ERROR" (e.g. on a PSync of a
+    // transaction the connector could not process). Hyperswitch deserializes this into
+    // `NovalnetTransactionStatus::Error` and maps it to a terminal failure. UCS must do
+    // the same, otherwise the "ERROR" payload fails to deserialize and the synced
+    // `AttemptStatus` diverges from Hyperswitch (shadow diff router.valueDiff:status,
+    // cloud issue #17128).
+    #[test]
+    fn error_status_deserializes_and_maps_to_failure() {
+        let status = serde_json::from_str::<NovalnetTransactionStatus>("\"ERROR\"").ok();
+        assert_eq!(status, Some(NovalnetTransactionStatus::Error));
+        assert_eq!(
+            common_enums::AttemptStatus::from(NovalnetTransactionStatus::Error),
+            common_enums::AttemptStatus::Failure
+        );
+        assert_eq!(
+            common_enums::RefundStatus::from(NovalnetTransactionStatus::Error),
+            common_enums::RefundStatus::Failure
+        );
     }
 }
