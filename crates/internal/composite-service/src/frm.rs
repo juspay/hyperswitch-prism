@@ -1,8 +1,8 @@
 use crate::payments::CompositeAccessTokenRequest;
 use crate::transformers::ForeignFrom;
 use crate::utils::frm_connector_from_composite_frm_metadata;
-use connector_integration::types::FrmConnectorData;
 use common_utils::consts::{X_CONNECTOR_NAME, X_FRM_CONNECTOR_NAME};
+use connector_integration::types::FrmConnectorData;
 use domain_types::connector_types::{ConnectorEnum, ConnectorVariant, FrmConnectorEnum};
 use grpc_api_types::frm::{
     composite_fraud_and_risk_management_service_server::CompositeFraudAndRiskManagementService,

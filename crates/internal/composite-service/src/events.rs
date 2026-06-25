@@ -4,7 +4,9 @@ use crate::utils::connector_variant_from_composite_metadata;
 use common_utils::consts::{X_CONNECTOR_NAME, X_FRM_CONNECTOR_NAME};
 use connector_integration::types::{FrmConnectorData, SurchargeConnectorData};
 use domain_types::{
-    connector_types::{ConnectorEnum, ConnectorVariant, FrmConnectorEnum, ServerAuthenticationTokenResponseData},
+    connector_types::{
+        ConnectorEnum, ConnectorVariant, FrmConnectorEnum, ServerAuthenticationTokenResponseData,
+    },
     utils::ForeignTryFrom as _,
 };
 use grpc_api_types::payments::{
