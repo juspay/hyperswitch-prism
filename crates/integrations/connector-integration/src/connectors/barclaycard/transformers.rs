@@ -529,7 +529,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 // the card-number issuer when the network is absent (cards arrive without an
                 // enriched network in this flow). Mirrors the HS-Direct Barclaycard connector
                 // so the request matches in shadow mode.
-                let card_type = match ccard.card_network.clone().and_then(get_barclaycard_card_type)
+                let card_type = match ccard
+                    .card_network
+                    .clone()
+                    .and_then(get_barclaycard_card_type)
                 {
                     Some(code) => Some(code.to_string()),
                     None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
@@ -1703,7 +1706,11 @@ where
     // card-number issuer when the network is absent (the 3DS external-authentication cards
     // arrive without an enriched network). Mirrors the HS-Direct Barclaycard connector so the
     // PreAuthenticate / Authenticate requests match in shadow mode.
-    let card_type = match ccard.card_network.clone().and_then(get_barclaycard_card_type) {
+    let card_type = match ccard
+        .card_network
+        .clone()
+        .and_then(get_barclaycard_card_type)
+    {
         Some(code) => Some(code.to_string()),
         None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
             .ok()

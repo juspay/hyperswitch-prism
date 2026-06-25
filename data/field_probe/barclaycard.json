@@ -54,7 +54,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"},\"consumerAuthenticationInformation\":{\"returnUrl\":\"https://example.com/3ds-continue\",\"referenceId\":\"probe_redirect_params\"},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}}}"
+          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":\"001\",\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"},\"consumerAuthenticationInformation\":{\"returnUrl\":\"https://example.com/3ds-continue\",\"referenceId\":\"probe_redirect_params\"},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}}}"
         }
       }
     },
@@ -305,7 +305,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":true,\"cavvAlgorithm\":\"2\"},\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"}}"
+          "body": "{\"processingInformation\":{\"commerceIndicator\":\"internet\",\"capture\":true,\"cavvAlgorithm\":\"2\"},\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":\"001\",\"typeSelectionIndicator\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"}}"
         }
       },
       "CashappQr": {
@@ -886,7 +886,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"},\"consumerAuthenticationInformation\":{\"authenticationTransactionId\":\"probe_txn_123\"},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"}}}"
+          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":\"001\",\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"},\"consumerAuthenticationInformation\":{\"authenticationTransactionId\":\"probe_txn_123\"},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"}}}"
         }
       }
     },
@@ -926,7 +926,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"}}"
+          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":\"001\",\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"}}"
         }
       }
     },
