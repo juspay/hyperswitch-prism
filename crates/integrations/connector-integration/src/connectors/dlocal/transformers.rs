@@ -138,6 +138,8 @@ pub struct ThreeDSecureReqData {
 pub enum PaymentMethodId {
     #[default]
     Card,
+    #[serde(rename = "OX")]
+    Oxxo,
     #[serde(untagged)]
     Other(String),
 }
@@ -375,16 +377,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Ok(payment_request)
                 }
             }
-            // Redirect-flow cash vouchers (e.g. OXXO, Boleto, Efecty, PagoEfectivo,
-            // RedPagos, Indomaret).
+            // OXXO uses Direct flow (mirroring hyperswitch dlocal); other cash vouchers
+            // (Boleto, Efecty, PagoEfectivo, RedPagos, Indomaret) are UCS-only and use
+            // Redirect. All vouchers keep notification_url so dLocal can webhook the
+            // merchant when the cash payment is settled out-of-band at the store.
             PaymentMethodData::Voucher(ref voucher_data) => {
                 let payment_method_id = get_voucher_payment_method_id(voucher_data)?;
-                let webhook_url = item.router_data.request.webhook_url.clone();
+                let payment_method_flow = match voucher_data {
+                    payment_method_data::VoucherData::Oxxo => PaymentMethodFlow::Direct,
+                    _ => PaymentMethodFlow::Redirect,
+                };
+                let notification_url = item.router_data.request.webhook_url.clone();
                 let payment_request = Self {
                     amount,
                     currency: item.router_data.request.currency,
                     payment_method_id,
-                    payment_method_flow: PaymentMethodFlow::Redirect,
+                    payment_method_flow,
                     country,
                     payer: Payer {
                         name,
@@ -399,7 +407,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     three_dsecure: None,
                     callback_url,
                     description,
-                    notification_url: webhook_url,
+                    notification_url,
                 };
                 Ok(payment_request)
             }
@@ -1166,6 +1174,11 @@ pub struct ThreeDSecureResData {
     pub redirect_url: Option<url::Url>,
 }
 
+#[derive(Eq, Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TicketData {
+    pub image_url: Option<url::Url>,
+}
+
 #[derive(Debug, Default, Eq, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DlocalPaymentsResponse {
     status: DlocalPaymentStatus,
@@ -1173,6 +1186,7 @@ pub struct DlocalPaymentsResponse {
     three_dsecure: Option<ThreeDSecureResData>,
     order_id: Option<String>,
     redirect_url: Option<url::Url>,
+    ticket: Option<TicketData>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<DlocalPaymentsResponse, Self>>
@@ -1182,11 +1196,18 @@ impl<F, T> TryFrom<ResponseRouterData<DlocalPaymentsResponse, Self>>
     fn try_from(
         item: ResponseRouterData<DlocalPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Check for redirect URL from both 3DS (card) and top-level (bank transfer/APM) responses
+        // Check for redirect URL from 3DS (card), ticket.image_url (vouchers, e.g. OXXO,
+        // mirroring hyperswitch dlocal), and top-level redirect_url (UCS-only APMs such as
+        // bank transfer / wallet).
         let redirection_data = item
             .response
             .three_dsecure
             .and_then(|three_secure_data| three_secure_data.redirect_url)
+            .or_else(|| {
+                item.response
+                    .ticket
+                    .and_then(|ticket_data| ticket_data.image_url)
+            })
             .or(item.response.redirect_url)
             .map(|redirect_url| RedirectForm::from((redirect_url, Method::Get)));
 
@@ -1501,7 +1522,7 @@ fn get_voucher_payment_method_id(
     voucher_data: &payment_method_data::VoucherData,
 ) -> Result<PaymentMethodId, error_stack::Report<IntegrationError>> {
     match voucher_data {
-        payment_method_data::VoucherData::Oxxo => Ok(PaymentMethodId::Other("OX".to_string())),
+        payment_method_data::VoucherData::Oxxo => Ok(PaymentMethodId::Oxxo),
         payment_method_data::VoucherData::Boleto(_) => Ok(PaymentMethodId::Other("BL".to_string())),
         payment_method_data::VoucherData::Efecty => Ok(PaymentMethodId::Other("EY".to_string())),
         payment_method_data::VoucherData::PagoEfectivo => {

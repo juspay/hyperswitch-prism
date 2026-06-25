@@ -19,6 +19,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.25.0
+
+### Features
+
+- **observability:** Structured error attribution and execution_mode for UCS error alerting ([#1667](https://github.com/juspay/connector-service/pull/1667)) ([`1a6972a`](https://github.com/juspay/connector-service/commit/1a6972a305e01fadc79bb3475ee01f572581346a))
+
+### Bug Fixes
+
+- **external-services:** Bound outbound connector API calls with a request timeout ([#1580](https://github.com/juspay/connector-service/pull/1580)) ([`0061336`](https://github.com/juspay/connector-service/commit/0061336f13f18c0abb739a56e705f39e75661cc2))
+
+### Miscellaneous Tasks
+
+- Propagate connector-request-Kafka feature to external-services ([#1672](https://github.com/juspay/connector-service/pull/1672)) ([`6aaa238`](https://github.com/juspay/connector-service/commit/6aaa238f3004876b9e2c244943de00d6e1c4f5cf))
+
+**Full Changelog:** [`2026.06.24.1...2026.06.25.0`](https://github.com/juspay/connector-service/compare/2026.06.24.1...2026.06.25.0)
+
+- - -
+
+## 2026.06.24.1
+
+### Features
+
+- **events:** Route connector and inbound events to separate topics ([#1501](https://github.com/juspay/connector-service/pull/1501)) ([`f0892f6`](https://github.com/juspay/connector-service/commit/f0892f6bdaca0dc20be0bf65b5cc1d448587fe08))
+- **medusa:** Add Klarna (Pay later) via Mollie ([#1622](https://github.com/juspay/connector-service/pull/1622)) ([`41b9e0a`](https://github.com/juspay/connector-service/commit/41b9e0aa7b69116d5cacf90a5646c82449a09dbf))
+
+### Bug Fixes
+
+- **authorizedotnet/psync:** Map FDSPendingReview to Unresolved ([#1211](https://github.com/juspay/connector-service/pull/1211)) ([`fb90fca`](https://github.com/juspay/connector-service/commit/fb90fca11ad519d4419f6a804d0b2dfbeeb2c5ee))
+- **connector:** Mirror hyperswitch DLOCAL for OXXO + Card ([#1610](https://github.com/juspay/connector-service/pull/1610)) ([`92760b4`](https://github.com/juspay/connector-service/commit/92760b4c29081ae079c2ce181346a86004944f8b))
+- **cybersource:** Use Flex Microform clientVersion v2.0 ([#1613](https://github.com/juspay/connector-service/pull/1613)) ([`6d88bdf`](https://github.com/juspay/connector-service/commit/6d88bdfd520e5976b1f29cc0d94079b82dbe7972))
+
+**Full Changelog:** [`2026.06.24.0...2026.06.24.1`](https://github.com/juspay/connector-service/compare/2026.06.24.0...2026.06.24.1)
+
+- - -
+
+## 2026.06.24.0
+
+### Features
+
+- **connector:**
+  - Implement Authorize for mollie klarna ([#1579](https://github.com/juspay/connector-service/pull/1579)) ([`2741410`](https://github.com/juspay/connector-service/commit/274141004bc922b5a6bb4585e3390908d4e864d6))
+  - Add Kount FRM connector (DDC + Evaluate/Update Order) ([#1584](https://github.com/juspay/connector-service/pull/1584)) ([`a2186ce`](https://github.com/juspay/connector-service/commit/a2186cea7b58adba3b39946a83180d8055b5e636))
+- **core:** Add Fraud and risk management core changes ([#1573](https://github.com/juspay/connector-service/pull/1573)) ([`bf5566d`](https://github.com/juspay/connector-service/commit/bf5566db5cfda91c5b9bda1aaa20eb284400111c))
+
+### Bug Fixes
+
+- **payload:** Serialize amount as string and emit processing_id on repeat_payment ([#1593](https://github.com/juspay/connector-service/pull/1593)) ([`f223469`](https://github.com/juspay/connector-service/commit/f2234695ac60f17d94068c7dc6f9c6a9fb383737))
+
+**Full Changelog:** [`2026.06.23.1...2026.06.24.0`](https://github.com/juspay/connector-service/compare/2026.06.23.1...2026.06.24.0)
+
+- - -
+
 ## 2026.06.23.1
 
 ### Features
