@@ -817,6 +817,7 @@ where
                         })
                     };
                     let external_service_elapsed = external_service_start_latency.elapsed();
+                    metrics::add_connector_time(external_service_elapsed);
                     metrics::EXTERNAL_SERVICE_API_CALLS_LATENCY
                         .with_label_values(&[
                             &method.to_string(),

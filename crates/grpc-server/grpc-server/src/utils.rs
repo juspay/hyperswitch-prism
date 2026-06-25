@@ -323,21 +323,30 @@ where
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
-    let grpc_response = async {
-        let request_data = parser(request, config.clone())?;
-        log_before_initialization(&request_data, service_name).into_grpc_status()?;
-        event_headers = request_data.masked_metadata.get_all_masked();
-        event_metadata_payload = Some(request_data.extracted_metadata.clone());
+    let connector_time = Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let grpc_response = external_services::shared_metrics::CONNECTOR_TIME_NANOS
+        .scope(connector_time.clone(), async {
+            let request_data = parser(request, config.clone())?;
+            log_before_initialization(&request_data, service_name).into_grpc_status()?;
+            event_headers = request_data.masked_metadata.get_all_masked();
+            event_metadata_payload = Some(request_data.extracted_metadata.clone());
 
-        let result = handler(request_data).await;
+            let result = handler(request_data).await;
 
-        let duration = start_time.elapsed().as_millis();
-        current_span.record("response_time", duration);
-        log_after_initialization(&result);
-        result
-    }
-    .await;
+            let duration = start_time.elapsed().as_millis();
+            current_span.record("response_time", duration);
+            log_after_initialization(&result);
+            result
+        })
+        .await;
 
+    observe_internal_latency(
+        start_time,
+        connector_time.load(std::sync::atomic::Ordering::Relaxed),
+        flow_name,
+        service_name,
+        event_metadata_payload.as_ref(),
+    );
     create_and_emit_grpc_event(
         masked_request_data,
         &grpc_response,
@@ -378,21 +387,30 @@ where
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
-    let grpc_response = async {
-        let request_data = RequestData::from_grpc_request(request, config.clone())?;
-        log_before_initialization(&request_data, service_name).into_grpc_status()?;
-        event_headers = request_data.masked_metadata.get_all_masked();
-        event_metadata_payload = Some(request_data.extracted_metadata.clone());
+    let connector_time = Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let grpc_response = external_services::shared_metrics::CONNECTOR_TIME_NANOS
+        .scope(connector_time.clone(), async {
+            let request_data = RequestData::from_grpc_request(request, config.clone())?;
+            log_before_initialization(&request_data, service_name).into_grpc_status()?;
+            event_headers = request_data.masked_metadata.get_all_masked();
+            event_metadata_payload = Some(request_data.extracted_metadata.clone());
 
-        let result = handler(request_data).await;
+            let result = handler(request_data).await;
 
-        let duration = start_time.elapsed().as_millis();
-        current_span.record("response_time", duration);
-        log_after_initialization(&result);
-        result
-    }
-    .await;
+            let duration = start_time.elapsed().as_millis();
+            current_span.record("response_time", duration);
+            log_after_initialization(&result);
+            result
+        })
+        .await;
 
+    observe_internal_latency(
+        start_time,
+        connector_time.load(std::sync::atomic::Ordering::Relaxed),
+        flow_name,
+        service_name,
+        event_metadata_payload.as_ref(),
+    );
     create_and_emit_grpc_event(
         masked_request_data,
         &grpc_response,
@@ -405,6 +423,37 @@ where
     );
 
     grpc_response
+}
+
+#[cfg_attr(not(feature = "otel"), allow(unused_variables))]
+fn observe_internal_latency(
+    start_time: tokio::time::Instant,
+    connector_nanos: u64,
+    flow_name: FlowName,
+    service_name: &str,
+    metadata_payload: Option<&MetadataPayload>,
+) {
+    #[cfg(feature = "otel")]
+    {
+        let internal = start_time
+            .elapsed()
+            .saturating_sub(std::time::Duration::from_nanos(connector_nanos));
+        let connector = metadata_payload
+            .map(|md| md.connector.get_connector_name())
+            .unwrap_or_else(|| "unknown".to_string());
+        let mode = if metadata_payload.map(|md| md.shadow_mode).unwrap_or(false) {
+            "shadow"
+        } else {
+            "primary"
+        };
+        external_services::otel_metrics::record_internal_latency(
+            &flow_name.to_string(),
+            service_name,
+            &connector,
+            mode,
+            internal.as_secs_f64(),
+        );
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -423,6 +472,7 @@ fn create_and_emit_grpc_event<R>(
     let connector = metadata_payload
         .map(|md| md.connector.get_connector_name())
         .unwrap_or_else(|| "unknown".to_string());
+
     let mut grpc_event = Event {
         request_id: metadata_payload.map_or("unknown".to_string(), |md| md.request_id.clone()),
         timestamp: chrono::Utc::now().timestamp_millis().into(),
