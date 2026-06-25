@@ -27,7 +27,10 @@ use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface, PeekInterface,
 use serde::Serialize;
 
 use super::{requests, responses, BarclaycardAmountConvertor, BarclaycardRouterData};
-use crate::{types::ResponseRouterData, utils};
+use crate::{
+    types::ResponseRouterData,
+    utils::{self, CardTypeCode},
+};
 
 /// CAVV (Cardholder Authentication Verification Value) Algorithm
 ///
@@ -522,10 +525,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             Option<requests::ConsumerAuthenticationInformation>,
         ) = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(ccard) => {
-                let card_network = ccard.card_network.clone();
-                let card_type = card_network
-                    .and_then(get_barclaycard_card_type)
-                    .map(|s| s.to_string());
+                // Derive the Cybersource card-type code from the card network, falling back to
+                // the card-number issuer when the network is absent (cards arrive without an
+                // enriched network in this flow). Mirrors the HS-Direct Barclaycard connector
+                // so the request matches in shadow mode.
+                let card_type = match ccard.card_network.clone().and_then(get_barclaycard_card_type)
+                {
+                    Some(code) => Some(code.to_string()),
+                    None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+                        .ok()
+                        .and_then(|issuer| issuer.type_code())
+                        .map(|s| s.to_string()),
+                };
 
                 (
                     requests::PaymentInformation::Cards(Box::new(
@@ -533,7 +544,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             card: requests::Card {
                                 number: ccard.card_number.clone(),
                                 expiration_month: ccard.card_exp_month.clone(),
-                                expiration_year: ccard.get_expiry_year_4_digit(),
+                                // HS-Direct passes the raw (2-digit) exp year through; match it
+                                // for byte-parity instead of normalizing to 4-digit.
+                                expiration_year: ccard.card_exp_year.clone(),
                                 security_code: ccard.card_cvc.clone(),
                                 card_type,
                                 type_selection_indicator: Some(
@@ -716,11 +729,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // orchestrator supplies authentication_data (after the Authenticate/PostAuthenticate
         // steps), it takes precedence over the wallet-derived ucaf block. Non-3DS / wallet
         // flows keep their existing consumer_authentication_information unchanged.
+        //
+        // The cryptogram carrier is network-conditional (Mastercard -> ucafAuthenticationData,
+        // Visa/others -> cavv), so pass the card network into the builder.
+        let card_network_for_3ds = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(ccard) => ccard.card_network.clone(),
+            _ => None,
+        };
         let consumer_authentication_information = router_data
             .request
             .authentication_data
             .clone()
-            .map(requests::ConsumerAuthenticationInformation::from)
+            .map(|authn_data| {
+                build_consumer_authentication_information(authn_data, card_network_for_3ds.clone())
+            })
             .or(consumer_authentication_information);
 
         Ok(Self {
@@ -1677,17 +1699,24 @@ fn build_auth_card_payment_information<T>(
 where
     T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize,
 {
-    let card_type = ccard
-        .card_network
-        .clone()
-        .and_then(get_barclaycard_card_type)
-        .map(|s| s.to_string());
+    // Derive the Cybersource card-type code from the card network, falling back to the
+    // card-number issuer when the network is absent (the 3DS external-authentication cards
+    // arrive without an enriched network). Mirrors the HS-Direct Barclaycard connector so the
+    // PreAuthenticate / Authenticate requests match in shadow mode.
+    let card_type = match ccard.card_network.clone().and_then(get_barclaycard_card_type) {
+        Some(code) => Some(code.to_string()),
+        None => domain_types::utils::get_card_issuer(ccard.card_number.peek())
+            .ok()
+            .and_then(|issuer| issuer.type_code())
+            .map(|s| s.to_string()),
+    };
 
     requests::PaymentInformation::Cards(Box::new(requests::CardPaymentInformation {
         card: requests::Card {
             number: ccard.card_number.clone(),
             expiration_month: ccard.card_exp_month.clone(),
-            expiration_year: ccard.get_expiry_year_4_digit(),
+            // HS-Direct passes the raw (2-digit) exp year through; match it for byte-parity.
+            expiration_year: ccard.card_exp_year.clone(),
             security_code: ccard.card_cvc.clone(),
             card_type,
             type_selection_indicator: Some(TYPE_SELECTION_INDICATOR_PRIMARY.to_owned()),
@@ -1697,41 +1726,50 @@ where
 
 /// Map external 3DS authentication results onto Barclaycard's `consumerAuthenticationInformation`.
 ///
-/// Mirrors Cybersource's `From<AuthenticationData>` impl: `ucafAuthenticationData` is populated
-/// from `cavv` (Mastercard UCAF carrier), `xid` from `transaction_id`,
-/// `directoryServerTransactionId` from `ds_trans_id`, `paSpecificationVersion` from
-/// `message_version`; the richer pares/eci/specification fields are left unset.
-impl From<router_request_types::AuthenticationData>
-    for requests::ConsumerAuthenticationInformation
-{
-    fn from(value: router_request_types::AuthenticationData) -> Self {
-        let router_request_types::AuthenticationData {
-            eci: _,
-            cavv,
-            threeds_server_transaction_id: _,
-            message_version,
-            ds_trans_id,
-            trans_status: _,
-            acs_transaction_id: _,
-            transaction_id,
-            ucaf_collection_indicator,
-            exemption_indicator: _,
-            network_params: _,
-        } = value;
+/// Mirrors the HS-Direct Barclaycard connector field-for-field so the request is byte-identical:
+/// - The cryptogram carrier is network-conditional: Mastercard puts it in `ucafAuthenticationData`
+///   (with `ucafCollectionIndicator="2"`); Visa/others put it in `cavv` and leave
+///   `ucafAuthenticationData` null. This needs the card network, which a bare `From` impl can't
+///   see, so this is a function taking `card_network` explicitly.
+/// - `specificationVersion` and `paSpecificationVersion` are both set from `message_version`.
+/// - `paresStatus` is "Y" (authentication successful).
+fn build_consumer_authentication_information(
+    value: router_request_types::AuthenticationData,
+    card_network: Option<common_enums::CardNetwork>,
+) -> requests::ConsumerAuthenticationInformation {
+    let router_request_types::AuthenticationData {
+        eci: _,
+        cavv,
+        threeds_server_transaction_id: _,
+        message_version,
+        ds_trans_id,
+        trans_status: _,
+        acs_transaction_id: _,
+        transaction_id,
+        ucaf_collection_indicator: _,
+        exemption_indicator: _,
+        network_params: _,
+    } = value;
 
-        Self {
-            cavv: cavv.clone(),
-            ucaf_collection_indicator,
-            ucaf_authentication_data: cavv,
-            xid: transaction_id,
-            directory_server_transaction_id: ds_trans_id.map(Secret::new),
-            specification_version: None,
-            pa_specification_version: message_version,
-            eci_raw: None,
-            pares_status: None,
-            acs_transaction_id: None,
-            cavv_algorithm: None,
-        }
+    let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
+        if card_network == Some(common_enums::CardNetwork::Mastercard) {
+            (cavv.clone(), None, Some("2".to_string()))
+        } else {
+            (None, cavv, None)
+        };
+
+    requests::ConsumerAuthenticationInformation {
+        cavv,
+        ucaf_collection_indicator,
+        ucaf_authentication_data,
+        xid: transaction_id,
+        directory_server_transaction_id: ds_trans_id.map(Secret::new),
+        specification_version: message_version.clone(),
+        pa_specification_version: message_version,
+        eci_raw: None,
+        pares_status: Some(requests::BarclaycardParesStatus::AuthenticationSuccessful),
+        acs_transaction_id: None,
+        cavv_algorithm: None,
     }
 }
 
