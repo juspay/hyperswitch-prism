@@ -468,6 +468,7 @@ impl
             test_mode: item.test_mode,
             merchant_order_id: item.merchant_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
+            split_payments: item.split_payments.clone(),
         }
     }
 }
