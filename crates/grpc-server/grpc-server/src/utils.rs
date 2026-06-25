@@ -260,7 +260,7 @@ where
     current_span.record("merchant_id", merchant_id);
     current_span.record("tenant_id", tenant_id);
     current_span.record("request_id", request_id);
-    tracing::info!("Golden Log Line (incoming)");
+    tracing::info!("Golden Log Line (incoming - request)");
     Ok(())
 }
 
@@ -301,7 +301,7 @@ where
             current_span.record("status_code", status.code().to_string());
         }
     }
-    tracing::info!("Golden Log Line (response)");
+    tracing::info!("Golden Log Line (incoming - response)");
 }
 
 /// Generic gRPC logging wrapper that accepts a custom parser function.
