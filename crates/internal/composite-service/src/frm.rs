@@ -2,7 +2,8 @@ use crate::payments::CompositeAccessTokenRequest;
 use crate::transformers::ForeignFrom;
 use crate::utils::frm_connector_from_composite_frm_metadata;
 use connector_integration::types::FrmConnectorData;
-use domain_types::connector_types::ConnectorVariant;
+use common_utils::consts::{X_CONNECTOR_NAME, X_FRM_CONNECTOR_NAME};
+use domain_types::connector_types::{ConnectorEnum, ConnectorVariant, FrmConnectorEnum};
 use grpc_api_types::frm::{
     composite_fraud_and_risk_management_service_server::CompositeFraudAndRiskManagementService,
     fraud_and_risk_management_service_server::FraudAndRiskManagementService,
@@ -120,10 +121,21 @@ where
             return Ok(None);
         }
 
-        let access_token_payload =
-            payload.build_access_token_request(&ConnectorVariant::Frm(frm_connector));
+        let access_token_connector = match frm_connector {
+            FrmConnectorEnum::Kount => ConnectorVariant::Payment(ConnectorEnum::Kount),
+        };
+        let access_token_payload = payload.build_access_token_request(&access_token_connector);
+
+        let mut access_token_metadata = metadata.clone();
+        access_token_metadata.remove(X_FRM_CONNECTOR_NAME);
+        access_token_metadata.insert(
+            X_CONNECTOR_NAME,
+            tonic::metadata::MetadataValue::try_from("kount")
+                .map_err(|_| tonic::Status::invalid_argument("invalid x-connector value"))?,
+        );
+
         let mut access_token_request = tonic::Request::new(access_token_payload);
-        *access_token_request.metadata_mut() = metadata.clone();
+        *access_token_request.metadata_mut() = access_token_metadata;
         *access_token_request.extensions_mut() = extensions.clone();
 
         let access_token_response = self

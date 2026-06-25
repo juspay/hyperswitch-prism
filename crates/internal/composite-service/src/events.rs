@@ -1,9 +1,10 @@
 use crate::payments::CompositeAccessTokenRequest;
 use crate::transformers::ForeignFrom;
 use crate::utils::connector_variant_from_composite_metadata;
+use common_utils::consts::{X_CONNECTOR_NAME, X_FRM_CONNECTOR_NAME};
 use connector_integration::types::{FrmConnectorData, SurchargeConnectorData};
 use domain_types::{
-    connector_types::{ConnectorVariant, ServerAuthenticationTokenResponseData},
+    connector_types::{ConnectorEnum, ConnectorVariant, FrmConnectorEnum, ServerAuthenticationTokenResponseData},
     utils::ForeignTryFrom as _,
 };
 use grpc_api_types::payments::{
@@ -98,9 +99,28 @@ where
 
         let access_token_response = match should_create_access_token {
             true => {
-                let access_token_payload = payload.build_access_token_request(connector);
+                let (access_token_connector, swap_frm_header) = match connector {
+                    ConnectorVariant::Frm(FrmConnectorEnum::Kount) => {
+                        (ConnectorVariant::Payment(ConnectorEnum::Kount), true)
+                    }
+                    other => (other.clone(), false),
+                };
+                let access_token_payload =
+                    payload.build_access_token_request(&access_token_connector);
+
+                let mut access_token_metadata = metadata.clone();
+                if swap_frm_header {
+                    access_token_metadata.remove(X_FRM_CONNECTOR_NAME);
+                    access_token_metadata.insert(
+                        X_CONNECTOR_NAME,
+                        tonic::metadata::MetadataValue::try_from("kount").map_err(|_| {
+                            tonic::Status::invalid_argument("invalid x-connector value")
+                        })?,
+                    );
+                }
+
                 let mut access_token_request = tonic::Request::new(access_token_payload);
-                *access_token_request.metadata_mut() = metadata.clone();
+                *access_token_request.metadata_mut() = access_token_metadata;
                 *access_token_request.extensions_mut() = extensions.clone();
 
                 let access_token_response = self
