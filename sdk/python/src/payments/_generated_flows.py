@@ -63,6 +63,12 @@ SERVICE_FLOWS = {
         # customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
         "customer_create": "CustomerServiceCreateResponse",
     },
+    "PaymentMethodClient": {
+        # eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+        "eligibility": "PaymentMethodServiceEligibilityResponse",
+        # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
+        "tokenize": "PaymentMethodServiceTokenizeResponse",
+    },
     "PayoutClient": {
         # payout_create: PayoutService.Create — Creates a payout.
         "payout_create": "PayoutServiceCreateResponse",
@@ -81,6 +87,12 @@ SERVICE_FLOWS = {
         # payout_void: PayoutService.Void — Void a payout.
         "payout_void": "PayoutServiceVoidResponse",
     },
+    "FraudAndRiskManagementClient": {
+        # post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+        "post_risk_check": "FrmServicePostRiskCheckResponse",
+        # pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+        "pre_risk_check": "FrmServicePreRiskCheckResponse",
+    },
     "RefundClient": {
         # refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
         "refund_get": "RefundResponse",
@@ -88,10 +100,6 @@ SERVICE_FLOWS = {
     "SurchargeClient": {
         # surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
         "surcharge_calculate": "SurchargeServiceCalculateResponse",
-    },
-    "PaymentMethodClient": {
-        # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
-        "tokenize": "PaymentMethodServiceTokenizeResponse",
     },
 }
 

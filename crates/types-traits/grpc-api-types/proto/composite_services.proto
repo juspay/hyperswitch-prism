@@ -3,6 +3,7 @@ syntax = "proto3";
 package types;
 
 import "composite_payment.proto";
+import "composite_frm.proto";
 
 option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
@@ -22,6 +23,9 @@ service CompositePaymentService {
 
   // Runs composite capture flow.
   rpc Capture(CompositeCaptureRequest) returns (CompositeCaptureResponse);
+
+  // Runs composite verify redirect response flow (verify + conditional authorize).
+  rpc VerifyRedirectResponse(CompositeVerifyRedirectResponseRequest) returns (CompositeVerifyRedirectResponseResponse);
 }
 
 service CompositeRefundService {
@@ -33,6 +37,10 @@ service CompositeRefundService {
 // Use EventService (ParseEvent → HandleEvent) when secrets must be looked up first.
 service CompositeEventService {
   rpc HandleEvent(CompositeEventHandleRequest) returns (CompositeEventHandleResponse);
+
+  // FRM notify connector flow with access token bootstrapping.
+  // Delegates to EventService.NotifyConnector for actual event handling.
+  rpc Notify(CompositeNotifyRequest) returns (CompositeNotifyResponse);
 }
 
 
@@ -46,4 +54,13 @@ service CompositePaymentMethodService {
   
   // Runs composite payment method recharge flow.
   rpc Recharge(CompositePaymentMethodRechargeRequest) returns (CompositePaymentMethodRechargeResponse);
+}
+
+// Service for composite fraud and risk management operations.
+service CompositeFraudAndRiskManagementService {
+  // Runs composite pre-risk check flow with access token bootstrapping.
+  rpc PreRiskCheck(CompositeFrmPreRiskCheckRequest) returns (CompositeFrmPreRiskCheckResponse);
+
+  // Runs composite post-risk check flow with access token bootstrapping.
+  rpc PostRiskCheck(CompositeFrmPostRiskCheckRequest) returns (CompositeFrmPostRiskCheckResponse);
 }

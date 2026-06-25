@@ -1,0 +1,643 @@
+{
+  "connector": "kount",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for kount"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for kount"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for kount"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for kount"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "supported",
+        "proto_request": {},
+        "sample": {
+          "url": "https://login.kount.com/oauth2/ausdppkujzCPQuIrY357/v1/token",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic probe_key",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "grant_type=client_credentials&scope=k1_integration_api"
+        }
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for kount"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for kount"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for kount"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for kount"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for kount"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: eligibility flow for kount"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_sync flow for kount"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for kount"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for kount"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for kount"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for kount"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for kount"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for kount"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for kount"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for kount"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for kount"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for kount"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for kount"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for kount"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for kount"
+      }
+    }
+  }
+}

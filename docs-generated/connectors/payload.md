@@ -263,7 +263,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Mandiri VA | x |
 | Local | x |
 | Indonesian | x |
-| ACH | ✓ |
+| ACH | ? |
 | SEPA | ⚠ |
 | BACS | ⚠ |
 | BECS | ⚠ |
@@ -300,18 +300,6 @@ Authorize a payment amount on a payment method. This reserves funds without capt
     "card_exp_year": "2030",
     "card_cvc": "737",
     "card_holder_name": "John Doe"
-  }
-}
-```
-
-##### ACH Direct Debit
-
-```python
-"payment_method": {
-  "ach": {
-    "account_number": "000123456789",
-    "routing_number": "110000000",
-    "bank_account_holder_name": "John Doe"
   }
 }
 ```

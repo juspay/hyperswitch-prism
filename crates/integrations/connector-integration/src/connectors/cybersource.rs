@@ -44,6 +44,10 @@ use error_stack::{Report, ResultExt};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+/// JWT segments are base64url WITHOUT padding (RFC 7515); used to decode the
+/// Flex Microform capture-context JWT payload.
+pub const BASE64_URL_SAFE_NO_PAD_ENGINE: base64::engine::GeneralPurpose =
+    base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
 use transformers::{
     self as cybersource, CybersourceAuthEnrollmentRequest, CybersourceAuthSetupRequest,
@@ -82,12 +86,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Cybersource<T>
 {
 }
-
-macros::macro_connector_payout_implementation!(
-    connector: Cybersource,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
-);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Cybersource<T>
@@ -1085,7 +1083,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payload = parts.get(1).ok_or_else(|| {
             Report::new(ConnectorError::response_handling_failed(res.status_code))
         })?;
-        let decoded_bytes = Engine::decode(&BASE64_ENGINE, payload)
+        // Flex capture-context JWT segments are base64url WITHOUT padding
+        // (RFC 7515); STANDARD base64 fails for ~3/4 of payloads depending on
+        // length (varies with targetOrigins, e.g. long tunnel domains).
+        let decoded_bytes = Engine::decode(&BASE64_URL_SAFE_NO_PAD_ENGINE, payload)
             .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
         let decoded_str = String::from_utf8(decoded_bytes)
             .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
@@ -1325,6 +1326,7 @@ macros::macro_connector_flow_status_impls!(
         CreateConnectorCustomer,
     ],
     not_supported: [
+        VoidPostRefund,
         SubmitEvidence,
         DefendDispute,
         Accept,

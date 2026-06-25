@@ -1,10 +1,14 @@
 use std::fmt::Debug;
 
 use domain_types::{
-    connector_types::{ConnectorEnum, PayoutConnectorEnum, SurchargeConnectorEnum},
+    connector_types::{
+        ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum, SurchargeConnectorEnum,
+    },
     payment_method_data::PaymentMethodDataTypes,
 };
-use interfaces::connector_types::{BoxedConnector, BoxedPayoutConnector, BoxedSurchargeConnector};
+use interfaces::connector_types::{
+    BoxedConnector, BoxedFrmConnector, BoxedPayoutConnector, BoxedSurchargeConnector,
+};
 
 use crate::{connectors, payout_connectors, surcharge_connectors};
 
@@ -119,11 +123,14 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Easebuzz => Box::new(connectors::Easebuzz::new()),
             ConnectorEnum::Imerchantsolutions => Box::new(connectors::Imerchantsolutions::new()),
             ConnectorEnum::Axisbank => Box::new(connectors::Axisbank::new()),
+            ConnectorEnum::TsysTransit => Box::new(connectors::TsysTransit::new()),
             ConnectorEnum::TwocTwopPaco => Box::new(connectors::TwocTwopPaco::new()),
             ConnectorEnum::Juspay => Box::new(connectors::Juspay::<T>::new()),
             ConnectorEnum::Payconex => Box::new(connectors::Payconex::<T>::new()),
             ConnectorEnum::Tamara => Box::new(connectors::Tamara::<T>::new()),
+            ConnectorEnum::Hyperswitch => Box::new(connectors::Hyperswitch::<T>::new()),
             ConnectorEnum::Qwikcilver => Box::new(connectors::Qwikcilver::<T>::new()),
+            ConnectorEnum::Kount => Box::new(connectors::Kount::<T>::new()),
         }
     }
 }
@@ -147,6 +154,40 @@ impl SurchargeConnectorData {
 }
 
 #[derive(Clone)]
+pub struct FrmConnectorData {
+    pub connector: BoxedFrmConnector,
+    pub connector_name: FrmConnectorEnum,
+}
+
+impl FrmConnectorData {
+    pub fn get_connector_by_name(connector_name: &FrmConnectorEnum) -> Self {
+        let connector = Self::convert_connector(*connector_name);
+        Self {
+            connector,
+            connector_name: *connector_name,
+        }
+    }
+
+    fn convert_connector(connector_name: FrmConnectorEnum) -> BoxedFrmConnector {
+        match connector_name {
+            FrmConnectorEnum::Kount => Box::new(connectors::Kount::<
+                domain_types::payment_method_data::DefaultPCIHolder,
+            >::new()),
+        }
+    }
+}
+
+impl ConnectorDataProvider for FrmConnectorData {
+    type ConnectorEnumType = FrmConnectorEnum;
+
+    fn from_connector_variant(
+        variant: &domain_types::connector_types::ConnectorVariant,
+    ) -> Option<Self> {
+        variant.as_frm().map(|c| Self::get_connector_by_name(&c))
+    }
+}
+
+#[derive(Clone)]
 pub struct PayoutConnectorData {
     pub connector: BoxedPayoutConnector,
     pub connector_name: PayoutConnectorEnum,
@@ -166,6 +207,12 @@ impl PayoutConnectorData {
             PayoutConnectorEnum::Loonio => Box::new(payout_connectors::LoonioPayouts::new()),
             PayoutConnectorEnum::Paypal => Box::new(payout_connectors::PaypalPayouts::new()),
             PayoutConnectorEnum::Itaubank => Box::new(payout_connectors::ItaubankPayouts::new()),
+            PayoutConnectorEnum::Worldpayxml => {
+                Box::new(payout_connectors::WorldpayxmlPayouts::new())
+            }
+            PayoutConnectorEnum::Cybersource => {
+                Box::new(payout_connectors::CybersourcePayouts::new())
+            }
         }
     }
 }

@@ -15,10 +15,14 @@
 use crate::connectors::*;
 use common_utils::{request::Request, CustomResult};
 use domain_types::{
-    connector_flow::{CreatePaymentMethod, GetPaymentMethod, Recharge, VerifyWebhookSource},
+    connector_flow::{
+        CreatePaymentMethod, GetPaymentMethod, PaymentMethodEligibility, Recharge,
+        VerifyWebhookSource,
+    },
     connector_types::{
         CreatePaymentMethodData, CreatePaymentMethodResponseData, GetPaymentMethodData,
-        GetPaymentMethodResponseData, PaymentFlowData, RechargeRequestData, RechargeResponseData,
+        GetPaymentMethodResponseData, PaymentFlowData, PaymentMethodEligibilityData,
+        PaymentMethodEligibilityResponse, RechargeRequestData, RechargeResponseData,
         VerifyWebhookSourceFlowData,
     },
     errors::IntegrationError,
@@ -29,7 +33,8 @@ use domain_types::{
 };
 use interfaces::connector_integration_v2::ConnectorIntegrationV2;
 use interfaces::connector_types::{
-    CreatePaymentMethodV2, GetPaymentMethodV2, RechargeV2, VerifyWebhookSourceV2,
+    CreatePaymentMethodV2, GetPaymentMethodV2, PaymentMethodEligibilityV2, RechargeV2,
+    VerifyWebhookSourceV2,
 };
 
 /// Inner helper: emit the `VerifyWebhookSourceV2` + `ConnectorIntegrationV2` default impls
@@ -97,6 +102,57 @@ macro_rules! default_impl_verify_webhook_source_v2_single {
 ///     not_implemented: [ Adyen, Stripe ],
 /// );
 /// ```
+#[macro_export]
+macro_rules! default_impl_payment_method_eligibility_v2_single {
+    ($connector:ident, $err_helper:ident) => {
+        impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+            PaymentMethodEligibilityV2 for $connector<T>
+        {
+        }
+
+        impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+            ConnectorIntegrationV2<
+                PaymentMethodEligibility,
+                PaymentFlowData,
+                PaymentMethodEligibilityData,
+                PaymentMethodEligibilityResponse,
+            > for $connector<T>
+        {
+            fn get_url(
+                &self,
+                _req: &RouterDataV2<
+                    PaymentMethodEligibility,
+                    PaymentFlowData,
+                    PaymentMethodEligibilityData,
+                    PaymentMethodEligibilityResponse,
+                >,
+            ) -> CustomResult<String, IntegrationError> {
+                Err(::domain_types::errors::IntegrationError::$err_helper(
+                    ::interfaces::api::ConnectorCommon::id(self),
+                    "eligibility",
+                    ::domain_types::errors::IntegrationErrorContext::default(),
+                )
+                .into())
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! default_impl_payment_method_eligibility_v2 {
+    (
+        $( not_supported: [ $($ns:ident),* $(,)? ] $(,)? )?
+        $( not_implemented: [ $($ni:ident),* $(,)? ] $(,)? )?
+    ) => {
+        $( $( $crate::default_impl_payment_method_eligibility_v2_single!(
+            $ns, connector_flow_not_supported
+        ); )* )?
+        $( $( $crate::default_impl_payment_method_eligibility_v2_single!(
+            $ni, connector_flow_not_implemented
+        ); )* )?
+    };
+}
+
 #[macro_export]
 macro_rules! default_impl_verify_webhook_source_v2 {
     (
@@ -212,6 +268,7 @@ default_impl_verify_webhook_source_v2!(
         Stripe,
         Trustpayments,
         Tsys,
+        TsysTransit,
         TwocTwopPaco,
         Volt,
         Wellsfargo,
@@ -221,6 +278,8 @@ default_impl_verify_webhook_source_v2!(
         Zift,
         Juspay,
         Payconex,
+        Kount,
+        Hyperswitch,
     ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -298,6 +357,7 @@ macro_rules! default_impl_recharge_v2 {
 default_impl_recharge_v2!(
     AbsaSanlam,
     Aci,
+    Kount,
     Adyen,
     Airwallex,
     Authipay,
@@ -373,11 +433,13 @@ default_impl_recharge_v2!(
     Stax,
     Stripe,
     Tamara,
+    Hyperswitch,
     Truelayer,
     Trustly,
     Trustpay,
     Trustpayments,
     Tsys,
+    TsysTransit,
     TwocTwopPaco,
     Volt,
     Wellsfargo,
@@ -511,6 +573,7 @@ macro_rules! default_impl_get_payment_method_v2 {
 default_impl_create_payment_method_v2!(
     AbsaSanlam,
     Aci,
+    Kount,
     Adyen,
     Airwallex,
     Authipay,
@@ -586,11 +649,13 @@ default_impl_create_payment_method_v2!(
     Stax,
     Stripe,
     Tamara,
+    Hyperswitch,
     Truelayer,
     Trustly,
     Trustpay,
     Trustpayments,
     Tsys,
+    TsysTransit,
     TwocTwopPaco,
     Volt,
     Wellsfargo,
@@ -604,6 +669,7 @@ default_impl_create_payment_method_v2!(
 default_impl_get_payment_method_v2!(
     AbsaSanlam,
     Aci,
+    Kount,
     Adyen,
     Airwallex,
     Authipay,
@@ -679,11 +745,13 @@ default_impl_get_payment_method_v2!(
     Stax,
     Stripe,
     Tamara,
+    Hyperswitch,
     Truelayer,
     Trustly,
     Trustpay,
     Trustpayments,
     Tsys,
+    TsysTransit,
     TwocTwopPaco,
     Volt,
     Wellsfargo,
@@ -692,4 +760,101 @@ default_impl_get_payment_method_v2!(
     Worldpayxml,
     Xendit,
     Zift,
+);
+
+default_impl_payment_method_eligibility_v2!(
+    not_supported: [
+        Adyen,
+        Authorizedotnet,
+        Bluesnap,
+        Calida,
+        Cashtocode,
+        Cryptopay,
+        Fiuu,
+        Imerchantsolutions,
+        Noon,
+        Novalnet,
+        Payload,
+        Phonepe,
+        Ppro,
+        Revolut,
+        AbsaSanlam,
+        Trustly,
+        Trustpay,
+        Worldpayvantiv,
+        Aci,
+        Airwallex,
+        Authipay,
+        Axisbank,
+        Bambora,
+        Bamboraapac,
+        Bankofamerica,
+        Barclaycard,
+        Billwerk,
+        Braintree,
+        Cashfree,
+        Celero,
+        Checkout,
+        Cybersource,
+        Datatrans,
+        Dlocal,
+        Easebuzz,
+        Elavon,
+        Finix,
+        Fiserv,
+        Fiservcommercehub,
+        Fiservemea,
+        Forte,
+        Getnet,
+        Gigadat,
+        Globalpay,
+        Helcim,
+        Hipay,
+        Hyperpg,
+        Iatapay,
+        Itaubank,
+        Jpmorgan,
+        Loonio,
+        Mifinity,
+        Mollie,
+        Multisafepay,
+        Nexinets,
+        Nexixpay,
+        Nmi,
+        Nuvei,
+        Paybox,
+        Payconex,
+        Payme,
+        Paysafe,
+        Paytm,
+        Payu,
+        Peachpayments,
+        PinelabsOnline,
+        Placetopay,
+        Powertranz,
+        Qwikcilver,
+        Rapyd,
+        Razorpay,
+        RazorpayV2,
+        Redsys,
+        Revolv3,
+        Shift4,
+        Silverflow,
+        Stax,
+        Stripe,
+        Trustpayments,
+        Tsys,
+        TsysTransit,
+        TwocTwopPaco,
+        Volt,
+        Wellsfargo,
+        Worldpay,
+        Worldpayxml,
+        Xendit,
+        Zift,
+        Juspay,
+        Paypal,
+        Truelayer,
+        Hyperswitch,
+    ],
 );

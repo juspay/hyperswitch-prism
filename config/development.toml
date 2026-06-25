@@ -25,8 +25,18 @@ type = "grpc"
 host = "0.0.0.0"
 port = 8080
 
+# OpenTelemetry (OTLP) metrics push. Requires building with the `otel` feature.
+# Disabled by default; the Prometheus /metrics scrape endpoint above is unaffected.
+# The endpoint must be an OTLP *gRPC* receiver (default port 4317), not an HTTP one.
+[metrics.otel]
+enabled = false
+# otel_exporter_otlp_endpoint = "http://<otel-collector-host>:4317"
+# collection_interval_secs = 3
+# export_timeout_secs = 10
+
 [proxy]
 idle_pool_connection_timeout = 90
+connector_request_timeout = 30
 bypass_urls = []
 
 [test]
@@ -48,6 +58,9 @@ psync = "GW_TXN_SYNC"
 connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
+kount.base_url = "https://api-sandbox.kount.com"
+kount.secondary_base_url = "https://login.kount.com"
+hyperswitch.base_url = "https://sandbox.hyperswitch.io"
 payconex.base_url = "https://cert.payconex.net"
 tamara.base_url = "https://api-sandbox.tamara.co"
 juspay.base_url = "https://sandbox.juspay.in/"
@@ -155,12 +168,21 @@ pinelabs_online.base_url = "https://pluraluat.v2.pinepg.in/api/pay/v1"
 easebuzz.base_url = "https://testpay.easebuzz.in"
 easebuzz.secondary_base_url = "https://testdashboard.easebuzz.in"
 axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
+tsys_transit.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Server"
 
 # Generic Events Configuration
 [events]
 enabled = false
 brokers = ["localhost:9092"]
-topic = "audit-trail-events"
+
+# Outbound connector-call events.
+[events.connector_events]
+topic = "unified-connector-service-connector-events"
+partition_key_field = "request_id"
+
+# Inbound request events.
+[events.api_events]
+topic = "unified-connector-service-api-events"
 partition_key_field = "request_id"
 
 [lineage]

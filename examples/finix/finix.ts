@@ -41,7 +41,7 @@ function _buildCustomerCreateRequest(): types.ICustomerServiceCreateRequest {
         "merchantCustomerId": "cust_probe_123",  // Identification.
         "customerName": "John Doe",  // Name of the customer.
         "email": {"value": "test@example.com"},  // Email address of the customer.
-        "phoneNumber": "4155552671"  // Phone number of the customer.
+        "phoneNumber": {"value": "4155552671"}  // Phone number of the customer.
     };
 }
 

@@ -970,6 +970,7 @@ impl<F, T>
                 connector_response_reference_id: optional_correlation_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: router_data.http_code,
+                splits: None,
             }),
             (Some(reason), _) => Err(ErrorResponse {
                 code: worldpay_status.to_string(),
@@ -1065,6 +1066,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         });
 
         Ok(Self {
@@ -1136,6 +1138,7 @@ impl<F> TryFrom<ResponseRouterData<WorldpayEventResponse, Self>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         });
 
         Ok(Self {
@@ -1268,6 +1271,7 @@ impl TryFrom<ResponseRouterData<WorldpayPaymentsResponse, Self>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         });
 
         Ok(Self {

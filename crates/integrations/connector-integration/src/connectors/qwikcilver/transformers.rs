@@ -318,7 +318,7 @@ where
             invoice_number,
             amount,
             notes: None,
-            bill_amount: None,
+            bill_amount: Some(amount),
         })
     }
 }
@@ -377,6 +377,7 @@ where
                     incremental_authorization_allowed: None,
                     mandate_reference: None,
                     status_code: item.http_code,
+                    splits: None,
                 })
             }
             _ => Err(error_response_from_qc(

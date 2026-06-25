@@ -730,4 +730,7 @@ macros::macro_connector_flow_status_impls!(
         ClientAuthenticationToken,
         MandateRevoke,
     ],
+    not_supported: [
+        VoidPostRefund,
+    ],
 );

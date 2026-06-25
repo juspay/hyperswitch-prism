@@ -2465,7 +2465,7 @@ pub fn execute_tonic_request_from_payload(
                     &connector_request_reference_id,
                 );
                 let mut client = grpc_api_types::payments::recurring_payment_service_client::RecurringPaymentServiceClient::new(channel.clone());
-                let response = client.charge(request).await.map_err(|error| {
+                let response = Box::pin(client.charge(request)).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
@@ -2707,7 +2707,7 @@ pub fn execute_tonic_request_from_payload(
                     &connector_request_reference_id,
                 );
                 let mut client = grpc_api_types::payments::payment_service_client::PaymentServiceClient::new(channel.clone());
-                let response = client.proxy_authorize(request).await.map_err(|error| {
+                let response = Box::pin(client.proxy_authorize(request)).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
@@ -2738,8 +2738,30 @@ pub fn execute_tonic_request_from_payload(
                 })?;
                 serialize_tonic_response(&response.into_inner())
             }
+            "PayoutService/Eligibility" => {
+                let payload: grpc_api_types::payouts::PayoutMethodEligibilityRequest =
+                    parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
+                let mut request = tonic::Request::new(payload);
+                add_connector_metadata(
+                    &mut request,
+                    &config,
+                    &merchant_id,
+                    &tenant_id,
+                    &request_id,
+                    &connector_request_reference_id,
+                );
+                let mut client = grpc_api_types::payouts::payout_service_client::PayoutServiceClient::new(channel.clone());
+                let response = client.eligibility(request).await.map_err(|error| {
+                    ScenarioError::GrpcurlExecution {
+                        message: format!(
+                            "tonic execution failed for '{suite}/{scenario}': {error}"
+                        ),
+                    }
+                })?;
+                serialize_tonic_response(&response.into_inner())
+            }
             "PaymentMethodService/Eligibility" => {
-                let payload: grpc_api_types::payments::PayoutMethodEligibilityRequest =
+                let payload: grpc_api_types::payments::PaymentMethodServiceEligibilityRequest =
                     parse_tonic_payload(suite, scenario, &connector, &grpc_req)?;
                 let mut request = tonic::Request::new(payload);
                 add_connector_metadata(
@@ -4932,7 +4954,7 @@ mod tests {
                 payments::PaymentServiceProxySetupRecurringRequest,
             >(connector, suite, scenario, grpc_req),
             "PaymentMethodService/Eligibility" => validate_tonic_payload_shape::<
-                payments::PayoutMethodEligibilityRequest,
+                payments::PaymentMethodServiceEligibilityRequest,
             >(connector, suite, scenario, grpc_req),
             _ => Err(format!(
                 "{connector}/{suite}/{scenario}: suite '{effective_suite}' is not mapped to a tonic request type"
