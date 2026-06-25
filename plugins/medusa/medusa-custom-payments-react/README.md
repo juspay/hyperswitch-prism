@@ -15,7 +15,7 @@ React UI components for Hyperswitch Prism payment connectors. Ships two layers o
 | `paypal` | ✅ | ✅ | CAPTURED |
 | `stripe` | — | ✅ | AUTHORIZED |
 | `globalpay` | ✅ | ✅ | CAPTURED |
-| `mollie` | ✅ | ✅ | CAPTURED (after 3DS) |
+| `mollie` | ✅ | ✅ | CAPTURED (Card after 3DS; Klarna after redirect) |
 | `braintree` | ○ | ○ | — |
 | `cybersource` | ○ | ○ | — |
 
@@ -75,6 +75,8 @@ NEXT_PUBLIC_ADYEN_CLIENT_KEY=test_...
 | `GlobalPayWrapper` | Component | Low-level GlobalPay hosted card fields wrapper |
 | `StripeWrapper` | Component | Low-level Stripe Payment Element wrapper |
 | `MollieWrapper` | Component | Low-level Mollie Components (in-page card tokenization) wrapper |
+| `MollieKlarnaForm` | Component | Klarna (Pay later) billing form for the Mollie redirect flow — collects name/email/postal address (Netherlands test defaults, all fields editable) and submits a `MollieKlarnaBilling`. Pair with a EUR session (Klarna via Mollie is EU-only) |
+| `MollieKlarnaBilling` | Type | Shape of the Klarna billing the form collects: `firstName`, `lastName`, `email`, `line1`, `city`, `postalCode`, `country` (ISO 3166-1 alpha-2) |
 | `StripePaymentButton` | Component | Place-order button for Stripe |
 | `AdyenPaymentButton` | Component | Place-order button for Adyen |
 | `PayPalPaymentButton` | Component | Place-order button for PayPal |

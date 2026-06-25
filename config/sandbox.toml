@@ -19,9 +19,12 @@ port = 8080
 
 [proxy]
 idle_pool_connection_timeout = 90
+connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+kount.base_url = "https://api-sandbox.kount.com"
+kount.secondary_base_url = "https://login.kount.com"
 hyperswitch.base_url = "https://sandbox.hyperswitch.io"
 payconex.base_url = "https://cert.payconex.net"
 tamara.base_url = "https://api-sandbox.tamara.co"
@@ -136,7 +139,15 @@ tsys_transit.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Serv
 [events]
 enabled = false
 brokers = ["localhost:9092"]
-topic = "audit-trail-events"
+
+# Outbound connector-call events.
+[events.connector_events]
+topic = "unified-connector-service-connector-events"
+partition_key_field = "request_id"
+
+# Inbound request events.
+[events.api_events]
+topic = "unified-connector-service-api-events"
 partition_key_field = "request_id"
 
 [connector_request_kafka]

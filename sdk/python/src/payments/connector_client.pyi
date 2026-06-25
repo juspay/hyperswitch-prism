@@ -17,6 +17,10 @@ from payments.generated.payment_pb2 import (
     EventServiceHandleResponse,
     EventServiceParseRequest,
     EventServiceParseResponse,
+    FrmServicePostRiskCheckRequest,
+    FrmServicePostRiskCheckResponse,
+    FrmServicePreRiskCheckRequest,
+    FrmServicePreRiskCheckResponse,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
@@ -112,6 +116,16 @@ class EventClient(_ConnectorClientBase):
 
     def parse_event(self, request: EventServiceParseRequest, options: RequestConfig | None = ...) -> EventServiceParseResponse:
         """EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit."""
+        ...
+
+
+class FraudAndRiskManagementClient(_ConnectorClientBase):
+    def post_risk_check(self, request: FrmServicePostRiskCheckRequest, options: RequestConfig | None = ...) -> FrmServicePostRiskCheckResponse:
+        """FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud."""
+        ...
+
+    def pre_risk_check(self, request: FrmServicePreRiskCheckRequest, options: RequestConfig | None = ...) -> FrmServicePreRiskCheckResponse:
+        """FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review."""
         ...
 
 

@@ -812,6 +812,7 @@ enum Connector {
   QWIKCILVER = 125;
   HYPERSWITCH = 126;
   TSYS_TRANSIT = 127;
+  KOUNT = 128;
 }
 
 // Payment method types
@@ -1564,20 +1565,20 @@ message EventServiceHandleResponse {
 
 // Request for notifying connectors about events
 message NotifyConnectorRequest {
-  // Merchant identification
-  string merchant_id = 1;
-
   // Unique event identifier
-  string event_id = 2;
+  string event_id = 1;
 
   // Event type
-  NotifyEventType event_type = 3;
+  NotifyEventType event_type = 2;
 
-  // Event content with notify connector content 
-  NotifyConnectorContent content = 4;
+  // Event content with notify connector content
+  NotifyConnectorContent content = 3;
 
   // Timestamp when the event occurred (Unix timestamp in seconds)
-  int64 timestamp = 5;
+  int64 timestamp = 4;
+
+  // Connector state for access token management (optional)
+  optional ConnectorState state = 5;
 }
 
 
@@ -1620,7 +1621,7 @@ message FrmNotificationContent {
 
   // The specific notification type — exactly one must be set
   oneof notification_type {
-    FrmPaymentSuccessDetails payment_success = 4;
+    FrmPaymentDetails payment_details = 4;
     FrmRefundDetails refund = 5;
     FrmChargebackDetails chargeback = 6;
   }
@@ -1630,7 +1631,7 @@ message FrmNotificationContent {
 }
 
 // FRM payment success details
-message FrmPaymentSuccessDetails {
+message FrmPaymentDetails {
   optional string connector_transaction_id = 1;
   optional string merchant_transaction_id = 2;
   PaymentStatus payment_status = 3;
@@ -4946,6 +4947,15 @@ message PayconexConfig {
   optional string base_url = 50;
 }
 
+message KountConfig {
+  SecretString api_key = 1;
+  // Kount OAuth authorization-server id for the token endpoint
+  // (`login.kount.com/oauth2/{auth_server_id}/v1/token`). Account/environment
+  // specific; falls back to the sandbox auth server when unset.
+  optional string auth_server_id = 2;
+  optional string base_url = 50;
+}
+
 message HyperswitchConfig {
   SecretString api_key = 1;
   optional string base_url = 50;
@@ -5241,6 +5251,8 @@ message ConnectorSpecificConfig {
     HyperswitchConfig hyperswitch = 132;
     // TSYS_TRANSIT = 127
     TsysTransitConfig tsys_transit = 133;
+    // KOUNT = 128
+    KountConfig kount = 134;
   }
 }
 

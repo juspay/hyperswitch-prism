@@ -90,10 +90,66 @@ export type MollieAuthorizeDeps = {
   ) => Promise<AuthorizePaymentOutput>
 }
 
-// Authorize a Mollie card payment with the client-tokenized cardToken (Mollie
-// Components). The connector-service maps paymentMethod.token -> creditcard.cardToken.
-// One-off cards come back as status `open` with a 3DS redirect, surfaced here as
-// data.redirectUrl (redirectionData.form.endpoint) for the storefront to follow.
+// Billing the storefront collects for the Klarna (PayLater) redirect flow.
+// Klarna risk-assessment requires name + email + a postal address.
+export type KlarnaBilling = {
+  firstName?: string
+  lastName?: string
+  email?: string
+  line1?: string
+  line2?: string
+  city?: string
+  postalCode?: string
+  country?: string
+}
+
+// Map the storefront billing form to the SDK billing address. The connector's
+// Klarna arm reads it via get_payment_method_billing(), which falls back to the
+// request billing_address when no payment-method billing is set.
+function toKlarnaBillingAddress(b: KlarnaBilling): types.IAddress {
+  const sec = (v?: string): types.ISecretString | undefined =>
+    v ? { value: v } : undefined
+  // CountryAlpha2 is a numeric enum keyed by ISO 3166-1 alpha-2 code; index it by
+  // the (uppercased) storefront value. An unknown/invalid code resolves to
+  // undefined — surface that instead of silently dropping the country, since
+  // Klarna's risk assessment needs the billing country and would otherwise reject
+  // the order with an opaque error.
+  let countryAlpha2Code: types.CountryAlpha2 | undefined
+  if (b.country) {
+    const key = b.country.toUpperCase()
+    // Double-cast: CountryAlpha2 is a numeric enum (it carries a reverse
+    // number→string map), so it isn't directly a Record<string, …>.
+    const code = (
+      types.CountryAlpha2 as unknown as Record<string, types.CountryAlpha2 | undefined>
+    )[key]
+    if (code === undefined) {
+      logger.error(
+        "[PrismService.authorizePayment] mollie klarna: unknown country code %s — omitting from billing address",
+        key
+      )
+    } else {
+      countryAlpha2Code = code
+    }
+  }
+  return {
+    firstName: sec(b.firstName),
+    lastName: sec(b.lastName),
+    line1: sec(b.line1),
+    ...(b.line2 ? { line2: sec(b.line2) } : {}),
+    city: sec(b.city),
+    zipCode: sec(b.postalCode),
+    ...(countryAlpha2Code !== undefined ? { countryAlpha2Code } : {}),
+    email: sec(b.email),
+  }
+}
+
+// Authorize a Mollie payment. Two methods are supported:
+//  - Card (Mollie Components): paymentMethod.token -> creditcard.cardToken; one-off
+//    cards return status `open` with a 3DS redirect.
+//  - Klarna (PayLater): paymentMethod.klarna {} + full billing; Mollie returns a
+//    hosted Klarna checkout URL.
+// Either way the connector surfaces the next step as data.redirectUrl
+// (redirectionData) for the storefront to follow; the post-redirect retry PSyncs.
 export async function authorizePayment(
   input: AuthorizePaymentInput,
   { options, paymentClient, getPaymentStatus }: MollieAuthorizeDeps
@@ -114,13 +170,8 @@ export async function authorizePayment(
     return await getPaymentStatus(input)
   }
 
-  const cardToken = data?.cardToken as string | undefined
-  if (!cardToken) {
-    logger.error(
-      "[PrismService.authorizePayment] mollie: missing cardToken in session data"
-    )
-    return { data: input.data, status: PaymentSessionStatus.ERROR }
-  }
+  const isKlarna =
+    String(data?.paymentMethodType ?? "").toLowerCase() === "klarna"
 
   const minorAmount = (data?.minorAmount as number | undefined) ?? 0
   const currency = (data?.currency as string | undefined) ?? "USD"
@@ -128,20 +179,50 @@ export async function authorizePayment(
     (data?.returnUrl as string | undefined) ??
     ((options.connectorConfig as any)?.returnUrl as string | undefined)
 
+  // Build the payment-method arm + billing address per method.
+  // - Card: paymentMethod.token (Mollie Components cardToken); billing ignored,
+  //   so a minimal country suffices.
+  // - Klarna (PayLater redirect): paymentMethod.klarna {}; the connector requires
+  //   full billing (name/email/postal address) which it reads via the request
+  //   billing_address, and builds the order line itself from amount + description.
+  let paymentMethod: any
+  let address: any
+  if (isKlarna) {
+    const billing = (data?.billing ?? data?.klarnaBilling) as
+      | KlarnaBilling
+      | undefined
+    if (!billing?.firstName || !billing?.email || !billing?.line1) {
+      logger.error(
+        "[PrismService.authorizePayment] mollie klarna: missing billing (name/email/address)"
+      )
+      return { data: input.data, status: PaymentSessionStatus.ERROR }
+    }
+    paymentMethod = { klarna: {} }
+    address = { billingAddress: toKlarnaBillingAddress(billing) }
+  } else {
+    const cardToken = data?.cardToken as string | undefined
+    if (!cardToken) {
+      logger.error(
+        "[PrismService.authorizePayment] mollie: missing cardToken in session data"
+      )
+      return { data: input.data, status: PaymentSessionStatus.ERROR }
+    }
+    paymentMethod = { token: { token: { value: cardToken } } }
+    // The SDK requires an address on authorize. The Mollie token branch
+    // ignores billing_address connector-side, so a minimal country suffices.
+    address = { billingAddress: { countryAlpha2Code: types.CountryAlpha2.US } }
+  }
+
   try {
     const res: any = await paymentClient.authorize({
       merchantTransactionId: data?.id || `mollie_${Date.now()}`,
       amount: { minorAmount, currency: toCurrency(currency) },
       // Mollie requires a payment description.
       description: "Medusa Hyperswitch Prism order",
-      paymentMethod: { token: { token: { value: cardToken } } },
+      paymentMethod,
       captureMethod: types.CaptureMethod.AUTOMATIC,
       ...(returnUrl ? { returnUrl } : {}),
-      // The SDK requires an address on authorize. The Mollie token branch
-      // ignores billing_address connector-side, so a minimal country suffices.
-      address: {
-        billingAddress: { countryAlpha2Code: types.CountryAlpha2.US },
-      },
+      address,
       testMode: options.environment !== "PRODUCTION",
     } as any)
 
