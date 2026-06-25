@@ -528,6 +528,9 @@ pub trait RawConnectorRequestResponse {
     fn get_raw_connector_response(&self) -> Option<Secret<String>>;
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>);
     fn get_raw_connector_request(&self) -> Option<Secret<String>>;
+    fn get_return_raw_connector_response(&self) -> Option<bool> {
+        None
+    }
 }
 
 pub trait ConnectorResponseHeaders {
@@ -1361,6 +1364,10 @@ impl RawConnectorRequestResponse for PaymentFlowData {
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
+    }
+
+    fn get_return_raw_connector_response(&self) -> Option<bool> {
+        self.return_raw_connector_response
     }
 }
 
@@ -2476,6 +2483,10 @@ impl RawConnectorRequestResponse for RefundFlowData {
 
     fn set_raw_connector_request(&mut self, request: Option<Secret<String>>) {
         self.raw_connector_request = request;
+    }
+
+    fn get_return_raw_connector_response(&self) -> Option<bool> {
+        self.return_raw_connector_response
     }
 }
 
