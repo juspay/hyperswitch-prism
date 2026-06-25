@@ -91,7 +91,7 @@ serial_test = "3.2.0"
 [features]
 default = []
 kafka = ["tracing-kafka"]
-connector-request-kafka = ["dep:connector_request_kafka"]
+connector-request-kafka = ["dep:connector_request_kafka", "external-services/connector-request-kafka"]
 
 [lints]
 workspace = true
