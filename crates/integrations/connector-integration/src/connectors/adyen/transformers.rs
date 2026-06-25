@@ -2198,28 +2198,52 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .get_billing_phone_number()
                     .change_context(IntegrationError::MissingRequiredField {
                         field_name: "billing.phone",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Tamara (Adyen) requires billing phone number for pay_later redirect flow"
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     })?;
                 router_data
                     .resource_common_data
                     .get_billing_email()
                     .change_context(IntegrationError::MissingRequiredField {
                         field_name: "billing.email",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Tamara (Adyen) requires billing email for pay_later redirect flow"
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     })?;
                 router_data
                     .resource_common_data
                     .get_billing_address()
                     .change_context(IntegrationError::MissingRequiredField {
                         field_name: "billing.address",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Tamara (Adyen) requires billing address for pay_later redirect flow"
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     })?;
                 router_data
                     .resource_common_data
                     .get_shipping_address()
                     .change_context(IntegrationError::MissingRequiredField {
                         field_name: "shipping.address",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Tamara (Adyen) requires shipping address for pay_later redirect flow"
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     })?;
                 Ok(Self::AdyenTamaraPayLater)
             }
