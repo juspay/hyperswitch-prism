@@ -1136,14 +1136,15 @@ message OnlineMandate {
 
 // Amount data for mandate
 message MandateAmountData {
-  int64 amount = 1;              // Amount
-  Currency currency = 2;         // Currency code (ISO 4217)
-  optional int64 start_date = 3; // Unix timestamp for start date
-  optional int64 end_date = 4;   // Unix timestamp for end date
+  int64 amount = 1 [deprecated = true]; // Use amount_money instead (will be removed in a future release)
+  Currency currency = 2 [deprecated = true]; // Use amount_money.currency instead (will be removed in a future release)
+  optional int64 start_date = 3;        // Unix timestamp for start date
+  optional int64 end_date = 4;          // Unix timestamp for end date
   optional string amount_type =
       5; // Amount type for variable mandates ("exact", "max", "variable")
   optional string frequency =
       6; // Frequency for recurring mandates ("daily", "weekly", "monthly")
+  optional Money amount_money = 7; // Amount in Money type
 }
 
 // Mandate type with amount details
