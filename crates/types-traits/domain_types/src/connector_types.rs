@@ -2621,6 +2621,7 @@ pub struct PayoutWebhookReference {
 #[derive(Debug, Clone)]
 pub struct RefundWebhookDetailsResponse {
     pub connector_refund_id: Option<String>,
+    pub merchant_transaction_id: Option<String>,
     pub status: common_enums::RefundStatus,
     pub connector_response_reference_id: Option<String>,
     pub error_code: Option<String>,
@@ -2779,7 +2780,7 @@ impl EventType {
     pub fn is_refund_event(&self) -> bool {
         matches!(
             self,
-            Self::RefundFailure | Self::RefundSuccess | Self::Refund
+            Self::RefundFailure | Self::RefundSuccess | Self::RefundProcessing | Self::Refund
         )
     }
 

@@ -8089,6 +8089,7 @@ pub fn generate_refund_sync_response(
                 connector_refund_id: response.connector_refund_id.clone(),
                 status: grpc_status as i32,
                 merchant_refund_id: Some(response.connector_refund_id.clone()),
+                merchant_transaction_id: None,
                 error: None,
                 refund_amount: None,
                 payment_amount: None,
@@ -8124,6 +8125,7 @@ pub fn generate_refund_sync_response(
                 connector_refund_id: String::new(),
                 status: status as i32,
                 merchant_refund_id: e.connector_transaction_id.clone(),
+                merchant_transaction_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
@@ -8804,6 +8806,7 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
             connector_refund_id: value.connector_refund_id.unwrap_or_default(),
             status: status.into(),
             merchant_refund_id: value.connector_response_reference_id,
+            merchant_transaction_id: value.merchant_transaction_id,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
@@ -9492,6 +9495,7 @@ pub fn generate_refund_response(
                 connector_refund_id: response.connector_refund_id,
                 status: grpc_status as i32,
                 merchant_refund_id: None,
+                merchant_transaction_id: None,
                 error: None,
                 refund_amount: None,
                 payment_amount: None,
@@ -9526,6 +9530,7 @@ pub fn generate_refund_response(
                 connector_refund_id: String::new(),
                 status: status as i32,
                 merchant_refund_id: None,
+                merchant_transaction_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {

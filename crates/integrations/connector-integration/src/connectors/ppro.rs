@@ -314,16 +314,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             None => (None, None),
         };
 
-        let refund_id = charge
-            .refund_id
-            .clone()
-            .unwrap_or_else(|| charge.payment_charge_id.clone());
-
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
-                connector_refund_id: Some(refund_id.clone()),
+                connector_refund_id: charge.refund_id.clone(),
+                merchant_transaction_id: charge.merchant_payment_charge_reference.clone(),
                 status,
-                connector_response_reference_id: Some(refund_id),
+                connector_response_reference_id: charge.merchant_refund_reference.clone(),
                 error_code,
                 error_message,
                 raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),

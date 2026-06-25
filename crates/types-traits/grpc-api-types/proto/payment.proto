@@ -2983,6 +2983,10 @@ message RefundResponse {
   // For refund-reverse, carries the underlying TSYS void status while the
   // user-facing `status` field remains `RefundSuccess`.
   optional SecretString state_metadata = 23;
+
+  // Merchant's reference for the original payment/transaction the refund
+  // belongs to
+  optional string merchant_transaction_id = 23;
 }
 
 // Request message for voiding/reversing a refund before settlement.

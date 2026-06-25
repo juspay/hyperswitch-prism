@@ -572,6 +572,7 @@ where
 #[serde(rename_all = "camelCase")]
 pub struct PproRefundRequest {
     pub amount: common_utils::MinorUnit,
+    pub merchant_refund_reference: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_reason: Option<PproRefundReason>,
 }
@@ -592,6 +593,7 @@ where
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             amount: item.router_data.request.minor_refund_amount,
+            merchant_refund_reference: item.router_data.request.refund_id.clone(),
             refund_reason: item
                 .router_data
                 .request
@@ -727,6 +729,8 @@ pub struct PproWebhookChargeData {
     pub failure: Option<PproFailure>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refund_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_refund_reference: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
