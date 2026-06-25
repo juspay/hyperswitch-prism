@@ -5601,9 +5601,13 @@ fn convert_metadata_to_merchant_defined_info(
 ) -> Option<Vec<utils::MerchantDefinedInformation>> {
     let mut iter = 1;
 
+    // Deserialize into a BTreeMap so metadata keys are emitted in sorted order,
+    // matching Hyperswitch's merchantDefinedInformation output (which is built
+    // from a BTreeMap) regardless of the incoming JSON's insertion order.
     let mut result: Vec<utils::MerchantDefinedInformation> = metadata
-        .and_then(|value| value.as_object().cloned())
-        .map(|map| {
+        .map(|value| {
+            let map: std::collections::BTreeMap<String, serde_json::Value> =
+                serde_json::from_value(value).unwrap_or_default();
             map.into_iter()
                 .map(|(key, value)| {
                     let mdi = utils::MerchantDefinedInformation {
@@ -5620,7 +5624,7 @@ fn convert_metadata_to_merchant_defined_info(
     if let Some(merchant_ref_id) = merchant_order_id {
         result.push(utils::MerchantDefinedInformation {
             key: iter,
-            value: format!("merchant_order_id={merchant_ref_id}"),
+            value: format!("merchant_order_reference_id={merchant_ref_id}"),
         });
     }
 
@@ -5846,5 +5850,36 @@ mod tests {
         let issuer = domain_types::utils::get_card_issuer("4242424242424242")
             .expect("Visa BIN should be recognized");
         assert_eq!(card_issuer_to_string(issuer), "001");
+    }
+
+    // Regression for shadow-validation diff (cybersource/capture): UCS previously
+    // preserved the JSON insertion order of metadata keys and labelled the trailing
+    // entry `merchant_order_id=`, whereas Hyperswitch sorts the keys (BTreeMap) and
+    // labels it `merchant_order_reference_id=`. Both sides must now agree.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn merchant_defined_info_is_sorted_and_uses_reference_id_label() {
+        // Insertion order here is `kind` before `brand` (as seen in prod).
+        let metadata = serde_json::json!({ "kind": "hourly", "brand": "flowbird" });
+        let result = convert_metadata_to_merchant_defined_info(
+            Some(metadata),
+            Some("376164644".to_string()),
+        )
+        .expect("non-empty merchantDefinedInformation");
+
+        let values: Vec<&str> = result.iter().map(|mdi| mdi.value.as_str()).collect();
+        assert_eq!(
+            values,
+            vec![
+                "brand=\"flowbird\"",
+                "kind=\"hourly\"",
+                "merchant_order_reference_id=376164644",
+            ]
+        );
+        // keys are sequential 1-based positions
+        assert_eq!(
+            result.iter().map(|mdi| mdi.key).collect::<Vec<u8>>(),
+            vec![1u8, 2, 3]
+        );
     }
 }
