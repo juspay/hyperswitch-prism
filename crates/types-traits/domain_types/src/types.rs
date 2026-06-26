@@ -14213,6 +14213,7 @@ impl<
                     })
                 })
                 .transpose()?,
+            webhook_url: value.webhook_url,
             browser_info: value
                 .browser_info
                 .map(BrowserInformation::foreign_try_from)

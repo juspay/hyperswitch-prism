@@ -3398,6 +3398,10 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Description
   optional string description = 14;
+
+  // Webhook URL used as the 3DS method notification URL (mirrors the native
+  // gateway's webhook_url so the embedded threeDSMethodNotificationURL matches)
+  optional string webhook_url = 15;
 }
 
 // Response message for pre-authentication step
