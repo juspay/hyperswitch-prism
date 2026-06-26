@@ -5360,7 +5360,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     None,
                     None,
                     Some(CybersourceAuthorizationOptions {
-                        initiator: None,
+                        // Mirror Hyperswitch: a ConnectorMandateId (stored-credential MIT)
+                        // charge is merchant-initiated, so emit the `initiator` block.
+                        initiator: Some(CybersourcePaymentInitiator {
+                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
+                            credential_stored_on_file: None,
+                            stored_credential_used: Some(true),
+                        }),
                         merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                             reason: None,
                             original_authorized_amount,
