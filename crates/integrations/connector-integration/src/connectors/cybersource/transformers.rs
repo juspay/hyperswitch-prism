@@ -5847,4 +5847,25 @@ mod tests {
             .expect("Visa BIN should be recognized");
         assert_eq!(card_issuer_to_string(issuer), "001");
     }
+
+    // Regression for issue #17186 (cybersource/authorize router.valueDiff:response.Err.code).
+    // On a 5xx, Cybersource returns a structured server-error body. The shadow UCS
+    // `get_5xx_error_response` parses it as `CybersourceServerErrorResponse` and maps
+    // `status` -> code / `message` -> message, matching the Direct gateway. Previously
+    // the generic 5xx handler emitted code="502" / message="bad_gateway", diverging from
+    // the Direct gateway's parsed `code="SERVER_ERROR"`.
+    #[test]
+    #[allow(clippy::expect_used)]
+    fn server_error_body_maps_status_to_code() {
+        // Verbatim cybersource HTTP 502 body from prod (req 019efa75-fc40-...).
+        let body = r#"{"id":"7823184971766759804889","submitTimeUtc":"2026-06-24T16:28:17Z","status":"SERVER_ERROR","reason":"SYSTEM_ERROR","message":"Error - General system failure."}"#;
+        let parsed: CybersourceServerErrorResponse =
+            serde_json::from_str(body).expect("server-error body should deserialize");
+        assert_eq!(parsed.status.as_deref(), Some("SERVER_ERROR"));
+        assert_eq!(
+            parsed.message.as_deref(),
+            Some("Error - General system failure.")
+        );
+        assert!(matches!(parsed.reason, Some(Reason::SystemError)));
+    }
 }

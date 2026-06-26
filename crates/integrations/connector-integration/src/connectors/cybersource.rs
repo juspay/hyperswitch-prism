@@ -607,6 +607,52 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}pts/v2/payments/", self.connector_base_url_payments(req)))
         }
+        fn get_5xx_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            // Cybersource returns a structured body on 5xx (e.g. HTTP 502
+            // `{"status":"SERVER_ERROR","reason":"SYSTEM_ERROR","message":"..."}`).
+            // Parse it so the shadow UCS `response.Err.{code,message}` mirror the Direct
+            // gateway (which maps `status` -> code) instead of the generic
+            // `bad_gateway` / HTTP-status discriminator. Falls back to the standard error
+            // handler when the body is not in the server-error shape.
+            let response: Result<transformers::CybersourceServerErrorResponse, _> =
+                res.response.parse_struct("CybersourceServerErrorResponse");
+            match response {
+                Ok(response) => {
+                    with_error_response_body!(event_builder, response);
+                    let attempt_status = match response.reason {
+                        Some(transformers::Reason::SystemError) => {
+                            Some(domain_types::router_data::FlowStatus::Payment(
+                                common_enums::AttemptStatus::Failure,
+                            ))
+                        }
+                        Some(transformers::Reason::ServerTimeout)
+                        | Some(transformers::Reason::ServiceTimeout)
+                        | None => None,
+                    };
+                    Ok(ErrorResponse {
+                        status_code: res.status_code,
+                        reason: response.status.clone(),
+                        code: response
+                            .status
+                            .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                        message: response
+                            .message
+                            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                        attempt_status,
+                        connector_transaction_id: None,
+                        network_advice_code: None,
+                        network_decline_code: None,
+                        network_error_message: None,
+                    })
+                }
+                Err(_) => self.build_error_response(res, event_builder, connector_config),
+            }
+        }
     }
 );
 
