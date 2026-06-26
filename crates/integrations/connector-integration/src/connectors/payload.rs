@@ -300,11 +300,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         Ok(ErrorResponse {
             status_code: res.status_code,
             code: response.error_type,
-            message: response.error_description,
-            reason: response
-                .details
-                .as_ref()
-                .map(|details_value| details_value.to_string()),
+            message: response.error_description.clone(),
+            reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
             network_advice_code: None,
@@ -765,3 +762,54 @@ macros::macro_connector_flow_status_impls!(
         ServerAuthenticationToken,
     ],
 );
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::expect_used)]
+mod error_response_tests {
+    use domain_types::{
+        payment_method_data::DefaultPCIHolder, router_data::ConnectorSpecificConfig,
+        router_response_types::Response,
+    };
+    use interfaces::api::ConnectorCommon;
+
+    use super::Payload;
+
+    // Regression for issue #17247 (payload / repeat_payment router.valueDiff:response.Err.reason).
+    // Payload returns a 400 decline as an error wrapper carrying `error_type` / `error_description`
+    // plus a `details` transaction object. Direct hyperswitch maps `reason = error_description`
+    // (payload.rs build_error_response). Prism previously mapped `reason = details.to_string()`,
+    // which surfaced the whole transaction blob and diverged from Direct. This asserts prism now
+    // mirrors Direct: reason == error_description.
+    #[test]
+    fn build_error_response_maps_reason_from_error_description() {
+        let decline_msg = "The card has been declined, contact card issuer for more information.";
+        let body = serde_json::json!({
+            "error_type": "TransactionDeclined",
+            "error_description": decline_msg,
+            "object": "error",
+            "details": {
+                "amount": 827.4,
+                "status": "declined",
+                "status_code": "general_decline",
+                "status_message": decline_msg,
+                "type": "payment"
+            }
+        });
+        let res = Response {
+            headers: None,
+            response: serde_json::to_vec(&body).unwrap().into(),
+            status_code: 400,
+        };
+
+        let connector = Payload::<DefaultPCIHolder>::new();
+        let err = connector
+            .build_error_response(res, None, &ConnectorSpecificConfig::NoKey)
+            .expect("payload error body should parse");
+
+        assert_eq!(err.status_code, 400);
+        assert_eq!(err.code, "TransactionDeclined");
+        assert_eq!(err.message, decline_msg);
+        // reason must mirror Direct (error_description), NOT the stringified `details` blob.
+        assert_eq!(err.reason.as_deref(), Some(decline_msg));
+    }
+}
