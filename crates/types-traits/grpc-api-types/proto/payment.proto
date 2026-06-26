@@ -3329,6 +3329,9 @@ message RecurringPaymentServiceChargeResponse {
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 15;
+
+  // Split payment / charge response data (e.g. Stripe Connect charge details)
+  optional ConnectorSplitResponseData splits = 16;
 }
 
 // Request message for a mandate revoke operation

@@ -13033,6 +13033,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                 mandate_reference,
                 status_code,
                 incremental_authorization_allowed,
+                splits,
                 ..
             } => Ok(
                 grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
@@ -13064,6 +13065,9 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     connector_response,
                     captured_amount: router_data_v2.resource_common_data.amount_captured,
                     incremental_authorization_allowed,
+                    splits: splits.map(|s| {
+                        grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(s)
+                    }),
                 },
             ),
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -13120,6 +13124,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     connector_response,
                     captured_amount: None,
                     incremental_authorization_allowed: None,
+                    splits: None,
                 },
             )
         }
