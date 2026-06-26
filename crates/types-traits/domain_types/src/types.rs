@@ -7110,7 +7110,7 @@ pub fn generate_payment_sync_response(
             PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
-                connector_metadata: _,
+                connector_metadata,
                 network_txn_id,
                 network_txn_link_id,
                 connector_response_reference_id,
@@ -7178,7 +7178,9 @@ pub fn generate_payment_sync_response(
                         .connector_customer
                         .clone(),
                     merchant_order_id: None,
-                    metadata: None,
+                    // Carry connector_metadata through the PSync response so the router-data
+                    // shape matches native (native populates connector_metadata on sync).
+                    metadata: convert_connector_metadata_to_secret_string(connector_metadata),
                     status_code: status_code as u32,
                     raw_connector_response,
                     response_headers: router_data_v2
