@@ -1,8 +1,7 @@
 use std::fmt::Debug;
 
 use common_enums::{
-    AttemptStatus, CaptureMethod, CardNetwork, FutureUsage, MitCategory, PaymentChannel,
-    RefundStatus,
+    AttemptStatus, CardNetwork, FutureUsage, MitCategory, PaymentChannel, RefundStatus,
 };
 use common_utils::types::{MinorUnit, StringMajorUnit};
 use domain_types::{
@@ -29,7 +28,7 @@ use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
-use super::{super::macros::GetSoapXml, TsysTransitRouterData};
+use super::{super::macros::GetSoapXml, profile::TxProfile, rules, TsysTransitRouterData};
 use crate::types::ResponseRouterData;
 
 #[derive(Debug, Serialize, Clone, Copy)]
@@ -690,12 +689,30 @@ pub struct TsysTransitCardAuthenticationRequest {
     pub card_number: Secret<String>,
     #[serde(rename = "expirationDate")]
     pub expiration_date: Secret<String>,
+    // TSYS cert: cvv2 must be sent on card authentication when the
+    // merchant collected one. The XSD requires it adjacent to
+    // expirationDate (early in the body, like Sale/Auth).
+    #[serde(rename = "cvv2", skip_serializing_if = "Option::is_none")]
+    pub cvv2: Option<Secret<String>>,
     #[serde(rename = "addressLine1")]
     pub address_line1: Secret<String>,
     #[serde(rename = "zip")]
     pub zip: Secret<String>,
     #[serde(rename = "externalReferenceID")]
     pub external_reference_id: String,
+    // TSYS cert: cardOnFile must be sent on Visa CIT-setup card auth
+    // (storing credential for future MIT). Schema slot matches Sale —
+    // sits between externalReferenceID and terminalCapability.
+    #[serde(rename = "cardOnFile", skip_serializing_if = "Option::is_none")]
+    pub card_on_file: Option<TsysTransitCardOnFile>,
+    #[serde(rename = "citStatusIndicator", skip_serializing_if = "Option::is_none")]
+    pub cit_status_indicator: Option<TsysTransitMcCitStatusIndicator>,
+    // TSYS cert: authorizationIndicator missing on MC card auth.
+    #[serde(
+        rename = "authorizationIndicator",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub authorization_indicator: Option<TsysTransitAuthorizationIndicator>,
     #[serde(rename = "firstName", skip_serializing_if = "Option::is_none")]
     pub first_name: Option<Secret<String>>,
     #[serde(rename = "middleName", skip_serializing_if = "Option::is_none")]
@@ -728,12 +745,14 @@ pub struct TsysTransitCardAuthenticationRequest {
     pub cardholder_authentication_entity: TsysTransitCardholderAuthenticationEntity,
     #[serde(rename = "cardDataOutputCapability")]
     pub card_data_output_capability: TsysTransitCardDataOutputCapability,
+    // TSYS' SBX XSD requires mPosAcceptanceDeviceType as the LAST
+    // element on CardAuthentication. The cert csv asked us to remove
+    // it, but removing it alone trips a different XSD complaint
+    // (F9901). Keep "0" as a placeholder; downstream fields
+    // (cardOnFile, citStatusIndicator, authorizationIndicator) all
+    // moved earlier in the body to match Sale's schema order.
     #[serde(rename = "mPosAcceptanceDeviceType")]
     pub m_pos_acceptance_device_type: String,
-    #[serde(rename = "cardOnFile", skip_serializing_if = "Option::is_none")]
-    pub card_on_file: Option<TsysTransitCardOnFile>,
-    #[serde(rename = "citStatusIndicator", skip_serializing_if = "Option::is_none")]
-    pub cit_status_indicator: Option<TsysTransitMcCitStatusIndicator>,
 }
 
 impl GetSoapXml for TsysTransitCardAuthenticationRequest {
@@ -943,6 +962,16 @@ struct TsysTransitMerchantMetadataInner {
     terminal_data: Option<TsysTransitTerminalDataOverrides>,
     #[serde(default)]
     commercial_card: Option<TsysTransitCommercialCardMetadata>,
+    /// Channel override for the RepeatPayment / MIT-via-NTID flow only.
+    /// The `RecurringPaymentServiceChargeRequest` proto does NOT carry
+    /// `payment_channel`, so HS' MIT execution loses the MOTO-vs-Ecom
+    /// signal. Setting `payment_channel` in this merchant metadata block
+    /// (alongside `terminal_data` / `commercial_card`) lets the caller
+    /// inject that signal back on the MIT request. Accepts the strings
+    /// `"telephone_order"`, `"mail_order"`, `"ecommerce"`. Ignored when
+    /// the flow already carries an explicit channel.
+    #[serde(default)]
+    payment_channel: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize)]
@@ -1082,6 +1111,10 @@ struct ThreeDsContext {
 
 #[derive(Debug, Default, Clone)]
 struct CardOnFileContext {
+    // `card_on_file` is now decided by `rules::cof_mit::card_on_file`
+    // based on TxProfile; this struct only carries the raw mandate-
+    // derived values that the assembler still needs.
+    #[allow(dead_code)]
     card_on_file: Option<TsysTransitCardOnFile>,
     mit_block: Option<TsysTransitMit>,
     previous_network_transaction_id: Option<String>,
@@ -1747,13 +1780,15 @@ fn compute_commercial_card_context<
         TsysTransitCommercialCardLevel::Level2
     ) && is_amex
     {
+        // TSYS cert: shipToZip / destinationCountryCode are Visa/MC L3-only,
+        // they are NOT required on AMEX L2.  supplierReferenceNumber,
+        // customerRefID, chargeDescriptor remain AMEX L2 essentials.
         for (field_name, is_missing) in [
             (
                 "supplierReferenceNumber",
                 supplier_reference_number.is_none(),
             ),
             ("customerRefID", customer_ref_id.is_none()),
-            ("shipToZip", ship_to_zip.is_none()),
             ("chargeDescriptor", charge_descriptor.is_none()),
         ] {
             if is_missing {
@@ -1938,139 +1973,69 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             card_network.as_ref(),
         )?;
         let three_ds_context = compute_three_ds_context(router_data, card_network.as_ref());
-        let channel = router_data.request.payment_channel.clone();
-        let card_data_source = match channel {
-            Some(PaymentChannel::TelephoneOrder) => TsysTransitCardDataSource::Phone,
-            Some(PaymentChannel::MailOrder) => TsysTransitCardDataSource::Mail,
-            Some(PaymentChannel::Ecommerce) | None => {
-                if recurring_context.enabled {
-                    TsysTransitCardDataSource::Mail
-                } else {
-                    TsysTransitCardDataSource::Internet
-                }
-            }
-        };
-        let is_manual_capture = matches!(
-            router_data.request.capture_method,
-            Some(CaptureMethod::Manual) | Some(CaptureMethod::ManualMultiple)
-        );
 
-        let authorization_indicator = match card_network {
-            Some(CardNetwork::Mastercard) => {
-                if recurring_context.enabled && is_manual_capture {
-                    None
-                } else {
-                    Some(if is_manual_capture {
-                        TsysTransitAuthorizationIndicator::Preauth
-                    } else {
-                        TsysTransitAuthorizationIndicator::Final
-                    })
-                }
-            }
-            Some(CardNetwork::AmericanExpress) => Some(if is_manual_capture {
-                TsysTransitAuthorizationIndicator::Preauth
-            } else {
-                TsysTransitAuthorizationIndicator::Final
-            }),
-            _ => None,
-        };
-        let (registered_user_indicator, last_registered_change_date) = if recurring_context.enabled
-        {
-            (None, None)
-        } else {
-            match card_network {
-                Some(CardNetwork::Discover)
-                | Some(CardNetwork::JCB)
-                | Some(CardNetwork::DinersClub)
-                | Some(CardNetwork::UnionPay) => (
-                    Some(TsysTransitRegisteredUserIndicator::No),
-                    Some("00/00/0000".to_string()),
-                ),
-                _ => (None, None),
-            }
-        };
+        // ── Profile + terminalData via rules ─────────────────────────
+        // TxProfile collapses the (channel, card_family, cof_phase,
+        // commercial_level, three_ds, capture) dimensions every cert
+        // pushback rule keys on. Derived once, reused below.
+        let profile = TxProfile::derive_for_authorize(router_data);
+        let terminal_data = rules::terminal_data::terminal_data(&profile);
+        let is_manual_capture = profile.capture.is_manual();
+        let cvv_present_for_authorize =
+            card.map(|c| !c.card_cvc.peek().is_empty()).unwrap_or(false);
+
+        // ── terminalData fields (merchant overrides win) ─────────────
+        let card_data_source = terminal_data.card_data_source.clone();
         let terminal_capability = terminal_overrides
             .terminal_capability
-            .unwrap_or(TsysTransitTerminalCapability::KeyedEntryOnly);
-        let default_terminal_operating_environment = if recurring_context.enabled {
-            match card_network {
-                Some(CardNetwork::Mastercard) => {
-                    TsysTransitTerminalOperatingEnvironment::NoTerminal
-                }
-                _ => TsysTransitTerminalOperatingEnvironment::OffMerchantPremisesUnattended,
-            }
-        } else {
-            TsysTransitTerminalOperatingEnvironment::NoTerminal
-        };
+            .unwrap_or(terminal_data.terminal_capability.clone());
         let terminal_operating_environment = terminal_overrides
             .terminal_operating_environment
-            .unwrap_or(default_terminal_operating_environment);
+            .unwrap_or(terminal_data.terminal_operating_environment.clone());
         let cardholder_authentication_method = terminal_overrides
             .cardholder_authentication_method
-            .unwrap_or(TsysTransitCardholderAuthenticationMethod::NotAuthenticated);
+            .unwrap_or(terminal_data.cardholder_authentication_method.clone());
         let terminal_authentication_capability = terminal_overrides
             .terminal_authentication_capability
-            .unwrap_or(TsysTransitTerminalAuthenticationCapability::NoCapability);
-        let default_terminal_output_capability = if recurring_context.enabled {
-            TsysTransitTerminalOutputCapability::DisplayOnly
-        } else {
-            TsysTransitTerminalOutputCapability::None
-        };
+            .unwrap_or(terminal_data.terminal_authentication_capability.clone());
         let terminal_output_capability = terminal_overrides
             .terminal_output_capability
-            .unwrap_or(default_terminal_output_capability);
+            .unwrap_or(terminal_data.terminal_output_capability.clone());
         let max_pin_length = terminal_overrides
             .max_pin_length
-            .unwrap_or(TsysTransitMaxPinLength::NotSupported);
+            .unwrap_or(terminal_data.max_pin_length.clone());
         let terminal_card_capture_capability = terminal_overrides
             .terminal_card_capture_capability
-            .unwrap_or(TsysTransitTerminalCardCaptureCapability::NoCapability);
+            .unwrap_or(terminal_data.terminal_card_capture_capability.clone());
         let cardholder_present_detail = terminal_overrides
             .cardholder_present_detail
             .unwrap_or_else(|| {
-                if recurring_context.enabled {
-                    if recurring_context.billing_type.is_some() {
-                        TsysTransitCardholderPresentDetail::CardholderNotPresentInstallmentTransaction
-                    } else {
-                        TsysTransitCardholderPresentDetail::CardholderNotPresentRecurringTransaction
-                    }
-                } else {
-                    match channel {
-                        Some(PaymentChannel::TelephoneOrder) => {
-                            TsysTransitCardholderPresentDetail::CardholderNotPresentPhoneTransaction
-                        }
-                        Some(PaymentChannel::MailOrder) => {
-                            TsysTransitCardholderPresentDetail::CardholderNotPresentMailTransaction
-                        }
-                        _ => TsysTransitCardholderPresentDetail::CardholderNotPresentElectronicCommerce,
-                    }
-                }
+                rules::cardholder::cardholder_present_detail(&profile, &terminal_data)
             });
         let card_present_detail = terminal_overrides
             .card_present_detail
             .unwrap_or(TsysTransitCardPresentDetail::CardNotPresent);
-        let is_stored_credential_flow =
-            !matches!(mandate_dispatch, MandateDispatch::None) || is_cit_setup;
-        let default_card_data_input_mode = if recurring_context.enabled || is_stored_credential_flow
-        {
-            TsysTransitCardDataInputMode::MerchantInitiatedTransactionCardCredentialStoredOnFile
-        } else {
-            match channel {
-                Some(PaymentChannel::Ecommerce) | None => {
-                    TsysTransitCardDataInputMode::PanEntryElectronicCommerceIncludingRemoteChip
-                }
-                _ => TsysTransitCardDataInputMode::KeyEnteredInput,
-            }
-        };
-        let card_data_input_mode = terminal_overrides
-            .card_data_input_mode
-            .unwrap_or(default_card_data_input_mode);
+        let card_data_input_mode = terminal_overrides.card_data_input_mode.unwrap_or_else(|| {
+            rules::card_input_mode::card_data_input_mode(
+                &profile,
+                &terminal_data,
+                cvv_present_for_authorize,
+            )
+        });
         let cardholder_authentication_entity = terminal_overrides
             .cardholder_authentication_entity
-            .unwrap_or(TsysTransitCardholderAuthenticationEntity::NotAuthenticated);
+            .unwrap_or(terminal_data.cardholder_authentication_entity.clone());
         let card_data_output_capability = terminal_overrides
             .card_data_output_capability
-            .unwrap_or(TsysTransitCardDataOutputCapability::None);
+            .unwrap_or(terminal_data.card_data_output_capability.clone());
+
+        // ── Network indicators via rules ─────────────────────────────
+        let authorization_indicator = rules::network_indicators::authorization_indicator(&profile);
+        let (registered_user_indicator, last_registered_change_date) =
+            match rules::network_indicators::registered_user(&profile) {
+                Some((ind, date)) => (Some(ind), Some(date)),
+                None => (None, None),
+            };
         let (card_number, expiration_date, cvv2_opt, customer_code_opt, wallet_details_opt) =
             if let MandateDispatch::Vault {
                 customer_code,
@@ -2128,6 +2093,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }
                 .into());
             };
+        // build_card_on_file_context still produces NTID / vault wire
+        // values (cardOnFileTransactionIdentifier, previous_network_txn_id);
+        // the cardOnFile flag and mit_block are decided by rules now.
         let card_on_file_context = build_card_on_file_context(
             &mandate_dispatch,
             recurring_context.enabled,
@@ -2141,49 +2109,37 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data.request.currency,
         )?;
 
-        let cof_mit_status_indicator = match (
-            card_network.as_ref(),
-            router_data.request.mit_category.as_ref(),
-            &mandate_dispatch,
-        ) {
-            (
-                Some(CardNetwork::Mastercard),
-                Some(MitCategory::Unscheduled) | Some(MitCategory::Resubmission) | None,
-                MandateDispatch::Ntid { .. } | MandateDispatch::Vault { .. },
-            ) => Some(TsysTransitMitIndicator::M101),
-            (
-                Some(CardNetwork::Discover),
-                Some(MitCategory::Unscheduled) | Some(MitCategory::Resubmission),
-                MandateDispatch::Ntid { .. } | MandateDispatch::Vault { .. },
-            ) => Some(TsysTransitMitIndicator::U),
-            _ => None,
-        };
-
-        let (cit_status_indicator, mit_status_indicator) = match &mandate_dispatch {
-            MandateDispatch::Ntid { .. } | MandateDispatch::Vault { .. } => (
-                None,
-                recurring_context
-                    .mit_status_indicator
-                    .or(cof_mit_status_indicator),
-            ),
-            MandateDispatch::None if is_cit_setup => (
-                recurring_context.mc_cit_status_indicator.or_else(|| {
-                    matches!(card_network.as_ref(), Some(CardNetwork::Mastercard))
-                        .then_some(TsysTransitMcCitStatusIndicator::C101)
-                }),
-                None,
-            ),
-            MandateDispatch::None => (None, None),
-        };
-
-        let partial_auth_support = if recurring_context.enabled
-            || !matches!(mandate_dispatch, MandateDispatch::None)
-            || commercial_card_context.commercial_card_level.is_some()
-        {
-            None
+        // ── COF / MIT signaling via rules ────────────────────────────
+        let card_on_file_from_rule = rules::cof_mit::card_on_file(&profile);
+        // Network-specific MC (M102/M103/M104, C102/C103) values come
+        // from the recurring metadata (subscription/installment subtype);
+        // the rules give us the generic default. Prefer the metadata
+        // value when present.
+        let mit_status_indicator = recurring_context
+            .mit_status_indicator
+            .or_else(|| rules::cof_mit::mit_status_indicator(&profile));
+        let cit_status_indicator = recurring_context
+            .mc_cit_status_indicator
+            .or_else(|| rules::cof_mit::cit_status_indicator(&profile));
+        // CIT-using-stored must NOT carry cardOnFileTransactionIdentifier
+        // (MIT-only tag).
+        let card_on_file_transaction_identifier =
+            if rules::cof_mit::should_send_card_on_file_transaction_identifier(&profile) {
+                card_on_file_context
+                    .card_on_file_transaction_identifier
+                    .clone()
+            } else {
+                None
+            };
+        // The `mit` block on the body comes from build_card_on_file_context
+        // for vault flows; rules decide whether to send it.
+        let mit_block_for_body = if profile.cof_phase.is_mit() {
+            card_on_file_context.mit_block.clone()
         } else {
-            Some("YES".to_string())
+            None
         };
+
+        let partial_auth_support = rules::network_indicators::partial_auth_support(&profile);
 
         let body = TsysTransitAuthorizeBody {
             device_id: auth.device_id,
@@ -2204,34 +2160,53 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             eci_indicator: three_ds_context.eci_indicator,
             customer_code: customer_code_opt,
             wallet_details: wallet_details_opt,
-            card_on_file_transaction_identifier: card_on_file_context
-                .card_on_file_transaction_identifier,
+            card_on_file_transaction_identifier,
             previous_network_transaction_id: card_on_file_context.previous_network_transaction_id,
             cit_status_indicator,
             mit_status_indicator,
             address_line1,
             zip,
-            external_reference_id: router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            // TSYS cert: externalReferenceID is alphanumeric-only; strip
+            // underscores and any other non-alphanumeric/space chars.
+            external_reference_id: sanitize_alphanumeric_space(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+                40,
+            ),
             product_details: commercial_card_context.product_details,
             commercial_card_level: commercial_card_context.commercial_card_level,
-            purchase_order: commercial_card_context.purchase_order,
+            // Per-field commercial gating from rules::commercial.
+            purchase_order: rules::commercial::purchase_order(
+                &profile,
+                commercial_card_context.purchase_order,
+            ),
             charge_descriptor: commercial_card_context.charge_descriptor,
             charge_descriptor_2: commercial_card_context.charge_descriptor_2,
             charge_descriptor_3: commercial_card_context.charge_descriptor_3,
             charge_descriptor_4: commercial_card_context.charge_descriptor_4,
             customer_vat_number: commercial_card_context.customer_vat_number,
-            customer_ref_id: commercial_card_context.customer_ref_id,
-            supplier_reference_number: commercial_card_context.supplier_reference_number,
+            customer_ref_id: rules::commercial::customer_ref_id(
+                &profile,
+                commercial_card_context.customer_ref_id,
+            ),
+            supplier_reference_number: rules::commercial::supplier_reference_number(
+                &profile,
+                commercial_card_context.supplier_reference_number,
+            ),
             order_date: commercial_card_context.order_date,
             summary_commodity_code: commercial_card_context.summary_commodity_code,
             vat_invoice: commercial_card_context.vat_invoice,
             ship_from_zip: commercial_card_context.ship_from_zip,
-            ship_to_zip: commercial_card_context.ship_to_zip,
-            destination_country_code: commercial_card_context.destination_country_code,
-            card_on_file: card_on_file_context.card_on_file,
+            ship_to_zip: rules::commercial::ship_to_zip(
+                &profile,
+                commercial_card_context.ship_to_zip,
+            ),
+            destination_country_code: rules::commercial::destination_country_code(
+                &profile,
+                commercial_card_context.destination_country_code,
+            ),
+            card_on_file: card_on_file_from_rule,
             partial_auth_support,
             terminal_capability,
             terminal_operating_environment,
@@ -2254,7 +2229,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             registered_user_indicator,
             last_registered_change_date,
             authorization_indicator,
-            mit: card_on_file_context.mit_block,
+            mit: mit_block_for_body,
         };
 
         Ok(if is_manual_capture {
@@ -3431,17 +3406,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 context: Default::default(),
             })
         })?;
+        // TSYS cert: firstName / lastName are Visa-only on card
+        // authentication ("firstName and lastName tags must not be sent
+        // on the 0.00 Mastercard / AMEX card authentication in step 3 as
+        // these are Visa card authentication only tags").
         let (cardholder_first_name, cardholder_last_name) =
             split_domain_full_name(card.card_holder_name.clone());
-        let first_name = billing
-            .and_then(|a| a.first_name.clone())
-            .or(cardholder_first_name)
-            .map(|name| Secret::new(sanitize_alphanumeric_space(name.peek(), 25)));
+        let is_visa_card_auth = matches!(card.card_network, Some(CardNetwork::Visa));
+        let first_name = if is_visa_card_auth {
+            billing
+                .and_then(|a| a.first_name.clone())
+                .or(cardholder_first_name)
+                .map(|name| Secret::new(sanitize_alphanumeric_space(name.peek(), 25)))
+        } else {
+            None
+        };
         let derived_last_name = billing
             .and_then(|a| a.last_name.clone())
             .or(cardholder_last_name)
             .map(|name| Secret::new(sanitize_alphanumeric_space(name.peek(), 25)));
-        let last_name = if matches!(card.card_network, Some(CardNetwork::Visa)) {
+        let last_name = if is_visa_card_auth {
             Some(derived_last_name.ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
                     field_name: "billing.address.last_name required for Visa CardAuthentication Account Name Inquiry",
@@ -3449,15 +3433,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })
             })?)
         } else {
-            derived_last_name
+            None
         };
 
-        let channel = router_data.request.payment_channel.clone();
-        let card_data_source = match channel {
-            Some(PaymentChannel::TelephoneOrder) => TsysTransitCardDataSource::Phone,
-            Some(PaymentChannel::MailOrder) => TsysTransitCardDataSource::Mail,
-            Some(PaymentChannel::Ecommerce) | None => TsysTransitCardDataSource::Internet,
-        };
         let merchant_metadata = match router_data.request.metadata.as_ref() {
             Some(meta) => {
                 serde_json::from_value::<TsysTransitMerchantMetadata>(meta.clone().expose())
@@ -3470,83 +3448,66 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
         let merchant_inner = merchant_metadata.into_inner();
         let terminal_overrides = merchant_inner.terminal_data.unwrap_or_default();
-        let card_network = card.card_network.clone();
-        let recurring_context = compute_recurring_context(
-            router_data.request.mit_category.clone(),
-            None,
-            card_network.as_ref(),
-        )?;
-        let cit_status_indicator = if matches!(card_network, Some(CardNetwork::Mastercard)) {
-            recurring_context
-                .mc_cit_status_indicator
-                .or(Some(TsysTransitMcCitStatusIndicator::C101))
-        } else {
-            None
-        };
 
+        // ── Profile + terminalData via rules ─────────────────────────
+        let profile = TxProfile::derive_for_card_authentication(router_data);
+        let terminal_data = rules::terminal_data::terminal_data(&profile);
+        let cvv_present = !card.card_cvc.peek().is_empty();
+
+        // ── terminalData fields (merchant overrides win) ─────────────
+        let card_data_source = terminal_data.card_data_source.clone();
         let terminal_capability = terminal_overrides
             .terminal_capability
-            .unwrap_or(TsysTransitTerminalCapability::KeyedEntryOnly);
+            .unwrap_or(terminal_data.terminal_capability.clone());
         let terminal_operating_environment = terminal_overrides
             .terminal_operating_environment
-            .unwrap_or(TsysTransitTerminalOperatingEnvironment::NoTerminal);
+            .unwrap_or(terminal_data.terminal_operating_environment.clone());
         let cardholder_authentication_method = terminal_overrides
             .cardholder_authentication_method
-            .unwrap_or(TsysTransitCardholderAuthenticationMethod::NotAuthenticated);
+            .unwrap_or(terminal_data.cardholder_authentication_method.clone());
         let terminal_authentication_capability = terminal_overrides
             .terminal_authentication_capability
-            .unwrap_or(TsysTransitTerminalAuthenticationCapability::NoCapability);
+            .unwrap_or(terminal_data.terminal_authentication_capability.clone());
         let terminal_output_capability = terminal_overrides
             .terminal_output_capability
-            .unwrap_or(TsysTransitTerminalOutputCapability::None);
+            .unwrap_or(terminal_data.terminal_output_capability.clone());
         let max_pin_length = terminal_overrides
             .max_pin_length
-            .unwrap_or(TsysTransitMaxPinLength::NotSupported);
+            .unwrap_or(terminal_data.max_pin_length.clone());
         let terminal_card_capture_capability = terminal_overrides
             .terminal_card_capture_capability
-            .unwrap_or(TsysTransitTerminalCardCaptureCapability::NoCapability);
+            .unwrap_or(terminal_data.terminal_card_capture_capability.clone());
         let cardholder_present_detail = terminal_overrides
             .cardholder_present_detail
             .unwrap_or_else(|| {
-                if recurring_context.enabled
-                    && matches!(card_network, Some(CardNetwork::Mastercard))
-                {
-                    return TsysTransitCardholderPresentDetail::CardholderNotPresentRecurringTransaction;
-                }
-                match channel {
-                    Some(PaymentChannel::TelephoneOrder) => {
-                        TsysTransitCardholderPresentDetail::CardholderNotPresentPhoneTransaction
-                    }
-                    Some(PaymentChannel::MailOrder) => {
-                        TsysTransitCardholderPresentDetail::CardholderNotPresentMailTransaction
-                    }
-                    _ => TsysTransitCardholderPresentDetail::CardholderNotPresentElectronicCommerce,
-                }
+                rules::cardholder::cardholder_present_detail(&profile, &terminal_data)
             });
         let card_present_detail = terminal_overrides
             .card_present_detail
             .unwrap_or(TsysTransitCardPresentDetail::CardNotPresent);
-        let is_cit_setup = router_data.request.setup_future_usage == Some(FutureUsage::OffSession)
-            || router_data.request.off_session == Some(true);
-        let default_card_data_input_mode = if is_cit_setup {
-            TsysTransitCardDataInputMode::MerchantInitiatedTransactionCardCredentialStoredOnFile
-        } else {
-            match channel {
-                Some(PaymentChannel::Ecommerce) | None => {
-                    TsysTransitCardDataInputMode::PanEntryElectronicCommerceIncludingRemoteChip
-                }
-                _ => TsysTransitCardDataInputMode::KeyEnteredInput,
-            }
-        };
-        let card_data_input_mode = terminal_overrides
-            .card_data_input_mode
-            .unwrap_or(default_card_data_input_mode);
+        let card_data_input_mode = terminal_overrides.card_data_input_mode.unwrap_or_else(|| {
+            rules::card_input_mode::card_data_input_mode(&profile, &terminal_data, cvv_present)
+        });
         let cardholder_authentication_entity = terminal_overrides
             .cardholder_authentication_entity
-            .unwrap_or(TsysTransitCardholderAuthenticationEntity::NotAuthenticated);
+            .unwrap_or(terminal_data.cardholder_authentication_entity.clone());
         let card_data_output_capability = terminal_overrides
             .card_data_output_capability
-            .unwrap_or(TsysTransitCardDataOutputCapability::None);
+            .unwrap_or(terminal_data.card_data_output_capability.clone());
+
+        // ── Per-tx fields via rules ──────────────────────────────────
+        // TSYS cert: cvv2 must be sent on card authentication when the
+        // merchant collected one.
+        let cvv2 = cvv_present.then(|| card.card_cvc.clone());
+        // TSYS cert: authorizationIndicator must be sent on Mastercard
+        // card authentications in step 3 (Final since card auth is a
+        // self-contained 0.00 probe).
+        let authorization_indicator =
+            rules::network_indicators::authorization_indicator_for_card_auth(&profile);
+        // TSYS cert (MOTO step 5): cardOnFile=Y on Visa CIT-setup card
+        // authentications used to store credentials for future payments.
+        let card_on_file = rules::cof_mit::card_on_file(&profile);
+        let cit_status_indicator = rules::cof_mit::cit_status_indicator(&profile);
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3554,12 +3515,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             card_data_source,
             card_number: Secret::new(card.card_number.peek().to_string()),
             expiration_date: format_expiration_date(card),
-            address_line1,
+            cvv2,
+            address_line1: address_line1.clone(),
             zip,
-            external_reference_id: router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            // TSYS cert: externalReferenceID is alphanumeric only; strip
+            // underscores and any other non-alphanumeric/space chars.
+            external_reference_id: sanitize_alphanumeric_space(
+                &router_data
+                    .resource_common_data
+                    .connector_request_reference_id,
+                40,
+            ),
             first_name,
             middle_name: None,
             last_name,
@@ -3576,8 +3542,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             card_data_input_mode,
             cardholder_authentication_entity,
             card_data_output_capability,
+            // mPos must be the LAST element on CardAuthentication per
+            // the SBX XSD; downstream fields (cardOnFile, etc.) live
+            // earlier in the struct now.
             m_pos_acceptance_device_type: "0".to_string(),
-            card_on_file: None,
+            authorization_indicator,
+            card_on_file,
             cit_status_indicator,
         })
     }
@@ -3684,6 +3654,25 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         mandate_reference_id: Some(req.mandate_reference.clone()),
     };
 
+    // The RecurringPaymentServiceChargeRequest proto doesn't carry
+    // payment_channel — recover it from the TSYS merchant metadata's
+    // optional `payment_channel` override so MOTO MIT executions still
+    // produce CARDHOLDER_NOT_PRESENT_PHONE_TRANSACTION etc. instead of
+    // the e-com default.
+    let payment_channel_from_metadata = req
+        .metadata
+        .as_ref()
+        .and_then(|m| {
+            serde_json::from_value::<TsysTransitMerchantMetadata>(m.clone().expose()).ok()
+        })
+        .and_then(|m| m.into_inner().payment_channel)
+        .and_then(|s| match s.to_ascii_lowercase().as_str() {
+            "telephone_order" | "phone" => Some(PaymentChannel::TelephoneOrder),
+            "mail_order" | "mail" => Some(PaymentChannel::MailOrder),
+            "ecommerce" | "internet" => Some(PaymentChannel::Ecommerce),
+            _ => None,
+        });
+
     PaymentsAuthorizeData {
         payment_method_data: req.payment_method_data.clone(),
         amount: req.minor_amount,
@@ -3728,7 +3717,7 @@ fn repeat_payment_data_to_authorize<T: PaymentMethodDataTypes>(
         setup_mandate_details: None,
         connector_feature_data: req.connector_feature_data.clone(),
         connector_testing_data: req.connector_testing_data.clone(),
-        payment_channel: None,
+        payment_channel: payment_channel_from_metadata,
         enable_partial_authorization: req.enable_partial_authorization,
         locale: req.locale.clone(),
         redirect_response: None,
