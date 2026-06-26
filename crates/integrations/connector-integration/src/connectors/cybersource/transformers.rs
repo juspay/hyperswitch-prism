@@ -5848,12 +5848,14 @@ mod tests {
         assert_eq!(card_issuer_to_string(issuer), "001");
     }
 
-    // Regression for issue #17186 (cybersource/authorize router.valueDiff:response.Err.code).
+    // Regression for the cybersource/authorize 5xx server-error family:
+    //   #17186 response.Err.code, #17187 response.Err.message, #17188 response.Err.reason.
     // On a 5xx, Cybersource returns a structured server-error body. The shadow UCS
     // `get_5xx_error_response` parses it as `CybersourceServerErrorResponse` and maps
-    // `status` -> code / `message` -> message, matching the Direct gateway. Previously
-    // the generic 5xx handler emitted code="502" / message="bad_gateway", diverging from
-    // the Direct gateway's parsed `code="SERVER_ERROR"`.
+    // `status` -> code, `message` -> message, `status` -> reason, matching the Direct
+    // gateway exactly (which also sets `reason = response.status.clone()`). Previously the
+    // generic 5xx handler emitted code="502" / message="bad_gateway" and stuffed the raw
+    // body into reason, diverging from the Direct gateway's parsed code/reason="SERVER_ERROR".
     #[test]
     #[allow(clippy::expect_used)]
     fn server_error_body_maps_status_to_code() {
