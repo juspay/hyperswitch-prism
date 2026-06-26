@@ -274,6 +274,8 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             payment_method_type: item.payment_method_type,
             split_payments: item.split_payments.clone(),
+            // Not threaded on the composite (bundled-request) path.
+            connector_mandate_request_reference_id: None,
         }
     }
 }
