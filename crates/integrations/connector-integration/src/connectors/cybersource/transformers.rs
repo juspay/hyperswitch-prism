@@ -5620,7 +5620,7 @@ fn convert_metadata_to_merchant_defined_info(
     if let Some(merchant_ref_id) = merchant_order_id {
         result.push(utils::MerchantDefinedInformation {
             key: iter,
-            value: format!("merchant_order_id={merchant_ref_id}"),
+            value: format!("merchant_order_reference_id={merchant_ref_id}"),
         });
     }
 
