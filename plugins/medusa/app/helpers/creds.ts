@@ -93,6 +93,15 @@ export function transformMollieConfig(raw: any) {
   }
 }
 
+// PayU uses BodyKey auth: api_key (merchant key) + api_secret (merchant salt).
+export function transformPayuConfig(raw: any) {
+  return {
+    apiKey: wrapSecret(raw.api_key)!,
+    apiSecret: wrapSecret(raw.api_secret)!,
+    ...(raw.base_url ? { baseUrl: raw.base_url } : {}),
+  }
+}
+
 /**
  * Builds the connector→config map the app server expects (same shape as
  * app/run.ts loadCredentials()), including per-connector webhookSecret sourced
@@ -138,6 +147,14 @@ export function buildServerCredentials(raw: RawCreds | null): Record<string, any
 
   if (raw.mollie?.api_key) {
     creds.mollie = transformMollieConfig(raw.mollie)
+  }
+
+  if (raw.payu?.api_key && raw.payu?.api_secret) {
+    creds.payu = {
+      ...transformPayuConfig(raw.payu),
+      // URL the shopper returns to after the UPI/hosted-page redirect.
+      returnUrl: raw.payu.return_url ?? "http://localhost:3000/return",
+    }
   }
 
   const cybersource = Array.isArray(raw.cybersource)

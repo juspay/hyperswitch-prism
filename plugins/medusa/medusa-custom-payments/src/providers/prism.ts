@@ -192,6 +192,23 @@ class PrismService {
       }
     }
 
+    // PayU re-initiation: the storefront persists the chosen UPI VPA /
+    // payment-method + billing onto the session before cart.complete. Store it
+    // as-is (no network call); authorizePayment consumes it. Mirrors Mollie.
+    if (
+      this.options_.connector === "payu" &&
+      ((data as any)?.vpa ||
+        (data as any)?.paymentMethodType ||
+        (data as any)?.billing)
+    ) {
+      return connectors.payu.reInitiatePayment({
+        data,
+        merchantClientSessionId,
+        currencyCode: currency_code,
+        minorAmount,
+      })
+    }
+
     try {
       const req: any = {
         merchantClientSessionId,
@@ -248,6 +265,8 @@ class PrismService {
           return connectors.globalpay.initiatePayment(ctx)
         case "cybersource":
           return connectors.cybersource.initiatePayment(ctx)
+        case "payu":
+          return connectors.payu.initiatePayment(ctx)
         // Mollie is handled by the Components short-circuit above (before the
         // hosted client-auth), so it never reaches this switch.
         default:
@@ -302,6 +321,14 @@ class PrismService {
 
     if (connector === "mollie") {
       return connectors.mollie.authorizePayment(input, {
+        options: this.options_,
+        paymentClient: this.paymentClient_,
+        getPaymentStatus: (i) => this.getPaymentStatus(i),
+      })
+    }
+
+    if (connector === "payu") {
+      return connectors.payu.authorizePayment(input, {
         options: this.options_,
         paymentClient: this.paymentClient_,
         getPaymentStatus: (i) => this.getPaymentStatus(i),
@@ -468,6 +495,7 @@ class PrismService {
       globalpay: connectors.globalpay.shouldSkipVoid,
       stripe: connectors.stripe.shouldSkipVoid,
       mollie: connectors.mollie.shouldSkipVoid,
+      payu: connectors.payu.shouldSkipVoid,
     }
     if (shouldSkipVoid[this.options_.connector]?.(data)) {
       return { data }

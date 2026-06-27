@@ -85,6 +85,14 @@ function loadCredentialsFromEnv(): Record<string, any> {
     }
   }
 
+  if (process.env.PAYU_API_KEY && process.env.PAYU_API_SECRET) {
+    creds.payu = {
+      apiKey: { value: process.env.PAYU_API_KEY },
+      apiSecret: { value: process.env.PAYU_API_SECRET },
+      returnUrl: process.env.PAYU_RETURN_URL ?? "http://localhost:3000/return",
+    }
+  }
+
   return creds
 }
 

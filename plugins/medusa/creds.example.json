@@ -45,6 +45,12 @@
     "merchant_account": "..."
   },
 
+  "payu": {
+    "api_key": "MERCHANT_KEY",
+    "api_secret": "MERCHANT_SALT",
+    "return_url": "http://localhost:3000/return"
+  },
+
   "mollie": {
     "api_key": "test_...",
     "profile_token": "..."

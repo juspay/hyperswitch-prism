@@ -38,6 +38,10 @@ const CASES: ConnectorExpectation[] = [
   { connector: "braintree", expectKey: "sessionData" },
   { connector: "cybersource", expectKey: "captureContext" },
   { connector: "mollie", expectKey: "checkoutUrl" },
+  // PayU is an India-first UPI/redirect connector — its authorize step needs a
+  // real UPI-app approval / hosted-page redirect that can't be driven headlessly,
+  // so (like braintree/cybersource/mollie) we assert the initiate session shape.
+  { connector: "payu", expectKey: "sessionData" },
 ]
 
 for (const { connector, expectKey } of CASES) {

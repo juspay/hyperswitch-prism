@@ -23,6 +23,12 @@ export { GlobalPayWrapper } from "./connectors/globalpay/GlobalPayWrapper";
 export { MollieWrapper } from "./connectors/mollie/MollieWrapper";
 export { MollieKlarnaForm } from "./connectors/mollie/MollieKlarnaForm";
 export type { MollieKlarnaBilling } from "./connectors/mollie/MollieKlarnaForm";
+export { PayuWrapper } from "./connectors/payu/PayuWrapper";
+export type {
+  PayuBilling,
+  PayuMethod,
+  PayuSubmitPayload,
+} from "./connectors/payu/PayuWrapper";
 
 // Payment button components
 export {

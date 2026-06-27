@@ -9,6 +9,8 @@ import {
   MollieWrapper,
   MollieKlarnaForm,
   type MollieKlarnaBilling,
+  PayuWrapper,
+  type PayuSubmitPayload,
 } from "@juspay-tech/medusa-custom-payments-react";
 
 // The Stripe publishable key and Adyen client key are delivered by the server
@@ -22,9 +24,10 @@ const CONNECTOR_LABELS: Record<string, string> = {
   paypal: "PayPal",
   globalpay: "GlobalPay",
   mollie: "Mollie",
+  payu: "PayU",
 };
 
-const SUPPORTED = ["stripe", "adyen", "paypal", "globalpay", "mollie"];
+const SUPPORTED = ["stripe", "adyen", "paypal", "globalpay", "mollie", "payu"];
 
 type SessionState = {
   collectionId: string;
@@ -231,9 +234,96 @@ function ConnectorUI({ connector, sessionId, sessionData, onComplete, onError }:
         />
       );
 
+    case "payu":
+      // PayU is India-first (INR). The page-load session is USD, so PayuCheckout
+      // spins up a fresh INR session, persists the chosen UPI VPA/method +
+      // billing, completes, and follows the UPI/hosted redirect.
+      return <PayuCheckout onError={onError} />;
+
     default:
       return null;
   }
+}
+
+/**
+ * PayU checkout (UPI / hosted redirect). PayU operates in INR, so this creates a
+ * fresh INR Mollie-style session for the cart, persists the chosen method + UPI
+ * VPA + billing via reinitiate, completes the cart (authorize), and follows the
+ * returned redirectUrl (UPI intent deep-link / hosted PayU page). UPI Collect
+ * pushes the request to the shopper's UPI app, so there may be no redirect — in
+ * that case we land on the order page and PSync resolves the final status.
+ */
+function PayuCheckout({ onError }: { onError: (e: Error) => void }) {
+  const readJson = async (res: Response, what: string) => {
+    const body = await res.json().catch(() => ({} as any));
+    if (!res.ok) {
+      throw new Error(body.error ?? `${what} failed (${res.status})`);
+    }
+    return body;
+  };
+
+  const pay = async (payload: PayuSubmitPayload) => {
+    const collRes = await fetch("/store/payment-collections", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cart_id: CART.cartId,
+        currency_code: "INR",
+        amount: CART.amount,
+      }),
+    });
+    const coll = await readJson(collRes, "Create payment collection");
+    const collectionId = coll.payment_collection.id;
+
+    const sessRes = await fetch(
+      `/store/payment-collections/${collectionId}/payment-sessions`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider_id: "payu" }),
+      }
+    );
+    const sess = await readJson(sessRes, "Create payment session");
+    const ps = sess.payment_collection.payment_sessions[0];
+    const payuSessionId = ps.id;
+
+    const reinitRes = await fetch(
+      `/store/payment-sessions/${payuSessionId}/reinitiate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: {
+            paymentMethodType: payload.paymentMethodType,
+            ...(payload.vpa ? { vpa: payload.vpa } : {}),
+            billing: payload.billing,
+            id: ps.data?.id,
+            returnUrl: `${window.location.origin}/order/${payuSessionId}`,
+          },
+        }),
+      }
+    );
+    await readJson(reinitRes, "Persist PayU payment details");
+
+    const res = await fetch(`/store/carts/${CART.cartId}/complete`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(body.error ?? `Authorize failed (${res.status})`);
+    }
+    if (body.redirectUrl) {
+      window.location.assign(body.redirectUrl);
+      return;
+    }
+    window.location.assign(`/order/${payuSessionId}`);
+  };
+
+  return (
+    <PayuWrapper amount={CART.amount} currency="INR" onSubmit={pay} onError={onError} />
+  );
 }
 
 /**
