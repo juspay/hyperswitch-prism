@@ -5601,8 +5601,15 @@ fn convert_metadata_to_merchant_defined_info(
 ) -> Option<Vec<utils::MerchantDefinedInformation>> {
     let mut iter = 1;
 
+    // Sort metadata keys to match the Direct (hyperswitch) gateway, which deserializes
+    // metadata into a `BTreeMap` (alphabetical key order). Without this the UCS leg preserves
+    // the raw JSON insertion order (serde_json `preserve_order` is enabled in this crate),
+    // producing a merchantDefinedInformation array whose element ordering diverges from Direct.
     let mut result: Vec<utils::MerchantDefinedInformation> = metadata
-        .and_then(|value| value.as_object().cloned())
+        .and_then(|value| {
+            serde_json::from_value::<std::collections::BTreeMap<String, serde_json::Value>>(value)
+                .ok()
+        })
         .map(|map| {
             map.into_iter()
                 .map(|(key, value)| {
@@ -5848,5 +5855,32 @@ mod tests {
         let issuer = domain_types::utils::get_card_issuer("4242424242424242")
             .expect("Visa BIN should be recognized");
         assert_eq!(card_issuer_to_string(issuer), "001");
+    }
+
+    // Regression (#17373): merchantDefinedInformation must match the Direct (hyperswitch)
+    // gateway, which (1) orders metadata keys alphabetically via a BTreeMap and (2) labels
+    // the merchant order reference as `merchant_order_reference_id`. The UCS leg previously
+    // preserved raw JSON insertion order (serde_json `preserve_order`) and used the
+    // `merchant_order_id` label, producing valueDiffs at MDI[0]/[1] (brand/kind swap) and
+    // MDI[3] (label).
+    #[test]
+    fn mdi_sorts_keys_alphabetically_and_uses_reference_id_label() {
+        // Keys intentionally supplied in NON-alphabetical insertion order (kind before brand).
+        let metadata = serde_json::json!({ "kind": "fps", "brand": "flowbird" });
+        let mdi = convert_metadata_to_merchant_defined_info(
+            Some(metadata),
+            Some("376242608".to_string()),
+        )
+        .expect("expected merchantDefinedInformation entries");
+
+        let values: Vec<&str> = mdi.iter().map(|m| m.value.as_str()).collect();
+        assert_eq!(
+            values,
+            vec![
+                "brand=\"flowbird\"",
+                "kind=\"fps\"",
+                "merchant_order_reference_id=376242608",
+            ]
+        );
     }
 }
