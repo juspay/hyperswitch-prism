@@ -13,8 +13,9 @@ use domain_types::{
         PreAuthenticate, PreRiskCheck, ServerAuthenticationToken,
     },
     connector_types::{
-        PaymentFlowData, PaymentsPreAuthenticateData, PaymentsResponseData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        ConnectorEnum, ConnectorVariant, PaymentFlowData, PaymentsPreAuthenticateData,
+        PaymentsResponseData, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     frm::frm_types::{
@@ -782,6 +783,9 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::FrmServiceTrait for Kount<T>
 {
+    fn access_token_connector(&self) -> Option<(ConnectorVariant, &'static str)> {
+        Some((ConnectorVariant::Payment(ConnectorEnum::Kount), "kount"))
+    }
 }
 
 // PostRiskCheck is unused by Kount: the post-decision Update Order is driven by

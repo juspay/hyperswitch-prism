@@ -3,7 +3,7 @@ use crate::transformers::ForeignFrom;
 use crate::utils::frm_connector_from_composite_frm_metadata;
 use common_utils::consts::{X_CONNECTOR_NAME, X_FRM_CONNECTOR_NAME};
 use connector_integration::types::FrmConnectorData;
-use domain_types::connector_types::{ConnectorEnum, ConnectorVariant, FrmConnectorEnum};
+use domain_types::connector_types::ConnectorVariant;
 use grpc_api_types::frm::{
     composite_fraud_and_risk_management_service_server::CompositeFraudAndRiskManagementService,
     fraud_and_risk_management_service_server::FraudAndRiskManagementService,
@@ -121,18 +121,23 @@ where
             return Ok(None);
         }
 
-        let access_token_connector = match frm_connector {
-            FrmConnectorEnum::Kount => ConnectorVariant::Payment(ConnectorEnum::Kount),
-        };
+        let access_token_connector_override =
+            FrmConnectorData::get_connector_by_name(&frm_connector).access_token_connector();
+        let access_token_connector = access_token_connector_override
+            .as_ref()
+            .map(|(cv, _)| cv.clone())
+            .unwrap_or_else(|| ConnectorVariant::Frm(frm_connector));
         let access_token_payload = payload.build_access_token_request(&access_token_connector);
 
         let mut access_token_metadata = metadata.clone();
-        access_token_metadata.remove(X_FRM_CONNECTOR_NAME);
-        access_token_metadata.insert(
-            X_CONNECTOR_NAME,
-            tonic::metadata::MetadataValue::try_from("kount")
-                .map_err(|_| tonic::Status::invalid_argument("invalid x-connector value"))?,
-        );
+        if let Some((_, header_value)) = access_token_connector_override {
+            access_token_metadata.remove(X_FRM_CONNECTOR_NAME);
+            access_token_metadata.insert(
+                X_CONNECTOR_NAME,
+                tonic::metadata::MetadataValue::try_from(header_value)
+                    .map_err(|_| tonic::Status::invalid_argument("invalid x-connector value"))?,
+            );
+        }
 
         let mut access_token_request = tonic::Request::new(access_token_payload);
         *access_token_request.metadata_mut() = access_token_metadata;

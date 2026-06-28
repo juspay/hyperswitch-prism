@@ -2,7 +2,8 @@ use std::fmt::Debug;
 
 use domain_types::{
     connector_types::{
-        ConnectorEnum, FrmConnectorEnum, PayoutConnectorEnum, SurchargeConnectorEnum,
+        ConnectorEnum, ConnectorVariant, FrmConnectorEnum, PayoutConnectorEnum,
+        SurchargeConnectorEnum,
     },
     payment_method_data::PaymentMethodDataTypes,
 };
@@ -168,6 +169,10 @@ impl FrmConnectorData {
         }
     }
 
+    pub fn access_token_connector(&self) -> Option<(ConnectorVariant, &'static str)> {
+        self.connector.access_token_connector()
+    }
+
     fn convert_connector(connector_name: FrmConnectorEnum) -> BoxedFrmConnector {
         match connector_name {
             FrmConnectorEnum::Kount => Box::new(connectors::Kount::<
@@ -180,9 +185,7 @@ impl FrmConnectorData {
 impl ConnectorDataProvider for FrmConnectorData {
     type ConnectorEnumType = FrmConnectorEnum;
 
-    fn from_connector_variant(
-        variant: &domain_types::connector_types::ConnectorVariant,
-    ) -> Option<Self> {
+    fn from_connector_variant(variant: &ConnectorVariant) -> Option<Self> {
         variant.as_frm().map(|c| Self::get_connector_by_name(&c))
     }
 }
@@ -222,9 +225,7 @@ pub trait ConnectorDataProvider: Sized {
     type ConnectorEnumType: Copy;
 
     /// Convert variant to this type
-    fn from_connector_variant(
-        variant: &domain_types::connector_types::ConnectorVariant,
-    ) -> Option<Self>;
+    fn from_connector_variant(variant: &ConnectorVariant) -> Option<Self>;
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde::Serialize>
@@ -232,9 +233,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
 {
     type ConnectorEnumType = ConnectorEnum;
 
-    fn from_connector_variant(
-        variant: &domain_types::connector_types::ConnectorVariant,
-    ) -> Option<Self> {
+    fn from_connector_variant(variant: &ConnectorVariant) -> Option<Self> {
         variant
             .as_payment()
             .map(|c| Self::get_connector_by_name(&c))
@@ -244,9 +243,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
 impl ConnectorDataProvider for SurchargeConnectorData {
     type ConnectorEnumType = SurchargeConnectorEnum;
 
-    fn from_connector_variant(
-        variant: &domain_types::connector_types::ConnectorVariant,
-    ) -> Option<Self> {
+    fn from_connector_variant(variant: &ConnectorVariant) -> Option<Self> {
         variant
             .as_surcharge()
             .map(|c| Self::get_connector_by_name(&c))
@@ -256,9 +253,7 @@ impl ConnectorDataProvider for SurchargeConnectorData {
 impl ConnectorDataProvider for PayoutConnectorData {
     type ConnectorEnumType = PayoutConnectorEnum;
 
-    fn from_connector_variant(
-        variant: &domain_types::connector_types::ConnectorVariant,
-    ) -> Option<Self> {
+    fn from_connector_variant(variant: &ConnectorVariant) -> Option<Self> {
         variant
             .as_payout()
             .or_else(|| {

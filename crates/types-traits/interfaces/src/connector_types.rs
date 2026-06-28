@@ -8,10 +8,10 @@ use domain_types::{
     connector_flow,
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorEnum, ConnectorSpecifications, ConnectorWebhookSecrets,
-        CreatePaymentMethodData, CreatePaymentMethodResponseData, DisputeDefendData,
-        DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse, EventType,
-        GetPaymentMethodData, GetPaymentMethodResponseData, MandateRevokeRequestData,
+        ConnectorCustomerResponse, ConnectorEnum, ConnectorSpecifications, ConnectorVariant,
+        ConnectorWebhookSecrets, CreatePaymentMethodData, CreatePaymentMethodResponseData,
+        DisputeDefendData, DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse,
+        EventType, GetPaymentMethodData, GetPaymentMethodResponseData, MandateRevokeRequestData,
         MandateRevokeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse,
         PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
@@ -143,6 +143,9 @@ pub trait FrmServiceTrait:
     + FrmRefundProcessedV2
     + FrmChargebackReceivedV2
 {
+    fn access_token_connector(&self) -> Option<(ConnectorVariant, &'static str)> {
+        None
+    }
 }
 
 pub trait PayoutServiceTrait:

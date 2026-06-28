@@ -4,9 +4,7 @@ use crate::utils::connector_variant_from_composite_metadata;
 use common_utils::consts::{X_CONNECTOR_NAME, X_FRM_CONNECTOR_NAME};
 use connector_integration::types::{FrmConnectorData, SurchargeConnectorData};
 use domain_types::{
-    connector_types::{
-        ConnectorEnum, ConnectorVariant, FrmConnectorEnum, ServerAuthenticationTokenResponseData,
-    },
+    connector_types::{ConnectorVariant, ServerAuthenticationTokenResponseData},
     utils::ForeignTryFrom as _,
 };
 use grpc_api_types::payments::{
@@ -101,21 +99,25 @@ where
 
         let access_token_response = match should_create_access_token {
             true => {
-                let (access_token_connector, swap_frm_header) = match connector {
-                    ConnectorVariant::Frm(FrmConnectorEnum::Kount) => {
-                        (ConnectorVariant::Payment(ConnectorEnum::Kount), true)
+                let access_token_connector_override = match connector {
+                    ConnectorVariant::Frm(c) => {
+                        FrmConnectorData::get_connector_by_name(c).access_token_connector()
                     }
-                    other => (other.clone(), false),
+                    _ => None,
                 };
+                let access_token_connector = access_token_connector_override
+                    .as_ref()
+                    .map(|(cv, _)| cv.clone())
+                    .unwrap_or_else(|| connector.clone());
                 let access_token_payload =
                     payload.build_access_token_request(&access_token_connector);
 
                 let mut access_token_metadata = metadata.clone();
-                if swap_frm_header {
+                if let Some((_, header_value)) = access_token_connector_override {
                     access_token_metadata.remove(X_FRM_CONNECTOR_NAME);
                     access_token_metadata.insert(
                         X_CONNECTOR_NAME,
-                        tonic::metadata::MetadataValue::try_from("kount").map_err(|_| {
+                        tonic::metadata::MetadataValue::try_from(header_value).map_err(|_| {
                             tonic::Status::invalid_argument("invalid x-connector value")
                         })?,
                     );
