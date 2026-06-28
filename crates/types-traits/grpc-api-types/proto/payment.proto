@@ -4484,6 +4484,13 @@ message PayuConfig {
   optional string base_url = 50;
 }
 
+message RazorpayConfig {
+  // BodyKey auth: api_key = Razorpay key_id, api_secret = key_secret.
+  SecretString api_key = 1;
+  optional SecretString api_secret = 2;
+  optional string base_url = 50;
+}
+
 message PowertranzConfig {
   SecretString power_tranz_id = 1;
   SecretString power_tranz_password = 2;
@@ -5252,6 +5259,8 @@ message ConnectorSpecificConfig {
     TsysTransitConfig tsys_transit = 133;
     // KOUNT = 128
     KountConfig kount = 134;
+    // RAZORPAY = 69
+    RazorpayConfig razorpay = 135;
   }
 }
 

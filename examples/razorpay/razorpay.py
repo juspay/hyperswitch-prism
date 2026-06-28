@@ -17,9 +17,13 @@ SUPPORTED_FLOWS = ["capture", "create_order", "create_server_session_authenticat
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     razorpay=payment_pb2.RazorpayConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        razorpay=payment_pb2.RazorpayConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 

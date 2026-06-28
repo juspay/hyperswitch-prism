@@ -192,6 +192,61 @@ class PrismService {
       }
     }
 
+    // Razorpay re-initiation: persist the chosen UPI VPA / payment-method +
+    // billing before cart.complete; authorizePayment consumes it. (Mirrors
+    // Mollie — no network call.)
+    if (
+      this.options_.connector === "razorpay" &&
+      ((data as any)?.vpa ||
+        (data as any)?.paymentMethodType ||
+        (data as any)?.billing)
+    ) {
+      return connectors.razorpay.reInitiatePayment({
+        data,
+        merchantClientSessionId,
+        currencyCode: currency_code,
+        minorAmount,
+      })
+    }
+
+    // Razorpay first-initiate: use Razorpay's Standard Checkout (SDK session
+    // token) flow — createServerSessionAuthenticationToken creates the order
+    // (POST /v1/orders, auto-capture) and returns its id as `sessionToken`. The
+    // storefront opens Razorpay Checkout JS with this `order_id` + the publishable
+    // key (surfaced by connectors.razorpay.initiatePayment); Razorpay's modal
+    // renders the UPI QR / intent / cards UI. No S2S authorize is needed.
+    if (this.options_.connector === "razorpay") {
+      const res = await this.authClient_.createServerSessionAuthenticationToken({
+        merchantServerSessionId: merchantClientSessionId,
+        payment: {
+          amount: { minorAmount, currency: toCurrency(currency_code) },
+        },
+      } as any)
+
+      const statusCode = (res as any).statusCode as number | undefined
+      if (statusCode !== undefined && (statusCode < 200 || statusCode >= 300)) {
+        throw new Error(
+          (res as any).error?.message ??
+            "razorpay createServerSessionAuthenticationToken failed"
+        )
+      }
+
+      const orderId = (res as any).sessionToken ?? (res as any).session_token
+      const connectorSpecific = orderId ? { razorpay: { orderId } } : {}
+
+      const ctx: connectors.InitiateConnectorContext = {
+        options: this.options_,
+        merchantClientSessionId,
+        currencyCode: currency_code,
+        minorAmount,
+        sessionData: { connectorSpecific },
+        connectorSpecific,
+        authClient: this.authClient_,
+      }
+
+      return connectors.razorpay.initiatePayment(ctx)
+    }
+
     try {
       const req: any = {
         merchantClientSessionId,
@@ -248,8 +303,8 @@ class PrismService {
           return connectors.globalpay.initiatePayment(ctx)
         case "cybersource":
           return connectors.cybersource.initiatePayment(ctx)
-        // Mollie is handled by the Components short-circuit above (before the
-        // hosted client-auth), so it never reaches this switch.
+        // Razorpay and Mollie are handled by their short-circuits above (before
+        // the hosted client-auth), so they never reach this switch.
         default:
           // Fallback for any other connector — pass through raw session data
           return {
@@ -308,6 +363,14 @@ class PrismService {
       })
     }
 
+    if (connector === "razorpay") {
+      return connectors.razorpay.authorizePayment(input, {
+        options: this.options_,
+        paymentClient: this.paymentClient_,
+        getPaymentStatus: (i) => this.getPaymentStatus(i),
+      })
+    }
+
     const result = await this.getPaymentStatus(input) as AuthorizePaymentOutput
     return result
   }
@@ -331,8 +394,14 @@ class PrismService {
     const connector = (data as any)?.connector as string | undefined
 
     try {
+      const merchantTransactionId = (data as any)?.merchantTransactionId as
+        | string
+        | undefined
       const res = await this.paymentClient_.get({
         connectorTransactionId,
+        // Razorpay verify/sync uses the merchant txnid
+        // (connector_request_reference_id), not the connector payment id.
+        ...(merchantTransactionId ? { merchantTransactionId } : {}),
         ...(minorAmount !== undefined && currency
           ? { amount: { minorAmount, currency: toCurrency(currency) } }
           : {}),
@@ -468,6 +537,7 @@ class PrismService {
       globalpay: connectors.globalpay.shouldSkipVoid,
       stripe: connectors.stripe.shouldSkipVoid,
       mollie: connectors.mollie.shouldSkipVoid,
+      razorpay: connectors.razorpay.shouldSkipVoid,
     }
     if (shouldSkipVoid[this.options_.connector]?.(data)) {
       return { data }

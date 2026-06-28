@@ -1825,6 +1825,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 api_secret: payu.api_secret.ok_or_else(err)?,
                 base_url: payu.base_url,
             }),
+            AuthType::Razorpay(razorpay) => Ok(Self::Razorpay {
+                api_key: razorpay.api_key.ok_or_else(err)?,
+                api_secret: razorpay.api_secret,
+                base_url: razorpay.base_url,
+            }),
             AuthType::Powertranz(powertranz) => Ok(Self::Powertranz {
                 power_tranz_id: powertranz.power_tranz_id.ok_or_else(err)?,
                 power_tranz_password: powertranz.power_tranz_password.ok_or_else(err)?,

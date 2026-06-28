@@ -5091,6 +5091,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Paybox(_) => Ok(Self::Payment(ConnectorEnum::Paybox)),
             AuthType::Payme(_) => Ok(Self::Payment(ConnectorEnum::Payme)),
             AuthType::Payu(_) => Ok(Self::Payment(ConnectorEnum::Payu)),
+            AuthType::Razorpay(_) => Ok(Self::Payment(ConnectorEnum::Razorpay)),
             AuthType::Powertranz(_) => Ok(Self::Payment(ConnectorEnum::Powertranz)),
             AuthType::Rapyd(_) => Ok(Self::Payment(ConnectorEnum::Rapyd)),
             AuthType::Redsys(_) => Ok(Self::Payment(ConnectorEnum::Redsys)),

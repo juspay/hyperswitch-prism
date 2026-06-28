@@ -18,13 +18,23 @@ import payments.HttpMethod
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
-
+import payments.ConnectorSpecificConfig
+import types.Payment.RazorpayConfig
+import payments.SecretString
 
 val SUPPORTED_FLOWS = listOf<String>("capture", "create_order", "create_server_session_authentication_token", "get", "parse_event", "refund", "refund_get")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Razorpay credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setRazorpay(RazorpayConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setApiSecret(SecretString.newBuilder().setValue("YOUR_API_SECRET").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
     .build()
 
 

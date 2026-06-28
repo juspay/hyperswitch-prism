@@ -13,7 +13,13 @@ const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
-    // connectorConfig: { razorpay: { apiKey: { value: 'YOUR_API_KEY' } } },
+    connectorConfig: {
+        razorpay: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            apiSecret: { value: 'YOUR_API_SECRET' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
 
 

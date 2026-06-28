@@ -23,6 +23,12 @@ export { GlobalPayWrapper } from "./connectors/globalpay/GlobalPayWrapper";
 export { MollieWrapper } from "./connectors/mollie/MollieWrapper";
 export { MollieKlarnaForm } from "./connectors/mollie/MollieKlarnaForm";
 export type { MollieKlarnaBilling } from "./connectors/mollie/MollieKlarnaForm";
+export { RazorpayWrapper } from "./connectors/razorpay/RazorpayWrapper";
+export type {
+  RazorpayBilling,
+  RazorpayMethod,
+  RazorpaySubmitPayload,
+} from "./connectors/razorpay/RazorpayWrapper";
 
 // Payment button components
 export {

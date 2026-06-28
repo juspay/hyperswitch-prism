@@ -1,4 +1,5 @@
 import { Router } from "express"
+import crypto from "crypto"
 import { createPrismService, HyperswitchPrismOptions } from "../prism"
 import {
   createCollection,
@@ -224,6 +225,74 @@ export function createStoreRoutes(credentials?: Record<string, any>) {
       )
       res.status(500).json({ error: (error as Error).message })
     }
+  })
+
+  // Razorpay Checkout JS callback: the modal returns a signed result. Verify the
+  // signature with the merchant key_secret (api_secret), adopt the Razorpay
+  // payment id, then PSync to record the real status.
+  // Body: { razorpay_payment_id, razorpay_order_id, razorpay_signature }
+  router.post("/payment-sessions/:sessionId/razorpay-verify", async (req, res) => {
+    const { sessionId } = req.params
+    const existing = getSession(sessionId)
+    if (!existing) {
+      return res.status(404).json({ error: `Payment session ${sessionId} not found` })
+    }
+    const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = req.body ?? {}
+    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+      return res.status(400).json({
+        error: "razorpay_payment_id, razorpay_order_id and razorpay_signature are required",
+      })
+    }
+
+    const keySecret = credentials?.razorpay?.apiSecret?.value as string | undefined
+    if (!keySecret) {
+      return res.status(503).json({ error: "Razorpay key secret not configured" })
+    }
+
+    // Razorpay signature = HMAC_SHA256(`${order_id}|${payment_id}`, key_secret).
+    const expected = crypto
+      .createHmac("sha256", keySecret)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest("hex")
+    const ok =
+      expected.length === razorpay_signature.length &&
+      crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(razorpay_signature))
+    if (!ok) {
+      console.error("[razorpay-verify] %s: signature mismatch", sessionId)
+      updateSession(sessionId, { status: "error" })
+      return res.status(400).json({ error: "Invalid payment signature" })
+    }
+
+    // Adopt the real Razorpay payment id so PSync (getTransactionId reads data.id)
+    // targets the payment, then sync to record the captured/authorized status.
+    const data = {
+      ...existing.data,
+      id: razorpay_payment_id,
+      connectorTransactionId: razorpay_payment_id,
+      razorpayOrderId: razorpay_order_id,
+    }
+    let status = "authorized"
+    try {
+      const prismService = getPrismService(existing.connector)
+      if (prismService) {
+        const result = await prismService.getPaymentStatus({
+          data: {
+            connector: existing.connector,
+            ...data,
+            ...(existing.minorAmount !== undefined ? { minorAmount: existing.minorAmount } : {}),
+            ...(existing.currency ? { currency: existing.currency } : {}),
+          },
+        })
+        status = (result.status as string) ?? status
+        Object.assign(data, result.data as Record<string, unknown>)
+      }
+    } catch (error) {
+      console.error("[razorpay-verify] %s: PSync failed: %s", sessionId, (error as Error).message)
+    }
+
+    const updated = updateSession(sessionId, { status, data, connectorTransactionId: razorpay_payment_id })
+    console.log("[razorpay-verify] %s: verified, status=%s", sessionId, status)
+    res.json({ payment_session: { id: updated!.id, status, data: updated!.data } })
   })
 
   return router

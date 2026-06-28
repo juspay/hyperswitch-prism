@@ -73,7 +73,14 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: None,  // TODO: Add your connector config here,
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Razorpay(RazorpayConfig {
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
+                api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -102,19 +109,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/razorpayv2/razorpayv2.py#L128) · [JavaScript](../../examples/razorpayv2/razorpayv2.js) · [Kotlin](../../examples/razorpayv2/razorpayv2.kt#L85) · [Rust](../../examples/razorpayv2/razorpayv2.rs#L164)
+**Examples:** [Python](../../examples/razorpayv2/razorpayv2.py#L128) · [JavaScript](../../examples/razorpayv2/razorpayv2.js) · [Kotlin](../../examples/razorpayv2/razorpayv2.kt#L85) · [Rust](../../examples/razorpayv2/razorpayv2.rs#L171)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/razorpayv2/razorpayv2.py#L147) · [JavaScript](../../examples/razorpayv2/razorpayv2.js) · [Kotlin](../../examples/razorpayv2/razorpayv2.kt#L101) · [Rust](../../examples/razorpayv2/razorpayv2.rs#L180)
+**Examples:** [Python](../../examples/razorpayv2/razorpayv2.py#L147) · [JavaScript](../../examples/razorpayv2/razorpayv2.js) · [Kotlin](../../examples/razorpayv2/razorpayv2.kt#L101) · [Rust](../../examples/razorpayv2/razorpayv2.rs#L187)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/razorpayv2/razorpayv2.py#L172) · [JavaScript](../../examples/razorpayv2/razorpayv2.js) · [Kotlin](../../examples/razorpayv2/razorpayv2.kt#L123) · [Rust](../../examples/razorpayv2/razorpayv2.rs#L203)
+**Examples:** [Python](../../examples/razorpayv2/razorpayv2.py#L172) · [JavaScript](../../examples/razorpayv2/razorpayv2.js) · [Kotlin](../../examples/razorpayv2/razorpayv2.kt#L123) · [Rust](../../examples/razorpayv2/razorpayv2.rs#L210)
 
 ## API Reference
 

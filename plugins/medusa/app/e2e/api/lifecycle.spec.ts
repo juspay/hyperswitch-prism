@@ -38,6 +38,10 @@ const CASES: ConnectorExpectation[] = [
   { connector: "braintree", expectKey: "sessionData" },
   { connector: "cybersource", expectKey: "captureContext" },
   { connector: "mollie", expectKey: "checkoutUrl" },
+  // Razorpay is an India-first UPI connector — its authorize step needs a real
+  // UPI-app approval that can't be driven headlessly, so (like
+  // braintree/cybersource/mollie) we assert the initiate session shape.
+  { connector: "razorpay", expectKey: "sessionData" },
 ]
 
 for (const { connector, expectKey } of CASES) {

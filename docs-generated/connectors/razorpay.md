@@ -22,9 +22,13 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
-    # connector_config=payment_pb2.ConnectorSpecificConfig(
-    #     razorpay=payment_pb2.RazorpayConfig(api_key=...),
-    # ),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        razorpay=payment_pb2.RazorpayConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
 
 ```
@@ -43,7 +47,13 @@ const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism')
 const config = ConnectorConfig.create({
     connector: Connector.RAZORPAY,
     environment: Environment.SANDBOX,
-    // auth: { razorpay: { apiKey: { value: 'YOUR_API_KEY' } } },
+    auth: {
+        razorpay: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            apiSecret: { value: 'YOUR_API_SECRET' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 });
 ```
 
@@ -57,7 +67,15 @@ const config = ConnectorConfig.create({
 ```kotlin
 val config = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your Razorpay credentials here
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setRazorpay(RazorpayConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setApiSecret(SecretString.newBuilder().setValue("YOUR_API_SECRET").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
     .build()
 ```
 
@@ -73,7 +91,14 @@ use grpc_api_types::payments::*;
 use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector_config: None,  // TODO: Add your connector config here,
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Razorpay(RazorpayConfig {
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
+                api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
     options: Some(SdkOptions {
         environment: Environment::Sandbox.into(),
     }),
@@ -110,7 +135,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L112) · [Kotlin](../../examples/razorpay/razorpay.kt#L68) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L118) · [Kotlin](../../examples/razorpay/razorpay.kt#L78) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.CreateOrder
 
@@ -121,7 +146,7 @@ Create a payment order for later processing. Establishes a transaction context t
 | **Request** | `PaymentServiceCreateOrderRequest` |
 | **Response** | `PaymentServiceCreateOrderResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L121) · [Kotlin](../../examples/razorpay/razorpay.kt#L78) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L127) · [Kotlin](../../examples/razorpay/razorpay.kt#L88) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.Get
 
@@ -132,7 +157,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L139) · [Kotlin](../../examples/razorpay/razorpay.kt#L107) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L145) · [Kotlin](../../examples/razorpay/razorpay.kt#L117) · [Rust](../../examples/razorpay/razorpay.rs)
 
 #### PaymentService.Refund
 
@@ -143,7 +168,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L166) · [Kotlin](../../examples/razorpay/razorpay.kt#L146) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L172) · [Kotlin](../../examples/razorpay/razorpay.kt#L156) · [Rust](../../examples/razorpay/razorpay.rs)
 
 ### Refunds
 
@@ -156,7 +181,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L175) · [Kotlin](../../examples/razorpay/razorpay.kt#L156) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L181) · [Kotlin](../../examples/razorpay/razorpay.kt#L166) · [Rust](../../examples/razorpay/razorpay.rs)
 
 ### Authentication
 
@@ -169,4 +194,4 @@ Create a server-side session with the connector. Establishes session state for m
 | **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L130) · [Kotlin](../../examples/razorpay/razorpay.kt#L92) · [Rust](../../examples/razorpay/razorpay.rs)
+**Examples:** [Python](../../examples/razorpay/razorpay.py) · [TypeScript](../../examples/razorpay/razorpay.ts#L136) · [Kotlin](../../examples/razorpay/razorpay.kt#L102) · [Rust](../../examples/razorpay/razorpay.rs)

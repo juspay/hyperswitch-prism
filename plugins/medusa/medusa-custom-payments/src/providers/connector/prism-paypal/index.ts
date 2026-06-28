@@ -252,7 +252,7 @@ function toSdkCustomer(customer: any): types.ICustomer | undefined {
   return {
     ...(name ? { name } : {}),
     ...(email ? { email } : {}),
-    ...(phoneNumber ? { phoneNumber } : {}),
+    ...(phoneNumber ? { phoneNumber: toSecret(phoneNumber) } : {}),
   }
 }
 

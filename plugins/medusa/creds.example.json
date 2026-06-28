@@ -45,6 +45,12 @@
     "merchant_account": "..."
   },
 
+  "razorpay": {
+    "api_key": "rzp_test_...",
+    "api_secret": "KEY_SECRET",
+    "return_url": "http://localhost:3000/return"
+  },
+
   "mollie": {
     "api_key": "test_...",
     "profile_token": "..."

@@ -7,6 +7,7 @@ export interface HyperswitchPrismOptions {
     | "globalpay"
     | "cybersource"
     | "mollie"
+    | "razorpay"
   connectorConfig: Record<string, unknown>
   /**
    * Webhook verification secret — required to process webhooks; events that

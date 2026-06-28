@@ -93,6 +93,15 @@ export function transformMollieConfig(raw: any) {
   }
 }
 
+// Razorpay uses BodyKey auth: api_key (key_id) + api_secret (key_secret).
+export function transformRazorpayConfig(raw: any) {
+  return {
+    apiKey: wrapSecret(raw.api_key)!,
+    ...(raw.api_secret ? { apiSecret: wrapSecret(raw.api_secret) } : {}),
+    ...(raw.base_url ? { baseUrl: raw.base_url } : {}),
+  }
+}
+
 /**
  * Builds the connector→config map the app server expects (same shape as
  * app/run.ts loadCredentials()), including per-connector webhookSecret sourced
@@ -138,6 +147,14 @@ export function buildServerCredentials(raw: RawCreds | null): Record<string, any
 
   if (raw.mollie?.api_key) {
     creds.mollie = transformMollieConfig(raw.mollie)
+  }
+
+  if (raw.razorpay?.api_key) {
+    creds.razorpay = {
+      ...transformRazorpayConfig(raw.razorpay),
+      // URL the shopper returns to after the UPI/hosted-checkout redirect.
+      returnUrl: raw.razorpay.return_url ?? "http://localhost:3000/return",
+    }
   }
 
   const cybersource = Array.isArray(raw.cybersource)

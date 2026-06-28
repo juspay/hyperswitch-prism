@@ -85,6 +85,17 @@ function loadCredentialsFromEnv(): Record<string, any> {
     }
   }
 
+  if (process.env.RAZORPAY_API_KEY) {
+    creds.razorpay = {
+      apiKey: { value: process.env.RAZORPAY_API_KEY },
+      ...(process.env.RAZORPAY_API_SECRET
+        ? { apiSecret: { value: process.env.RAZORPAY_API_SECRET } }
+        : {}),
+      returnUrl:
+        process.env.RAZORPAY_RETURN_URL ?? "http://localhost:3000/return",
+    }
+  }
+
   return creds
 }
 

@@ -1,5 +1,8 @@
 import { useEffect, useCallback, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { loadScript } from "../loadScript";
+
+const RAZORPAY_CHECKOUT_JS = "https://checkout.razorpay.com/v1/checkout.js";
 
 import {
   StripeWrapper,
@@ -22,9 +25,17 @@ const CONNECTOR_LABELS: Record<string, string> = {
   paypal: "PayPal",
   globalpay: "GlobalPay",
   mollie: "Mollie",
+  razorpay: "Razorpay",
 };
 
-const SUPPORTED = ["stripe", "adyen", "paypal", "globalpay", "mollie"];
+const SUPPORTED = [
+  "stripe",
+  "adyen",
+  "paypal",
+  "globalpay",
+  "mollie",
+  "razorpay",
+];
 
 type SessionState = {
   collectionId: string;
@@ -231,9 +242,156 @@ function ConnectorUI({ connector, sessionId, sessionData, onComplete, onError }:
         />
       );
 
+    case "razorpay":
+      // Razorpay is India-first (INR). The page-load session is USD, so
+      // RazorpayCheckout spins up a fresh INR order and opens Razorpay's modal.
+      return <RazorpayCheckout onError={onError} />;
+
     default:
       return null;
   }
+}
+
+/**
+ * Razorpay checkout via Razorpay's native Standard Checkout (checkout.js). We
+ * create an INR order server-side (prism `ServerSessionAuthenticationToken`),
+ * then open Razorpay's own modal — which renders the UPI QR / intent / cards UI
+ * and handles the waiting-for-approval state itself. On success the modal returns
+ * a signed result we verify server-side, then land on the order page. (We no
+ * longer hand-build a UPI form / QR — Razorpay provides those elements.)
+ */
+function RazorpayCheckout({ onError }: { onError: (e: Error) => void }) {
+  const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const pay = useCallback(async () => {
+    setNotice(null);
+    setLoading(true);
+    try {
+      const readJson = async (res: Response, what: string) => {
+        const body = await res.json().catch(() => ({} as any));
+        if (!res.ok) throw new Error(body.error ?? `${what} failed (${res.status})`);
+        return body;
+      };
+
+      // 1. Fresh INR session → prism creates the Razorpay order + surfaces the
+      //    order_id + publishable key_id.
+      const coll = await readJson(
+        await fetch("/store/payment-collections", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ cart_id: CART.cartId, currency_code: "INR", amount: CART.amount }),
+        }),
+        "Create payment collection"
+      );
+      const sess = await readJson(
+        await fetch(`/store/payment-collections/${coll.payment_collection.id}/payment-sessions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider_id: "razorpay" }),
+        }),
+        "Create payment session"
+      );
+      const ps = sess.payment_collection.payment_sessions[0];
+      const sessionId: string = ps.id;
+      const { orderId, publishableKey, minorAmount } = (ps.data ?? {}) as Record<string, any>;
+      if (!orderId || !publishableKey) {
+        throw new Error("Razorpay order_id / key_id missing from session — cannot open checkout");
+      }
+
+      // 2. Load Razorpay Checkout JS and open the native modal.
+      await loadScript(RAZORPAY_CHECKOUT_JS);
+      const Razorpay = (window as any).Razorpay;
+      if (!Razorpay) throw new Error("Razorpay Checkout JS failed to load");
+
+      const rzp = new Razorpay({
+        key: publishableKey,
+        order_id: orderId,
+        amount: minorAmount,
+        currency: "INR",
+        name: "Medusa Prism Store",
+        description: "Order cart_test_01",
+        prefill: { name: "Asha Kumar", email: "asha.kumar@example.com", contact: "9999999999" },
+        theme: { color: "#3b5cb8" },
+        // 3. Verify the signed result server-side, then go to the order page.
+        handler: async (resp: any) => {
+          try {
+            await readJson(
+              await fetch(`/store/payment-sessions/${sessionId}/razorpay-verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  razorpay_payment_id: resp.razorpay_payment_id,
+                  razorpay_order_id: resp.razorpay_order_id,
+                  razorpay_signature: resp.razorpay_signature,
+                }),
+              }),
+              "Verify payment"
+            );
+            window.location.assign(`/order/${sessionId}`);
+          } catch (err) {
+            onError(err as Error);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setLoading(false);
+            setNotice("Payment cancelled. You can try again.");
+          },
+        },
+      });
+      rzp.on("payment.failed", (resp: any) => {
+        setLoading(false);
+        setNotice(`Payment failed: ${resp?.error?.description ?? "unknown error"}`);
+      });
+      rzp.open();
+    } catch (err) {
+      setLoading(false);
+      onError(err as Error);
+    }
+  }, [onError]);
+
+  return (
+    <div>
+      {notice && (
+        <div
+          style={{
+            background: "#fffbeb",
+            border: "1px solid #f6e05e",
+            borderRadius: 6,
+            padding: "10px 12px",
+            marginBottom: 14,
+            fontSize: 13,
+            color: "#744210",
+          }}
+        >
+          {notice}
+        </div>
+      )}
+      <button
+        type="button"
+        data-testid="razorpay-pay"
+        onClick={pay}
+        disabled={loading}
+        style={{
+          width: "100%",
+          padding: "12px 16px",
+          borderRadius: 8,
+          border: "none",
+          background: loading ? "#9aa9d6" : "#3b5cb8",
+          color: "#fff",
+          fontWeight: 600,
+          fontSize: 15,
+          cursor: loading ? "not-allowed" : "pointer",
+        }}
+      >
+        {loading ? "Opening Razorpay…" : `Pay ${CART.amount} INR with Razorpay`}
+      </button>
+      <p style={{ color: "#777", fontSize: 12, marginTop: 10, textAlign: "center" }}>
+        Opens Razorpay Checkout — UPI (QR / intent), cards, netbanking & wallets.
+      </p>
+    </div>
+  );
 }
 
 /**
