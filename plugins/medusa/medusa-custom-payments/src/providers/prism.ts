@@ -209,6 +209,26 @@ class PrismService {
       })
     }
 
+    // PayU first-initiate (PayU India): the S2S payment is hash-based
+    // (merchant key + SHA-512 hash + salt against test/secure.payu.in/_payment)
+    // and does NOT use a hosted client-auth or an OAuth session token. Skip the
+    // network auth call entirely and return a valid pending session directly —
+    // `authorizePayment` builds the hash-signed UPI request. Mirrors the Mollie
+    // first-init short-circuit.
+    if (this.options_.connector === "payu") {
+      const ctx: connectors.InitiateConnectorContext = {
+        options: this.options_,
+        merchantClientSessionId,
+        currencyCode: currency_code,
+        minorAmount,
+        sessionData: {},
+        connectorSpecific: {},
+        authClient: this.authClient_,
+      }
+
+      return connectors.payu.initiatePayment(ctx)
+    }
+
     try {
       const req: any = {
         merchantClientSessionId,
@@ -265,10 +285,8 @@ class PrismService {
           return connectors.globalpay.initiatePayment(ctx)
         case "cybersource":
           return connectors.cybersource.initiatePayment(ctx)
-        case "payu":
-          return connectors.payu.initiatePayment(ctx)
-        // Mollie is handled by the Components short-circuit above (before the
-        // hosted client-auth), so it never reaches this switch.
+        // PayU and Mollie are handled by their short-circuits above (before the
+        // hosted client-auth), so they never reach this switch.
         default:
           // Fallback for any other connector — pass through raw session data
           return {
@@ -358,8 +376,14 @@ class PrismService {
     const connector = (data as any)?.connector as string | undefined
 
     try {
+      const merchantTransactionId = (data as any)?.merchantTransactionId as
+        | string
+        | undefined
       const res = await this.paymentClient_.get({
         connectorTransactionId,
+        // PayU's verify_payment keys off the merchant txnid (connector_request_
+        // reference_id), not the mihpayid — pass it through when present.
+        ...(merchantTransactionId ? { merchantTransactionId } : {}),
         ...(minorAmount !== undefined && currency
           ? { amount: { minorAmount, currency: toCurrency(currency) } }
           : {}),

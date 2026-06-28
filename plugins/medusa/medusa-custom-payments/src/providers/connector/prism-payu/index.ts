@@ -185,15 +185,24 @@ export async function authorizePayment(
     return { data: input.data, status: PaymentSessionStatus.ERROR }
   }
 
+  // The merchant txnid PayU echoes back; PSync (verify_payment) needs it as
+  // var1 (NOT the mihpayid), so persist it on the session below.
+  const merchantTransactionId = data?.id || `payu_${Date.now()}`
   try {
     const res: any = await paymentClient.authorize({
-      merchantTransactionId: data?.id || `payu_${Date.now()}`,
+      merchantTransactionId,
       amount: { minorAmount, currency: toCurrency(currency) },
       description: "Medusa Hyperswitch Prism order",
       paymentMethod: buildPaymentMethod(data),
       captureMethod: types.CaptureMethod.AUTOMATIC,
       ...(returnUrl ? { returnUrl } : {}),
       address: { billingAddress: toBillingAddress(billing) },
+      // PayU mandates s2s_client_ip (browser_info.ip_address) on every S2S
+      // payment flow. In production the storefront passes the shopper's IP via
+      // `data.ipAddress`; fall back to a routable test IP for the local harness.
+      browserInfo: {
+        ipAddress: extractValue((data as any)?.ipAddress) || "49.36.128.1",
+      },
       testMode: options.environment !== "PRODUCTION",
     } as any)
 
@@ -218,6 +227,8 @@ export async function authorizePayment(
     return {
       data: {
         ...data,
+        // Preserve the merchant txnid for PSync's verify_payment (var1).
+        merchantTransactionId,
         // Adopt the PayU reference as `data.id` so the post-redirect PSync
         // (getTransactionId reads `data.id`) targets the real payment.
         ...(res?.connectorTransactionId ? { id: res.connectorTransactionId } : {}),
