@@ -6480,6 +6480,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
                 .map(connector_types::SplitPaymentsDetails::foreign_try_from)
                 .transpose()?,
             setup_future_usage,
+            mandate_reference: value
+                .mandate_reference
+                .map(|m| connector_types::MandateReference {
+                    connector_mandate_id: m.connector_mandate_id,
+                    payment_method_id: m.payment_method_id,
+                    connector_mandate_request_reference_id: m
+                        .connector_mandate_request_reference_id,
+                }),
         })
     }
 }
@@ -7118,7 +7126,7 @@ pub fn generate_payment_sync_response(
             PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
-                connector_metadata: _,
+                connector_metadata,
                 network_txn_id,
                 network_txn_link_id,
                 connector_response_reference_id,
@@ -7206,6 +7214,9 @@ pub fn generate_payment_sync_response(
                             split_response,
                         )
                     }),
+                    connector_feature_data: convert_connector_metadata_to_secret_string(
+                        connector_metadata,
+                    ),
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -7303,6 +7314,7 @@ pub fn generate_payment_sync_response(
                         .sender_payment_instrument_id
                         .clone(),
                     splits: None,
+                    connector_feature_data: None,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -7397,6 +7409,7 @@ pub fn generate_payment_sync_response(
                 payment_method_update: None,
                 sender_payment_instrument_id: None,
                 splits: None,
+                connector_feature_data: None,
             })
         }
     }
@@ -8273,6 +8286,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             payment_method_update: payment_method_update_grpc,
             sender_payment_instrument_id: value.sender_payment_instrument_id,
             splits: None,
+            connector_feature_data: None,
         })
     }
 }
