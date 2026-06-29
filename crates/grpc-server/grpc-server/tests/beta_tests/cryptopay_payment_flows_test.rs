@@ -134,6 +134,7 @@ fn create_payment_sync_request(request_ref_id: &str) -> PaymentServiceGetRequest
         currency: i32::from(Currency::Usd),
         state: None,
         payment_method_type: None,
+        mandate_reference: None,
     }
 }
 

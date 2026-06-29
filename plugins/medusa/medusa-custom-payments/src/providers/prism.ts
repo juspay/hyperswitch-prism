@@ -158,6 +158,16 @@ class PrismService {
       })
     }
 
+    // Cybersource: re-initiation with the Flex transient token — persist it, no network call.
+    if (this.options_.connector === "cybersource" && (data as any)?.transientToken) {
+      return connectors.cybersource.reInitiatePayment({
+        data,
+        merchantClientSessionId,
+        currencyCode: currency_code,
+        minorAmount,
+      })
+    }
+
     // Mollie Components: in-page card fields tokenize client-side. Skip the hosted
     // client-auth (which would create an orphan redirect payment). The first init
     // returns the public profileId for mollie.js; reinitiate stores the cardToken.
@@ -329,6 +339,13 @@ class PrismService {
         options: this.options_,
         paymentClient: this.paymentClient_,
         getPaymentStatus: (i) => this.getPaymentStatus(i),
+      })
+    }
+
+    if (connector === "cybersource") {
+      return connectors.cybersource.authorizePayment(input, {
+        options: this.options_,
+        paymentClient: this.paymentClient_,
       })
     }
 
