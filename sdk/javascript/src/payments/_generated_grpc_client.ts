@@ -99,6 +99,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   Giropay: ["bankAccountBic", "bankAccountIban"],
   Interac: ["email"],
   BancontactCard: ["cardNumber", "cardExpMonth", "cardExpYear", "cardHolderName"],
+  Tamara: ["firstName", "lastName", "phoneNumber", "email"],
   Becs: ["accountNumber", "bsbNumber", "bankAccountHolderName"],
   Ach: ["accountNumber", "routingNumber", "cardHolderName", "bankAccountHolderName"],
   Eft: ["accountNumber", "branchCode", "bankAccountHolderName"],
