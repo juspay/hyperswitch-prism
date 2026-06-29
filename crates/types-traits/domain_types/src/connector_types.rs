@@ -640,6 +640,20 @@ impl PaymentsSyncData {
         )
     }
 }
+/// Settlement phase reported by the connector on PSync. Mirrors the proto enum
+/// `SettlementStatus`. Distinct from `AttemptStatus` which collapses
+/// Authorized + Settled into `Charged`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SettlementStatus {
+    /// Connector emits the field but the txn is in neither Settled nor
+    /// Not-Settled phase (e.g. PACO Voided / Refunded / Failed / Pending).
+    Unspecified,
+    /// Funds finalised — Refund is the valid reversal.
+    Settled,
+    /// Authorised only, settlement pending — Void is the valid reversal.
+    NotSettled,
+}
+
 
 #[derive(Debug, Clone)]
 pub struct PaymentFlowData {
@@ -689,6 +703,12 @@ pub struct PaymentFlowData {
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    /// Settlement phase reported by the connector. `Some(Settled)` -> Refund is
+    /// the valid reversal; `Some(NotSettled)` -> Void is the valid reversal;
+    /// `Some(Unspecified)` -> connector spoke but the txn is in neither phase
+    /// (terminal / pending state); `None` -> connector doesn't distinguish.
+    /// Currently populated by 2C2P PACO PSync.
+    pub settlement_status: Option<SettlementStatus>,
 }
 
 impl PaymentFlowData {

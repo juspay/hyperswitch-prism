@@ -906,6 +906,7 @@ fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Refu
         (PacoPaymentStatus::R, PacoPaymentStep::RF) => RefundStatus::Success,
         (PacoPaymentStatus::R, PacoPaymentStep::RR) => RefundStatus::Pending,
         (PacoPaymentStatus::P, PacoPaymentStep::RP) => RefundStatus::Pending,
+        (PacoPaymentStatus::V, PacoPaymentStep::VD) => RefundStatus::Success,
         (PacoPaymentStatus::F, _) => RefundStatus::Failure,
         (s, st) => {
             tracing::warn!(
@@ -1439,9 +1440,10 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             router_data,
             http_code,
         } = item;
-        let result = response.merged_result();
+        let result = response.flat_data_block();
         let api_response = response.api_response.clone();
-        let (status, txn_id, ref_id, prior) = extract_status(result, AttemptStatus::VoidInitiated);
+        let (status, txn_id, ref_id, prior) =
+            extract_status(result.as_ref(), AttemptStatus::VoidInitiated);
 
         if matches!(status, AttemptStatus::Failure) {
             let (code, message) = error_code_message(&api_response, &prior);
@@ -1507,9 +1509,10 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             router_data,
             http_code,
         } = item;
-        let result = response.merged_result();
+        let result = response.flat_data_block();
         let api_response = response.api_response.clone();
-        let (status, txn_id, ref_id, prior) = extract_status(result, AttemptStatus::VoidInitiated);
+        let (status, txn_id, ref_id, prior) =
+            extract_status(result.as_ref(), AttemptStatus::VoidInitiated);
 
         if matches!(status, AttemptStatus::Failure) {
             let (code, message) = error_code_message(&api_response, &prior);
@@ -1691,6 +1694,16 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoPSyncInquiryResponse, Self>>
             parsed_response,
             raw_response,
         } = item.response.0;
+        // Derive settlement_status from PACO's paymentStatus before we move parsed_response into
+        // the inner TryFrom. PACO splits success into A (Authorized — awaiting settlement,
+        // Void is the valid reversal) and S (Settled — Refund is the valid reversal); UCS's
+        // AttemptStatus collapses both into Charged, so euler needs this field to route
+        // refund vs void.
+        let settlement_status = parsed_response
+            .data
+            .as_ref()
+            .and_then(|d| d.payment_status_info.as_ref())
+            .map(|psi| paco_status_to_settlement_status(&psi.payment_status));
         let router_data = Self::try_from(ResponseRouterData {
             response: parsed_response,
             router_data: item.router_data,
@@ -1699,10 +1712,22 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoPSyncInquiryResponse, Self>>
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                settlement_status,
                 ..router_data.resource_common_data
             },
             ..router_data
         })
+    }
+}
+
+fn paco_status_to_settlement_status(
+    status: &PacoPaymentStatus,
+) -> domain_types::connector_types::SettlementStatus {
+    use domain_types::connector_types::SettlementStatus as SS;
+    match status {
+        PacoPaymentStatus::S => SS::Settled,
+        PacoPaymentStatus::A => SS::NotSettled,
+        _ => SS::Unspecified,
     }
 }
 
