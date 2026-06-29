@@ -474,10 +474,38 @@ impl
 
 // ── AuthN transformers ────────────────────────────────────────────────────────
 
-impl ForeignFrom<&CompositeAuthorizeRequest>
-    for PaymentMethodAuthenticationServicePreAuthenticateRequest
+impl
+    ForeignFrom<(
+        &CompositeAuthorizeRequest,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+    )> for PaymentMethodAuthenticationServicePreAuthenticateRequest
 {
-    fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
+    fn foreign_from(
+        (item, access_token_response): (
+            &CompositeAuthorizeRequest,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        ),
+    ) -> Self {
+        // Resolve the access token the same way the Authorize/Capture/Refund
+        // sub-requests do: prefer a caller-supplied token, otherwise fall back to
+        // the parent flow's freshly-created server-authentication token. OAuth-gated
+        // connectors (should_do_access_token) need this both to avoid
+        // FAILED_TO_OBTAIN_AUTH_TYPE and because the resolved token is the source
+        // of connector-side values derived from it during PreAuthenticate (e.g. the
+        // Kount DDC clientID, read from the token's JWT claims).
+        let access_token_from_req = item
+            .state
+            .as_ref()
+            .and_then(|state| state.access_token.clone());
+        let access_token = get_access_token(access_token_from_req, access_token_response);
+        let connector_customer_id = item
+            .state
+            .as_ref()
+            .and_then(|state| state.connector_customer_id.clone());
+        let resolved_state = Some(ConnectorState {
+            access_token,
+            connector_customer_id,
+        });
         Self {
             merchant_order_id: item.merchant_transaction_id.clone(),
             amount: item.amount,
@@ -490,10 +518,7 @@ impl ForeignFrom<&CompositeAuthorizeRequest>
             return_url: item.return_url.clone(),
             continue_redirection_url: item.continue_redirection_url.clone(),
             browser_info: item.browser_info.clone(),
-            // Thread the caller-supplied ConnectorState (access token + connector
-            // customer id) into the PreAuthenticate sub-request, so OAuth-gated
-            // connectors (should_do_access_token) don't fail with FAILED_TO_OBTAIN_AUTH_TYPE.
-            state: item.state.clone(),
+            state: resolved_state,
             capture_method: item.capture_method,
             description: item.description.clone(),
         }

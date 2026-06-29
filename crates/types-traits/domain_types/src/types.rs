@@ -413,6 +413,7 @@ pub struct Connectors {
     pub tamara: ConnectorParams,
     pub hyperswitch: ConnectorParams,
     pub qwikcilver: ConnectorParams,
+    pub kount: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -769,6 +770,8 @@ impl Proxy {
 #[derive(Debug, Serialize, Clone, PartialEq, Eq, Default, config_patch_derive::Patch)]
 pub struct ProxyConfig {
     pub idle_pool_connection_timeout: Option<u64>,
+    /// Total timeout (seconds) for a single connector API call.
+    pub connector_request_timeout: Option<u64>,
     pub bypass_urls: Vec<String>,
     /// Named proxy entries. Treated as a full replacement on config override (same as api_tags.tags).
     pub proxies: HashMap<String, Proxy>,
@@ -779,6 +782,8 @@ pub struct ProxyConfig {
 #[derive(Deserialize)]
 struct ProxyConfigLegacy {
     idle_pool_connection_timeout: Option<u64>,
+    #[serde(default)]
+    connector_request_timeout: Option<u64>,
     // `bypass_proxy_urls` is the pre-named-proxy-map field name; accepted as an alias so old configs keep working.
     #[serde(default, alias = "bypass_proxy_urls")]
     bypass_urls: Vec<String>,
@@ -811,6 +816,7 @@ impl<'de> Deserialize<'de> for ProxyConfig {
         }
         Ok(ProxyConfig {
             idle_pool_connection_timeout: raw.idle_pool_connection_timeout,
+            connector_request_timeout: raw.connector_request_timeout,
             bypass_urls: raw.bypass_urls,
             proxies,
         })

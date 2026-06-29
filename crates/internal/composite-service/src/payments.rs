@@ -446,11 +446,17 @@ where
     async fn pre_authenticate(
         &self,
         payload: &CompositeAuthorizeRequest,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<PaymentMethodAuthenticationServicePreAuthenticateResponse, tonic::Status> {
         let pre_auth_payload =
-            PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from(payload);
+            PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
+                payload,
+                access_token_response,
+            ));
         let mut pre_auth_request = tonic::Request::new(pre_auth_payload);
         *pre_auth_request.metadata_mut() = metadata.clone();
         *pre_auth_request.extensions_mut() = extensions.clone();
@@ -601,8 +607,13 @@ where
             match next_step {
                 AuthenticationStep::PreAuthenticate => {
                     state.pre_auth_response_opt = Some(
-                        self.pre_authenticate(&payload, &metadata, &extensions)
-                            .await?,
+                        self.pre_authenticate(
+                            &payload,
+                            access_token_response.as_ref(),
+                            &metadata,
+                            &extensions,
+                        )
+                        .await?,
                     );
                     state.completed_step = Some(AuthenticationStep::PreAuthenticate);
 

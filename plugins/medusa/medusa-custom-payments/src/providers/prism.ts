@@ -161,8 +161,13 @@ class PrismService {
     // Mollie Components: in-page card fields tokenize client-side. Skip the hosted
     // client-auth (which would create an orphan redirect payment). The first init
     // returns the public profileId for mollie.js; reinitiate stores the cardToken.
+    // Klarna (PayLater redirect) has no client-side tokenization: the storefront
+    // reinitiates with paymentMethodType="klarna" + billing, which is stored as-is
+    // and consumed by authorizePayment (which builds the Klarna redirect payment).
     if (this.options_.connector === "mollie") {
-      if ((data as any)?.cardToken) {
+      const isKlarnaReinit =
+        String((data as any)?.paymentMethodType ?? "").toLowerCase() === "klarna"
+      if ((data as any)?.cardToken || isKlarnaReinit) {
         return connectors.mollie.reInitiatePayment({
           data,
           merchantClientSessionId,
@@ -185,6 +190,30 @@ class PrismService {
         },
         status: PaymentSessionStatus.PENDING,
       }
+    }
+
+    // Authorize.Net: raw-card flow — there is no SDK session
+    // (createClientAuthenticationToken is not implemented for this connector).
+    // First init returns a synthetic pending session so the card form can render;
+    // re-initiation persists the card entered in the test client.
+    if (this.options_.connector === "authorizedotnet") {
+      if ((data as any)?.cardNumber) {
+        return connectors.authorizedotnet.reInitiatePayment({
+          data,
+          merchantClientSessionId,
+          currencyCode: currency_code,
+          minorAmount,
+        })
+      }
+      return connectors.authorizedotnet.initiatePayment({
+        options: this.options_,
+        merchantClientSessionId,
+        currencyCode: currency_code,
+        minorAmount,
+        sessionData: {},
+        connectorSpecific: {},
+        authClient: this.authClient_,
+      })
     }
 
     try {
@@ -303,6 +332,13 @@ class PrismService {
       })
     }
 
+    if (connector === "authorizedotnet") {
+      return connectors.authorizedotnet.authorizePayment(input, {
+        options: this.options_,
+        paymentClient: this.paymentClient_,
+      })
+    }
+
     const result = await this.getPaymentStatus(input) as AuthorizePaymentOutput
     return result
   }
@@ -407,6 +443,16 @@ class PrismService {
       )
     }
 
+    if (this.options_.connector === "authorizedotnet") {
+      return connectors.authorizedotnet.refundPayment(
+        { data, amount, context },
+        {
+          options: this.options_,
+          paymentClient: this.paymentClient_,
+        }
+      )
+    }
+
     const connectorTransactionId = this.getTransactionId(data) as string
     const currency = (data as any)?.currency as string
 
@@ -463,6 +509,7 @@ class PrismService {
       globalpay: connectors.globalpay.shouldSkipVoid,
       stripe: connectors.stripe.shouldSkipVoid,
       mollie: connectors.mollie.shouldSkipVoid,
+      authorizedotnet: connectors.authorizedotnet.shouldSkipVoid,
     }
     if (shouldSkipVoid[this.options_.connector]?.(data)) {
       return { data }
