@@ -15,9 +15,10 @@ React UI components for Hyperswitch Prism payment connectors. Ships two layers o
 | `paypal` | ✅ | ✅ | CAPTURED |
 | `stripe` | — | ✅ | AUTHORIZED |
 | `globalpay` | ✅ | ✅ | CAPTURED |
-| `mollie` | ✅ | ✅ | CAPTURED (after 3DS) |
+| `mollie` | ✅ | ✅ | CAPTURED (Card after 3DS; Klarna after redirect) |
 | `braintree` | ○ | ○ | — |
 | `cybersource` | ○ | ○ | — |
+| `authorizedotnet` | — | — | CAPTURED |
 
 **Legend**
 
@@ -25,11 +26,13 @@ React UI components for Hyperswitch Prism payment connectors. Ships two layers o
 |--------|---------|
 | ✅ | Supported — React component available |
 | ○ | No React component — connector has no client-side UI (wallet / redirect / server-side only) |
-| — | Not in `HyperswitchPrismConnectorPanel`; use `StripeWrapper` directly (Stripe handles its own Elements context) |
+| — | Not in `HyperswitchPrismConnectorPanel` — use the connector's wrapper directly (`StripeWrapper`, `AuthorizedotnetWrapper`) |
 
 > **Authorize result**
 > - **AUTHORIZED** (`adyen`, `stripe`) — funds reserved; Capture or Void available as a next step
-> - **CAPTURED** (`paypal`, `globalpay`) — funds collected immediately at authorize time; only Refund available afterward
+> - **CAPTURED** (`paypal`, `globalpay`, `authorizedotnet`) — funds collected immediately at authorize time; only Refund available afterward
+
+> **`authorizedotnet`:** uses the standalone `AuthorizedotnetWrapper` (a raw-card form with its own built-in Pay button); it is not wired into `HyperswitchPrismConnectorPanel` / `HyperswitchPrismPaymentButton`.
 
 > **Note:** All UI flows and connector integrations in this matrix are tested and verified under the **sandbox / test environment** of each connector. Production behavior should be validated separately before go-live.
 
@@ -75,6 +78,9 @@ NEXT_PUBLIC_ADYEN_CLIENT_KEY=test_...
 | `GlobalPayWrapper` | Component | Low-level GlobalPay hosted card fields wrapper |
 | `StripeWrapper` | Component | Low-level Stripe Payment Element wrapper |
 | `MollieWrapper` | Component | Low-level Mollie Components (in-page card tokenization) wrapper |
+| `MollieKlarnaForm` | Component | Klarna (Pay later) billing form for the Mollie redirect flow — collects name/email/postal address (Netherlands test defaults, all fields editable) and submits a `MollieKlarnaBilling`. Pair with a EUR session (Klarna via Mollie is EU-only) |
+| `MollieKlarnaBilling` | Type | Shape of the Klarna billing the form collects: `firstName`, `lastName`, `email`, `line1`, `city`, `postalCode`, `country` (ISO 3166-1 alpha-2) |
+| `AuthorizedotnetWrapper` | Component | Low-level Authorize.Net raw-card form (in-page PAN entry, no tokenization; self-contained Pay button) |
 | `StripePaymentButton` | Component | Place-order button for Stripe |
 | `AdyenPaymentButton` | Component | Place-order button for Adyen |
 | `PayPalPaymentButton` | Component | Place-order button for PayPal |

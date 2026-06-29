@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-const CONNECTORS = ["stripe", "adyen", "paypal", "globalpay", "mollie", "cybersource"] as const;
+const CONNECTORS = ["stripe", "adyen", "paypal", "globalpay", "mollie", "cybersource", "authorizedotnet"] as const;
 
 const LABELS: Record<string, string> = {
   stripe: "Stripe",
@@ -9,6 +9,7 @@ const LABELS: Record<string, string> = {
   globalpay: "GlobalPay",
   mollie: "Mollie",
   cybersource: "Cybersource",
+  authorizedotnet: "Authorize.Net",
 };
 
 export default function Home() {

@@ -96,8 +96,8 @@ serial_test = "3.2.0"
 
 [features]
 default = []
-kafka = ["tracing-kafka"]
-connector-request-kafka = ["dep:connector_request_kafka"]
+kafka = ["tracing-kafka", "common_utils/kafka"]
+connector-request-kafka = ["dep:connector_request_kafka", "external-services/connector-request-kafka"]
 # Push gRPC metrics over OTLP to an OpenTelemetry Collector, in addition to the
 # Prometheus /metrics scrape endpoint.
 otel = ["ucs_env/otel", "external-services/otel"]

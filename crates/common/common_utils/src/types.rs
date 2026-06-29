@@ -471,3 +471,30 @@ impl FromStr for SemanticVersion {
         )?))
     }
 }
+
+/// Primary execution or shadow mirror, derived from the `x-shadow-mode` metadata flag.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ExecutionMode {
+    Primary,
+    Shadow,
+}
+
+impl ExecutionMode {
+    /// Map the boolean shadow flag (from the `x-shadow-mode` metadata) to an execution mode.
+    pub fn from_shadow_flag(shadow_mode: bool) -> Self {
+        if shadow_mode {
+            Self::Shadow
+        } else {
+            Self::Primary
+        }
+    }
+
+    /// Stable string form for log/span fields; matches the serde representation used in events.
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Primary => "primary",
+            Self::Shadow => "shadow",
+        }
+    }
+}

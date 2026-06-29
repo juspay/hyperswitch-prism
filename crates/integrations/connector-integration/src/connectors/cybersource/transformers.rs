@@ -48,6 +48,9 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+/// Cybersource Flex Microform client version. The legacy "0.11" is rejected with
+/// "Invalid Client Version"; "v2.0" is the current value.
+pub const FLEX_MICROFORM_CLIENT_VERSION: &str = "v2.0";
 pub const REFUND_VOIDED: &str = "Refund request has been voided.";
 const CYBERSOURCE_STATE_MAX_LENGTH: usize = 20;
 
@@ -5703,7 +5706,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(Self {
             target_origins: vec![target_origin],
-            client_version: "0.11".to_string(),
+            client_version: FLEX_MICROFORM_CLIENT_VERSION.to_string(),
             allowed_card_networks: Some(vec![
                 CybersourceFlexCardNetwork::Visa,
                 CybersourceFlexCardNetwork::Mastercard,
