@@ -638,23 +638,52 @@ impl TryFrom<&common_utils::types::Money> for PacoTransactionAmount {
     }
 }
 
-impl From<&connector_types::AirlineLocation> for PacoAirlineLocation {
-    fn from(location: &connector_types::AirlineLocation) -> Self {
+fn paco_numeric_country_code(country: CountryAlpha2) -> String {
+    format!("{:03}", CountryAlpha2::to_numeric(country))
+}
+
+fn invalid_airline_field(
+    field_name: &'static str,
+) -> error_stack::Report<errors::IntegrationError> {
+    error_stack::Report::new(errors::IntegrationError::InvalidDataFormat {
+        field_name,
+        context: errors::IntegrationErrorContext {
+            suggested_action: Some(format!(
+                "PACO airlineData expects `{field_name}` to be an ISO 3166-1 alpha-2 country code."
+            )),
+            doc_url: Some(PACO_INTEGRATION_DOC_URL.to_string()),
+            additional_context: None,
+        },
+    })
+}
+
+impl TryFrom<&connector_types::AirlineLocation> for PacoAirlineLocation {
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(location: &connector_types::AirlineLocation) -> Result<Self, Self::Error> {
         // Upstream sends ISO 3166-1 alpha-2; PACO expects numeric-3.
-        // Drop on parse failure rather than emit a malformed value.
-        let numeric_cc = location.country_code.as_deref().and_then(|c| {
-            c.parse::<CountryAlpha2>()
-                .ok()
-                .map(|a| CountryAlpha2::to_numeric(a).to_string())
-        });
-        Self {
+        let numeric_cc = location
+            .country_code
+            .as_deref()
+            .map(|country| {
+                country
+                    .parse::<CountryAlpha2>()
+                    .map(paco_numeric_country_code)
+                    .map_err(|_| {
+                        invalid_airline_field(
+                            "airline_data.flight_segments[].location.country_code",
+                        )
+                    })
+            })
+            .transpose()?;
+        Ok(Self {
             airport_code: location.airport_code.clone(),
             city_code: location.city_code.clone(),
             city_name: location.city_name.clone(),
             country_code: numeric_cc,
             country_name: location.country_name.clone(),
             date_time: location.date_time.clone(),
-        }
+        })
     }
 }
 
@@ -689,16 +718,14 @@ impl TryFrom<&connector_types::AirlineSegment> for PacoFlightSegment {
             operating_airline_code: segment.operating_carrier_code.clone(),
             operating_flight_no: segment.operating_flight_number.clone(),
             flight_type: segment.flight_type.clone(),
-            departure: segment
-                .departure
-                .as_ref()
-                .map(PacoAirlineLocation::from)
-                .ok_or_else(|| missing_airline_field("airline_data.flight_segments[].departure"))?,
-            arrival: segment
-                .arrival
-                .as_ref()
-                .map(PacoAirlineLocation::from)
-                .ok_or_else(|| missing_airline_field("airline_data.flight_segments[].arrival"))?,
+            departure: PacoAirlineLocation::try_from(segment.departure.as_ref().ok_or_else(
+                || missing_airline_field("airline_data.flight_segments[].departure"),
+            )?)?,
+            arrival: PacoAirlineLocation::try_from(
+                segment.arrival.as_ref().ok_or_else(|| {
+                    missing_airline_field("airline_data.flight_segments[].arrival")
+                })?,
+            )?,
             fare_class: segment.class_of_service.clone(),
             fare_basis_code: segment.fare_basis_code.clone(),
             endorsement_or_restriction: segment.endorsements_restrictions.clone(),
@@ -875,7 +902,7 @@ where
             bill_addr_city: common.get_optional_billing_city(),
             bill_addr_country: common
                 .get_optional_billing_country()
-                .map(|c| CountryAlpha2::to_numeric(c).to_string()),
+                .map(paco_numeric_country_code),
             bill_addr_line1: common.get_optional_billing_line1(),
             bill_addr_line2: common.get_optional_billing_line2(),
             bill_addr_line3: common.get_optional_billing_line3(),
@@ -889,7 +916,7 @@ where
             ship_addr_city: common.get_optional_shipping_city(),
             ship_addr_country: common
                 .get_optional_shipping_country()
-                .map(|c| CountryAlpha2::to_numeric(c).to_string()),
+                .map(paco_numeric_country_code),
             ship_addr_line1: common.get_optional_shipping_line1(),
             ship_addr_line2: common.get_optional_shipping_line2(),
             ship_addr_line3: common.get_optional_shipping_line3(),
@@ -2588,5 +2615,136 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoRefundResponse, Self>>
             },
             ..router_data
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common_utils::{pii::Email, types::Money};
+    use serde_json::json;
+
+    use super::*;
+
+    fn money(amount: i64) -> Money {
+        Money {
+            amount: MinorUnit::new(amount),
+            currency: Currency::USD,
+        }
+    }
+
+    #[test]
+    fn paco_airline_data_serializes_connector_wire_shape() {
+        let airline_data = connector_types::AirlineData {
+            pnr_code: Some("ABC123".to_string()),
+            booking_date_time: Some("2026-06-29T10:15:30Z".to_string()),
+            agency_name: Some("Example Travel".to_string()),
+            total_fare: Some(money(123456)),
+            total_taxes: Some(money(789)),
+            total_fee: Some(money(1200)),
+            ticket_number: Some("1761234567890".to_string()),
+            ticket_issue_date: Some("2026-06-29".to_string()),
+            booking_system_unique_id: Some("GDS-123".to_string()),
+            flight_segments: vec![connector_types::AirlineSegment {
+                sequence_no: Some(1),
+                marketing_carrier_code: Some("TG".to_string()),
+                flight_number: Some("431".to_string()),
+                operating_carrier_code: Some("OS".to_string()),
+                operating_flight_number: Some("26".to_string()),
+                departure: Some(connector_types::AirlineLocation {
+                    airport_code: Some("VIE".to_string()),
+                    country_code: Some("AT".to_string()),
+                    date_time: Some("2026-07-01T08:00:00".to_string()),
+                    ..Default::default()
+                }),
+                arrival: Some(connector_types::AirlineLocation {
+                    airport_code: Some("MNL".to_string()),
+                    country_code: Some("PH".to_string()),
+                    date_time: Some("2026-07-01T21:00:00".to_string()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            }],
+            passengers: vec![connector_types::AirlinePassenger {
+                sequence_no: Some(1),
+                customer: Some(connector_types::CustomerInfo {
+                    customer_id: None,
+                    customer_email: Some(
+                        Email::try_from("jane.doe@example.com".to_string()).unwrap(),
+                    ),
+                    customer_name: None,
+                    first_name: Some(Secret::new("Jane".to_string())),
+                    last_name: Some(Secret::new("Doe".to_string())),
+                    customer_phone_number: None,
+                    customer_phone_country_code: None,
+                    salutation: None,
+                }),
+                passenger_type: Some("ADT".to_string()),
+                passport_number: Some(Secret::new("P1234567".to_string())),
+                ..Default::default()
+            }],
+            ..Default::default()
+        };
+
+        let paco_airline_data = PacoAirlineData::try_from(&airline_data).unwrap();
+        let serialized = serde_json::to_value(paco_airline_data).unwrap();
+
+        assert_eq!(
+            serialized["flightSegments"][0]["operatingflightNo"],
+            json!("26")
+        );
+        assert_eq!(
+            serialized["flightSegments"][0]["departure"]["countryCode"],
+            json!("040")
+        );
+        assert_eq!(
+            serialized["flightSegments"][0]["arrival"]["countryCode"],
+            json!("608")
+        );
+        assert_eq!(serialized["passengers"][0]["type"], json!("ADT"));
+        assert_eq!(
+            serialized["passengers"][0]["documentType"],
+            json!("Passport")
+        );
+        assert_eq!(serialized["tickets"][0]["passengerSequenceNo"], json!(1));
+        assert_eq!(
+            serialized["tickets"][0]["ticketFare"]["amountText"],
+            json!("000000123456")
+        );
+        assert_eq!(
+            serialized["tickets"][0]["ticketFare"]["currencyCode"],
+            json!("USD")
+        );
+        assert_eq!(
+            serialized["tickets"][0]["ticketFare"]["decimalPlaces"],
+            json!(2)
+        );
+        assert_eq!(
+            serialized["tickets"][0]["taxAmount"]["amountText"],
+            json!("000000000789")
+        );
+        assert_eq!(
+            serialized["tickets"][0]["agentFee"]["amountText"],
+            json!("000000001200")
+        );
+    }
+
+    #[test]
+    fn paco_airline_data_rejects_invalid_location_country_code() {
+        let location = connector_types::AirlineLocation {
+            country_code: Some("XX1".to_string()),
+            ..Default::default()
+        };
+
+        let error = PacoAirlineLocation::try_from(&location).unwrap_err();
+
+        match error.current_context() {
+            errors::IntegrationError::InvalidDataFormat { field_name, .. } => {
+                assert_eq!(
+                    *field_name,
+                    "airline_data.flight_segments[].location.country_code"
+                );
+            }
+            other => panic!("expected InvalidDataFormat, got {other:?}"),
+        }
     }
 }
