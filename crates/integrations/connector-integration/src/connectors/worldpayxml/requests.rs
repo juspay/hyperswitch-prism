@@ -319,6 +319,139 @@ pub struct WorldpayxmlOrderInquiry {
 // Type alias for RSync - reuses PSync request structure
 pub type WorldpayxmlRSyncRequest = WorldpayxmlPSyncRequest;
 
+// ===== PAYOUT REQUESTS =====
+
+#[derive(Debug, Serialize)]
+#[serde(rename = "paymentService")]
+pub struct WorldpayxmlPayoutTransferRequest {
+    #[serde(rename = "@version")]
+    pub version: String,
+    #[serde(rename = "@merchantCode")]
+    pub merchant_code: Secret<String>,
+    pub submit: WorldpayxmlPayoutSubmit,
+}
+
+impl GetSoapXml for WorldpayxmlPayoutTransferRequest {
+    fn to_soap_xml(&self) -> String {
+        generate_soap_xml(self).unwrap_or_else(|_| {
+            String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?><paymentService/>")
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlPayoutSubmit {
+    pub order: WorldpayxmlPayoutOrder,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlPayoutOrder {
+    #[serde(rename = "@orderCode")]
+    pub order_code: String,
+    pub description: String,
+    pub amount: WorldpayxmlAmount,
+    #[serde(rename = "paymentDetails")]
+    pub payment_details: WorldpayxmlPayoutPaymentDetails,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlPayoutPaymentDetails {
+    #[serde(rename = "$value")]
+    pub payment_method: WorldpayxmlPayoutPaymentMethod,
+}
+
+#[derive(Debug, Serialize)]
+pub enum WorldpayxmlPayoutPaymentMethod {
+    #[serde(rename = "FF_DISBURSE-SSL")]
+    FastAccessSsl(WorldpayxmlFastAccess),
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlFastAccess {
+    pub recipient: WorldpayxmlPayoutRecipient,
+    #[serde(rename = "purposeOfPayment", skip_serializing_if = "Option::is_none")]
+    pub purpose_of_payment: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlPayoutRecipient {
+    pub payment_instrument: WorldpayxmlPayoutPaymentInstrument,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<WorldpayxmlAddress>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlPayoutPaymentInstrument {
+    #[serde(rename = "cardDetails")]
+    pub card_details: WorldpayxmlPayoutCardDetails,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlPayoutCardDetails {
+    pub card_number: Secret<String>,
+    pub expiry_date: WorldpayxmlExpiryDate,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub card_holder_name: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename = "paymentService")]
+pub struct WorldpayxmlPayoutGetRequest {
+    #[serde(rename = "@version")]
+    pub version: String,
+    #[serde(rename = "@merchantCode")]
+    pub merchant_code: Secret<String>,
+    pub inquiry: WorldpayxmlInquiry,
+}
+
+impl GetSoapXml for WorldpayxmlPayoutGetRequest {
+    fn to_soap_xml(&self) -> String {
+        generate_soap_xml(self).unwrap_or_else(|_| {
+            String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?><paymentService/>")
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename = "paymentService")]
+pub struct WorldpayxmlPayoutVoidRequest {
+    #[serde(rename = "@version")]
+    pub version: String,
+    #[serde(rename = "@merchantCode")]
+    pub merchant_code: Secret<String>,
+    pub modify: WorldpayxmlPayoutVoidModify,
+}
+
+impl GetSoapXml for WorldpayxmlPayoutVoidRequest {
+    fn to_soap_xml(&self) -> String {
+        generate_soap_xml(self).unwrap_or_else(|_| {
+            String::from("<?xml version=\"1.0\" encoding=\"UTF-8\"?><paymentService/>")
+        })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlPayoutVoidModify {
+    #[serde(rename = "orderModification")]
+    pub order_modification: WorldpayxmlPayoutCancelOrderModification,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlPayoutCancelOrderModification {
+    #[serde(rename = "@orderCode")]
+    pub order_code: String,
+    #[serde(rename = "cancelRefund")]
+    pub cancel_refund: WorldpayxmlCancelRefund,
+}
+
+#[derive(Debug, Serialize)]
+pub struct WorldpayxmlCancelRefund {}
+
+// ===== VOID PC REQUESTS =====
+
 #[derive(Debug, Serialize)]
 #[serde(rename = "paymentService")]
 pub struct WorldpayxmlVoidPCRequest {

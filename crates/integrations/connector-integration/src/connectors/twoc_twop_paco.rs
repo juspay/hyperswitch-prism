@@ -17,7 +17,7 @@ use domain_types::{
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -116,6 +116,7 @@ macros::macro_connector_flow_status_impls!(
         MandateRevoke,
     ],
     not_supported: [
+        VoidPostRefund,
         CreateOrder,
         SubmitEvidence,
         DefendDispute,
@@ -449,12 +450,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             }
         };
 
+        let refund_status = twoc_twop_paco::classify_refund_response_code(Some(&code));
+
         Ok(ErrorResponse {
             status_code: res.status_code,
             code,
             message: message.clone(),
             reason: Some(message),
-            attempt_status: None,
+            attempt_status: refund_status.map(FlowStatus::Refund),
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,

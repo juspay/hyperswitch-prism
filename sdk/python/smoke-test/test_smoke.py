@@ -27,7 +27,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
 
 # ── ANSI color helpers ─────────────────────────────────────────────────────────
 _NO_COLOR = not sys.stdout.isatty() or os.environ.get("NO_COLOR")
@@ -130,7 +130,7 @@ def _build_connector_config(connector_key: str, auth_config: Dict[str, Any]) -> 
     )
 
 
-def load_flow_manifest(sdk_root: Path) -> tuple[list[str], dict[str, str | None]]:
+def load_flow_manifest(sdk_root: Path) -> tuple[List[str], Dict[str, Optional[str]]]:
     """Load the canonical flow manifest from flows.json.
     
     Returns:
@@ -174,9 +174,9 @@ def load_flow_manifest(sdk_root: Path) -> tuple[list[str], dict[str, str | None]
 def discover_and_validate_scenarios(
     module,
     connector_name: str,
-    manifest: list[str],
-    flow_to_example_fn: dict[str, str | None],
-) -> list[tuple[str, callable]] | str:
+    manifest: List[str],
+    flow_to_example_fn: Dict[str, Optional[str]],
+) -> Union[List[tuple[str, callable]], str]:
     """
     Discover and validate scenario functions for a connector.
     

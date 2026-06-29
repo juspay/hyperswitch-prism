@@ -461,7 +461,7 @@
           }
         },
         "sample": {
-          "url": "https://test.payu.in//merchant/postservice.php?form=2",
+          "url": "https://secure.snd.payu.com//merchant/postservice.php?form=2",
           "method": "Post",
           "headers": {
             "accept": "application/json",
@@ -476,12 +476,6 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: client_authentication_token flow for payu"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for payu"
       }
     },
     "create_order": {
@@ -510,7 +504,7 @@
           }
         },
         "sample": {
-          "url": "https://test.payu.in/pl/standard/user/oauth/authorize",
+          "url": "https://secure.snd.payu.com/pl/standard/user/oauth/authorize",
           "method": "Post",
           "headers": {
             "accept": "application/json",
@@ -519,6 +513,12 @@
           },
           "body": "grant_type=client_credentials&client_id=probe_secret&client_secret=probe_key"
         }
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for payu"
       }
     },
     "dispute_accept": {
@@ -546,7 +546,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by payu connector"
       }
     },
     "get": {
@@ -561,7 +562,7 @@
           }
         },
         "sample": {
-          "url": "https://test.payu.in//merchant/postservice.php?form=2",
+          "url": "https://secure.snd.payu.com//merchant/postservice.php?form=2",
           "method": "Post",
           "headers": {
             "accept": "application/json",
@@ -584,6 +585,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -638,7 +644,7 @@
           "reason": "customer_request"
         },
         "sample": {
-          "url": "https://test.payu.in//merchant/postservice.php?form=2",
+          "url": "https://secure.snd.payu.com//merchant/postservice.php?form=2",
           "method": "Post",
           "headers": {
             "accept": "application/json",
@@ -658,7 +664,7 @@
           "refund_id": "probe_refund_id_001"
         },
         "sample": {
-          "url": "https://test.payu.in//merchant/postservice.php?form=2",
+          "url": "https://secure.snd.payu.com//merchant/postservice.php?form=2",
           "method": "Post",
           "headers": {
             "accept": "application/json",
@@ -712,7 +718,7 @@
           "connector_transaction_id": "probe_connector_txn_001"
         },
         "sample": {
-          "url": "https://test.payu.in//merchant/postservice.php?form=2",
+          "url": "https://secure.snd.payu.com//merchant/postservice.php?form=2",
           "method": "Post",
           "headers": {
             "accept": "application/json",

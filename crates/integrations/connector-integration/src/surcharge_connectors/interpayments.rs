@@ -28,7 +28,7 @@ use interfaces::{
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
         SurchargeCalculateV2, SurchargePaymentSucceededV2, SurchargeRefundSucceededV2,
-        SurchargeServiceTrait,
+        SurchargeServiceTrait, ValidationTrait,
     },
 };
 use transformers::{
@@ -119,6 +119,7 @@ impl ConnectorCommon for InterPayments {
 
 common_macros::create_amount_converter_wrapper!(connector_name: InterPayments, amount_type: FloatMajorUnit);
 
+impl ValidationTrait for InterPayments {}
 impl SurchargeServiceTrait for InterPayments {}
 impl SurchargeCalculateV2 for InterPayments {}
 impl SurchargePaymentSucceededV2 for InterPayments {}

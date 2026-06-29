@@ -19,8 +19,9 @@ use domain_types::{
         SupportedPaymentMethodsExt,
     },
     errors::IntegrationError,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
@@ -122,7 +123,7 @@ macros::create_all_prerequisites!(
             flow: ServerSessionAuthenticationToken,
             request_body: PayuSessionTokenRequest,
             response_body: PayuSessionTokenResponse,
-            router_data: RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ),
         (
             flow: Authorize,
@@ -319,7 +320,7 @@ macros::macro_connector_implementation!(
                     code: "PAYU_SYNC_ERROR".to_string(),
                     message: response.msg.unwrap_or_default(),
                     reason: None,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
@@ -332,7 +333,7 @@ macros::macro_connector_implementation!(
                     code: "SYNC_UNKNOWN_ERROR".to_string(),
                     message: "Unknown PayU sync error".to_string(),
                     reason: None,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
@@ -399,7 +400,7 @@ macros::macro_connector_implementation!(
                     .or(response.message)
                     .unwrap_or_else(|| "PayU capture error".to_string()),
                 reason: None,
-                attempt_status: Some(enums::AttemptStatus::CaptureFailed),
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::CaptureFailed)),
                 connector_transaction_id: response.mihpayid,
                 network_error_message: None,
                 network_advice_code: None,
@@ -465,7 +466,7 @@ macros::macro_connector_implementation!(
                     .or(response.message)
                     .unwrap_or_else(|| "PayU void error".to_string()),
                 reason: None,
-                attempt_status: Some(enums::AttemptStatus::VoidFailed),
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::VoidFailed)),
                 connector_transaction_id: response.mihpayid,
                 network_error_message: None,
                 network_advice_code: None,
@@ -612,7 +613,7 @@ macros::macro_connector_implementation!(
     curl_request: FormUrlEncoded(PayuSessionTokenRequest),
     curl_response: PayuSessionTokenResponse,
     flow_name: ServerSessionAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerSessionAuthenticationTokenRequestData,
     flow_response: ServerSessionAuthenticationTokenResponseData,
     http_method: Post,
@@ -621,7 +622,7 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            _req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            _req: &RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             Ok(vec![
                 ("Content-Type".to_string(), "application/x-www-form-urlencoded".into()),
@@ -631,7 +632,7 @@ macros::macro_connector_implementation!(
 
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerSessionAuthenticationToken, PaymentFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerSessionAuthenticationToken, MerchantAuthenticationFlowData, ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             // PayU OAuth2 client_credentials token endpoint (SDKSessionToken).
             let base_url = self.base_url(&req.resource_common_data.connectors);
@@ -661,7 +662,7 @@ macros::macro_connector_implementation!(
                     .error_description
                     .unwrap_or_else(|| "PayU session token error".to_string()),
                 reason: None,
-                attempt_status: Some(enums::AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                 connector_transaction_id: None,
                 network_error_message: None,
                 network_advice_code: None,
@@ -726,7 +727,7 @@ macros::macro_connector_implementation!(
                     code: response.error.unwrap_or_default(),
                     message: response.message.unwrap_or_default(),
                     reason: None,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                     connector_transaction_id: response.reference_id,
                     network_error_message: None,
                     network_advice_code: None,
@@ -740,7 +741,7 @@ macros::macro_connector_implementation!(
                     code: "UNKNOWN_ERROR".to_string(),
                     message: "Unknown PayU error".to_string(),
                     reason: None,
-                    attempt_status: Some(enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_error_message: None,
                     network_advice_code: None,
@@ -881,6 +882,7 @@ macros::macro_connector_flow_status_impls!(
         ServerAuthenticationToken,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         VoidPC,
         Accept,

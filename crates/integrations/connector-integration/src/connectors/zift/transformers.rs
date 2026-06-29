@@ -16,7 +16,7 @@ use domain_types::{
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 
@@ -671,9 +671,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: item.response.transaction_code.clone(),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })
@@ -820,9 +822,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: item.response.transaction_code.clone(),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })
@@ -878,7 +882,7 @@ impl TryFrom<ResponseRouterData<ZiftSyncResponse, Self>>
                     .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
                 reason: item.response.response_message,
                 status_code: item.http_code,
-                attempt_status: Some(attempt_status),
+                attempt_status: Some(FlowStatus::Payment(attempt_status)),
                 connector_transaction_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
@@ -891,9 +895,11 @@ impl TryFrom<ResponseRouterData<ZiftSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -994,9 +1000,11 @@ impl<F> TryFrom<ResponseRouterData<ZiftCaptureResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 ..item.router_data
             }),
@@ -1138,9 +1146,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     }),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: item.response.transaction_code.clone(),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 ..item.router_data
             })
@@ -1214,9 +1224,11 @@ impl<F> TryFrom<ResponseRouterData<ZiftVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             Err(ErrorResponse {

@@ -10,91 +10,134 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "status": "error",
+        "error": "Stuck on field: apple_pay_decrypted_data. Missing 'apple_pay_decrypted_data' in the request. Decrypted Apple Pay card and authentication details are required for payment processing. — Missing required field: apple_pay_decrypted_data. Missing 'apple_pay_decrypted_data' in the request. Decrypted Apple Pay card and authentication details are required for payment processing."
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://imerchantsolutions.com/api/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"walletToken\":{\"type\":\"applepay\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"nonce\":\"AAAAAA==\",\"eci\":\"05\"},\"shopperName\":{\"firstName\":null,\"lastName\":null},\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"storePaymentMethod\":false}"
+        }
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Card": {
         "status": "supported",
@@ -133,19 +176,19 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Crypto": {
         "status": "not_supported",
@@ -153,11 +196,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "DuitNow": {
         "status": "not_supported",
@@ -165,35 +208,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Givex": {
         "status": "not_supported",
@@ -201,87 +244,128 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "status": "error",
+        "error": "Stuck on field: google_pay_decrypted_data. Missing 'google_pay_decrypted_data' in the request. Decrypted Google Pay card and authentication details are required for payment processing. — Missing required field: google_pay_decrypted_data. Missing 'google_pay_decrypted_data' in the request. Decrypted Google Pay card and authentication details are required for payment processing."
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://imerchantsolutions.com/api/payments",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"walletToken\":{\"type\":\"googlepay\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"nonce\":\"AAAAAA==\",\"eci\":\"05\"},\"shopperName\":{\"firstName\":null,\"lastName\":null},\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"storePaymentMethod\":false}"
+        }
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -289,43 +373,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -333,19 +417,19 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -353,15 +437,15 @@
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Paysera": {
         "status": "not_supported",
@@ -373,63 +457,63 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Skrill": {
         "status": "not_supported",
@@ -437,47 +521,47 @@
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested wallet payment method is not currently supported by the Imerchantsolutions connector implementation."
       }
     },
     "capture": {
@@ -509,12 +593,6 @@
         "error": "client_authentication_token flow not supported by imerchantsolutions connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by imerchantsolutions connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -531,6 +609,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by imerchantsolutions connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by imerchantsolutions connector"
       }
     },
     "dispute_accept": {
@@ -558,7 +642,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by imerchantsolutions connector"
       }
     },
     "get": {
@@ -627,6 +712,11 @@
           "headers": {},
           "body": "{\"type\": \"payment.completed\",\"paymentId\": \"cmml1234abcd\",\"pspReference\": \"ABC123DEF456\",\"reference\": \"order-12345\",\"amount\": 5000,\"currency\": \"USD\",\"status\": \"captured\",\"processor\": \"Adyen\",\"cardLast4\": \"1111\",\"cardBrand\": \"visa\",\"customerEmail\": \"customer@example.com\",\"partnerId\": \"your_partner_id\",\"merchantId\": \"merchant_id\",\"timestamp\": \"2026-03-30T15:45:00.000Z\"}}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {
@@ -755,7 +845,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions"
+        "error": "This feature is not implemented: Selected payment method through Imerchantsolutions. The requested payment method is not currently supported by the Imerchantsolutions connector implementation."
       }
     },
     "token_setup_recurring": {

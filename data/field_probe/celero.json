@@ -509,12 +509,6 @@
         "error": "client_authentication_token flow not supported by celero connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for celero"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_supported",
@@ -531,6 +525,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by celero connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for celero"
       }
     },
     "dispute_accept": {
@@ -558,7 +558,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by celero connector"
       }
     },
     "get": {
@@ -596,6 +597,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

@@ -10,8 +10,8 @@ package examples.authorizedotnet
 import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.CustomerClient
 import payments.MerchantAuthenticationClient
+import payments.CustomerClient
 import payments.EventClient
 import payments.RecurringPaymentClient
 import payments.RefundClient
@@ -30,7 +30,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.AuthorizedotnetConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_customer", "create_server_session_authentication_token", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "reverse", "setup_recurring", "void")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "capture", "create_server_session_authentication_token", "customer_create", "get", "parse_event", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "reverse", "setup_recurring", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -242,19 +242,6 @@ fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
     println("Done: ${response.status.name}")
 }
 
-// Flow: CustomerService.Create
-fun createCustomer(txnId: String, config: ConnectorConfig = _defaultConfig) {
-    val client = CustomerClient(config)
-    val request = CustomerServiceCreateRequest.newBuilder().apply {
-        merchantCustomerId = "cust_probe_123"  // Identification.
-        customerName = "John Doe"  // Name of the customer.
-        emailBuilder.value = "test@example.com"  // Email address of the customer.
-        phoneNumber = "4155552671"  // Phone number of the customer.
-    }.build()
-    val response = client.create(request)
-    println("Customer: ${response.connectorCustomerId}")
-}
-
 // Flow: MerchantAuthenticationService.CreateServerSessionAuthenticationToken
 fun createServerSessionAuthenticationToken(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = MerchantAuthenticationClient(config)
@@ -268,6 +255,19 @@ fun createServerSessionAuthenticationToken(txnId: String, config: ConnectorConfi
     }.build()
     val response = client.create_server_session_authentication_token(request)
     println("Session token: ${response.sessionToken} (statusCode=${response.statusCode})")
+}
+
+// Flow: CustomerService.Create
+fun customerCreate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = CustomerClient(config)
+    val request = CustomerServiceCreateRequest.newBuilder().apply {
+        merchantCustomerId = "cust_probe_123"  // Identification.
+        customerName = "John Doe"  // Name of the customer.
+        emailBuilder.value = "test@example.com"  // Email address of the customer.
+        phoneNumberBuilder.value = "4155552671"  // Phone number of the customer.
+    }.build()
+    val response = client.customer_create(request)
+    println("Customer: ${response.connectorCustomerId}")
 }
 
 // Flow: PaymentService.Get
@@ -498,8 +498,8 @@ fun main(args: Array<String>) {
         "processGetPayment" -> processGetPayment(txnId)
         "authorize" -> authorize(txnId)
         "capture" -> capture(txnId)
-        "createCustomer" -> createCustomer(txnId)
         "createServerSessionAuthenticationToken" -> createServerSessionAuthenticationToken(txnId)
+        "customerCreate" -> customerCreate(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
         "parseEvent" -> parseEvent(txnId)
@@ -511,6 +511,6 @@ fun main(args: Array<String>) {
         "reverse" -> reverse(txnId)
         "setupRecurring" -> setupRecurring(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createCustomer, createServerSessionAuthenticationToken, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, reverse, setupRecurring, void")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, createServerSessionAuthenticationToken, customerCreate, get, handleEvent, parseEvent, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, reverse, setupRecurring, void")
     }
 }

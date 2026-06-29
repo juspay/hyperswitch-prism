@@ -17,7 +17,7 @@ use domain_types::{
     payment_method_data::{
         GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -530,7 +530,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     message: response.errormessage.clone(),
                     reason: Some(response.errormessage.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: response.transactionreference.clone(),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -557,9 +557,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(item.response.requestreference.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -740,7 +742,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsPSyncResponse, Self>>
                     message: response_item.errormessage.clone(),
                     reason: Some(response_item.errormessage.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -772,7 +774,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsPSyncResponse, Self>>
                     message: record.errormessage.clone(),
                     reason: Some(record.errormessage.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(record.transactionreference.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -792,9 +794,11 @@ impl TryFrom<ResponseRouterData<TrustpaymentsPSyncResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(item.response.requestreference.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -939,7 +943,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsCaptureResponse, Self>>
                     message: response_item.errormessage.clone(),
                     reason: Some(response_item.errormessage.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -963,9 +967,11 @@ impl TryFrom<ResponseRouterData<TrustpaymentsCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(item.response.requestreference.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1084,7 +1090,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsVoidResponse, Self>>
                     message: response_item.errormessage.clone(),
                     reason: Some(response_item.errormessage.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::VoidFailed),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1104,9 +1110,11 @@ impl TryFrom<ResponseRouterData<TrustpaymentsVoidResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(item.response.requestreference.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1801,7 +1809,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     message: response.errormessage.clone(),
                     reason: Some(response.errormessage.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: response.transactionreference.clone(),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1838,9 +1846,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             mandate_reference,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(item.response.requestreference.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1999,7 +2009,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     message: response.errormessage.clone(),
                     reason: Some(response.errormessage.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: response.transactionreference.clone(),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2026,9 +2036,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(item.response.requestreference.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {

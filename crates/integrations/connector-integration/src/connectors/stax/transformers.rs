@@ -19,7 +19,7 @@ use domain_types::{
     payment_method_data::{
         BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -410,9 +410,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxPaymentResponse, 
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -454,9 +456,11 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -530,9 +534,11 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -791,9 +797,11 @@ impl TryFrom<ResponseRouterData<StaxPaymentResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -884,6 +892,7 @@ impl TryFrom<ResponseRouterData<StaxCustomerResponse, Self>>
         Ok(Self {
             response: Ok(domain_types::connector_types::ConnectorCustomerResponse {
                 connector_customer_id: item.response.id.expose(),
+                status_code: item.http_code,
             }),
             ..item.router_data
         })
@@ -1320,9 +1329,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateRespo
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             Err(ErrorResponse {
@@ -1333,7 +1344,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxSetupMandateRespo
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: response.message.clone(),
-                attempt_status: Some(AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: Some(response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1459,9 +1470,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxRepeatPaymentResp
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             Err(ErrorResponse {
@@ -1472,7 +1485,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StaxRepeatPaymentResp
                     .clone()
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: response.message.clone(),
-                attempt_status: Some(AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: Some(response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,

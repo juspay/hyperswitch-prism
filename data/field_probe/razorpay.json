@@ -478,12 +478,6 @@
         "error": "This feature is not implemented: client_authentication_token flow for razorpay"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for razorpay"
-      }
-    },
     "create_order": {
       "default": {
         "status": "supported",
@@ -539,6 +533,12 @@
         }
       }
     },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for razorpay"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_implemented",
@@ -564,7 +564,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by razorpay connector"
       }
     },
     "get": {
@@ -633,6 +634,11 @@
           "headers": {},
           "body": "{\"account_id\":\"probe_acct\",\"contains\":[\"payment\"],\"entity\":\"event\",\"event\":\"payment.captured\",\"payload\":{\"payment\":{\"entity\":{\"id\":\"pay_probe001\",\"entity\":\"payment\",\"amount\":1000,\"currency\":\"USD\",\"status\":\"captured\",\"order_id\":\"order_probe001\"}}}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

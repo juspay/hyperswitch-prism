@@ -14,11 +14,12 @@ use domain_types::{
         SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankDebitData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         VaultTokenHolder,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 
@@ -2147,7 +2148,7 @@ impl<
                         message: error.error_text.clone(),
                         reason: Some(error.error_text.clone()),
                         status_code: http_code,
-                        attempt_status: Some(status),
+                        attempt_status: Some(FlowStatus::Payment(status)),
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
                         network_advice_code: None,
                         network_decline_code: None,
@@ -2185,11 +2186,13 @@ impl<
                             .network_trans_id
                             .as_ref()
                             .map(|s| s.peek().clone()),
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(
                             transaction_response.transaction_id.clone(),
                         ),
                         incremental_authorization_allowed: None,
                         status_code: http_code,
+                        splits: None,
                     }),
                 }
             }
@@ -2247,7 +2250,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRefundResponse, Self>>
                 message: error.error_text.clone(),
                 reason: Some(error.error_text.clone()),
                 status_code: http_code,
-                attempt_status: Some(AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: Some(transaction_response.transaction_id.clone()),
                 network_advice_code: None,
                 network_decline_code: None,
@@ -2314,9 +2317,11 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(transaction.transaction_id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: http_code,
+                    splits: None,
                 });
 
                 Ok(new_router_data)
@@ -2350,7 +2355,7 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                             .map(|m| m.text.clone())
                             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                     ),
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2438,7 +2443,7 @@ fn create_error_response(
         code: error_code,
         message: error_message.clone(),
         reason: Some(error_message),
-        attempt_status: Some(status),
+        attempt_status: Some(FlowStatus::Payment(status)),
         connector_transaction_id,
         network_decline_code: None,
         network_advice_code: None,
@@ -2704,9 +2709,11 @@ pub fn convert_to_payments_response_data_or_error(
                         .network_trans_id
                         .as_ref()
                         .map(|s| s.peek().clone()),
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(trans_res.transaction_id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: http_status_code,
+                    splits: None,
                 })
             }
         }
@@ -2740,9 +2747,11 @@ pub fn convert_to_payments_response_data_or_error(
                 connector_metadata: None,
                 mandate_reference: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_status_code,
+                splits: None,
             })
         }
         None if status == AttemptStatus::VoidedPostCapture
@@ -2816,10 +2825,12 @@ impl From<SyncStatus> for AttemptStatus {
             SyncStatus::Voided => Self::Voided,
             SyncStatus::CouldNotVoid => Self::VoidFailed,
             SyncStatus::GeneralError => Self::Failure,
-            SyncStatus::RefundSettledSuccessfully
-            | SyncStatus::RefundPendingSettlement
-            | SyncStatus::FDSPendingReview
-            | SyncStatus::FDSAuthorizedPendingReview => Self::Pending,
+            SyncStatus::RefundSettledSuccessfully | SyncStatus::RefundPendingSettlement => {
+                Self::Charged
+            }
+            SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
+                Self::Unresolved
+            }
         }
     }
 }
@@ -2922,7 +2933,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRSyncResponse, Self>>
                             .map(|m| m.text.clone())
                             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                     ),
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -3132,9 +3143,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_request_reference_id: None,
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             });
         } else {
             let error_response = ErrorResponse {
@@ -3159,7 +3172,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .map(|m| m.text.clone())
                         .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 ),
-                attempt_status: Some(AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -3515,6 +3528,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
             // Success - return the connector customer ID
             new_router_data.response = Ok(ConnectorCustomerResponse {
                 connector_customer_id: profile_id,
+                status_code: http_code,
             });
         } else {
             // Check if this is a "duplicate customer" error (E00039)
@@ -3532,6 +3546,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                     );
                     new_router_data.response = Ok(ConnectorCustomerResponse {
                         connector_customer_id: existing_profile_id,
+                        status_code: http_code,
                     });
                 } else {
                     // Couldn't extract ID, return error
@@ -3540,7 +3555,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                         code: error_code.to_string(),
                         message: error_text.to_string(),
                         reason: Some(error_text.to_string()),
-                        attempt_status: Some(AttemptStatus::Failure), // Marking attempt as failure since we couldn't confirm existing profile ID
+                        attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure since we couldn't confirm existing profile ID
                         connector_transaction_id: None,
                         network_decline_code: None,
                         network_advice_code: None,
@@ -3554,7 +3569,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                     code: error_code.to_string(),
                     message: error_text.to_string(),
                     reason: Some(error_text.to_string()),
-                    attempt_status: Some(AttemptStatus::Failure), // Marking attempt as failure for non-duplicate errors
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure for non-duplicate errors
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -3594,7 +3609,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         AuthorizedotnetRouterData<
             RouterDataV2<
                 ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerSessionAuthenticationTokenRequestData,
                 ServerSessionAuthenticationTokenResponseData,
             >,
@@ -3608,7 +3623,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: AuthorizedotnetRouterData<
             RouterDataV2<
                 ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerSessionAuthenticationTokenRequestData,
                 ServerSessionAuthenticationTokenResponseData,
             >,
@@ -3637,7 +3652,7 @@ pub struct AuthorizedotnetSdkSessionTokenResponse {
 impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
     for RouterDataV2<
         ServerSessionAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData,
     >
@@ -3660,16 +3675,12 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
                 .map(|m| m.text.clone())
                 .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
             return Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    status: AttemptStatus::Failure,
-                    ..router_data.resource_common_data.clone()
-                },
                 response: Err(ErrorResponse {
                     code,
                     message: message.clone(),
                     reason: Some(message),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -3693,10 +3704,6 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
         // This flow only issues a session token; no payment has been authorized yet, so the
         // attempt status is left unchanged (it is not Pending).
         Ok(Self {
-            resource_common_data: PaymentFlowData {
-                session_token: Some(session_token.clone()),
-                ..router_data.resource_common_data.clone()
-            },
             response: Ok(ServerSessionAuthenticationTokenResponseData { session_token }),
             ..router_data.clone()
         })

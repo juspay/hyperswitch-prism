@@ -509,12 +509,6 @@
         "error": "client_authentication_token flow not supported by revolv3 connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for revolv3"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -531,6 +525,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: server_session_authentication_token flow for revolv3"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for revolv3"
       }
     },
     "dispute_accept": {
@@ -558,7 +558,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by revolv3 connector"
       }
     },
     "get": {
@@ -579,6 +580,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

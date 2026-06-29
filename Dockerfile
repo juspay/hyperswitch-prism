@@ -44,7 +44,7 @@ ENV SCCACHE_CACHE_SIZE=5G
 
 # Cook dependencies using cargo-chef with caching
 RUN --mount=type=cache,target=/sccache \
-    cargo chef cook --release --features kafka --recipe-path recipe.json
+    cargo chef cook --release --features kafka,connector-request-kafka,otel --recipe-path recipe.json
 
 # Install additional build-time dependencies
 RUN apt-get update \
@@ -54,10 +54,10 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Build the application
+# Build only the binary shipped by the runtime stage; skips test/SDK crates.
 COPY . .
 RUN --mount=type=cache,target=/sccache \
-    cargo build --release --features kafka
+    cargo build --release --features kafka,connector-request-kafka,otel -p grpc-server
 
 # Output sccache statistics
 RUN sccache --show-stats
@@ -69,10 +69,12 @@ FROM public.ecr.aws/docker/library/debian:bookworm-slim AS runtime
 WORKDIR /app
 
 # Install only runtime dependencies and clean up
+# curl: probe outbound connector reachability from inside the pod.
 RUN apt-get update \
     && apt-get install -y \
        libpq-dev \
        ca-certificates \
+       curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

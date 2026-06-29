@@ -14,7 +14,6 @@ use common_utils::{
     request::{Method, RequestContent},
     types::{AmountConvertor, MinorUnit},
 };
-use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 use domain_types::{
     connector_flow::{
@@ -29,8 +28,10 @@ use domain_types::{
         ServerSessionAuthenticationTokenResponseData, SupportedPaymentMethodsExt,
         WebhookDetailsResponse,
     },
+    errors::ConnectorError,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::{
@@ -209,7 +210,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             code,
             message: message.clone(),
             reason,
-            attempt_status: Some(attempt_status),
+            attempt_status: Some(FlowStatus::Payment(attempt_status)),
             connector_transaction_id: None,
             network_decline_code: None,
             network_advice_code: None,
@@ -688,7 +689,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         ServerSessionAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData,
     > for Razorpay<T>
@@ -697,7 +698,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         req: &RouterDataV2<
             ServerSessionAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ServerSessionAuthenticationTokenRequestData,
             ServerSessionAuthenticationTokenResponseData,
         >,
@@ -725,7 +726,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         req: &RouterDataV2<
             ServerSessionAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ServerSessionAuthenticationTokenRequestData,
             ServerSessionAuthenticationTokenResponseData,
         >,
@@ -740,7 +741,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         req: &RouterDataV2<
             ServerSessionAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ServerSessionAuthenticationTokenRequestData,
             ServerSessionAuthenticationTokenResponseData,
         >,
@@ -764,7 +765,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         &self,
         data: &RouterDataV2<
             ServerSessionAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ServerSessionAuthenticationTokenRequestData,
             ServerSessionAuthenticationTokenResponseData,
         >,
@@ -773,7 +774,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> CustomResult<
         RouterDataV2<
             ServerSessionAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ServerSessionAuthenticationTokenRequestData,
             ServerSessionAuthenticationTokenResponseData,
         >,
@@ -1353,6 +1354,7 @@ macros::macro_connector_flow_status_impls!(
         RepeatPayment,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         VoidPC,
         Void,

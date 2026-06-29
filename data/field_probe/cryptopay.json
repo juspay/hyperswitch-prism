@@ -461,12 +461,6 @@
         "error": "client_authentication_token flow not supported by cryptopay connector"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: create_connector_customer flow for cryptopay"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_supported",
@@ -483,6 +477,12 @@
       "default": {
         "status": "not_supported",
         "error": "server_session_authentication_token flow not supported by cryptopay connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for cryptopay"
       }
     },
     "dispute_accept": {
@@ -510,7 +510,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by cryptopay connector"
       }
     },
     "get": {
@@ -580,6 +581,11 @@
           "headers": {},
           "body": "{\"type\":\"Invoice\",\"event\":\"status_changed\",\"data\":{\"id\":\"probe_invoice_001\",\"status\":\"completed\",\"price_amount\":\"10.00\",\"price_currency\":\"USD\",\"name\":\"probe_charge\"}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

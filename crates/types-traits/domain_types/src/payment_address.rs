@@ -343,6 +343,9 @@ impl AddressDetails {
             })
             .transpose()
     }
+    pub fn get_optional_zip(&self) -> Option<Secret<String>> {
+        self.zip.clone()
+    }
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

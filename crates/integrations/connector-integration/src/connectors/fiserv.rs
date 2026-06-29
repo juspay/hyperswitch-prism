@@ -513,6 +513,7 @@ macros::macro_connector_flow_status_impls!(
         RepeatPayment,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         CreateOrder,
         Accept,

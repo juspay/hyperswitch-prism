@@ -11,7 +11,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -330,7 +330,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaymePaymentResponse,
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.payme_sale_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -353,9 +353,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaymePaymentResponse,
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: response.payme_transaction_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: response.transaction_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             };
 
             Ok(Self {
@@ -487,7 +489,7 @@ impl TryFrom<ResponseRouterData<PaymeSyncResponse, Self>>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -517,9 +519,11 @@ impl TryFrom<ResponseRouterData<PaymeSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: sale_item.transaction_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             };
 
             Ok(Self {
@@ -628,7 +632,7 @@ impl TryFrom<ResponseRouterData<PaymeCaptureResponse, Self>>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.payme_sale_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -651,9 +655,11 @@ impl TryFrom<ResponseRouterData<PaymeCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: response.payme_transaction_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: response.transaction_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             };
 
             Ok(Self {
@@ -1000,7 +1006,7 @@ impl TryFrom<ResponseRouterData<PaymeVoidResponse, Self>>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::VoidFailed),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
                     connector_transaction_id: Some(response.payme_sale_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1025,9 +1031,11 @@ impl TryFrom<ResponseRouterData<PaymeVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: response.payme_transaction_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: response.transaction_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             };
 
             Ok(Self {
@@ -1185,7 +1193,7 @@ impl TryFrom<ResponseRouterData<PaymeGenerateSaleResponse, Self>>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.payme_sale_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,

@@ -12,7 +12,7 @@ use common_utils::{
 };
 use domain_types::{
     connector_types::ConnectorEnum,
-    types::{Connectors, ConnectorsPatch, Proxy, ProxyPatch},
+    types::{Connectors, ConnectorsPatch, ProxyConfig, ProxyConfigPatch},
 };
 
 use crate::{
@@ -26,7 +26,7 @@ pub struct Config {
     pub server: Server,
     pub metrics: MetricsServer,
     pub log: Log,
-    pub proxy: Proxy,
+    pub proxy: ProxyConfig,
     pub connectors: Connectors,
     #[serde(default)]
     pub events: EventConfig,
@@ -206,6 +206,35 @@ pub struct Server {
 pub struct MetricsServer {
     pub host: String,
     pub port: u16,
+    /// OpenTelemetry (OTLP) push pipeline configuration. Disabled by default; the
+    /// Prometheus scrape endpoint at `/metrics` is unaffected.
+    #[serde(default)]
+    pub otel: OtelMetricsConfig,
+}
+
+/// OpenTelemetry metrics push (OTLP) configuration.
+///
+/// When `enabled`, the service exports its gRPC metrics over OTLP/gRPC to an
+/// OpenTelemetry Collector at `otel_exporter_otlp_endpoint`, mirroring the
+/// hyperswitch app's telemetry pipeline. This is additive to the existing
+/// Prometheus `/metrics` scrape endpoint.
+#[derive(Clone, Deserialize, Debug, Serialize, PartialEq, Default, config_patch_derive::Patch)]
+pub struct OtelMetricsConfig {
+    /// Whether the OTLP metrics push pipeline is enabled.
+    #[serde(default)]
+    pub enabled: bool,
+    /// OTLP collector endpoint (gRPC), e.g. `http://otel-collector:4317`.
+    #[serde(default)]
+    pub otel_exporter_otlp_endpoint: Option<String>,
+    /// Per-export timeout in milliseconds.
+    #[serde(default)]
+    pub otel_exporter_otlp_timeout_ms: Option<u64>,
+    /// Interval between metric pushes, in seconds (default 3).
+    #[serde(default)]
+    pub collection_interval_secs: Option<u64>,
+    /// Per-export timeout, in seconds (default 10).
+    #[serde(default)]
+    pub export_timeout_secs: Option<u64>,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -312,7 +341,7 @@ impl Config {
                     .try_parsing(true)
                     .separator("__")
                     .list_separator(",")
-                    .with_list_parse_key("proxy.bypass_proxy_urls")
+                    .with_list_parse_key("proxy.bypass_urls")
                     .with_list_parse_key("redis.cluster_urls")
                     .with_list_parse_key("database.tenants")
                     .with_list_parse_key("log.kafka.brokers")

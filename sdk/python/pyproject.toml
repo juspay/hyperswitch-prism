@@ -8,7 +8,7 @@ version = "0.0.0.dev0"
 description = "Hyperswitch Payments SDK — Python client for connector integrations via UniFFI FFI"
 readme = "README.md"
 requires-python = ">=3.9"
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 keywords = ["hyperswitch", "prism", "payments", "payment-processing", "credit-cards", "juspay", "payment-gateway", "stripe", "adyen", "paypal", "unified-payments"]
 dependencies = [
     "httpx[http2]>=0.27.0",

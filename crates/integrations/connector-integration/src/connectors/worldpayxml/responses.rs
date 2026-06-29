@@ -72,6 +72,11 @@ pub enum WorldpayxmlLastEvent {
     RefundFailed,
     Expired,
     Error,
+    PushRequested,
+    PushPending,
+    PushApproved,
+    PushRefused,
+    SettledByMerchant,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -315,4 +320,49 @@ pub enum WorldpayxmlErrorResponse {
 pub struct WorldpayxmlStandardError {
     pub code: Option<String>,
     pub message: Option<String>,
+}
+
+// ===== PAYOUT RESPONSES =====
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename = "paymentService")]
+pub struct WorldpayxmlPayoutTransferResponse {
+    #[serde(rename = "@version")]
+    pub version: String,
+    #[serde(rename = "@merchantCode")]
+    pub merchant_code: String,
+    pub reply: WorldpayxmlReply,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename = "paymentService")]
+pub struct WorldpayxmlPayoutGetResponse {
+    #[serde(rename = "@version")]
+    pub version: String,
+    #[serde(rename = "@merchantCode")]
+    pub merchant_code: String,
+    pub reply: WorldpayxmlReply,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename = "paymentService")]
+pub struct WorldpayxmlPayoutVoidResponse {
+    #[serde(rename = "@version")]
+    pub version: String,
+    #[serde(rename = "@merchantCode")]
+    pub merchant_code: String,
+    pub reply: WorldpayxmlPayoutVoidReply,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlPayoutVoidReply {
+    pub ok: Option<WorldpayxmlPayoutCancelOk>,
+    pub error: Option<WorldpayxmlError>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorldpayxmlPayoutCancelOk {
+    pub cancel_received: WorldpayxmlCancelReceived,
 }

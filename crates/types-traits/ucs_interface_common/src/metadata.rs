@@ -1,5 +1,5 @@
 use common_utils::{
-    consts::{self, X_ENVIRONMENT, X_SHADOW_MODE},
+    consts::{self, X_ENVIRONMENT, X_PROXY_NAME, X_SHADOW_MODE},
     errors::CustomResult,
     fp_utils,
     lineage::LineageIds,
@@ -39,6 +39,9 @@ pub struct MetadataPayload {
     pub resource_id: Option<String>,
     /// Environment dimension for superposition config resolution (e.g., "production", "sandbox")
     pub environment: Option<String>,
+    /// Named proxy to use for this request — matches a key in [proxy.proxies.*] config.
+    /// If absent, resolved from shadow_mode: true → "shadow", false → "primary".
+    pub proxy_name: Option<String>,
 }
 
 pub fn get_metadata_payload(
@@ -57,6 +60,7 @@ pub fn get_metadata_payload(
     let resource_id = resource_id_from_metadata(metadata)?;
     let shadow_mode = shadow_mode_from_metadata(metadata);
     let environment = environment_from_metadata(metadata);
+    let proxy_name = proxy_name_from_metadata(metadata);
 
     Ok(MetadataPayload {
         tenant_id,
@@ -69,6 +73,7 @@ pub fn get_metadata_payload(
         shadow_mode,
         resource_id,
         environment,
+        proxy_name,
     })
 }
 
@@ -177,6 +182,27 @@ pub fn connector_variant_from_metadata(
                 })
             })?;
         Ok(connector_types::ConnectorVariant::Payout(connector))
+    } else if let Some(value) = metadata.get(consts::X_FRM_CONNECTOR_NAME) {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-frm-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid x-frm-connector header value: {e}")),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector =
+            connector_types::FrmConnectorEnum::from_str(connector_str).map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-frm-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid FRM connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Frm(connector))
     } else {
         // Neither header found
         Err(Report::new(IntegrationError::MissingRequiredField {
@@ -252,6 +278,16 @@ pub fn shadow_mode_from_metadata(metadata: &metadata::MetadataMap) -> bool {
         .flatten()
         .map(|value| value.to_lowercase() == "true")
         .unwrap_or(false)
+}
+
+/// Extracts the named proxy key from `x-proxy-name` header.
+/// Caller decides which proxy to use; UCS does a pure lookup in [proxy.proxies.*].
+pub fn proxy_name_from_metadata(metadata: &metadata::MetadataMap) -> Option<String> {
+    parse_optional_metadata(metadata, X_PROXY_NAME)
+        .ok()
+        .flatten()
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.trim().to_string())
 }
 
 /// Extracts environment from the x-environment header for superposition config resolution.

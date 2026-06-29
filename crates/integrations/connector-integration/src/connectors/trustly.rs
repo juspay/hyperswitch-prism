@@ -18,7 +18,7 @@ use domain_types::{
     types::Connectors,
 };
 
-use hyperswitch_masking::Maskable;
+use hyperswitch_masking::{ExposeInterface, Maskable};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -411,6 +411,55 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
         Ok(Box::new(details))
     }
+
+    fn get_webhook_api_response(
+        &self,
+        request: RequestDetails,
+        _error_kind: Option<connector_types::IncomingWebhookFlowError>,
+        connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<interfaces::api::EventAckResponse, error_stack::Report<errors::WebhookError>> {
+        let details: TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        let data = trustly::TrustlyWebhookResponseResultData {
+            status: "OK".to_string(),
+        };
+
+        let connector_auth_type =
+            connector_account_details.ok_or(errors::WebhookError::WebhookResponseEncodingFailed)?;
+
+        let auth = trustly::TrustlyAuthType::try_from(&connector_auth_type)
+            .change_context(errors::WebhookError::WebhookResponseEncodingFailed)?;
+
+        let signature = trustly::generate_trustly_signature(
+            details.method.as_str(),
+            &details.params.uuid,
+            &data,
+            &auth.private_key.expose(),
+        )
+        .change_context(errors::WebhookError::WebhookResponseEncodingFailed)?;
+
+        let response = trustly::TrustlyWebhookResponse {
+            result: trustly::TrustlyWebhookResponseResult {
+                signature: signature.into(),
+                uuid: details.params.uuid,
+                method: details.method.as_str().to_string(),
+                data,
+            },
+            version: details.version,
+        };
+
+        let response_body = serde_json::to_vec(&response)
+            .change_context(errors::WebhookError::WebhookResponseEncodingFailed)?;
+
+        Ok(interfaces::api::EventAckResponse {
+            status_code: 200,
+            headers: vec![],
+            body: Some(response_body),
+        })
+    }
 }
 
 macros::macro_connector_flow_status_impls!(
@@ -431,6 +480,7 @@ macros::macro_connector_flow_status_impls!(
         RSync,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         CreateOrder,
         SubmitEvidence,

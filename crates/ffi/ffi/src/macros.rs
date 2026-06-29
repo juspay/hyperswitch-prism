@@ -653,6 +653,189 @@ macro_rules! surcharge_res_transformer {
     };
 }
 
+/// Macro to generate FRM request transformer functions
+macro_rules! frm_req_transformer {
+    (
+        fn_name: $fn_name:ident,
+        request_type: $request_type:ty,
+        flow_marker: $flow_marker:ty,
+        resource_common_data_type: $resource_common_data_type:ty,
+        request_data_type: $request_data_type:ty,
+        response_data_type: $response_data_type:ty $(,)?
+    ) => {
+        #[allow(unreachable_code, unused_variables)]
+        pub fn $fn_name(
+            payload: $request_type,
+            config: &std::sync::Arc<ucs_env::configs::Config>,
+            connector: domain_types::connector_types::FrmConnectorEnum,
+            connector_config: domain_types::router_data::ConnectorSpecificConfig,
+            metadata: &common_utils::metadata::MaskedMetadata,
+        ) -> Result<Option<common_utils::request::Request>, grpc_api_types::payments::IntegrationError> {
+
+            let connector_data: connector_integration::types::FrmConnectorData =
+                connector_integration::types::FrmConnectorData::get_connector_by_name(&connector);
+
+            let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
+                '_,
+                $flow_marker,
+                $resource_common_data_type,
+                $request_data_type,
+                $response_data_type,
+            > = connector_data.connector.get_connector_integration_v2();
+
+            let connectors = ucs_interface_common::config::connectors_with_connector_config_overrides(
+                &connector_config,
+                config,
+            )
+            .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
+                common_utils::errors::ErrorSwitch::switch(e.current_context())
+            })?;
+
+            let flow_data: $resource_common_data_type =
+                domain_types::utils::ForeignTryFrom::foreign_try_from((
+                    payload.clone(),
+                    connectors,
+                    metadata,
+                ))
+                .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
+                    common_utils::errors::ErrorSwitch::switch(e.current_context())
+                })?;
+
+            let payment_request_data: $request_data_type =
+                domain_types::utils::ForeignTryFrom::foreign_try_from(payload.clone())
+                .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
+                    common_utils::errors::ErrorSwitch::switch(e.current_context())
+                })?;
+
+            let router_data = domain_types::router_data_v2::RouterDataV2 {
+                flow: std::marker::PhantomData,
+                resource_common_data: flow_data,
+                connector_config,
+                request: payment_request_data,
+                response: Err(domain_types::router_data::ErrorResponse::default()),
+            };
+
+            let connector_request = connector_integration
+                .build_request_v2(&router_data)
+                .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
+                    common_utils::errors::ErrorSwitch::switch(e.current_context())
+                })?;
+
+            Ok(connector_request)
+        }
+    };
+}
+
+/// Macro to generate FRM response transformer functions
+macro_rules! frm_res_transformer {
+    (
+        fn_name: $fn_name:ident,
+        request_type: $request_type:ty,
+        response_type: $response_type:ty,
+        flow_marker: $flow_marker:ty,
+        resource_common_data_type: $resource_common_data_type:ty,
+        request_data_type: $request_data_type:ty,
+        response_data_type: $response_data_type:ty,
+        generate_response_fn: $generate_response_fn:ident,
+    ) => {
+        #[allow(unreachable_code, unused_variables)]
+        pub fn $fn_name(
+            payload: $request_type,
+            config: &std::sync::Arc<ucs_env::configs::Config>,
+            connector: domain_types::connector_types::FrmConnectorEnum,
+            connector_config: domain_types::router_data::ConnectorSpecificConfig,
+            metadata: &common_utils::metadata::MaskedMetadata,
+            response: domain_types::router_response_types::Response,
+        ) -> Result<$response_type, Box<grpc_api_types::payments::ConnectorError>> {
+            let connector_data: connector_integration::types::FrmConnectorData =
+                connector_integration::types::FrmConnectorData::get_connector_by_name(&connector);
+
+            let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
+                '_,
+                $flow_marker,
+                $resource_common_data_type,
+                $request_data_type,
+                $response_data_type,
+            > = connector_data.connector.get_connector_integration_v2();
+
+            let connectors = ucs_interface_common::config::connectors_with_connector_config_overrides(
+                &connector_config,
+                config,
+            )
+            .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
+                let ctx = e.current_context();
+                Box::new(grpc_api_types::payments::ConnectorError {
+                    error_message: ctx.to_string(),
+                    error_code: ctx.error_code().to_string(),
+                    http_status_code: None,
+                    error_info: None,
+                })
+            })?;
+
+            let flow_data: $resource_common_data_type =
+                domain_types::utils::ForeignTryFrom::foreign_try_from((
+                    payload.clone(),
+                    connectors,
+                    metadata,
+                ))
+                .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
+                    let ctx = e.current_context();
+                    Box::new(grpc_api_types::payments::ConnectorError {
+                        error_message: ctx.to_string(),
+                        error_code: ctx.error_code().to_string(),
+                        http_status_code: None,
+                        error_info: None,
+                    })
+                })?;
+
+            let payment_request_data: $request_data_type =
+                domain_types::utils::ForeignTryFrom::foreign_try_from(payload.clone())
+                .map_err(|e: error_stack::Report<domain_types::errors::IntegrationError>| {
+                    let ctx = e.current_context();
+                    Box::new(grpc_api_types::payments::ConnectorError {
+                        error_message: ctx.to_string(),
+                        error_code: ctx.error_code().to_string(),
+                        http_status_code: None,
+                        error_info: None,
+                    })
+                })?;
+
+            let router_data = domain_types::router_data_v2::RouterDataV2 {
+                flow: std::marker::PhantomData,
+                resource_common_data: flow_data,
+                connector_config,
+                request: payment_request_data,
+                response: Err(domain_types::router_data::ErrorResponse::default()),
+            };
+
+            let classified_response = match response.status_code {
+                200..=399 => Ok(response),
+                _ => Err(response),
+            };
+            let response = external_services::service::handle_connector_response(
+                Ok(classified_response),
+                router_data,
+                &connector_integration,
+                None,
+                None,
+                &common_utils::Method::Post.to_string(),
+                "".to_string(),
+                None,
+            )
+            .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
+                Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
+            })?;
+
+            domain_types::frm::types::$generate_response_fn(response)
+                .map_err(|e: error_stack::Report<domain_types::errors::ConnectorError>| {
+                    Box::new(common_utils::errors::ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(e.current_context()))
+                })
+        }
+    };
+}
+
+pub(crate) use frm_req_transformer;
+pub(crate) use frm_res_transformer;
 pub(crate) use payout_req_transformer;
 pub(crate) use payout_res_transformer;
 pub(crate) use req_transformer;

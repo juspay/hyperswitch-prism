@@ -628,12 +628,6 @@
         "error": "This feature is not implemented: client_authentication_token flow for iatapay"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_supported",
-        "error": "create_connector_customer flow not supported by iatapay connector"
-      }
-    },
     "create_order": {
       "default": {
         "status": "not_implemented",
@@ -662,6 +656,12 @@
         "error": "This feature is not implemented: server_session_authentication_token flow for iatapay"
       }
     },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by iatapay connector"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_supported",
@@ -687,7 +687,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by iatapay connector"
       }
     },
     "get": {
@@ -733,6 +734,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

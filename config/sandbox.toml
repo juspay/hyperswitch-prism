@@ -18,12 +18,18 @@ host = "0.0.0.0"
 port = 8080
 
 [proxy]
-idle_pool_connection_timeout = 90               # Timeout for idle pool connections (defaults to 90s)
-bypass_proxy_urls = ["localhost", "local"]
-mitm_proxy_enabled = false
+idle_pool_connection_timeout = 90
+connector_request_timeout = 30
+bypass_urls = ["localhost", "local"]
 
 [connectors]
+kount.base_url = "https://api-sandbox.kount.com"
+kount.secondary_base_url = "https://login.kount.com"
+hyperswitch.base_url = "https://sandbox.hyperswitch.io"
+payconex.base_url = "https://cert.payconex.net"
+tamara.base_url = "https://api-sandbox.tamara.co"
 juspay.base_url = "https://sandbox.juspay.in/"
+qwikcilver.base_url = "https://qc3.qwikcilver.com/"
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
@@ -127,12 +133,21 @@ pinelabs_online.base_url = "https://pluraluat.v2.pinepg.in/api/pay/v1"
 easebuzz.base_url = "https://testpay.easebuzz.in"
 easebuzz.secondary_base_url = "https://testdashboard.easebuzz.in"
 axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
+tsys_transit.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Server"
 
 # Generic Events Configuration
 [events]
 enabled = false
 brokers = ["localhost:9092"]
-topic = "audit-trail-events"
+
+# Outbound connector-call events.
+[events.connector_events]
+topic = "unified-connector-service-connector-events"
+partition_key_field = "request_id"
+
+# Inbound request events.
+[events.api_events]
+topic = "unified-connector-service-api-events"
 partition_key_field = "request_id"
 
 [connector_request_kafka]
@@ -148,7 +163,7 @@ enqueue_timeout_ms = 5000
 # sasl_password = ""
 
 [unmasked_headers]
-keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode"]
+keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name"]
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)

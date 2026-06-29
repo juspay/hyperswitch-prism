@@ -1,5 +1,5 @@
-mod requests;
-mod responses;
+pub(crate) mod requests;
+pub(crate) mod responses;
 pub mod transformers;
 
 use std::fmt::Debug;
@@ -85,12 +85,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentCapture for Worldpayxml<T>
 {
 }
-
-macros::macro_connector_payout_implementation!(
-    connector: Worldpayxml,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
-);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Worldpayxml<T>
@@ -563,6 +557,7 @@ macros::macro_connector_flow_status_impls!(
         CreateOrder,
     ],
     not_supported: [
+        VoidPostRefund,
         Accept,
     ],
 );

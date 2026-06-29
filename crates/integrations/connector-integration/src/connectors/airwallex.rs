@@ -19,6 +19,7 @@ use domain_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         SetupMandateRequestData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -192,7 +193,7 @@ macros::create_all_prerequisites!(
             flow: ServerAuthenticationToken,
             request_body: AirwallexAccessTokenRequest,
             response_body: AirwallexAccessTokenResponse,
-            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         (
             flow: CreateOrder,
@@ -417,7 +418,7 @@ macros::macro_connector_implementation!(
     curl_request: Json(AirwallexAccessTokenRequest),
     curl_response: AirwallexAccessTokenResponse,
     flow_name: ServerAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerAuthenticationTokenRequestData,
     flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
@@ -426,7 +427,7 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             let auth = airwallex::AirwallexAuthType::try_from(&req.connector_config)
                 .change_context(IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
@@ -447,7 +448,7 @@ macros::macro_connector_implementation!(
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}/authentication/login", &req.resource_common_data.connectors.airwallex.base_url))
         }
@@ -803,6 +804,7 @@ macros::macro_connector_flow_status_impls!(
         IncrementalAuthorization,
     ],
     not_supported: [
+        VoidPostRefund,
         VoidPC,
     ],
 );

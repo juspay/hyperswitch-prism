@@ -7,6 +7,7 @@ use common_utils::{
 };
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
+pub const FLUID_DATA_DESCRIPTOR: &str = "RklEPUNPTU1PTi5BUFBMRS5JTkFQUC5QQVlNRU5U";
 pub const FLUID_DATA_DESCRIPTOR_FOR_SAMSUNG_PAY: &str = "FID=COMMON.SAMSUNG.INAPP.PAYMENT";
 const MAX_STATE_LENGTH: usize = 20;
 
@@ -21,12 +22,13 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
         SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_address::Address,
     payment_method_data::{
-        self, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+        self, ApplePayDecryptedData, ApplePayWalletData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     utils::{is_payment_failure, CardIssuer},
 };
@@ -116,6 +118,8 @@ pub enum PaymentInformation<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     Cards(Box<CardPaymentInformation<T>>),
+    ApplePay(Box<ApplePayPaymentInformation>),
+    ApplePayToken(Box<ApplePayTokenPaymentInformation>),
 }
 
 #[derive(Debug, Serialize)]
@@ -151,12 +155,33 @@ pub struct TokenizedCard {
     number: cards::CardNumber,
     expiration_month: Secret<String>,
     expiration_year: Secret<String>,
-    cryptogram: Secret<String>,
+    cryptogram: Option<Secret<String>>,
     transaction_type: TransactionType,
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayTokenizedCard {
+    transaction_type: TransactionType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayTokenPaymentInformation {
+    fluid_data: FluidData,
+    tokenized_card: ApplePayTokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayPaymentInformation {
+    tokenized_card: TokenizedCard,
+}
+
+#[derive(Debug, Serialize)]
 pub enum TransactionType {
+    #[serde(rename = "1")]
+    InApp,
     #[serde(rename = "1")]
     ApplePay,
     #[serde(rename = "1")]
@@ -447,6 +472,7 @@ fn get_error_response(
         detailed_error_info,
         avs_message.flatten(),
     );
+
     let error_message = error_data
         .clone()
         .and_then(|error_details| error_details.reason);
@@ -458,7 +484,7 @@ fn get_error_response(
             .unwrap_or(NO_ERROR_MESSAGE.to_string()),
         reason,
         status_code,
-        attempt_status,
+        attempt_status: attempt_status.map(FlowStatus::Payment),
         connector_transaction_id: Some(transaction_id.clone()),
         network_advice_code,
         network_decline_code,
@@ -498,6 +524,8 @@ fn get_payment_response(
     match error_response {
         Some(error) => Err(Box::new(error)),
         None => {
+            let incremental_authorization_allowed =
+                Some(status == common_enums::AttemptStatus::Authorized);
             let mandate_reference =
                 info_response
                     .token_information
@@ -515,7 +543,15 @@ fn get_payment_response(
                 redirection_data: None,
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: None,
-                network_txn_id: None,
+                network_txn_id: info_response.processor_information.as_ref().and_then(
+                    |processor_information| {
+                        processor_information
+                            .network_transaction_id
+                            .clone()
+                            .map(|s| s.expose())
+                    },
+                ),
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     info_response
                         .client_reference_information
@@ -523,8 +559,9 @@ fn get_payment_response(
                         .clone()
                         .unwrap_or(info_response.id.clone()),
                 ),
-                incremental_authorization_allowed: None,
+                incremental_authorization_allowed,
                 status_code: http_code,
+                splits: None,
             })
         }
     }
@@ -558,8 +595,102 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => Self::try_from((item, ccard)),
             PaymentMethodData::Wallet(wallet_data) => match wallet_data {
-                WalletData::ApplePay(_)
-                | WalletData::GooglePay(_)
+                WalletData::ApplePay(apple_pay_data) => {
+                    match apple_pay_data
+                        .payment_data
+                        .get_decrypted_apple_pay_payment_data_optional()
+                    {
+                        Some(decrypt_data) => {
+                            Self::try_from((&item, Box::new(decrypt_data.clone()), apple_pay_data))
+                        }
+                        None => {
+                            let email = item
+                                .router_data
+                                .resource_common_data
+                                .get_billing_email()
+                                .or(item.router_data.request.get_email())?;
+                            let bill_to = build_bill_to(
+                                item.router_data.resource_common_data.get_optional_billing(),
+                                email,
+                            )?;
+                            let order_information =
+                                OrderInformationWithBill::try_from((&item, Some(bill_to)))?;
+                            let processing_information = ProcessingInformation::try_from((
+                                &item,
+                                Some(PaymentSolution::ApplePay),
+                                Some(apple_pay_data.payment_method.network.clone()),
+                            ))?;
+                            let apple_pay_encrypted_data = apple_pay_data
+                                .payment_data
+                                .get_encrypted_apple_pay_payment_data_mandatory()
+                                .change_context(IntegrationError::MissingRequiredField {
+                                    field_name: "Apple pay encrypted data",
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some(
+                                            "Expected encrypted Apple Pay payment data in the wallet payload, but it was absent or could not be extracted. Ensure the Apple Pay session returns a valid encrypted payment token.".to_string(),
+                                        ),
+                                        suggested_action: Some(
+                                            "Verify that the Apple Pay payment token contains the encrypted payment data field before submitting the authorization request.".to_string(),
+                                        ),
+                                        doc_url: None,
+                                    },
+                                })?;
+                            let payment_information = PaymentInformation::ApplePayToken(Box::new(
+                                ApplePayTokenPaymentInformation {
+                                    fluid_data: FluidData {
+                                        value: Secret::from(apple_pay_encrypted_data.clone()),
+                                        descriptor: Some(FLUID_DATA_DESCRIPTOR.to_string()),
+                                    },
+                                    tokenized_card: ApplePayTokenizedCard {
+                                        transaction_type: TransactionType::InApp,
+                                    },
+                                },
+                            ));
+                            let merchant_defined_information = item
+                                .router_data
+                                .request
+                                .metadata
+                                .clone()
+                                .expose_option()
+                                .map(convert_metadata_to_merchant_defined_info);
+                            let ucaf_collection_indicator = match apple_pay_data
+                                .payment_method
+                                .network
+                                .to_lowercase()
+                                .as_str()
+                            {
+                                "mastercard" => Some("2".to_string()),
+                                _ => None,
+                            };
+                            Ok(Self {
+                                processing_information,
+                                payment_information,
+                                order_information,
+                                client_reference_information: ClientReferenceInformation {
+                                    code: Some(
+                                        item.router_data
+                                            .resource_common_data
+                                            .connector_request_reference_id
+                                            .clone(),
+                                    ),
+                                },
+                                merchant_defined_information,
+                                consumer_authentication_information: Some(
+                                    BankOfAmericaConsumerAuthInformation {
+                                        ucaf_collection_indicator: ucaf_collection_indicator
+                                            .map(Secret::new),
+                                        cavv: None,
+                                        ucaf_authentication_data: None,
+                                        xid: None,
+                                        directory_server_transaction_id: None,
+                                        specification_version: None,
+                                    },
+                                ),
+                            })
+                        }
+                    }
+                }
+                WalletData::GooglePay(_)
                 | WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
@@ -597,7 +728,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
                     domain_types::utils::get_unimplemented_payment_method_error_message(
                         "Bank of America",
                     ),
@@ -698,6 +830,111 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
             merchant_defined_information,
             consumer_authentication_information: None,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<(
+        &BankofamericaRouterData<
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+        Box<ApplePayDecryptedData>,
+        ApplePayWalletData,
+    )> for BankofamericaPaymentsRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        input: (
+            &BankofamericaRouterData<
+                RouterDataV2<
+                    Authorize,
+                    PaymentFlowData,
+                    PaymentsAuthorizeData<T>,
+                    PaymentsResponseData,
+                >,
+                T,
+            >,
+            Box<ApplePayDecryptedData>,
+            ApplePayWalletData,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let (item, apple_pay_data, apple_pay_wallet_data) = input;
+        let email = item
+            .router_data
+            .resource_common_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
+        let bill_to = build_bill_to(
+            item.router_data.resource_common_data.get_optional_billing(),
+            email,
+        )?;
+        let order_information = OrderInformationWithBill::try_from((item, Some(bill_to)))?;
+        let processing_information = ProcessingInformation::try_from((
+            item,
+            Some(PaymentSolution::ApplePay),
+            Some(apple_pay_wallet_data.payment_method.network.clone()),
+        ))?;
+        let expiration_month = apple_pay_data.get_expiry_month();
+        let expiration_year = apple_pay_data.get_four_digit_expiry_year();
+        let payment_information =
+            PaymentInformation::ApplePay(Box::new(ApplePayPaymentInformation {
+                tokenized_card: TokenizedCard {
+                    number: apple_pay_data.application_primary_account_number.clone(),
+                    cryptogram: Some(
+                        apple_pay_data
+                            .payment_data
+                            .online_payment_cryptogram
+                            .clone(),
+                    ),
+                    transaction_type: TransactionType::InApp,
+                    expiration_year,
+                    expiration_month,
+                },
+            }));
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .expose_option()
+            .map(convert_metadata_to_merchant_defined_info);
+        let ucaf_collection_indicator = match apple_pay_wallet_data
+            .payment_method
+            .network
+            .to_lowercase()
+            .as_str()
+        {
+            "mastercard" => Some("2".to_string()),
+            _ => None,
+        };
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information: ClientReferenceInformation {
+                code: Some(
+                    item.router_data
+                        .resource_common_data
+                        .connector_request_reference_id
+                        .clone(),
+                ),
+            },
+            merchant_defined_information,
+            consumer_authentication_information: Some(BankOfAmericaConsumerAuthInformation {
+                ucaf_collection_indicator: ucaf_collection_indicator.map(Secret::new),
+                cavv: None,
+                ucaf_authentication_data: None,
+                xid: None,
+                directory_server_transaction_id: None,
+                specification_version: None,
+            }),
         })
     }
 }
@@ -1775,7 +2012,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
                     Default::default(),
                 ))?,
@@ -2069,6 +2307,7 @@ impl<F> TryFrom<ResponseRouterData<BankOfAmericaSetupMandatesResponse, Self>>
                             mandate_reference: mandate_reference.map(Box::new),
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(
                                 info_response
                                     .client_reference_information
@@ -2078,6 +2317,7 @@ impl<F> TryFrom<ResponseRouterData<BankOfAmericaSetupMandatesResponse, Self>>
                             ),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                     },
                     ..item.router_data
@@ -2245,6 +2485,8 @@ impl<F> TryFrom<ResponseRouterData<BankOfAmericaTransactionResponse, Self>>
                     item.router_data.request.is_auto_capture(),
                 ));
 
+                let incremental_authorization_allowed =
+                    Some(status == common_enums::AttemptStatus::Authorized);
                 let risk_info: Option<ClientRiskInformation> = None;
                 if is_payment_failure(status) {
                     Ok(Self {
@@ -2268,13 +2510,15 @@ impl<F> TryFrom<ResponseRouterData<BankOfAmericaTransactionResponse, Self>>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: item
                                 .response
                                 .client_reference_information
                                 .map(|cref| cref.code)
                                 .unwrap_or(Some(item.response.id)),
-                            incremental_authorization_allowed: None,
+                            incremental_authorization_allowed,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         ..item.router_data
                     })
@@ -2287,9 +2531,11 @@ impl<F> TryFrom<ResponseRouterData<BankOfAmericaTransactionResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(item.response.id),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 ..item.router_data
             }),
