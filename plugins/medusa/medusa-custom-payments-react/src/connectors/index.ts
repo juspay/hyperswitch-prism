@@ -2,6 +2,7 @@ import type { PaymentConnector } from "../types";
 import { adyenConnector } from "./adyen";
 import { paypalConnector } from "./paypal";
 import { globalpayConnector } from "./globalpay";
+import { cybersourceConnector } from "./cybersource";
 
 /**
  * Registry of all supported payment connectors.
@@ -15,6 +16,7 @@ export const connectors: Record<string, PaymentConnector> = {
   adyen: adyenConnector,
   paypal: paypalConnector,
   globalpay: globalpayConnector,
+  cybersource: cybersourceConnector,
 };
 
 /**

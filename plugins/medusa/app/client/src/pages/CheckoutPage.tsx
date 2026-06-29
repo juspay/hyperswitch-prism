@@ -7,6 +7,7 @@ import {
   PayPalWrapper,
   GlobalPayWrapper,
   MollieWrapper,
+  CybersourceWrapper,
   MollieKlarnaForm,
   type MollieKlarnaBilling,
   AuthorizedotnetWrapper,
@@ -23,10 +24,11 @@ const CONNECTOR_LABELS: Record<string, string> = {
   paypal: "PayPal",
   globalpay: "GlobalPay",
   mollie: "Mollie",
+  cybersource: "Cybersource",
   authorizedotnet: "Authorize.Net",
 };
 
-const SUPPORTED = ["stripe", "adyen", "paypal", "globalpay", "mollie", "authorizedotnet"];
+const SUPPORTED = ["stripe", "adyen", "paypal", "globalpay", "mollie", "cybersource", "authorizedotnet"];
 
 type SessionState = {
   collectionId: string;
@@ -54,7 +56,10 @@ async function initiateSession(connector: string): Promise<SessionState> {
   const sessRes = await fetch(`/store/payment-collections/${collectionId}/payment-sessions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ provider_id: connector }),
+    // Cybersource Flex Microform derives its iframe target_origins from the
+    // session's return_url, so it must match the page origin. Send it for every
+    // connector — redirect-based ones use it too, card-only ones ignore it.
+    body: JSON.stringify({ provider_id: connector, return_url: window.location.origin }),
   });
   if (!sessRes.ok) {
     const body = await sessRes.json().catch(() => ({}));
@@ -260,6 +265,31 @@ function ConnectorUI({ connector, sessionId, sessionData, onComplete, onError }:
             }
             window.location.assign(`/order/${sessionId}`);
           }}
+        />
+      );
+
+    case "cybersource":
+      return (
+        <CybersourceWrapper
+          captureContext={sessionData.captureContext ?? ""}
+          clientLibrary={sessionData.clientLibrary}
+          clientLibraryIntegrity={sessionData.clientLibraryIntegrity}
+          onSubmit={async (paymentData) => {
+            // Persist the Flex transient token (reinitiate) so the prism service
+            // forwards it as the connectorToken at authorize time.
+            await fetch(`/store/payment-sessions/${sessionId}/reinitiate`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                data: {
+                  transientToken: paymentData.transientToken,
+                  id: sessionData.id,
+                },
+              }),
+            });
+            await onComplete();
+          }}
+          onError={onError}
         />
       );
 

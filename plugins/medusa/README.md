@@ -18,7 +18,7 @@ Hyperswitch Prism payment integration for Medusa v2. This monorepo contains two 
 > | [![PayPal](https://img.shields.io/badge/PayPal-003087?style=for-the-badge&logo=paypal&logoColor=white)](https://paypal.com) | ✅ | ✅ |
 > | [![GlobalPay](https://img.shields.io/badge/GlobalPay-E4002B?style=for-the-badge&logoColor=white)](https://developer.globalpay.com) | ✅ | ✅ |
 > | [![Braintree](https://img.shields.io/badge/Braintree-1B3FA0?style=for-the-badge&logoColor=white)](https://developer.paypal.com/braintree/docs) | ✅ | — |
-> | [![Cybersource](https://img.shields.io/badge/Cybersource-FF6600?style=for-the-badge&logoColor=white)](https://developer.cybersource.com) | ✅ | — |
+> | [![Cybersource](https://img.shields.io/badge/Cybersource-FF6600?style=for-the-badge&logoColor=white)](https://developer.cybersource.com) | ✅ | ✅ |
 > | [![Mollie](https://img.shields.io/badge/Mollie-000000?style=for-the-badge&logo=mollie&logoColor=white)](https://mollie.com) | ✅ | — |
 > | [![Authorize.net](https://img.shields.io/badge/Authorize.Net-EE3124?style=for-the-badge&logoColor=white)](https://developer.authorize.net) | ✅ | ✅ |
 > | [![PayU](https://img.shields.io/badge/PayU-A6CE39?style=for-the-badge&logoColor=white)](https://payu.com) | [🚧][payu-issue] | [🚧][payu-issue] |
