@@ -2621,7 +2621,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoRefundResponse, Self>>
 #[cfg(test)]
 mod tests {
     use common_utils::{pii::Email, types::Money};
-    use serde_json::json;
+    use serde_json::{json, Value};
 
     use super::*;
 
@@ -2632,8 +2632,13 @@ mod tests {
         }
     }
 
+    fn assert_json_pointer(serialized: &Value, path: &str, expected: Value) {
+        assert_eq!(serialized.pointer(path), Some(&expected));
+    }
+
     #[test]
-    fn paco_airline_data_serializes_connector_wire_shape() {
+    fn paco_airline_data_serializes_connector_wire_shape() -> Result<(), Box<dyn std::error::Error>>
+    {
         let airline_data = connector_types::AirlineData {
             pnr_code: Some("ABC123".to_string()),
             booking_date_time: Some("2026-06-29T10:15:30Z".to_string()),
@@ -2668,9 +2673,7 @@ mod tests {
                 sequence_no: Some(1),
                 customer: Some(connector_types::CustomerInfo {
                     customer_id: None,
-                    customer_email: Some(
-                        Email::try_from("jane.doe@example.com".to_string()).unwrap(),
-                    ),
+                    customer_email: Some(Email::try_from("jane.doe@example.com".to_string())?),
                     customer_name: None,
                     first_name: Some(Secret::new("Jane".to_string())),
                     last_name: Some(Secret::new("Doe".to_string())),
@@ -2685,47 +2688,50 @@ mod tests {
             ..Default::default()
         };
 
-        let paco_airline_data = PacoAirlineData::try_from(&airline_data).unwrap();
-        let serialized = serde_json::to_value(paco_airline_data).unwrap();
+        let paco_airline_data = PacoAirlineData::try_from(&airline_data)?;
+        let serialized = serde_json::to_value(paco_airline_data)?;
 
-        assert_eq!(
-            serialized["flightSegments"][0]["operatingflightNo"],
-            json!("26")
+        assert_json_pointer(
+            &serialized,
+            "/flightSegments/0/operatingflightNo",
+            json!("26"),
         );
-        assert_eq!(
-            serialized["flightSegments"][0]["departure"]["countryCode"],
-            json!("040")
+        assert_json_pointer(
+            &serialized,
+            "/flightSegments/0/departure/countryCode",
+            json!("040"),
         );
-        assert_eq!(
-            serialized["flightSegments"][0]["arrival"]["countryCode"],
-            json!("608")
+        assert_json_pointer(
+            &serialized,
+            "/flightSegments/0/arrival/countryCode",
+            json!("608"),
         );
-        assert_eq!(serialized["passengers"][0]["type"], json!("ADT"));
-        assert_eq!(
-            serialized["passengers"][0]["documentType"],
-            json!("Passport")
+        assert_json_pointer(&serialized, "/passengers/0/type", json!("ADT"));
+        assert_json_pointer(&serialized, "/passengers/0/documentType", json!("Passport"));
+        assert_json_pointer(&serialized, "/tickets/0/passengerSequenceNo", json!(1));
+        assert_json_pointer(
+            &serialized,
+            "/tickets/0/ticketFare/amountText",
+            json!("000000123456"),
         );
-        assert_eq!(serialized["tickets"][0]["passengerSequenceNo"], json!(1));
-        assert_eq!(
-            serialized["tickets"][0]["ticketFare"]["amountText"],
-            json!("000000123456")
+        assert_json_pointer(
+            &serialized,
+            "/tickets/0/ticketFare/currencyCode",
+            json!("USD"),
         );
-        assert_eq!(
-            serialized["tickets"][0]["ticketFare"]["currencyCode"],
-            json!("USD")
+        assert_json_pointer(&serialized, "/tickets/0/ticketFare/decimalPlaces", json!(2));
+        assert_json_pointer(
+            &serialized,
+            "/tickets/0/taxAmount/amountText",
+            json!("000000000789"),
         );
-        assert_eq!(
-            serialized["tickets"][0]["ticketFare"]["decimalPlaces"],
-            json!(2)
+        assert_json_pointer(
+            &serialized,
+            "/tickets/0/agentFee/amountText",
+            json!("000000001200"),
         );
-        assert_eq!(
-            serialized["tickets"][0]["taxAmount"]["amountText"],
-            json!("000000000789")
-        );
-        assert_eq!(
-            serialized["tickets"][0]["agentFee"]["amountText"],
-            json!("000000001200")
-        );
+
+        Ok(())
     }
 
     #[test]
