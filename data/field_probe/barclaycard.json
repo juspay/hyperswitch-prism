@@ -3,89 +3,38 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "customer": {
-            "email": "test@example.com"
-          },
-          "address": {
-            "billing_address": {
-              "first_name": "John",
-              "last_name": "Doe",
-              "line1": "123 Main St",
-              "city": "Seattle",
-              "state": "WA",
-              "zip_code": "98101",
-              "country_alpha2_code": "US"
-            }
-          },
-          "return_url": "https://example.com/3ds-return",
-          "continue_redirection_url": "https://example.com/3ds-continue",
-          "redirection_response": {
-            "params": "probe_redirect_params",
-            "payload": {
-              "transaction_id": "probe_txn_123"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://api.smartpayfuse-test.barclaycard/risk/v1/authentications",
-          "method": "Post",
-          "headers": {
-            "accept": "application/hal+json;charset=utf-8",
-            "content-type": "application/json",
-            "date": "2020-01-01T00:00:00+00:00",
-            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "host": "api.smartpayfuse-test.barclaycard",
-            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
-            "v-c-merchant-id": "probe_merchant",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":\"001\",\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"},\"consumerAuthenticationInformation\":{\"returnUrl\":\"https://example.com/3ds-continue\",\"referenceId\":\"probe_redirect_params\"},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":\"John\",\"lastName\":\"Doe\",\"address1\":\"123 Main St\",\"locality\":\"Seattle\",\"administrativeArea\":\"WA\",\"postalCode\":\"98101\",\"country\":\"US\",\"email\":\"test@example.com\"}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: email. Barclaycard Authenticate: missing required field `email` — Missing required field: email. Barclaycard Authenticate: missing required field `email`"
       }
     },
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_debit` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_debit`"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `pay_later` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `pay_later`"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `pay_later` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `pay_later`"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `alipay_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `alipay_redirect`"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `amazon_pay_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `amazon_pay_redirect`"
       },
       "ApplePay": {
         "status": "supported",
@@ -207,55 +156,55 @@
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `apple_pay_third_party_sdk` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `apple_pay_third_party_sdk`"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_debit` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_debit`"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_debit` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_debit`"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `billdesk_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `billdesk_redirect`"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bluecode_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bluecode_redirect`"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "Card": {
         "status": "supported",
@@ -310,19 +259,19 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `cashapp_qr` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `cashapp_qr`"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `cashfree_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `cashfree_redirect`"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `reward` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `reward`"
       },
       "Crypto": {
         "status": "not_supported",
@@ -330,11 +279,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `dana_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `dana_redirect`"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -342,35 +291,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `reward` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `reward`"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `easebuzz_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `easebuzz_redirect`"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `gcash_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `gcash_redirect`"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "Givex": {
         "status": "not_supported",
@@ -378,7 +327,7 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `gopay_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `gopay_redirect`"
       },
       "GooglePay": {
         "status": "supported",
@@ -440,79 +389,79 @@
       },
       "GooglePayDecrypted": {
         "status": "error",
-        "error": "Stuck on field: gpay wallet_token — Missing required field: gpay wallet_token"
+        "error": "Stuck on field: gpay wallet_token. Barclaycard Authorize: encrypted GooglePay token is required — Missing required field: gpay wallet_token. Barclaycard Authorize: encrypted GooglePay token is required"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `google_pay_third_party_sdk` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `google_pay_third_party_sdk`"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `kakao_pay_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `kakao_pay_redirect`"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `pay_later` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `pay_later`"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `lazy_pay_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `lazy_pay_redirect`"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `mb_way` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `mb_way`"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `mifinity` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `mifinity`"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -520,43 +469,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `momo_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `momo_redirect`"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -564,19 +513,19 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "PaySafeCard": {
         "status": "not_supported",
@@ -584,15 +533,15 @@
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `payu_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `payu_redirect`"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `paypal_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `paypal_redirect`"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `paypal_sdk` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `paypal_sdk`"
       },
       "Paysera": {
         "status": "not_supported",
@@ -604,63 +553,63 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `phone_pe_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `phone_pe_redirect`"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `revolut_pay` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `revolut_pay`"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `samsung_pay` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `samsung_pay`"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `satispay` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `satispay`"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_debit` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_debit`"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_transfer` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_transfer`"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_debit` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_debit`"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `voucher` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `voucher`"
       },
       "Skrill": {
         "status": "not_supported",
@@ -668,47 +617,47 @@
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `swish_qr` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `swish_qr`"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `touch_n_go_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `touch_n_go_redirect`"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `bank_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `bank_redirect`"
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `twint_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `twint_redirect`"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `upi` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `upi`"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `upi` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `upi`"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `upi` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `upi`"
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `vipps_redirect` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `vipps_redirect`"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `wechat_pay_qr` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `wechat_pay_qr`"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `wero` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `wero`"
       }
     },
     "capture": {
@@ -848,46 +797,8 @@
     },
     "post_authenticate": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "redirection_response": {
-            "params": "probe_redirect_params",
-            "payload": {
-              "transaction_id": "probe_txn_123"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://api.smartpayfuse-test.barclaycard/risk/v1/authentication-results",
-          "method": "Post",
-          "headers": {
-            "accept": "application/hal+json;charset=utf-8",
-            "content-type": "application/json",
-            "date": "2020-01-01T00:00:00+00:00",
-            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
-            "host": "api.smartpayfuse-test.barclaycard",
-            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
-            "v-c-merchant-id": "probe_merchant",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":\"001\",\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"},\"consumerAuthenticationInformation\":{\"authenticationTransactionId\":\"probe_txn_123\"},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: redirect_response. Barclaycard PostAuthenticate: missing required field `redirect_response` — Missing required field: redirect_response. Barclaycard PostAuthenticate: missing required field `redirect_response`"
       }
     },
     "pre_authenticate": {
@@ -1207,7 +1118,7 @@
     "token_authorize": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method is not supported"
+        "error": "This feature is not implemented: Payment method `payment_method_token` is not supported for Barclaycard Authorize. Barclaycard Authorize: unsupported payment method `payment_method_token`"
       }
     },
     "token_setup_recurring": {

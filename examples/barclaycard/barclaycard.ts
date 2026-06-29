@@ -7,7 +7,7 @@
 
 import { PaymentClient, PaymentMethodAuthenticationClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AcceptanceType, AuthenticationType, CaptureMethod, CardNetwork, CountryAlpha2, Currency, FutureUsage, PaymentMethodType } = types;
-export const SUPPORTED_FLOWS = ["authenticate", "authorize", "capture", "get", "post_authenticate", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"];
+export const SUPPORTED_FLOWS = ["authorize", "capture", "get", "pre_authenticate", "proxy_authorize", "proxy_setup_recurring", "recurring_charge", "refund", "refund_get", "setup_recurring", "void"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -23,45 +23,6 @@ const _defaultConfig: types.IConnectorConfig = {
     },
 };
 
-
-function _buildAuthenticateRequest(): types.IPaymentMethodAuthenticationServiceAuthenticateRequest {
-    return {
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "paymentMethod": {  // Payment Method.
-            "card": {  // Generic card payment.
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
-            }
-        },
-        "customer": {  // Customer Information.
-            "email": {"value": "test@example.com"}  // Customer's email address.
-        },
-        "address": {  // Address Information.
-            "billingAddress": {
-                "firstName": {"value": "John"},  // Personal Information.
-                "lastName": {"value": "Doe"},
-                "line1": {"value": "123 Main St"},  // Address Details.
-                "city": {"value": "Seattle"},
-                "state": {"value": "WA"},
-                "zipCode": {"value": "98101"},
-                "countryAlpha2Code": CountryAlpha2.US
-            }
-        },
-        "returnUrl": "https://example.com/3ds-return",  // URLs for Redirection.
-        "continueRedirectionUrl": "https://example.com/3ds-continue",
-        "redirectionResponse": {  // Redirection Information after DDC step.
-            "params": "probe_redirect_params",
-            "payload": {
-            }
-        }
-    };
-}
 
 function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaymentServiceAuthorizeRequest {
     return {
@@ -117,33 +78,6 @@ function _buildGetRequest(connectorTransactionId: string): types.IPaymentService
         "amount": {  // Amount Information.
             "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
             "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        }
-    };
-}
-
-function _buildPostAuthenticateRequest(): types.IPaymentMethodAuthenticationServicePostAuthenticateRequest {
-    return {
-        "amount": {  // Amount Information.
-            "minorAmount": 1000,  // Amount in minor units (e.g., 1000 = $10.00).
-            "currency": Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
-        },
-        "paymentMethod": {  // Payment Method.
-            "card": {  // Generic card payment.
-                "cardNumber": {"value": "4111111111111111"},  // Card Identification.
-                "cardExpMonth": {"value": "03"},
-                "cardExpYear": {"value": "2030"},
-                "cardCvc": {"value": "737"},
-                "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
-            }
-        },
-        "address": {  // Address Information.
-            "billingAddress": {
-            }
-        },
-        "redirectionResponse": {  // Redirection Information after DDC step.
-            "params": "probe_redirect_params",
-            "payload": {
-            }
         }
     };
 }
@@ -457,15 +391,6 @@ async function processGetPayment(merchantTransactionId: string, config: types.IC
     return { status: getResponse.status, transactionId: getResponse.connectorTransactionId!, error: getResponse.error } as any;
 }
 
-// Flow: PaymentMethodAuthenticationService.Authenticate
-async function authenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
-
-    const authenticateResponse = await paymentMethodAuthenticationClient.authenticate(_buildAuthenticateRequest());
-
-    return authenticateResponse;
-}
-
 // Flow: PaymentService.Authorize (Card)
 async function authorize(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -491,15 +416,6 @@ async function get(merchantTransactionId: string, config: types.IConnectorConfig
     const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
     return getResponse;
-}
-
-// Flow: PaymentMethodAuthenticationService.PostAuthenticate
-async function postAuthenticate(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
-    const paymentMethodAuthenticationClient = new PaymentMethodAuthenticationClient(config);
-
-    const postResponse = await paymentMethodAuthenticationClient.postAuthenticate(_buildPostAuthenticateRequest());
-
-    return postResponse;
 }
 
 // Flow: PaymentMethodAuthenticationService.PreAuthenticate
@@ -577,7 +493,7 @@ async function voidPayment(merchantTransactionId: string, config: types.IConnect
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authenticate, authorize, capture, get, postAuthenticate, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, voidPayment, _buildAuthenticateRequest, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildPostAuthenticateRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
+    processCheckoutAutocapture, processCheckoutCard, processRefund, processVoidPayment, processGetPayment, authorize, capture, get, preAuthenticate, proxyAuthorize, proxySetupRecurring, recurringCharge, refund, refundGet, setupRecurring, voidPayment, _buildAuthorizeRequest, _buildCaptureRequest, _buildGetRequest, _buildPreAuthenticateRequest, _buildProxyAuthorizeRequest, _buildProxySetupRecurringRequest, _buildRecurringChargeRequest, _buildRefundRequest, _buildRefundGetRequest, _buildSetupRecurringRequest, _buildVoidRequest
 };
 
 // CLI runner

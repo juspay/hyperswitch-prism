@@ -136,7 +136,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Bambora](connectors/bambora.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Bamboraapac](connectors/bamboraapac.md) | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ✓ | x | ⚠ | ✓ | x | x | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Bankofamerica](connectors/bankofamerica.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
-| [Barclaycard](connectors/barclaycard.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | x | ✓ | x | ⚠ | ⚠ | x | x | x | x | ⚠ | ⚠ | ⚠ | ✓ | ✓ | ✓ | x | ⚠ | x | x | ⚠ | ⚠ | x |
+| [Barclaycard](connectors/barclaycard.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ✓ | x | ✓ | x | ⚠ | ⚠ | x | x | x | x | ⚠ | ⚠ | ⚠ | ✓ | ? | ? | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Billwerk](connectors/billwerk.md) | ✓ | ✓ | x | ✓ | ⚠ | ✓ | ⚠ | ⚠ | x | ✓ | ✓ | x | x | ✓ | ⚠ | ✓ | x | ⚠ | ✓ | x | x | x | x | ⚠ | ⚠ | ? | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Bluesnap](connectors/bluesnap.md) | ✓ | ✓ | x | ✓ | x | ✓ | x | ⚠ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | x | x | x | x | x | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Braintree](connectors/braintree.md) | ✓ | ✓ | ✓ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | x | x | ? | ✓ | x | ⚠ | ? | x | ⚠ | ✓ | x | x | x | x | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
