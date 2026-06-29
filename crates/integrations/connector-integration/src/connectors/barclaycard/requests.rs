@@ -1,4 +1,4 @@
-use common_enums::CountryAlpha2;
+use common_enums::{CountryAlpha2, TransactionStatus};
 use common_utils::{pii, types::SemanticVersion, types::StringMajorUnit};
 use domain_types::payment_method_data::{PaymentMethodDataTypes, RawCardNumber};
 use hyperswitch_masking::Secret;
@@ -47,7 +47,7 @@ pub struct ConsumerAuthenticationInformation {
     /// This field specifies the 3ds version
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pa_specification_version: Option<SemanticVersion>,
-    /// Raw electronic commerce indicator (ECI)
+    /// Raw electronic commerce indicator (ECI). This is a network status code, not PII.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub eci_raw: Option<String>,
     /// Payer authentication response status. Applicable for Mastercard and Visa.
@@ -61,7 +61,7 @@ pub struct ConsumerAuthenticationInformation {
     pub cavv_algorithm: Option<String>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Serialize)]
 pub enum BarclaycardParesStatus {
     #[serde(rename = "C")]
     CardChallenged,
@@ -75,6 +75,21 @@ pub enum BarclaycardParesStatus {
     AuthenticationFailed,
     #[serde(rename = "U")]
     AuthenticationNotCompleted,
+}
+
+impl From<TransactionStatus> for BarclaycardParesStatus {
+    fn from(status: TransactionStatus) -> Self {
+        match status {
+            TransactionStatus::Success => Self::AuthenticationSuccessful,
+            TransactionStatus::Failure => Self::AuthenticationFailed,
+            TransactionStatus::VerificationNotPerformed => Self::AuthenticationNotCompleted,
+            TransactionStatus::NotVerified => Self::AuthenticationAttempted,
+            TransactionStatus::Rejected => Self::AuthenticationRejected,
+            TransactionStatus::ChallengeRequired
+            | TransactionStatus::ChallengeRequiredDecoupledAuthentication => Self::CardChallenged,
+            TransactionStatus::InformationOnly => Self::AuthenticationNotCompleted,
+        }
+    }
 }
 
 // --- 3DS External Authentication (PreAuthenticate / Authenticate / PostAuthenticate) ---
@@ -147,8 +162,8 @@ pub struct CardPaymentInformation<T: PaymentMethodDataTypes + Sync + Send + 'sta
 #[serde(untagged)]
 pub enum PaymentInformation<T: PaymentMethodDataTypes + Sync + Send + 'static + Serialize> {
     Cards(Box<CardPaymentInformation<T>>),
-    ApplePay(Box<ApplePayPaymentInformation>),
-    ApplePayToken(Box<ApplePayTokenPaymentInformation>),
+    ApplePayDecrypted(Box<ApplePayPaymentInformation>),
+    ApplePayEncrypted(Box<ApplePayTokenPaymentInformation>),
     GooglePay(Box<GooglePayTokenPaymentInformation>),
 }
 
@@ -189,7 +204,7 @@ pub struct TokenizedCard {
     pub number: cards::CardNumber,
     pub expiration_month: Secret<String>,
     pub expiration_year: Secret<String>,
-    pub cryptogram: Option<Secret<String>>,
+    pub cryptogram: Secret<String>,
     pub transaction_type: TransactionType,
 }
 
