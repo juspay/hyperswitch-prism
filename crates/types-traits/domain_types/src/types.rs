@@ -1176,6 +1176,61 @@ impl ForeignFrom<payment_method_data::UpiSource> for grpc_api_types::payments::U
     }
 }
 
+fn payment_method_data_to_proto_payment_method(
+    payment_method_data: PaymentMethodData<DefaultPCIHolder>,
+) -> Result<grpc_api_types::payments::PaymentMethod, error_stack::Report<ConnectorError>> {
+    use grpc_api_types::payments::payment_method::PaymentMethod as ProtoPaymentMethod;
+
+    let payment_method = match payment_method_data {
+        PaymentMethodData::BankRedirect(payment_method_data::BankRedirectData::OpenBanking {
+            account_number,
+            sort_code,
+            iban,
+            account_holder_name,
+            additional_payment_details,
+        }) => {
+            let additional_details = additional_payment_details
+                .map(|details| {
+                    serde_json::to_string(&details).change_context(
+                        ConnectorError::ResponseHandlingFailed {
+                            context: ResponseTransformationErrorContext {
+                                additional_context: Some(
+                                    "Failed to serialize connector-returned Open Banking additional payment details"
+                                        .to_owned(),
+                                ),
+                                ..Default::default()
+                            },
+                        },
+                    )
+                })
+                .transpose()?;
+
+            ProtoPaymentMethod::OpenBanking(grpc_api_types::payments::OpenBanking {
+                iban,
+                account_number,
+                sort_code,
+                account_holder_name,
+                additional_details,
+            })
+        }
+        _ => {
+            return Err(report!(ConnectorError::UnexpectedResponseError {
+                context: ResponseTransformationErrorContext {
+                    additional_context: Some(
+                        "connector_returned_payment_method_details cannot be represented as proto PaymentMethod yet"
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            }))
+        }
+    };
+
+    Ok(grpc_api_types::payments::PaymentMethod {
+        payment_method: Some(payment_method),
+    })
+}
+
 impl<
         T: PaymentMethodDataTypes
             + Default
@@ -4751,6 +4806,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             minor_amount_authorized: None,
             merchant_request_id: value.merchant_request_id.clone(),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -4837,6 +4893,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -4922,6 +4979,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             minor_amount_authorized: None,
             merchant_request_id: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
             l2_l3_data: l2_l3_data.map(Box::new),
         })
     }
@@ -5036,6 +5094,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -5128,6 +5187,7 @@ impl
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -5201,6 +5261,7 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -5285,6 +5346,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -7192,7 +7254,7 @@ pub fn generate_payment_sync_response(
                         .connector_customer
                         .clone(),
                     merchant_order_id: None,
-                    metadata: convert_connector_metadata_to_secret_string(connector_metadata),
+                    metadata: None,
                     status_code: status_code as u32,
                     raw_connector_response,
                     response_headers: router_data_v2
@@ -7215,6 +7277,12 @@ pub fn generate_payment_sync_response(
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
+                    connector_returned_payment_method_details: router_data_v2
+                        .resource_common_data
+                        .connector_returned_payment_method_details
+                        .clone()
+                        .map(payment_method_data_to_proto_payment_method)
+                        .transpose()?,
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -7313,6 +7381,7 @@ pub fn generate_payment_sync_response(
                         .clone(),
                     splits: None,
                     connector_feature_data: None,
+                    connector_returned_payment_method_details: None,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -7408,6 +7477,7 @@ pub fn generate_payment_sync_response(
                 sender_payment_instrument_id: None,
                 splits: None,
                 connector_feature_data: None,
+                connector_returned_payment_method_details: None,
             })
         }
     }
@@ -8285,6 +8355,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             sender_payment_instrument_id: value.sender_payment_instrument_id,
             splits: None,
             connector_feature_data: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -8683,6 +8754,7 @@ impl
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -8793,6 +8865,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -9817,6 +9890,7 @@ impl
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -10234,6 +10308,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -10330,6 +10405,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -11478,6 +11554,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -12238,6 +12315,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -12413,6 +12491,7 @@ impl
             merchant_request_id: value.merchant_request_id,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -12523,6 +12602,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -12628,6 +12708,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -12729,6 +12810,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -14570,6 +14652,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -14670,6 +14753,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -14770,6 +14854,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }
@@ -14848,6 +14933,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            connector_returned_payment_method_details: None,
         })
     }
 }

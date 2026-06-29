@@ -22,7 +22,7 @@ use crate::{
     mandates::{CustomerAcceptance, MandateData},
     payment_address::{self, Address, AddressDetails, PhoneDetails},
     payment_method_data::{
-        self, Card, CustomerDocumentDetails, PaymentMethodData, PaymentMethodDataTypes,
+        self, Card, CustomerDocumentDetails, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes,
     },
     router_data::{self, ConnectorResponseData},
     router_request_types::{
@@ -690,6 +690,7 @@ pub struct PaymentFlowData {
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    pub connector_returned_payment_method_details: Option<PaymentMethodData<DefaultPCIHolder>>,
 }
 
 impl PaymentFlowData {

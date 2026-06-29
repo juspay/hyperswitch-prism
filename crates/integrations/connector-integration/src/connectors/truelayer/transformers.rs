@@ -12,7 +12,7 @@ use domain_types::{
         VerifyWebhookSourceFlowData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{BankRedirectData, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{BankRedirectData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
@@ -21,7 +21,7 @@ use domain_types::{
     utils::is_payment_failure,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::Secret;
 use openssl::{
     bn::{BigNum, BigNumContext},
     ec::{EcGroup, EcKey, EcPoint},
@@ -710,25 +710,21 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                     let account_holder_name = response
                         .payment_source
                         .as_ref()
-                        .and_then(|s| s.account_holder_name.clone().map(|name| name.expose()));
+                        .and_then(|s| s.account_holder_name.clone());
 
-                    let mut sort_code: Option<String> = None;
-                    let mut account_number: Option<String> = None;
-                    let mut iban: Option<String> = None;
+                    let mut sort_code: Option<Secret<String>> = None;
+                    let mut account_number: Option<Secret<String>> = None;
+                    let mut iban: Option<Secret<String>> = None;
 
                     if let Some(source) = response.payment_source.as_ref() {
                         for identifier in source.account_identifiers.iter().flatten() {
                             match identifier.identifier_type {
                                 TruelayerAccountIdentifierType::SortCodeAccountNumber => {
-                                    sort_code =
-                                        identifier.sort_code.clone().map(|code| code.expose());
-                                    account_number = identifier
-                                        .account_number
-                                        .clone()
-                                        .map(|account_number| account_number.expose());
+                                    sort_code = identifier.sort_code.clone();
+                                    account_number = identifier.account_number.clone();
                                 }
                                 TruelayerAccountIdentifierType::Iban => {
-                                    iban = identifier.iban.clone().map(|iban| iban.expose());
+                                    iban = identifier.iban.clone();
                                 }
                                 TruelayerAccountIdentifierType::Unknown => {}
                             }
@@ -741,16 +737,19 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                         .and_then(|pm| pm.provider_selection.as_ref())
                         .and_then(|ps| ps.provider_id.clone());
 
-                    let connector_payment_method_details =
+                    let additional_payment_details =
                         provider_id.map(|pid| serde_json::json!({ "provider_id": pid }));
 
-                    let connector_metadata = Some(serde_json::json!({
-                        "account_holder_name": account_holder_name,
-                        "account_number": account_number,
-                        "sort_code": sort_code,
-                        "iban": iban,
-                        "connector_payment_method_details": connector_payment_method_details,
-                    }));
+                    let connector_returned_payment_method_details =
+                        PaymentMethodData::<DefaultPCIHolder>::BankRedirect(
+                            BankRedirectData::OpenBanking {
+                                account_number,
+                                sort_code,
+                                iban,
+                                account_holder_name,
+                                additional_payment_details,
+                            },
+                        );
 
                     Ok(Self {
                         resource_common_data: PaymentFlowData {
@@ -758,13 +757,16 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                             sender_payment_instrument_id: response
                                 .payment_source
                                 .and_then(|source| source.id),
+                            connector_returned_payment_method_details: Some(
+                                connector_returned_payment_method_details,
+                            ),
                             ..item.router_data.resource_common_data
                         },
                         response: Ok(PaymentsResponseData::TransactionResponse {
                             resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
                             redirection_data: None,
                             mandate_reference: None,
-                            connector_metadata,
+                            connector_metadata: None,
                             network_txn_id: None,
                             network_txn_link_id: None,
                             connector_response_reference_id: Some(response.id),

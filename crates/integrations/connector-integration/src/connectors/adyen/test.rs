@@ -85,6 +85,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
 },
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),
@@ -289,6 +290,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    connector_returned_payment_method_details: None,
 },
                 connector_config: ConnectorSpecificConfig::Adyen {
                     api_key: Secret::new(api_key),

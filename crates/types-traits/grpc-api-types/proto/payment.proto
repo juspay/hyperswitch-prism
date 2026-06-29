@@ -2548,6 +2548,10 @@ message PaymentServiceGetResponse {
   optional ConnectorSplitResponseData splits = 32;
 
   optional SecretString connector_feature_data = 33;
+
+  // Payment method details received from the connector mid-payment, intended for
+  // saving for the returning-customer flow.
+  optional PaymentMethod connector_returned_payment_method_details = 34;
 }
 
 // Request message for voiding a payment
