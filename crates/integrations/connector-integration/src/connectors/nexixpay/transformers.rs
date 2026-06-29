@@ -622,7 +622,12 @@ impl TryFrom<ResponseRouterData<NexixpaySyncResponse, Self>>
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.operation_id.clone()),
+                // Anchor the synced attempt to the connector `order_id`, mirroring HS
+                // (`resource_id = ConnectorTransactionId(order_id)` in its PSync transformer).
+                // The `operation_id` is the per-operation id and is surfaced separately;
+                // using it here produced a value mismatch on
+                // response.Ok.TransactionResponse.resource_id.ConnectorTransactionId.
+                resource_id: ResponseId::ConnectorTransactionId(item.response.order_id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
