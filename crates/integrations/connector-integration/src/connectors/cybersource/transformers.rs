@@ -5713,9 +5713,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        // Extract the origin from the return_url for target_origins
+        // Extract the full origin from the return_url for target_origins.
+        // Flex Microform enforces this via CSP frame-ancestors, so a local dev
+        // origin such as http://localhost:5173 must retain the explicit port.
         let target_origin = url::Url::parse(&return_url)
-            .map(|u| format!("{}://{}", u.scheme(), u.host_str().unwrap_or_default()))
+            .map(|u| u.origin().ascii_serialization())
             .unwrap_or(return_url);
 
         Ok(Self {
