@@ -406,6 +406,7 @@ pub(crate) fn base_tokenized_setup_recurring_request() -> PaymentServiceTokenSet
                     proto::MandateAmountData {
                         amount: 0,
                         currency: proto::Currency::Usd as i32,
+                        amount_money: Some(usd_money(0)),
                         ..Default::default()
                     },
                 )),
