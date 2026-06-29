@@ -1152,7 +1152,7 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
             PayLaterData::KlarnaSdk { .. }
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
-            | PayLaterData::AtomeRedirect {} 
+            | PayLaterData::AtomeRedirect {}
             | PayLaterData::TamaraRedirect {} => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
