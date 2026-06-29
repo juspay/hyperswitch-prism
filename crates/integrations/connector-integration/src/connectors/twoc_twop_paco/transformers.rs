@@ -2735,22 +2735,35 @@ mod tests {
     }
 
     #[test]
-    fn paco_airline_data_rejects_invalid_location_country_code() {
+    fn paco_airline_data_rejects_invalid_location_country_code(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let location = connector_types::AirlineLocation {
             country_code: Some("XX1".to_string()),
             ..Default::default()
         };
 
-        let error = PacoAirlineLocation::try_from(&location).unwrap_err();
+        let Err(error) = PacoAirlineLocation::try_from(&location) else {
+            return Err(std::io::Error::other("expected invalid location country code").into());
+        };
 
-        match error.current_context() {
-            errors::IntegrationError::InvalidDataFormat { field_name, .. } => {
-                assert_eq!(
-                    *field_name,
-                    "airline_data.flight_segments[].location.country_code"
-                );
+        if let errors::IntegrationError::InvalidDataFormat { field_name, .. } =
+            error.current_context()
+        {
+            let expected_field_name = "airline_data.flight_segments[].location.country_code";
+            if *field_name == expected_field_name {
+                Ok(())
+            } else {
+                Err(std::io::Error::other(format!(
+                    "expected field name {expected_field_name}, got {field_name}"
+                ))
+                .into())
             }
-            other => panic!("expected InvalidDataFormat, got {other:?}"),
+        } else {
+            Err(std::io::Error::other(format!(
+                "expected InvalidDataFormat, got {:?}",
+                error.current_context()
+            ))
+            .into())
         }
     }
 }
