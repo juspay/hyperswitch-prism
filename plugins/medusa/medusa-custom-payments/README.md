@@ -44,6 +44,13 @@ PAYPAL_WEBHOOK_ID=...       # webhook ID — required for webhook processing
 GLOBALPAY_APP_ID=...
 GLOBALPAY_APP_KEY=...
 
+# Braintree
+BRAINTREE_PUBLIC_KEY=...
+BRAINTREE_PRIVATE_KEY=...
+BRAINTREE_PAYPAL_CLIENT_ID=...
+BRAINTREE_MERCHANT_ACCOUNT_ID=...       # settlement merchant account id, not merchant id
+BRAINTREE_MERCHANT_CONFIG_CURRENCY=USD  # must match the payment currency
+
 # Mollie
 MOLLIE_API_KEY=test_...          # Mollie API key (test_… / live_…)
 MOLLIE_PROFILE_TOKEN=pfl_...     # public profile id; surfaced to the storefront for Mollie Components
@@ -126,6 +133,30 @@ export default defineConfig({
           },
           {
             resolve: "@juspay-tech/medusa-custom-payments",
+            id: "braintree",
+            options: {
+              connector: "braintree",
+              connectorConfig: {
+                publicKey: { value: process.env.BRAINTREE_PUBLIC_KEY ?? "" },
+                privateKey: { value: process.env.BRAINTREE_PRIVATE_KEY ?? "" },
+                paypalClientId: process.env.BRAINTREE_PAYPAL_CLIENT_ID ?? "",
+                // Settlement merchant account id from Braintree Control Panel
+                // (Settings > Business > Merchant Accounts). This is not the
+                // top-level merchant id.
+                merchantAccountId: {
+                  value: process.env.BRAINTREE_MERCHANT_ACCOUNT_ID ?? "",
+                },
+                merchantConfigCurrency:
+                  process.env.BRAINTREE_MERCHANT_CONFIG_CURRENCY ?? "USD",
+                applePayLabel: "Your Store",
+                applePaySupportedNetworks: ["visa", "masterCard", "amex", "discover"],
+                applePayMerchantCapabilities: ["supports3DS"],
+              },
+              environment: "SANDBOX",
+            },
+          },
+          {
+            resolve: "@juspay-tech/medusa-custom-payments",
             id: "mollie",
             options: {
               connector: "mollie",
@@ -196,7 +227,7 @@ npx medusa develop
 | `adyen` | `apiKey`, `merchantAccount`, `publishableKey` (optional Adyen client key — surfaced to the storefront) |
 | `paypal` | `clientId`, `clientSecret`, `shippingPreference` (optional) |
 | `globalpay` | `appId`, `appKey` |
-| `braintree` | `publicKey`, `privateKey` |
+| `braintree` | `publicKey`, `privateKey`, `paypalClientId`, `merchantAccountId`, `merchantConfigCurrency`; optional `gpay*` / `applePay*` wallet config |
 | `cybersource` | `apiKey`, `merchantAccount`, `apiSecret` |
 | `mollie` | `apiKey`, `profileToken` (public profile id `pfl_…` — surfaced to the storefront for Mollie Components) |
 | `authorizedotnet` | `name` (API Login ID), `transactionKey` (Transaction Key); `baseUrl` (optional endpoint override) |
@@ -211,8 +242,8 @@ Each credential value is provided as `{ value: string }` to support secret manag
 | `paypal` | — | ✅ | ✅ | ✅ | ✅ |
 | `stripe` | ✅ | ✅ | ✅ | ✅ | ○ |
 | `globalpay` | — | ✅ | ✅ | ✅ | ○ |
-| `braintree` | ✅ | ✅ | ✅ | ✅ | ○ |
-| `cybersource` | ✅ | ✅ | ✅ | ✅ | ○ |
+| `braintree` | ✅ | — | — | ✅ | ○ |
+| `cybersource` | ✅ | — | — | ✅ | ○ |
 | `mollie` | — | ✅ | ✅ | ✅ | ○ |
 | `authorizedotnet` | — | ✅ | ✅ | ✅ | ○ |
 
@@ -225,8 +256,8 @@ Each credential value is provided as `{ value: string }` to support secret manag
 | — | Not a separate step: connector captures funds immediately at authorize time (`CaptureMethod.AUTOMATIC`); payment goes straight to **CAPTURED** so only Refund is available afterward |
 
 > **Authorize result by connector**
-> - `adyen`, `stripe`, `braintree`, `cybersource` → payment lands as **AUTHORIZED** (funds reserved; Capture or Void available next)
-> - `paypal`, `globalpay`, `mollie`, `authorizedotnet` → payment lands as **CAPTURED** (funds collected immediately via `CaptureMethod.AUTOMATIC`; Refund only). For `mollie` this is reached after the customer completes the redirect — the 3DS page for Card, or the Mollie-hosted Klarna checkout for Klarna (Pay later, EUR-only); `authorizedotnet` authorizes a raw card with no redirect.
+> - `adyen`, `stripe` → payment lands as **AUTHORIZED** (funds reserved; Capture or Void available next)
+> - `paypal`, `globalpay`, `braintree`, `cybersource`, `mollie`, `authorizedotnet` → payment lands as **CAPTURED** (funds collected immediately via `CaptureMethod.AUTOMATIC`; Refund only). Braintree uses wallet nonces from PayPal, Google Pay, or Apple Pay; for `mollie` this is reached after the customer completes the redirect — the 3DS page for Card, or the Mollie-hosted Klarna checkout for Klarna (Pay later, EUR-only); `authorizedotnet` authorizes a raw card with no redirect.
 
 > **Note:** All flows in the matrix above are tested and verified under the **sandbox / test environment** of each connector. Production behavior should be validated separately before go-live.
 
