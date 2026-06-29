@@ -10,7 +10,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
         PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         WalletData as WalletDataPaymentMethod,
@@ -579,21 +579,36 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // NTI flow would need raw card details, which RepeatPayment doesn't have
                 return Err(IntegrationError::NotImplemented(
                     "NetworkMandateId not supported in RepeatPayment".to_string(),
-                    Default::default(),
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "Worldpay repeat payments in this transformer build a token payment instrument from connector_mandate_id; NetworkMandateId would require a raw-card MIT payload that is not available in RepeatPayment".to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 )
                 .into());
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotImplemented(
                     "NetworkTokenWithNTI not supported in RepeatPayment yet".to_string(),
-                    Default::default(),
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "Worldpay repeat payments in this transformer build a token payment instrument from connector_mandate_id; network token credentials plus NTI are not mapped to a Worldpay repeat-payment request".to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 )
                 .into());
             }
             MandateReferenceId::CardWithLimitedData => {
                 return Err(IntegrationError::NotImplemented(
                     "CardWithLimitedData not supported in RepeatPayment yet".to_string(),
-                    Default::default(),
+                    IntegrationErrorContext {
+                        additional_context: Some(
+                            "Worldpay repeat payments require a connector token href from connector_mandate_id; CardWithLimitedData does not include that token reference".to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 )
                 .into());
             }

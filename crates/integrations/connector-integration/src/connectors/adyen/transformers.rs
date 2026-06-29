@@ -6899,7 +6899,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "CardWithLimitedData for mandate payment method".to_string(),
                     connector: "Adyen",
-                    context: Default::default()
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Adyen repeat payments require a stored connector mandate/payment method token or network token data; CardWithLimitedData does not carry a connector or network reference that can be sent to Adyen".to_string(),
+                        ),
+                        ..Default::default()
+                    }
                 }))
             }
         };

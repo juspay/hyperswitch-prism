@@ -632,14 +632,20 @@ impl MandateIds {
     pub fn get_connector_mandate_id(&self) -> Option<String> {
         match &self.mandate_reference_id {
             Some(MandateReferenceId::ConnectorMandateId(data)) => data.connector_mandate_id.clone(),
-            _ => None,
+            Some(MandateReferenceId::NetworkMandateId(_))
+            | Some(MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(MandateReferenceId::CardWithLimitedData)
+            | None => None,
         }
     }
 
     pub fn get_connector_mandate_metadata(&self) -> Option<SecretSerdeValue> {
         match &self.mandate_reference_id {
             Some(MandateReferenceId::ConnectorMandateId(data)) => data.mandate_metadata.clone(),
-            _ => None,
+            Some(MandateReferenceId::NetworkMandateId(_))
+            | Some(MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(MandateReferenceId::CardWithLimitedData)
+            | None => None,
         }
     }
 
@@ -650,7 +656,10 @@ impl MandateIds {
             Some(MandateReferenceId::ConnectorMandateId(data)) => {
                 data.updated_mandate_details.clone()
             }
-            _ => None,
+            Some(MandateReferenceId::NetworkMandateId(_))
+            | Some(MandateReferenceId::NetworkTokenWithNTI(_))
+            | Some(MandateReferenceId::CardWithLimitedData)
+            | None => None,
         }
     }
 }

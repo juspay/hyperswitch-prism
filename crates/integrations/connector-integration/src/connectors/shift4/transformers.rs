@@ -1028,21 +1028,36 @@ impl<T: PaymentMethodDataTypes>
                     return Err(error_stack::report!(IntegrationError::NotSupported {
                         message: "NetworkMandateId is not supported for Shift4 MIT".to_string(),
                         connector: "Shift4",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "This Shift4 repeat-payment path sends a stored card token from connector_mandate_id; NetworkMandateId requires raw card MIT handling and cannot be represented as the token used here".to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     }));
                 }
                 MandateReferenceId::NetworkTokenWithNTI(_) => {
                     return Err(error_stack::report!(IntegrationError::NotSupported {
                         message: "NetworkTokenWithNTI is not supported for Shift4 MIT".to_string(),
                         connector: "Shift4",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "This Shift4 repeat-payment path sends a stored card token from connector_mandate_id; network token credentials plus NTI are not mapped to a Shift4 MIT request".to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     }));
                 }
                 MandateReferenceId::CardWithLimitedData => {
                     return Err(error_stack::report!(IntegrationError::NotSupported {
                         message: "CardWithLimitedData is not supported for Shift4 MIT".to_string(),
                         connector: "Shift4",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "This Shift4 repeat-payment path sends a stored card token from connector_mandate_id; CardWithLimitedData does not contain the connector token required by Shift4".to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     }));
                 }
             };

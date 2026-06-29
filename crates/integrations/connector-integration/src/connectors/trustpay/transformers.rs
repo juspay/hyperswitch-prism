@@ -28,7 +28,7 @@ use domain_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         SetupMandateRequestData, ThirdPartySdkSessionResponse,
     },
-    errors::{ConnectorError, IntegrationError, WebhookError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankRedirectData, BankTransferData, Card, PaymentMethodData, PaymentMethodDataTypes,
@@ -2853,7 +2853,12 @@ fn extract_trustpay_mandate_id(mandate_reference: &MandateReferenceId) -> Result
         | MandateReferenceId::CardWithLimitedData => Err(report!(IntegrationError::NotSupported {
             message: "Network mandate / NTI not supported for trustpay RepeatPayment".to_string(),
             connector: "trustpay",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Trustpay repeat payments require the connector mandate InstanceId returned during the initial setup/payment; network mandate references and CardWithLimitedData do not provide that InstanceId".to_string(),
+                ),
+                ..Default::default()
+            },
         })),
     }
 }

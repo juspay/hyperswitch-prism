@@ -9,7 +9,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
@@ -1344,10 +1344,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     pi,
                 )
             }
-            MandateReferenceId::NetworkTokenWithNTI(_)
-            | MandateReferenceId::CardWithLimitedData => Err(IntegrationError::NotImplemented(
-                "Network token with NTI / card with limited data based MIT is not supported for Barclaycard".to_string(),
-                Default::default(),
+            MandateReferenceId::NetworkTokenWithNTI(_) => Err(IntegrationError::NotImplemented(
+                "Network token with NTI based MIT is not supported for Barclaycard".to_string(),
+                IntegrationErrorContext {
+                    additional_context: Some(
+                        "Barclaycard repeat payments currently support stored TMS payment instruments and raw card MITs with a network transaction id; this transformer does not map network token credentials into the Barclaycard repeat-payment payload".to_string(),
+                    ),
+                    ..Default::default()
+                },
+            ))?,
+            MandateReferenceId::CardWithLimitedData => Err(IntegrationError::NotImplemented(
+                "Card with limited data based MIT is not supported for Barclaycard".to_string(),
+                IntegrationErrorContext {
+                    additional_context: Some(
+                        "Barclaycard MIT requests require either a stored connector mandate/payment instrument or a network transaction id for raw-card MITs; CardWithLimitedData provides neither reference".to_string(),
+                    ),
+                    ..Default::default()
+                },
             ))?,
         };
 
