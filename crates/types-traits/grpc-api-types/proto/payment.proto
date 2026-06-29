@@ -2484,6 +2484,8 @@ message PaymentServiceGetRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 17;
+
+  optional ConnectorMandateReferenceId mandate_reference = 18;
 }
 
 // Response message for a payment status synchronization
@@ -2544,6 +2546,8 @@ message PaymentServiceGetResponse {
 
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 32;
+
+  optional SecretString connector_feature_data = 33;
 }
 
 // Request message for voiding a payment
