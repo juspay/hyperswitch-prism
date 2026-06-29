@@ -203,6 +203,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
+        //Tamaraconnector only supports PayLater payment method.
         match &router_data.request.payment_method_data {
             PaymentMethodData::PayLater(PayLaterData::TamaraRedirect {}) => {}
             _ => {
