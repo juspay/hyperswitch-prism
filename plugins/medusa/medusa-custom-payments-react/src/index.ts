@@ -23,6 +23,7 @@ export { GlobalPayWrapper } from "./connectors/globalpay/GlobalPayWrapper";
 export { MollieWrapper } from "./connectors/mollie/MollieWrapper";
 export { MollieKlarnaForm } from "./connectors/mollie/MollieKlarnaForm";
 export type { MollieKlarnaBilling } from "./connectors/mollie/MollieKlarnaForm";
+export { AuthorizedotnetWrapper } from "./connectors/authorizedotnet/AuthorizedotnetWrapper";
 
 // Payment button components
 export {
