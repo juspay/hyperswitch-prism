@@ -2484,6 +2484,11 @@ message PaymentServiceGetRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 17;
+
+  // Current attempt status, supplied by the caller so connectors that preserve
+  // the prior status on sync (e.g. Redsys on an errored consultaOperaciones)
+  // keep the real status instead of defaulting to PENDING.
+  optional PaymentStatus status = 18;
 }
 
 // Response message for a payment status synchronization

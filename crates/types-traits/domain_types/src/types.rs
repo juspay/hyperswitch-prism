@@ -5071,7 +5071,16 @@ impl
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
-            status: common_enums::AttemptStatus::Pending,
+            // Use the caller-supplied attempt status when present so connectors that
+            // preserve the prior status on sync (e.g. Redsys on an errored
+            // consultaOperaciones) keep the real status; fall back to Pending when absent.
+            status: value
+                .status
+                .and_then(|s| grpc_api_types::payments::PaymentStatus::try_from(s).ok())
+                .filter(|s| *s != grpc_api_types::payments::PaymentStatus::Unspecified)
+                .map(common_enums::AttemptStatus::foreign_try_from)
+                .transpose()?
+                .unwrap_or(common_enums::AttemptStatus::Pending),
             payment_method: PaymentMethod::Card, //TODO
             address,
             auth_type: common_enums::AuthenticationType::default(),
