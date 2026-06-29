@@ -19,6 +19,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.26.0
+
+### Features
+
+- **connector:** [iMerchant Solutions] Add Google Pay and Apple Pay Pre-Decrypt Flows ([#1505](https://github.com/juspay/connector-service/pull/1505)) ([`c417c0e`](https://github.com/juspay/connector-service/commit/c417c0edde6efd1877a411a50fff96194edaca17))
+
+**Full Changelog:** [`2026.06.25.0...2026.06.26.0`](https://github.com/juspay/connector-service/compare/2026.06.25.0...2026.06.26.0)
+
+- - -
+
+## 2026.06.25.0
+
+### Features
+
+- **observability:** Structured error attribution and execution_mode for UCS error alerting ([#1667](https://github.com/juspay/connector-service/pull/1667)) ([`1a6972a`](https://github.com/juspay/connector-service/commit/1a6972a305e01fadc79bb3475ee01f572581346a))
+
+### Bug Fixes
+
+- **external-services:** Bound outbound connector API calls with a request timeout ([#1580](https://github.com/juspay/connector-service/pull/1580)) ([`0061336`](https://github.com/juspay/connector-service/commit/0061336f13f18c0abb739a56e705f39e75661cc2))
+
+### Miscellaneous Tasks
+
+- Propagate connector-request-Kafka feature to external-services ([#1672](https://github.com/juspay/connector-service/pull/1672)) ([`6aaa238`](https://github.com/juspay/connector-service/commit/6aaa238f3004876b9e2c244943de00d6e1c4f5cf))
+
+**Full Changelog:** [`2026.06.24.1...2026.06.25.0`](https://github.com/juspay/connector-service/compare/2026.06.24.1...2026.06.25.0)
+
+- - -
+
 ## 2026.06.24.1
 
 ### Features

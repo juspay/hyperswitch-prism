@@ -52,7 +52,10 @@ pub enum ConfigurationError {
 /// `internal` — UCS machinery failure (encoding, URL building, serialization); caller cannot fix.
 impl IntoGrpcStatus for error_stack::Report<IntegrationError> {
     fn into_grpc_status(self) -> Status {
-        logger::error!(error=?self);
+        logger::error!(
+            error = ?self,
+            error_code = %self.current_context().error_code(),
+        );
         let integration_error: grpc_api_types::payments::IntegrationError =
             ErrorSwitch::switch(self.current_context());
         let msg = integration_error.error_message.clone();
@@ -109,7 +112,11 @@ impl IntoGrpcStatus for error_stack::Report<IntegrationError> {
 /// - All UCS-side transformation failures → `internal` (UCS machinery failed).
 impl IntoGrpcStatus for error_stack::Report<ConnectorError> {
     fn into_grpc_status(self) -> Status {
-        logger::error!(error=?self);
+        logger::error!(
+            error = ?self,
+            error_code = %self.current_context().error_code(),
+            http_status_code = ?self.current_context().http_status_code(),
+        );
         let connector_error: grpc_api_types::payments::ConnectorError =
             ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(self.current_context());
         let msg = connector_error.error_message.clone();
@@ -171,7 +178,7 @@ impl IntoGrpcStatus for error_stack::Report<KafkaClientError> {
 /// Direct gRPC status mapping for `ConnectorFlowError` (unified gRPC path wrapper).
 impl IntoGrpcStatus for error_stack::Report<ConnectorFlowError> {
     fn into_grpc_status(self) -> Status {
-        logger::error!(error=?self);
+        // inner impls log; avoid double-logging the same stack
         match self.current_context() {
             ConnectorFlowError::Request(e) => {
                 error_stack::Report::new(e.clone()).into_grpc_status()
