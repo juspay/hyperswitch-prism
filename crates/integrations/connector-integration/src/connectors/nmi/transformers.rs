@@ -706,9 +706,13 @@ fn create_ach_data<T: PaymentMethodDataTypes>(
 
 // ===== PAYMENT RESPONSE =====
 
+const NMI_RESPONSE_APPROVED: &str = "1";
+const NMI_RESPONSE_DECLINED: &str = "2";
+const NMI_RESPONSE_ERROR: &str = "3";
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StandardResponse {
-    pub response: String, // "1" = approved, "2" = declined, "3" = error
+    pub response: String,
     pub responsetext: String,
     pub authcode: Option<String>,
     pub transactionid: String,
@@ -730,28 +734,23 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StandardResponse, Sel
     fn try_from(item: ResponseRouterData<StandardResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        // Determine status based on response code
         let status = match response.response.as_str() {
-            "1" => {
-                // Approved - check if it was auth or sale
-                // For auth type, status is Authorized
-                // For sale type, status is Charged
-                // We need to check the original request's auto_capture flag
+            NMI_RESPONSE_APPROVED => {
                 if item.router_data.request.is_auto_capture() {
                     AttemptStatus::Charged
                 } else {
                     AttemptStatus::Authorized
                 }
             }
-            "2" | "3" => AttemptStatus::Failure, // Declined or Error
+            NMI_RESPONSE_DECLINED | NMI_RESPONSE_ERROR => AttemptStatus::Failure,
             _ => AttemptStatus::Pending,
         };
 
-        // A declined ("2") or errored ("3") NMI response must surface as `Err(ErrorResponse)`,
-        // mirroring the HS NMI connector (`get_standard_error_response`). Returning `Ok` with
-        // only status=Failure makes the router response variant diverge from HS — observed as
-        // `response.Ok` (ucs) vs `response.Err` (hs) in the router-data comparison (#17004).
-        let payment_response = if matches!(response.response.as_str(), "2" | "3") {
+        // Mirror HS: a declined/errored NMI response surfaces as `Err`, not `Ok` (#17004).
+        let payment_response = if matches!(
+            response.response.as_str(),
+            NMI_RESPONSE_DECLINED | NMI_RESPONSE_ERROR
+        ) {
             Err(domain_types::router_data::ErrorResponse {
                 code: response.response_code.clone(),
                 message: response.responsetext.clone(),
