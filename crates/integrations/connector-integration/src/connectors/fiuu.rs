@@ -428,7 +428,8 @@ macros::macro_connector_implementation!(
                     )
                 }
                 MandateReferenceId::NetworkMandateId(_)
-                | MandateReferenceId::NetworkTokenWithNTI(_) => {
+                | MandateReferenceId::NetworkTokenWithNTI(_)
+                | MandateReferenceId::CardWithLimitedData => {
                     format!(
                         "{}RMS/API/Direct/1.4.0/index.php",
                         self.connector_base_url_payments(req)

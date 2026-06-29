@@ -2290,7 +2290,9 @@ fn decode_mandate_dispatch(mandate_id: Option<&MandateIds>) -> MandateDispatch {
     if let Some(MandateReferenceId::NetworkMandateId(ntid)) =
         mandate_id.mandate_reference_id.as_ref()
     {
-        return MandateDispatch::Ntid { ntid: ntid.clone() };
+        return MandateDispatch::Ntid {
+            ntid: ntid.network_transaction_id.clone(),
+        };
     }
 
     MandateDispatch::None

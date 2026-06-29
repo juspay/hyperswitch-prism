@@ -2848,14 +2848,13 @@ fn extract_trustpay_mandate_id(mandate_reference: &MandateReferenceId) -> Result
                     context: Default::default(),
                 })
             }),
-        MandateReferenceId::NetworkMandateId(_) | MandateReferenceId::NetworkTokenWithNTI(_) => {
-            Err(report!(IntegrationError::NotSupported {
-                message: "Network mandate / NTI not supported for trustpay RepeatPayment"
-                    .to_string(),
-                connector: "trustpay",
-                context: Default::default(),
-            }))
-        }
+        MandateReferenceId::NetworkMandateId(_)
+        | MandateReferenceId::NetworkTokenWithNTI(_)
+        | MandateReferenceId::CardWithLimitedData => Err(report!(IntegrationError::NotSupported {
+            message: "Network mandate / NTI not supported for trustpay RepeatPayment".to_string(),
+            connector: "trustpay",
+            context: Default::default(),
+        })),
     }
 }
 

@@ -6846,7 +6846,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             cvc: None,
                             holder_name: test_holder_name.or(card_holder_name),
                             brand: Some(brand),
-                            network_payment_reference: Some(Secret::new(network_mandate_id)),
+                            network_payment_reference: Some(Secret::new(
+                                network_mandate_id.network_transaction_id.clone(),
+                            )),
                         };
                         PaymentMethod::AdyenPaymentMethod(Box::new(AdyenPaymentMethod::AdyenCard(
                             Box::new(adyen_card),
@@ -6892,6 +6894,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }))
                     }
                 }
+            }
+            MandateReferenceId::CardWithLimitedData => {
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "CardWithLimitedData for mandate payment method".to_string(),
+                    connector: "Adyen",
+                    context: Default::default()
+                }))
             }
         };
 

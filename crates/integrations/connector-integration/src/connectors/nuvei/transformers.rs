@@ -2853,7 +2853,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })?
             }
             MandateReferenceId::NetworkMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_) => {
+            | MandateReferenceId::NetworkTokenWithNTI(_)
+            | MandateReferenceId::CardWithLimitedData => {
                 return Err(IntegrationError::NotSupported {
                     message: "Nuvei RepeatPayment only supports connector_mandate_id".to_string(),
                     connector: "nuvei",

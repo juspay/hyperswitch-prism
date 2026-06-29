@@ -939,15 +939,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     is_subsequent_auth: true,
                 }),
                 Some(SubsequentAuthInformation {
-                    original_network_trans_id: Secret::new(network_trans_id.clone()),
+                    original_network_trans_id: Secret::new(
+                        network_trans_id.network_transaction_id.clone(),
+                    ),
                     reason: Reason::Resubmission,
                 }),
             ),
 
             // Case 3: Network token with NTI - NOT SUPPORTED (same as Hyperswitch)
-            MandateReferenceId::NetworkTokenWithNTI(_) => {
+            MandateReferenceId::NetworkTokenWithNTI(_)
+            | MandateReferenceId::CardWithLimitedData => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: "Network token with NTI not supported for authorizedotnet".to_string(),
+                    message: "Network token with NTI / card with limited data not supported for authorizedotnet".to_string(),
                     connector: "authorizedotnet",
                     context: Default::default(),
                 }))

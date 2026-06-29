@@ -777,7 +777,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
                         FiuuPaymentMethodData::try_from((
                             raw_card_details,
-                            network_transaction_id.clone(),
+                            network_transaction_id.network_transaction_id.clone(),
                         ))
                     }
                     _ => Err(IntegrationError::NotImplemented(
@@ -2805,7 +2805,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(Self::FiuuMandateRequest(recurring_request))
             }
             MandateReferenceId::NetworkMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_) => {
+            | MandateReferenceId::NetworkTokenWithNTI(_)
+            | MandateReferenceId::CardWithLimitedData => {
                 let payment_request: FiuuPaymentRequest<T> = FiuuPaymentRequest::try_from(&item)?;
                 Ok(Self::FiuuPaymentRequest(Box::new(payment_request)))
             }

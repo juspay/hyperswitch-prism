@@ -255,6 +255,9 @@ fn create_repeat_payment_request(mandate_id: &str) -> RecurringPaymentServiceCha
                 connector_mandate_request_reference_id: None,
                 connector_mandate_id: Some(mandate_id.to_string()),
                 payment_method_id: None,
+                update_history: Vec::new(),
+                mandate_metadata: None,
+                updated_mandate_details: None,
             },
         )),
     };

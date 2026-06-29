@@ -1413,14 +1413,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card: Some(requests::JpmorganMitCardByNti {
                         account_number: card_data.card_number.clone(),
                         expiry,
-                        original_network_transaction_id: nti.clone(),
+                        original_network_transaction_id: nti.network_transaction_id.clone(),
                     }),
                     transaction_reference: None,
                 }
             }
-            MandateReferenceId::NetworkTokenWithNTI(_) => {
+            MandateReferenceId::NetworkTokenWithNTI(_)
+            | MandateReferenceId::CardWithLimitedData => {
                 return Err(IntegrationError::NotImplemented(
-                    "NetworkTokenWithNTI mandate reference is not implemented for \
+                    "NetworkTokenWithNTI / CardWithLimitedData mandate reference is not implemented for \
                      JPMorgan RepeatPayment"
                         .to_string(),
                     Default::default(),

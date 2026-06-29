@@ -424,7 +424,9 @@ fn get_token_and_agreement<
                         MandateReferenceId::NetworkMandateId(network_transaction_id) => {
                             Some(CustomerAgreement {
                                 agreement_type: CustomerAgreementType::Unscheduled,
-                                scheme_reference: Some(network_transaction_id.into()),
+                                scheme_reference: Some(
+                                    network_transaction_id.network_transaction_id.into(),
+                                ),
                                 stored_card_usage: None,
                             })
                         }
@@ -584,6 +586,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotImplemented(
                     "NetworkTokenWithNTI not supported in RepeatPayment yet".to_string(),
+                    Default::default(),
+                )
+                .into());
+            }
+            MandateReferenceId::CardWithLimitedData => {
+                return Err(IntegrationError::NotImplemented(
+                    "CardWithLimitedData not supported in RepeatPayment yet".to_string(),
                     Default::default(),
                 )
                 .into());

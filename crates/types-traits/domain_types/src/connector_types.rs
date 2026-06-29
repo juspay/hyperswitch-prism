@@ -476,6 +476,14 @@ pub struct UpdateHistory {
     pub original_payment_id: Option<PaymentId>,
 }
 
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Eq, PartialEq)]
+pub struct UpdatedMandateDetails {
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_isin: Option<String>,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct ConnectorMandateReferenceId {
     connector_mandate_id: Option<String>,
@@ -483,6 +491,7 @@ pub struct ConnectorMandateReferenceId {
     update_history: Option<Vec<UpdateHistory>>,
     mandate_metadata: Option<SecretSerdeValue>,
     connector_mandate_request_reference_id: Option<String>,
+    updated_mandate_details: Option<UpdatedMandateDetails>,
 }
 
 impl ConnectorMandateReferenceId {
@@ -492,6 +501,7 @@ impl ConnectorMandateReferenceId {
         update_history: Option<Vec<UpdateHistory>>,
         mandate_metadata: Option<SecretSerdeValue>,
         connector_mandate_request_reference_id: Option<String>,
+        updated_mandate_details: Option<UpdatedMandateDetails>,
     ) -> Self {
         Self {
             connector_mandate_id,
@@ -499,6 +509,7 @@ impl ConnectorMandateReferenceId {
             update_history,
             mandate_metadata,
             connector_mandate_request_reference_id,
+            updated_mandate_details,
         }
     }
 
@@ -520,6 +531,26 @@ impl ConnectorMandateReferenceId {
 
     pub fn get_connector_mandate_request_reference_id(&self) -> Option<String> {
         self.connector_mandate_request_reference_id.clone()
+    }
+
+    pub fn get_updated_mandate_details(&self) -> Option<UpdatedMandateDetails> {
+        self.updated_mandate_details.clone()
+    }
+
+    pub fn update(
+        &mut self,
+        connector_mandate_id: Option<String>,
+        payment_method_id: Option<String>,
+        update_history: Option<Vec<UpdateHistory>>,
+        mandate_metadata: Option<SecretSerdeValue>,
+        connector_mandate_request_reference_id: Option<String>,
+    ) {
+        self.connector_mandate_id = connector_mandate_id.or(self.connector_mandate_id.clone());
+        self.payment_method_id = payment_method_id.or(self.payment_method_id.clone());
+        self.update_history = update_history.or(self.update_history.clone());
+        self.mandate_metadata = mandate_metadata.or(self.mandate_metadata.clone());
+        self.connector_mandate_request_reference_id = connector_mandate_request_reference_id
+            .or(self.connector_mandate_request_reference_id.clone());
     }
 }
 
@@ -553,6 +584,9 @@ pub trait ConnectorResponseHeaders {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct NetworkTokenWithNTIRef {
     pub network_transaction_id: String,
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
     pub token_exp_month: Option<Secret<String>>,
     pub token_exp_year: Option<Secret<String>>,
 }
@@ -560,8 +594,18 @@ pub struct NetworkTokenWithNTIRef {
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id sent by connector
-    NetworkMandateId(String), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with card data
+    NetworkMandateId(NetworkMandateIdRef), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with card data
     NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with network token data
+    CardWithLimitedData, // indicates the recurring transaction is done by card data only
+}
+
+/// Scheme-level identifiers for PSP-agnostic MIT flows (raw card path).
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct NetworkMandateIdRef {
+    pub network_transaction_id: String,
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -582,6 +626,31 @@ impl MandateIds {
         Self {
             mandate_id: Some(mandate_id),
             mandate_reference_id: None,
+        }
+    }
+
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        match &self.mandate_reference_id {
+            Some(MandateReferenceId::ConnectorMandateId(data)) => data.connector_mandate_id.clone(),
+            _ => None,
+        }
+    }
+
+    pub fn get_connector_mandate_metadata(&self) -> Option<SecretSerdeValue> {
+        match &self.mandate_reference_id {
+            Some(MandateReferenceId::ConnectorMandateId(data)) => data.mandate_metadata.clone(),
+            _ => None,
+        }
+    }
+
+    pub fn get_updated_mandate_details_of_connector_mandate_id(
+        &self,
+    ) -> Option<UpdatedMandateDetails> {
+        match &self.mandate_reference_id {
+            Some(MandateReferenceId::ConnectorMandateId(data)) => {
+                data.updated_mandate_details.clone()
+            }
+            _ => None,
         }
     }
 }
@@ -1623,7 +1692,8 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
                 }
                 Some(MandateReferenceId::NetworkMandateId(_))
                 | None
-                | Some(MandateReferenceId::NetworkTokenWithNTI(_)) => None,
+                | Some(MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(MandateReferenceId::CardWithLimitedData) => None,
             })
     }
 
@@ -1632,10 +1702,11 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
-                    Some(network_transaction_id.clone())
+                    Some(network_transaction_id.network_transaction_id.clone())
                 }
                 Some(MandateReferenceId::ConnectorMandateId(_))
                 | Some(MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(MandateReferenceId::CardWithLimitedData)
                 | None => None,
             })
     }
@@ -3438,7 +3509,8 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
                 connector_mandate_ids.get_connector_mandate_id()
             }
             MandateReferenceId::NetworkMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_) => None,
+            | MandateReferenceId::NetworkTokenWithNTI(_)
+            | MandateReferenceId::CardWithLimitedData => None,
         }
     }
     pub fn get_optional_email(&self) -> Option<Email> {
@@ -3448,10 +3520,11 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
     pub fn get_network_mandate_id(&self) -> Option<String> {
         match &self.mandate_reference {
             MandateReferenceId::NetworkMandateId(network_mandate_id) => {
-                Some(network_mandate_id.to_string())
+                Some(network_mandate_id.network_transaction_id.clone())
             }
             MandateReferenceId::ConnectorMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_) => None,
+            | MandateReferenceId::NetworkTokenWithNTI(_)
+            | MandateReferenceId::CardWithLimitedData => None,
         }
     }
 }

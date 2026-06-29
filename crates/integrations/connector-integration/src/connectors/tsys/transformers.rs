@@ -1341,10 +1341,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // transaction field on Sale/Auth) but surfaces later via response.
         let _cit_reference = match &item.request.mandate_reference {
             MandateReferenceId::ConnectorMandateId(cm) => cm.get_connector_mandate_id(),
-            MandateReferenceId::NetworkMandateId(nmi) => Some(nmi.clone()),
+            MandateReferenceId::NetworkMandateId(nmi) => Some(nmi.network_transaction_id.clone()),
             MandateReferenceId::NetworkTokenWithNTI(nti) => {
                 Some(nti.network_transaction_id.clone())
             }
+            MandateReferenceId::CardWithLimitedData => None,
         };
 
         let auth_data = TsysPaymentAuthSaleRequest {

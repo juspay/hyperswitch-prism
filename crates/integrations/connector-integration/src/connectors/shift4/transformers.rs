@@ -1038,6 +1038,13 @@ impl<T: PaymentMethodDataTypes>
                         context: Default::default(),
                     }));
                 }
+                MandateReferenceId::CardWithLimitedData => {
+                    return Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "CardWithLimitedData is not supported for Shift4 MIT".to_string(),
+                        connector: "Shift4",
+                        context: Default::default(),
+                    }));
+                }
             };
             (
                 Shift4RepeatPaymentCard::Token(token),

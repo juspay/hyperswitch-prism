@@ -2402,7 +2402,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 card_number: raw_card_details.card_number.clone(),
                                 card_expiry_month: raw_card_details.card_exp_month.clone(),
                                 card_expiry_year: raw_card_details.card_exp_year.clone(),
-                                scheme_tid: network_transaction_id.into(),
+                                scheme_tid: network_transaction_id.network_transaction_id.into(),
                             });
 
                         let transaction = NovalnetPaymentsRequestTransaction {

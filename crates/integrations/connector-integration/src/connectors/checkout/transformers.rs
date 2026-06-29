@@ -930,7 +930,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         };
                         Ok((
                             payment_source,
-                            Some(network_transaction_id.clone()),
+                            Some(network_transaction_id.network_transaction_id.clone()),
                             Some(true),
                             p_type,
                             None,
@@ -980,7 +980,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                         Ok((
                             payment_source,
-                            Some(network_transaction_id.clone()),
+                            Some(network_transaction_id.network_transaction_id.clone()),
                             Some(true),
                             p_type,
                             None,

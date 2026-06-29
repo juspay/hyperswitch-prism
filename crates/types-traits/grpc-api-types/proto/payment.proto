@@ -1200,11 +1200,14 @@ message MandateReference {
 
     // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate
     // txns along with card data
-    string network_mandate_id = 2;
+    NetworkMandateId network_mandate_id = 2;
 
     // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate
     // txns along with network token data
     NetworkTokenWithNTI network_token_with_nti = 3;
+
+    // Indicates the recurring transaction is done by card data only.
+    google.protobuf.Empty card_with_limited_data = 4;
   }
 }
 
@@ -1212,12 +1215,38 @@ message ConnectorMandateReferenceId {
   optional string connector_mandate_id = 1;
   optional string payment_method_id = 2;
   optional string connector_mandate_request_reference_id = 3;
+  repeated MandateUpdateHistory update_history = 4;
+  optional SecretString mandate_metadata = 5;
+  optional UpdatedMandateDetails updated_mandate_details = 6;
+}
+
+message MandateUpdateHistory {
+  optional string connector_mandate_id = 1;
+  string payment_method_id = 2;
+  optional string original_payment_id = 3;
+}
+
+message UpdatedMandateDetails {
+  optional CardNetwork card_network = 1;
+  optional SecretString card_exp_month = 2;
+  optional SecretString card_exp_year = 3;
+  optional string card_isin = 4;
+}
+
+message NetworkMandateId {
+  string network_transaction_id = 1;
+  // Mastercard Transaction Link Identifier (TLID) provided by the card network
+  // during a CIT when setup_future_usage is off_session.
+  optional string transaction_link_id = 2;
 }
 
 message NetworkTokenWithNTI {
   string network_transaction_id = 1;
   optional SecretString token_exp_month = 2;
   optional SecretString token_exp_year = 3;
+  // Mastercard Transaction Link Identifier (TLID) provided by the card network
+  // during a CIT when setup_future_usage is off_session.
+  optional string transaction_link_id = 4;
 }
 
 // Container for various address types related to a payment

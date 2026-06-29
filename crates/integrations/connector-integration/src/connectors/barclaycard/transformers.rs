@@ -1336,7 +1336,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 reason: Some(MIT_REASON_NTI.to_string()),
                                 original_authorized_amount,
                                 previous_transaction_id: Some(Secret::new(
-                                    network_transaction_id.clone(),
+                                    network_transaction_id.network_transaction_id.clone(),
                                 )),
                             },
                         ),
@@ -1344,8 +1344,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     pi,
                 )
             }
-            MandateReferenceId::NetworkTokenWithNTI(_) => Err(IntegrationError::NotImplemented(
-                "Network token with NTI based MIT is not supported for Barclaycard".to_string(),
+            MandateReferenceId::NetworkTokenWithNTI(_)
+            | MandateReferenceId::CardWithLimitedData => Err(IntegrationError::NotImplemented(
+                "Network token with NTI / card with limited data based MIT is not supported for Barclaycard".to_string(),
                 Default::default(),
             ))?,
         };
