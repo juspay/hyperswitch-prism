@@ -1345,7 +1345,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             MandateReferenceId::NetworkTokenWithNTI(nti) => {
                 Some(nti.network_transaction_id.clone())
             }
-            MandateReferenceId::CardWithLimitedData => None,
+            MandateReferenceId::CardWithLimitedData(_) => None,
         };
 
         let auth_data = TsysPaymentAuthSaleRequest {

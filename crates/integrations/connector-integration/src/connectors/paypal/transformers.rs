@@ -3524,7 +3524,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })?,
             domain_types::connector_types::MandateReferenceId::NetworkMandateId(_)
             | domain_types::connector_types::MandateReferenceId::NetworkTokenWithNTI(_)
-            | domain_types::connector_types::MandateReferenceId::CardWithLimitedData => {
+            | domain_types::connector_types::MandateReferenceId::CardWithLimitedData(_) => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "Network mandate ID not supported for PayPal repeat payments"
                         .to_string(),

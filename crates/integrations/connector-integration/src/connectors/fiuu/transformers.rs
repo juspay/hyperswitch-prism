@@ -2806,7 +2806,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_)
-            | MandateReferenceId::CardWithLimitedData => {
+            | MandateReferenceId::CardWithLimitedData(_) => {
                 let payment_request: FiuuPaymentRequest<T> = FiuuPaymentRequest::try_from(&item)?;
                 Ok(Self::FiuuPaymentRequest(Box::new(payment_request)))
             }

@@ -1353,7 +1353,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ..Default::default()
                 },
             ))?,
-            MandateReferenceId::CardWithLimitedData => Err(IntegrationError::NotImplemented(
+            MandateReferenceId::CardWithLimitedData(_) => Err(IntegrationError::NotImplemented(
                 "Card with limited data based MIT is not supported for Barclaycard".to_string(),
                 IntegrationErrorContext {
                     additional_context: Some(

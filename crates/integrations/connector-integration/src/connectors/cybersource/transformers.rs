@@ -5515,7 +5515,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }),
                 )
             }
-            MandateReferenceId::CardWithLimitedData => {
+            MandateReferenceId::CardWithLimitedData(_) => {
                 return Err(IntegrationError::NotImplemented(
                     "CardWithLimitedData not supported in Cybersource RepeatPayment".to_string(),
                     IntegrationErrorContext {

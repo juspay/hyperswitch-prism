@@ -600,7 +600,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
                 .into());
             }
-            MandateReferenceId::CardWithLimitedData => {
+            MandateReferenceId::CardWithLimitedData(_) => {
                 return Err(IntegrationError::NotImplemented(
                     "CardWithLimitedData not supported in RepeatPayment yet".to_string(),
                     IntegrationErrorContext {

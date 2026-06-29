@@ -415,10 +415,15 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<RepeatPaymentIntegrityObject>
                 domain_types::connector_types::MandateReferenceId::NetworkMandateId(
                     network_mandate,
                 ) => network_mandate.network_transaction_id.clone(),
-                domain_types::connector_types::MandateReferenceId::NetworkTokenWithNTI(_)
-                | domain_types::connector_types::MandateReferenceId::CardWithLimitedData => {
+                domain_types::connector_types::MandateReferenceId::NetworkTokenWithNTI(_) => {
                     String::new()
                 }
+                domain_types::connector_types::MandateReferenceId::CardWithLimitedData(
+                    card_with_limited_data,
+                ) => card_with_limited_data
+                    .network_transaction_id
+                    .clone()
+                    .unwrap_or_default(),
             },
         }
     }

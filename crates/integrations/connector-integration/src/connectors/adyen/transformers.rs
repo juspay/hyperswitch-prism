@@ -6895,7 +6895,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 }
             }
-            MandateReferenceId::CardWithLimitedData => {
+            MandateReferenceId::CardWithLimitedData(_) => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "CardWithLimitedData for mandate payment method".to_string(),
                     connector: "Adyen",

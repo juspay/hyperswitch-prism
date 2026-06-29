@@ -356,7 +356,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   CustomerAcceptance: { "onlineMandateDetails": "OnlineMandate" },
   MandateType: { "singleUse": "MandateAmountData", "multiUse": "MandateAmountData" },
   SetupMandateDetails: { "customerAcceptance": "CustomerAcceptance", "mandateType": "MandateType" },
-  MandateReference: { "connectorMandateId": "ConnectorMandateReferenceId", "networkMandateId": "NetworkMandateId", "networkTokenWithNti": "NetworkTokenWithNTI", "cardWithLimitedData": "Empty" },
+  MandateReference: { "connectorMandateId": "ConnectorMandateReferenceId", "networkMandateId": "NetworkMandateId", "networkTokenWithNti": "NetworkTokenWithNTI", "cardWithLimitedData": "CardWithLimitedData" },
   ConnectorMandateReferenceId: { "updateHistory": "MandateUpdateHistory", "updatedMandateDetails": "UpdatedMandateDetails" },
   PaymentAddress: { "shippingAddress": "Address", "billingAddress": "Address" },
   OrderInfo: { "orderDetails": "OrderDetailsWithAmount" },

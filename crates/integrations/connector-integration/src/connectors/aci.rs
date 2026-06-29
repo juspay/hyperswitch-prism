@@ -293,7 +293,7 @@ macros::create_all_prerequisites!(
                         },
                     }))
                 }
-                MandateReferenceId::CardWithLimitedData => {
+                MandateReferenceId::CardWithLimitedData(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: "Card with limited data not supported for aci".to_string(),
                         connector: "Aci",

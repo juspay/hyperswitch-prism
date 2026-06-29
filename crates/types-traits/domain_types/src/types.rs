@@ -265,22 +265,22 @@ use crate::{
     },
     connector_types::{
         AcceptDisputeData, ApplePayPaymentRequest, ApplePaySessionResponse, BillingDescriptor,
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorMandateReferenceId, ConnectorResponseHeaders,
-        ConnectorSpecificClientAuthenticationResponse, ContinueRedirectionResponse, CustomerInfo,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse,
-        GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayClientAuthenticationResponse,
-        L2L3Data, MandateReferenceId, MandateRevokeRequestData, MultipleCaptureRequestData,
-        NetworkMandateIdRef, NetworkTokenWithNTIRef, NextActionCall, OrderInfo,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, PaypalFlow,
-        PaypalTransactionInfo, RawConnectorRequestResponse, RedirectDetailsResponse,
-        RefundFlowData, RefundSyncData, RefundVoidPostRefundData, RefundWebhookDetailsResponse,
-        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+        CardWithLimitedDataRef, ClientAuthenticationTokenData,
+        ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorMandateReferenceId,
+        ConnectorResponseHeaders, ConnectorSpecificClientAuthenticationResponse,
+        ContinueRedirectionResponse, CustomerInfo, DisputeDefendData, DisputeFlowData,
+        DisputeResponseData, DisputeWebhookDetailsResponse, GpayAllowedPaymentMethods,
+        GpayBillingAddressFormat, GpayClientAuthenticationResponse, L2L3Data, MandateReferenceId,
+        MandateRevokeRequestData, MultipleCaptureRequestData, NetworkMandateIdRef,
+        NetworkTokenWithNTIRef, NextActionCall, OrderInfo, PaymentCreateOrderData,
+        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, PaypalFlow, PaypalTransactionInfo, RawConnectorRequestResponse,
+        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundVoidPostRefundData,
+        RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData, TaxInfo, UpdateHistory, UpdatedMandateDetails,
         WebhookDetailsResponse,
@@ -5845,6 +5845,15 @@ impl ForeignFrom<NetworkTokenWithNTIRef> for grpc_payment_types::NetworkTokenWit
     }
 }
 
+impl ForeignFrom<CardWithLimitedDataRef> for grpc_payment_types::CardWithLimitedData {
+    fn foreign_from(card_with_limited_data: CardWithLimitedDataRef) -> Self {
+        Self {
+            network_transaction_id: card_with_limited_data.network_transaction_id,
+            transaction_link_id: card_with_limited_data.transaction_link_id,
+        }
+    }
+}
+
 impl ForeignFrom<MandateReferenceId> for grpc_payment_types::MandateReference {
     fn foreign_from(value: MandateReferenceId) -> Self {
         let mandate_id_type = match value {
@@ -5865,8 +5874,10 @@ impl ForeignFrom<MandateReferenceId> for grpc_payment_types::MandateReference {
                     grpc_payment_types::NetworkTokenWithNti::foreign_from(network_token_with_nti),
                 )
             }
-            MandateReferenceId::CardWithLimitedData => {
-                grpc_payment_types::mandate_reference::MandateIdType::CardWithLimitedData(())
+            MandateReferenceId::CardWithLimitedData(card_with_limited_data) => {
+                grpc_payment_types::mandate_reference::MandateIdType::CardWithLimitedData(
+                    grpc_payment_types::CardWithLimitedData::foreign_from(card_with_limited_data),
+                )
             }
         };
 
@@ -5981,8 +5992,13 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateReference> for MandateRefer
                 token_exp_year: network_token_with_nti.token_exp_year,
             })),
             Some(
-                grpc_api_types::payments::mandate_reference::MandateIdType::CardWithLimitedData(_),
-            ) => Ok(Self::CardWithLimitedData),
+                grpc_api_types::payments::mandate_reference::MandateIdType::CardWithLimitedData(
+                    card_with_limited_data,
+                ),
+            ) => Ok(Self::CardWithLimitedData(CardWithLimitedDataRef {
+                network_transaction_id: card_with_limited_data.network_transaction_id,
+                transaction_link_id: card_with_limited_data.transaction_link_id,
+            })),
             None => Err(IntegrationError::InvalidDataFormat {
                 field_name: "connector_recurring_payment_id.mandate_id_type",
                 context: IntegrationErrorContext {
@@ -16458,5 +16474,46 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
                 })),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::utils::{ForeignFrom, ForeignTryFrom};
+
+    use super::*;
+
+    #[test]
+    fn card_with_limited_data_mandate_reference_round_trips_through_grpc() {
+        let mandate_reference = MandateReferenceId::CardWithLimitedData(CardWithLimitedDataRef {
+            network_transaction_id: Some("nti_123".to_string()),
+            transaction_link_id: Some("tlid_123".to_string()),
+        });
+
+        let grpc_reference =
+            grpc_api_types::payments::MandateReference::foreign_from(mandate_reference.clone());
+
+        match grpc_reference.mandate_id_type.as_ref() {
+            Some(
+                grpc_api_types::payments::mandate_reference::MandateIdType::CardWithLimitedData(
+                    card_with_limited_data,
+                ),
+            ) => {
+                assert_eq!(
+                    card_with_limited_data.network_transaction_id.as_deref(),
+                    Some("nti_123")
+                );
+                assert_eq!(
+                    card_with_limited_data.transaction_link_id.as_deref(),
+                    Some("tlid_123")
+                );
+            }
+            mandate_id_type => panic!("unexpected mandate id type: {mandate_id_type:?}"),
+        }
+
+        let round_tripped = MandateReferenceId::foreign_try_from(grpc_reference)
+            .expect("card limited data reference should convert from grpc");
+
+        assert_eq!(round_tripped, mandate_reference);
     }
 }

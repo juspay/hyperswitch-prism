@@ -1641,7 +1641,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })?,
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_)
-            | MandateReferenceId::CardWithLimitedData => {
+            | MandateReferenceId::CardWithLimitedData(_) => {
                 return Err(IntegrationError::NotSupported {
                     message: "Finix RepeatPayment only supports connector-mandate references; \
                          network mandate id / network token NTI flows are not supported."
