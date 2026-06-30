@@ -1,7 +1,9 @@
 use crate::{connectors::braintree::BraintreeRouterData, types::ResponseRouterData, utils};
+use base64::Engine;
 use common_enums::enums;
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    ext_traits::XmlExt,
     pii,
     types::{MinorUnit, StringMajorUnit},
 };
@@ -2780,6 +2782,102 @@ pub(crate) fn get_dispute_stage(
         "RETRIEVAL" => Ok(enums::DisputeStage::PreDispute),
         _ => Err(error_stack::report!(
             domain_types::errors::WebhookError::WebhookBodyDecodingFailed
+        )),
+    }
+}
+
+// Decodes the form-urlencoded webhook envelope (`bt_signature` + `bt_payload`).
+pub(crate) fn get_webhook_object_from_body(
+    body: &[u8],
+) -> Result<BraintreeWebhookResponse, Report<domain_types::errors::WebhookError>> {
+    serde_urlencoded::from_bytes::<BraintreeWebhookResponse>(body)
+        .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
+}
+
+// Base64-decodes the (newline-stripped) `bt_payload` and parses the XML `Notification`.
+pub(crate) fn decode_webhook_payload(
+    payload: &[u8],
+) -> Result<Notification, Report<domain_types::errors::WebhookError>> {
+    let decoded_response = super::BASE64_ENGINE
+        .decode(payload)
+        .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+    let xml_response = String::from_utf8(decoded_response)
+        .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+    xml_response
+        .parse_xml::<Notification>()
+        .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
+}
+
+// `bt_signature` is `pubkey1|sig1&pubkey2|sig2&...`; pick the signature whose
+// public key matches the merchant's Braintree public key.
+pub(crate) fn get_matching_webhook_signature(
+    signature_pairs: &[(&str, &str)],
+    secret: &str,
+) -> Option<String> {
+    signature_pairs
+        .iter()
+        .find(|(public_key, _)| *public_key == secret)
+        .map(|(_, signature)| signature.to_string())
+}
+
+// Full request -> `Notification` decode: urlencoded envelope, then base64 + XML on the
+// newline-stripped `bt_payload`. Mirrors the two-step decode the trait methods performed inline.
+pub(crate) fn decode_from_request(
+    request: &connector_types::RequestDetails,
+) -> Result<Notification, Report<domain_types::errors::WebhookError>> {
+    let notif = get_webhook_object_from_body(&request.body)?;
+    decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())
+}
+
+// Builds the typed webhook resource reference for a dispute notification.
+pub(crate) fn get_webhook_reference(
+    notification: &Notification,
+) -> Result<Option<connector_types::WebhookResourceReference>, Report<domain_types::errors::WebhookError>>
+{
+    match &notification.dispute {
+        // HS emits `PaymentId(ConnectorTransactionId(transaction.id))`. The shadow normaliser
+        // maps a prism Dispute reference via `connector_dispute_id.or(connector_transaction_id)`,
+        // preferring connector_dispute_id, so it MUST be `None` here to match HS byte-for-byte.
+        Some(dispute_data) => Ok(Some(connector_types::WebhookResourceReference::Dispute(
+            connector_types::DisputeWebhookReference {
+                connector_dispute_id: None,
+                connector_transaction_id: Some(dispute_data.transaction.id.clone()),
+            },
+        ))),
+        None => Err(error_stack::report!(
+            domain_types::errors::WebhookError::WebhookReferenceIdNotFound
+        )),
+    }
+}
+
+// Builds the dispute webhook response, including the webhook amount conversion.
+pub(crate) fn build_webhook_dispute_response(
+    notification: &Notification,
+    raw_body: &[u8],
+) -> Result<connector_types::DisputeWebhookDetailsResponse, Report<domain_types::errors::WebhookError>>
+{
+    match &notification.dispute {
+        Some(dispute_data) => Ok(connector_types::DisputeWebhookDetailsResponse {
+            amount: domain_types::utils::convert_amount_for_webhook(
+                &common_utils::types::StringMinorUnitForConnector,
+                dispute_data.amount_disputed,
+                dispute_data.currency_iso_code,
+            )?,
+            currency: dispute_data.currency_iso_code,
+            dispute_id: dispute_data.id.clone(),
+            status: get_dispute_status(notification.kind.as_str()),
+            stage: get_dispute_stage(dispute_data.kind.as_str())?,
+            connector_response_reference_id: None,
+            dispute_message: dispute_data.reason.clone(),
+            connector_reason_code: dispute_data.reason_code.clone(),
+            raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+            status_code: 200,
+            response_headers: None,
+        }),
+        None => Err(error_stack::report!(
+            domain_types::errors::WebhookError::WebhookResourceObjectNotFound
         )),
     }
 }
