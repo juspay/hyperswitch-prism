@@ -9,19 +9,30 @@ and run a test suite.
 > 📖 **Follow the guided walkthrough in [STEPS.md](./STEPS.md)** — it maps every
 > command below to a workshop step.
 
-## Quick start
+## Quick start (from scratch)
 
 ```bash
+# 1. Clone and switch to the workshop branch
+git clone https://github.com/juspay/hyperswitch-prism.git
+cd hyperswitch-prism
+git fetch origin claude/funny-edison-nap6wt
+git checkout claude/funny-edison-nap6wt
+
+# 2. Install
 cd workshop/javascript
 npm install
 cp .env.example .env        # optional — add sandbox keys to see real approvals
 
+# 3. Run the workshop
+npm test                    # Step 8: the test suite (no credentials needed) — start here to verify setup
 npm run run:payment         # Steps 1–4: run a payment (switch PSP in config/active-psp.ts)
 npm run run:routing         # Step 6a: condition-based routing
 npm run run:retry           # Step 6b: payment retry / fallback
 npm run run:extend          # Step 7: add a new processor / new flow
-npm test                    # Step 8: the test suite (no credentials needed)
 ```
+
+Requirements: Git, Node.js 18+, and Linux x64 / macOS / WSL2 (the SDK ships a
+native x86_64 library — no Rust toolchain needed).
 
 ## How it works
 

@@ -9,16 +9,71 @@ Total time: ~45–60 minutes. Everything runs locally with `tsx` (no build step)
 
 ---
 
-## Setup (2 min)
+## Step 0 — Prerequisites (one-time)
+
+Make sure these are installed before the workshop:
+
+| Tool | Version | Check |
+|------|---------|-------|
+| Git | any recent | `git --version` |
+| Node.js | 18+ (LTS) | `node --version` |
+| npm | ships with Node | `npm --version` |
+
+Platform: Linux x64, macOS, or Windows via **WSL2**. The `hyperswitch-prism` SDK
+ships a native **x86_64** library, so on Apple Silicon / ARM use Docker or WSL2
+with an x86_64 runtime (see the SDK README for platform notes). No Rust toolchain
+is required — the SDK is installed prebuilt from npm.
+
+---
+
+## Step 0.1 — Clone the repository and switch to the workshop branch
 
 ```bash
+# 1. Clone
+git clone https://github.com/juspay/hyperswitch-prism.git
+cd hyperswitch-prism
+
+# 2. Switch to the workshop branch
+git fetch origin claude/funny-edison-nap6wt
+git checkout claude/funny-edison-nap6wt
+
+# 3. Go to the JavaScript workshop folder
 cd workshop/javascript
-npm install
-cp .env.example .env     # optional: fill in sandbox keys for the PSPs you have
 ```
 
-Requirements: Node.js 18+ on Linux x64 / macOS / WSL2 (the SDK ships a native
-x86_64 library — see the SDK README for platform notes).
+> Already have the repo cloned? Just run steps 2 and 3.
+
+Verify you're in the right place — you should see `package.json`, `config/`,
+`src/`, and `test/`:
+
+```bash
+ls
+# README.md  STEPS.md  config  package.json  src  test  tsconfig.json ...
+```
+
+---
+
+## Step 0.2 — Install dependencies
+
+```bash
+npm install                 # pulls hyperswitch-prism (the unified SDK) + tsx
+cp .env.example .env        # optional: add sandbox keys for the PSPs you have
+```
+
+`npm install` downloads the SDK with its prebuilt native library — no build step.
+This is the only network-heavy step; do it before the session if Wi‑Fi is slow.
+
+**Sanity check** (should print the test summary, no credentials needed):
+
+```bash
+npm test
+# ...
+# # tests 17
+# # pass 17
+# # fail 0
+```
+
+If you see `17 pass`, your environment is ready. 🎉
 
 ---
 

@@ -25,9 +25,17 @@ the library, and run a test suite — all from working, runnable code.
 walkthrough.
 
 ```bash
+# Clone and switch to the workshop branch
+git clone https://github.com/juspay/hyperswitch-prism.git
+cd hyperswitch-prism
+git fetch origin claude/funny-edison-nap6wt
+git checkout claude/funny-edison-nap6wt
+
+# Install and run
 cd workshop/javascript
 npm install
-npm run run:payment
+npm test                 # verify setup (no credentials needed)
+npm run run:payment      # run your first payment
 ```
 
 ## Languages (step 5)
