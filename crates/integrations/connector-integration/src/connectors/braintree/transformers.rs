@@ -2741,6 +2741,51 @@ pub struct DisputeEvidence {
     pub url: url::Url,
 }
 
+// Maps the Braintree notification `kind` to the prism webhook event type.
+// Ports HS `get_status` (hyperswitch braintree/transformers.rs `get_status`) 1:1.
+pub(crate) fn get_status(status: &str) -> connector_types::EventType {
+    match status {
+        "dispute_opened" => connector_types::EventType::DisputeOpened,
+        "dispute_lost" => connector_types::EventType::DisputeLost,
+        "dispute_won" => connector_types::EventType::DisputeWon,
+        "dispute_accepted" | "dispute_auto_accepted" => {
+            connector_types::EventType::DisputeAccepted
+        }
+        "dispute_expired" => connector_types::EventType::DisputeExpired,
+        "dispute_disputed" => connector_types::EventType::DisputeChallenged,
+        _ => connector_types::EventType::IncomingWebhookEventUnspecified,
+    }
+}
+
+// Maps the Braintree notification `kind` to the prism dispute status.
+// Mirrors how the HS router derives `DisputeStatus` from the webhook event.
+pub(crate) fn get_dispute_status(status: &str) -> enums::DisputeStatus {
+    match status {
+        "dispute_opened" => enums::DisputeStatus::DisputeOpened,
+        "dispute_lost" => enums::DisputeStatus::DisputeLost,
+        "dispute_won" => enums::DisputeStatus::DisputeWon,
+        "dispute_accepted" | "dispute_auto_accepted" => enums::DisputeStatus::DisputeAccepted,
+        "dispute_expired" => enums::DisputeStatus::DisputeExpired,
+        "dispute_disputed" => enums::DisputeStatus::DisputeChallenged,
+        _ => enums::DisputeStatus::DisputeOpened,
+    }
+}
+
+// Maps the Braintree dispute `kind` to the prism dispute stage.
+// Ports HS `get_dispute_stage` 1:1.
+pub(crate) fn get_dispute_stage(
+    code: &str,
+) -> Result<enums::DisputeStage, Report<domain_types::errors::WebhookError>> {
+    match code {
+        "CHARGEBACK" => Ok(enums::DisputeStage::Dispute),
+        "PRE_ARBITRATION" => Ok(enums::DisputeStage::PreArbitration),
+        "RETRIEVAL" => Ok(enums::DisputeStage::PreDispute),
+        _ => Err(error_stack::report!(
+            domain_types::errors::WebhookError::WebhookBodyDecodingFailed
+        )),
+    }
+}
+
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum BraintreeRepeatPaymentRequest {

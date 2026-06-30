@@ -5,10 +5,11 @@ use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    crypto::{self, SignMessage},
     errors::CustomResult,
     events,
-    ext_traits::ByteSliceExt,
-    types::StringMajorUnit,
+    ext_traits::{ByteSliceExt, XmlExt},
+    types::{StringMajorUnit, StringMinorUnit},
     ParsingError,
 };
 use domain_types::{
@@ -17,11 +18,13 @@ use domain_types::{
         RepeatPayment, SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SetupMandateRequestData,
+        ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets,
+        DisputeWebhookDetailsResponse, DisputeWebhookReference, EventType, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, SetupMandateRequestData,
+        WebhookResourceReference,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -54,6 +57,7 @@ pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::genera
 
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::WebhookError;
 use error_stack::ResultExt;
 pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -224,7 +228,171 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Braintree<T>
 {
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, Report<WebhookError>> {
+        let connector_webhook_secrets = connector_webhook_secret
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))?;
+
+        let notif = get_webhook_object_from_body(&request.body)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+
+        // `bt_signature` is `pubkey1|sig1&pubkey2|sig2&...`; split into (public_key, signature) pairs.
+        let signature_pairs: Vec<(&str, &str)> = notif
+            .bt_signature
+            .split('&')
+            .map(|pair| pair.split_once('|').unwrap_or(("", "")))
+            .collect();
+
+        // `additional_secret` holds the merchant's Braintree public key.
+        let public_key = connector_webhook_secrets
+            .additional_secret
+            .as_ref()
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))?;
+
+        let extracted_signature =
+            get_matching_webhook_signature(&signature_pairs, public_key.peek())
+                .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
+
+        let message = notif.bt_payload.as_bytes();
+
+        // Signing key is the SHA1 digest of the private key (`secret`), then HMAC-SHA1 over the payload.
+        let sha1_hash_key = ring::digest::digest(
+            &ring::digest::SHA1_FOR_LEGACY_USE_ONLY,
+            &connector_webhook_secrets.secret,
+        );
+
+        let signed_message = crypto::HmacSha1
+            .sign_message(sha1_hash_key.as_ref(), message)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)?;
+
+        let payload_sign = hex::encode(signed_message);
+
+        Ok(payload_sign.as_bytes().eq(extracted_signature.as_bytes()))
+    }
+
+    fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
+        let notif = get_webhook_object_from_body(&request.body)?;
+        let response = decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())?;
+        Ok(braintree::get_status(response.kind.as_str()))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
+        let notif = get_webhook_object_from_body(&request.body)?;
+        let response = decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())?;
+
+        match response.dispute {
+            // HS emits `PaymentId(ConnectorTransactionId(transaction.id))`. The shadow normaliser
+            // maps a prism Dispute reference via `connector_dispute_id.or(connector_transaction_id)`,
+            // preferring connector_dispute_id, so it MUST be `None` here to match HS byte-for-byte.
+            Some(dispute_data) => Ok(Some(WebhookResourceReference::Dispute(
+                DisputeWebhookReference {
+                    connector_dispute_id: None,
+                    connector_transaction_id: Some(dispute_data.transaction.id),
+                },
+            ))),
+            None => Err(error_stack::report!(WebhookError::WebhookReferenceIdNotFound)),
+        }
+    }
+
+    fn process_dispute_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
+        let notif = get_webhook_object_from_body(&request.body)?;
+        let response = decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())?;
+
+        match response.dispute {
+            Some(dispute_data) => Ok(DisputeWebhookDetailsResponse {
+                amount: domain_types::utils::convert_amount_for_webhook(
+                    self.amount_converter_webhooks,
+                    dispute_data.amount_disputed,
+                    dispute_data.currency_iso_code,
+                )?,
+                currency: dispute_data.currency_iso_code,
+                dispute_id: dispute_data.id,
+                status: braintree::get_dispute_status(response.kind.as_str()),
+                stage: braintree::get_dispute_stage(dispute_data.kind.as_str())?,
+                connector_response_reference_id: None,
+                dispute_message: dispute_data.reason,
+                connector_reason_code: dispute_data.reason_code,
+                raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+                status_code: 200,
+                response_headers: None,
+            }),
+            None => Err(error_stack::report!(
+                WebhookError::WebhookResourceObjectNotFound
+            )),
+        }
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, Report<WebhookError>> {
+        let notif = get_webhook_object_from_body(&request.body)?;
+        let response = decode_webhook_payload(notif.bt_payload.replace('\n', "").as_bytes())?;
+        Ok(Box::new(response))
+    }
+
+    fn get_webhook_api_response(
+        &self,
+        _request: RequestDetails,
+        _error_kind: Option<connector_types::IncomingWebhookFlowError>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<interfaces::api::EventAckResponse, Report<WebhookError>> {
+        Ok(interfaces::api::EventAckResponse {
+            status_code: 200,
+            headers: vec![],
+            body: Some(b"[accepted]".to_vec()),
+        })
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        // form-urlencoded `bt_signature=<pubkey>|<sig>&bt_payload=<base64 dispute_opened XML>`.
+        // Dummy values only; `bt_payload` base64 decodes to a minimal `dispute_opened` notification.
+        br#"bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D"#
+    }
 }
+
+fn get_matching_webhook_signature(
+    signature_pairs: &[(&str, &str)],
+    secret: &str,
+) -> Option<String> {
+    signature_pairs
+        .iter()
+        .find(|(public_key, _)| *public_key == secret)
+        .map(|(_, signature)| signature.to_string())
+}
+
+fn get_webhook_object_from_body(
+    body: &[u8],
+) -> Result<braintree::BraintreeWebhookResponse, Report<WebhookError>> {
+    serde_urlencoded::from_bytes::<braintree::BraintreeWebhookResponse>(body)
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
+}
+
+fn decode_webhook_payload(payload: &[u8]) -> Result<braintree::Notification, Report<WebhookError>> {
+    let decoded_response = BASE64_ENGINE
+        .decode(payload)
+        .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+    let xml_response = String::from_utf8(decoded_response)
+        .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+    xml_response
+        .parse_xml::<braintree::Notification>()
+        .change_context(WebhookError::WebhookBodyDecodingFailed)
+}
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Braintree<T>
 {
@@ -307,7 +475,8 @@ macros::create_all_prerequisites!(
         )
     ],
     amount_converters: [
-        amount_converter: StringMajorUnit
+        amount_converter: StringMajorUnit,
+        amount_converter_webhooks: StringMinorUnit
         ],
     member_functions: {
         pub fn build_headers<F, FCD, Req, Res>(
