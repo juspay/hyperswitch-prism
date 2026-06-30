@@ -985,7 +985,7 @@
             "request-idempotency-key": "probe_refund_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"refundReason\":\"CUSTOMER_REQUEST\"}"
+          "body": "{\"amount\":1000,\"merchantRefundReference\":\"probe_refund_001\",\"refundReason\":\"CUSTOMER_REQUEST\"}"
         }
       }
     },
