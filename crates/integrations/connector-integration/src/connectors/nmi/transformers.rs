@@ -2012,7 +2012,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.transactionid.clone()),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference: response.customer_vault_id.as_ref().map(|vault_id| {
+                        Box::new(MandateReference {
+                            connector_mandate_id: Some(vault_id.clone().expose()),
+                            payment_method_id: None,
+                            connector_mandate_request_reference_id: None,
+                        })
+                    }),
                     connector_metadata: None,
                     network_txn_id: None,
                     network_txn_link_id: None,
