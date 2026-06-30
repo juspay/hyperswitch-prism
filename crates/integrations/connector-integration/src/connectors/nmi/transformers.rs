@@ -1879,6 +1879,11 @@ pub struct NmiRepeatPaymentRequest {
     country: Option<common_enums::CountryAlpha2>,
     #[serde(skip_serializing_if = "Option::is_none")]
     phone: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<common_utils::pii::Email>,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shipping_details: Option<NmiShippingDetails>,
 }
 
 pub type NmiRepeatPaymentResponse = NmiSetupMandateResponse;
@@ -1965,6 +1970,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             zip: common_data.get_optional_billing_zip(),
             country: common_data.get_optional_billing_country(),
             phone: common_data.get_optional_billing_phone_number(),
+            // Prefer the billing-address email (mirrors the hyperswitch reference
+            // NMI MIT path), falling back to the top-level `RepeatPaymentData.email`
+            // so the customer email is still sent when no billing email is present.
+            email: common_data
+                .get_optional_billing_email()
+                .or_else(|| router_data.request.email.clone()),
+            shipping_details: Some(NmiShippingDetails {
+                shipping_firstname: common_data.get_optional_shipping_first_name(),
+                shipping_lastname: common_data.get_optional_shipping_last_name(),
+                shipping_address1: common_data.get_optional_shipping_line1(),
+                shipping_address2: common_data.get_optional_shipping_line2(),
+                shipping_city: common_data.get_optional_shipping_city(),
+                shipping_state: common_data.get_optional_shipping_state(),
+                shipping_zip: common_data.get_optional_shipping_zip(),
+                shipping_country: common_data.get_optional_shipping_country(),
+                // Same precedence for the shipping email: shipping-address email
+                // first, then the top-level `RepeatPaymentData.email` fallback.
+                shipping_email: common_data
+                    .get_optional_shipping_email()
+                    .or_else(|| router_data.request.email.clone()),
+            }),
         })
     }
 }
