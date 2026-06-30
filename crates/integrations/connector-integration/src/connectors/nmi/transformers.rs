@@ -1976,13 +1976,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        let request_mandate = match &item.router_data.request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(connector_mandate_ids) => {
-                Some(connector_mandate_ids)
-            }
-            _ => None,
-        };
-
         let (status, payment_response) = match response.response {
             Response::Approved => (
                 AttemptStatus::Charged,
@@ -1992,11 +1985,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_reference: response.customer_vault_id.as_ref().map(|vault_id| {
                         Box::new(MandateReference {
                             connector_mandate_id: Some(vault_id.clone().expose()),
-                            payment_method_id: request_mandate
-                                .and_then(|mandate| mandate.get_payment_method_id().cloned()),
-                            connector_mandate_request_reference_id: request_mandate.and_then(
-                                |mandate| mandate.get_connector_mandate_request_reference_id(),
-                            ),
+                            payment_method_id: None,
+                            connector_mandate_request_reference_id: None,
                         })
                     }),
                     connector_metadata: None,
