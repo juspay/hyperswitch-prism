@@ -2489,7 +2489,6 @@ message PaymentServiceGetRequest {
 }
 
 // Settlement phase reported by the connector on PaymentServiceGetResponse.
-// Distinct from AttemptStatus which collapses Authorized + Settled into Charged.
 enum SettlementStatus {
   // Connector emitted the field but the txn is in neither Settled nor
   // Not-Settled phase (terminal or in-flight states).
