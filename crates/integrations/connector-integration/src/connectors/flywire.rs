@@ -303,7 +303,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = flywire::FlywireAuthType::try_from(auth_type).change_context(
             IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Ensure the Flywire merchant connector account is configured with a \
+                         valid api_key."
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://developers.flywire.com/docs/api-basics".to_string()),
+                    additional_context: Some(
+                        "Could not build the X-Authentication-Key header for Flywire.".to_string(),
+                    ),
+                },
             },
         )?;
         Ok(vec![(
@@ -353,7 +363,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         //   multiple                       — payment already fully refunded
         // Plus the wire-observed `invalid_status` (used in 422 responses for
         // the same conditions; not formally listed but actually emitted).
-        let is_refund_failure = response.errors.iter().any(|e| {
+        let is_refund_failure = response.errors.iter().flatten().any(|e| {
             matches!(
                 e.detail_type.as_deref(),
                 Some("invalid_status")
@@ -469,7 +479,22 @@ macros::create_all_prerequisites!(
                 .connector_transaction_id
                 .get_connector_transaction_id()
                 .change_context(IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "PSync requires the Flywire payment_id from the prior Authorize \
+                             (confirm) response; ensure it is persisted as the connector \
+                             transaction id."
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developers.flywire.com/education/Content/resource_payments.htm"
+                                .to_string(),
+                        ),
+                        additional_context: Some(
+                            "connector_transaction_id was empty while building the PSync URL."
+                                .to_string(),
+                        ),
+                    },
                 })?;
             Ok(format!("{base_url}/payments/v1/payments/{payment_id}"))
         }
@@ -548,7 +573,20 @@ macros::macro_connector_implementation!(
                 .clone()
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "connector_order_id (Flywire session id; call CreateOrder first)",
-                    context: Default::default(),
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Run the Authenticate (CreateOrder) step first so the checkout \
+                             session id is stored in connector_order_id before confirming."
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developers.flywire.com/docs/checkout-session".to_string(),
+                        ),
+                        additional_context: Some(
+                            "connector_order_id was None while building the /confirm URL."
+                                .to_string(),
+                        ),
+                    },
                 })?;
             Ok(format!(
                 "{base_url}/payments/v1/checkout/sessions/{session_id}/confirm"

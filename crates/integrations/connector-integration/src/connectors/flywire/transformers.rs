@@ -1,7 +1,7 @@
 use crate::connectors::flywire::FlywireRouterData;
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
-use common_utils::types::MinorUnit;
+use common_utils::{pii::Email, types::MinorUnit};
 use domain_types::{
     connector_flow::{Authenticate, Authorize, PSync, Refund},
     connector_types::{
@@ -84,7 +84,18 @@ impl TryFrom<&ConnectorSpecificConfig> for FlywireAuthType {
                 recipient_id: recipient_id.clone(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Configure the merchant connector account with the Flywire variant \
+                         (api_key, shared_secret, recipient_id)."
+                            .to_string(),
+                    ),
+                    doc_url: Some("https://developers.flywire.com/docs/api-basics".to_string()),
+                    additional_context: Some(
+                        "ConnectorSpecificConfig did not match the expected `Flywire` variant."
+                            .to_string(),
+                    ),
+                },
             }
             .into()),
         }
@@ -142,23 +153,24 @@ pub struct FlywireItem {
 #[derive(Debug, Serialize)]
 pub struct FlywirePayor {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub first_name: Option<String>,
+    pub first_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_name: Option<String>,
+    pub last_name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub address: Option<String>,
+    pub address: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub city: Option<String>,
+    pub city: Option<Secret<String>>,
+    // ISO country code — not PII, kept as a plain string.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub state: Option<String>,
+    pub state: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub phone: Option<String>,
+    pub phone: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+    pub email: Option<Email>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub zip: Option<String>,
+    pub zip: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -166,8 +178,8 @@ pub struct FlywireCheckoutSessionResponse {
     pub id: String,
     pub expires_in_seconds: Option<u64>,
     pub hosted_form: FlywireHostedForm,
-    #[serde(default)]
-    pub warnings: Vec<serde_json::Value>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub warnings: Option<Vec<serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -276,19 +288,19 @@ fn build_recipient_fields(
 }
 
 fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {
-    use hyperswitch_masking::ExposeInterface;
     let billing = common.get_optional_billing()?;
     let address = billing.address.as_ref()?;
+    // Keep PII inside `Secret`/`Email` — never `expose()` it into the request struct.
     Some(FlywirePayor {
-        first_name: address.first_name.as_ref().map(|n| n.clone().expose()),
-        last_name: address.last_name.as_ref().map(|n| n.clone().expose()),
-        address: address.line1.as_ref().map(|s| s.clone().expose()),
-        city: address.city.as_ref().map(|s| s.clone().expose()),
+        first_name: address.first_name.clone(),
+        last_name: address.last_name.clone(),
+        address: address.line1.clone(),
+        city: address.city.clone(),
         country: address.country.map(|c| c.to_string()),
-        state: address.state.as_ref().map(|s| s.clone().expose()),
+        state: address.state.clone(),
         phone: None,
-        email: billing.email.as_ref().map(|e| e.clone().expose().expose()),
-        zip: address.zip.as_ref().map(|s| s.clone().expose()),
+        email: billing.email.clone(),
+        zip: address.zip.clone(),
     })
 }
 
@@ -310,12 +322,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
         let session_id = response.id.clone();
 
+        // The hosted-checkout iframe redirects the payer to `return_url` once the
+        // payment completes. Without it the payer would have no way back to the
+        // merchant, so treat a missing value as a hard error rather than an empty
+        // redirect target.
         let return_url = item
             .router_data
             .resource_common_data
             .return_url
             .clone()
-            .unwrap_or_default();
+            .ok_or_else(|| {
+                error_stack::report!(ConnectorError::ResponseHandlingFailed {
+                    context: domain_types::errors::ResponseTransformationErrorContext {
+                        http_status_code: Some(item.http_code),
+                        additional_context: Some(
+                            "Flywire hosted-checkout requires return_url to redirect the payer \
+                             back after payment completion; none was provided on the request."
+                                .to_string(),
+                        ),
+                    },
+                })
+            })?;
         let html_data = FLYWIRE_HOSTED_TEMPLATE
             .replace("__FLYWIRE_IFRAME_SRC__", &response.hosted_form.url)
             .replace("__FLYWIRE_RETURN_URL__", &return_url);
@@ -716,8 +743,8 @@ pub struct FlywireErrorResponse {
     pub title: Option<String>,
     pub status: Option<i32>,
     pub detail: Option<String>,
-    #[serde(default)]
-    pub errors: Vec<FlywireErrorDetail>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub errors: Option<Vec<FlywireErrorDetail>>,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -829,9 +856,22 @@ impl FlywireWebhookBody {
         &self,
     ) -> Result<FlywirePaymentWebhookData, error_stack::Report<IntegrationError>> {
         serde_json::from_value(self.data.clone())
-            .map_err(|_| IntegrationError::InvalidDataFormat {
+            .map_err(|err| IntegrationError::InvalidDataFormat {
                 field_name: "flywire webhook data",
-                context: Default::default(),
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Verify the webhook `data` object matches Flywire's payment-status \
+                         notification schema (payment_id, status, ...)."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://developers.flywire.com/education/Content/notifications-payment-status.htm"
+                            .to_string(),
+                    ),
+                    additional_context: Some(format!(
+                        "Failed to deserialize payments webhook `data`: {err}"
+                    )),
+                },
             })
             .map_err(error_stack::Report::from)
     }
@@ -840,9 +880,22 @@ impl FlywireWebhookBody {
         &self,
     ) -> Result<FlywireRefundWebhookData, error_stack::Report<IntegrationError>> {
         serde_json::from_value(self.data.clone())
-            .map_err(|_| IntegrationError::InvalidDataFormat {
+            .map_err(|err| IntegrationError::InvalidDataFormat {
                 field_name: "flywire webhook data",
-                context: Default::default(),
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Verify the webhook `data` object matches Flywire's refund-status \
+                         notification schema (refund_id, status, ...)."
+                            .to_string(),
+                    ),
+                    doc_url: Some(
+                        "https://developers.flywire.com/education/Content/resource_refunds.htm"
+                            .to_string(),
+                    ),
+                    additional_context: Some(format!(
+                        "Failed to deserialize refunds webhook `data`: {err}"
+                    )),
+                },
             })
             .map_err(error_stack::Report::from)
     }
