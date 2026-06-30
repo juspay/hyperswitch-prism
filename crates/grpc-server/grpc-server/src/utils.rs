@@ -336,26 +336,23 @@ where
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
-    let connector_time = Arc::new(std::sync::atomic::AtomicU64::new(0));
-    let grpc_response = external_services::shared_metrics::CONNECTOR_TIME_NANOS
-        .scope(connector_time.clone(), async {
-            let request_data = parser(request, config.clone())?;
-            log_before_initialization(&request_data, service_name).into_grpc_status()?;
-            event_headers = request_data.masked_metadata.get_all_masked();
-            event_metadata_payload = Some(request_data.extracted_metadata.clone());
+    let grpc_response = async {
+        let request_data = parser(request, config.clone())?;
+        log_before_initialization(&request_data, service_name).into_grpc_status()?;
+        event_headers = request_data.masked_metadata.get_all_masked();
+        event_metadata_payload = Some(request_data.extracted_metadata.clone());
 
-            let result = handler(request_data).await;
+        let result = handler(request_data).await;
 
-            let duration = start_time.elapsed().as_millis();
-            current_span.record("response_time", duration);
-            log_after_initialization(&result);
-            result
-        })
-        .await;
+        let duration = start_time.elapsed().as_millis();
+        current_span.record("response_time", duration);
+        log_after_initialization(&result);
+        result
+    }
+    .await;
 
     observe_internal_latency(
         start_time,
-        connector_time.load(std::sync::atomic::Ordering::Relaxed),
         flow_name,
         service_name,
         event_metadata_payload.as_ref(),
@@ -400,26 +397,23 @@ where
     let mut event_metadata_payload = None;
     let mut event_headers = HashMap::new();
 
-    let connector_time = Arc::new(std::sync::atomic::AtomicU64::new(0));
-    let grpc_response = external_services::shared_metrics::CONNECTOR_TIME_NANOS
-        .scope(connector_time.clone(), async {
-            let request_data = RequestData::from_grpc_request(request, config.clone())?;
-            log_before_initialization(&request_data, service_name).into_grpc_status()?;
-            event_headers = request_data.masked_metadata.get_all_masked();
-            event_metadata_payload = Some(request_data.extracted_metadata.clone());
+    let grpc_response = async {
+        let request_data = RequestData::from_grpc_request(request, config.clone())?;
+        log_before_initialization(&request_data, service_name).into_grpc_status()?;
+        event_headers = request_data.masked_metadata.get_all_masked();
+        event_metadata_payload = Some(request_data.extracted_metadata.clone());
 
-            let result = handler(request_data).await;
+        let result = handler(request_data).await;
 
-            let duration = start_time.elapsed().as_millis();
-            current_span.record("response_time", duration);
-            log_after_initialization(&result);
-            result
-        })
-        .await;
+        let duration = start_time.elapsed().as_millis();
+        current_span.record("response_time", duration);
+        log_after_initialization(&result);
+        result
+    }
+    .await;
 
     observe_internal_latency(
         start_time,
-        connector_time.load(std::sync::atomic::Ordering::Relaxed),
         flow_name,
         service_name,
         event_metadata_payload.as_ref(),
@@ -441,16 +435,16 @@ where
 #[cfg_attr(not(feature = "otel"), allow(unused_variables))]
 fn observe_internal_latency(
     start_time: tokio::time::Instant,
-    connector_nanos: u64,
     flow_name: FlowName,
     service_name: &str,
     metadata_payload: Option<&MetadataPayload>,
 ) {
     #[cfg(feature = "otel")]
     {
-        let internal = start_time
-            .elapsed()
-            .saturating_sub(std::time::Duration::from_nanos(connector_nanos));
+        let connector_time = metadata_payload
+            .map(|metadata| metadata.connector_latency.connector_time())
+            .unwrap_or_default();
+        let internal = start_time.elapsed().saturating_sub(connector_time);
         let connector = metadata_payload
             .map(|md| md.connector.get_connector_name())
             .unwrap_or_else(|| "unknown".to_string());
@@ -723,6 +717,7 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
             };
             let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
@@ -874,6 +869,7 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
             };
             let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
@@ -1006,6 +1002,7 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
             };
             let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(

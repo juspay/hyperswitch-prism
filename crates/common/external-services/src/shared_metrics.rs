@@ -19,17 +19,6 @@ const LATENCY_BUCKETS: &[f64] = &[
     0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
 ];
 
-tokio::task_local! {
-    pub static CONNECTOR_TIME_NANOS: std::sync::Arc<std::sync::atomic::AtomicU64>;
-}
-
-/// Add one connector call's duration to the per-request accumulator. No-op outside a request scope.
-pub fn add_connector_time(elapsed: std::time::Duration) {
-    let nanos = u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX);
-    let _ = CONNECTOR_TIME_NANOS
-        .try_with(|acc| acc.fetch_add(nanos, std::sync::atomic::Ordering::Relaxed));
-}
-
 lazy_static! {
     pub static ref GRPC_SERVER_REQUESTS_TOTAL: IntCounterVec = register_int_counter_vec!(
         "GRPC_SERVER_REQUESTS_TOTAL",
