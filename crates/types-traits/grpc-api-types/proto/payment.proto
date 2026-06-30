@@ -2501,6 +2501,7 @@ enum SettlementStatus {
   SETTLEMENT_STATUS_NOT_SETTLED = 2;
 }
 
+// Response message for a payment status synchronization
 message PaymentServiceGetResponse {
   // Identification
   string connector_transaction_id = 1;
