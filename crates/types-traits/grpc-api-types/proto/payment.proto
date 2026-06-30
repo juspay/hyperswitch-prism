@@ -2484,6 +2484,8 @@ message PaymentServiceGetRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 17;
+
+  optional ConnectorMandateReferenceId mandate_reference = 18;
 }
 
 // Response message for a payment status synchronization
@@ -2557,14 +2559,12 @@ message PaymentServiceGetResponse {
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 32;
 
+  optional SecretString connector_feature_data = 33;
   // How the connector reports the txn's settlement phase. `SETTLED` means funds
   // are finalised and Refund is the valid reversal; `NOT_SETTLED` means
   // authorised only and Void is the valid reversal; `UNSPECIFIED` means the
-  // connector emitted the field but the txn is not in either phase (already
-  // voided / refunded / failed / etc.); the field absent means the connector
-  // doesn't distinguish settlement phases (most connectors today). Currently
-  // populated by 2C2P PACO PSync.
-  optional SettlementStatus settlement_status = 33;
+  optional SettlementStatus settlement_status = 34;
+  
 }
 
 // Request message for voiding a payment

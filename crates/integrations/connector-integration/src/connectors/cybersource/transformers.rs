@@ -48,6 +48,9 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+/// Cybersource Flex Microform client version. The legacy "0.11" is rejected with
+/// "Invalid Client Version"; "v2.0" is the current value.
+pub const FLEX_MICROFORM_CLIENT_VERSION: &str = "v2.0";
 pub const REFUND_VOIDED: &str = "Refund request has been voided.";
 const CYBERSOURCE_STATE_MAX_LENGTH: usize = 20;
 
@@ -5696,14 +5699,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        // Extract the origin from the return_url for target_origins
+        // Extract the full origin from the return_url for target_origins.
+        // Flex Microform enforces this via CSP frame-ancestors, so a local dev
+        // origin such as http://localhost:5173 must retain the explicit port.
         let target_origin = url::Url::parse(&return_url)
-            .map(|u| format!("{}://{}", u.scheme(), u.host_str().unwrap_or_default()))
+            .map(|u| u.origin().ascii_serialization())
             .unwrap_or(return_url);
 
         Ok(Self {
             target_origins: vec![target_origin],
-            client_version: "0.11".to_string(),
+            client_version: FLEX_MICROFORM_CLIENT_VERSION.to_string(),
             allowed_card_networks: Some(vec![
                 CybersourceFlexCardNetwork::Visa,
                 CybersourceFlexCardNetwork::Mastercard,

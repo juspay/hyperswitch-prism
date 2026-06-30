@@ -703,6 +703,7 @@ pub enum PayLaterData {
     PayBrightRedirect {},
     WalleyRedirect {},
     AlmaRedirect {},
+    TamaraRedirect {},
     AtomeRedirect {},
 }
 

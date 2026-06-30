@@ -770,6 +770,8 @@ impl Proxy {
 #[derive(Debug, Serialize, Clone, PartialEq, Eq, Default, config_patch_derive::Patch)]
 pub struct ProxyConfig {
     pub idle_pool_connection_timeout: Option<u64>,
+    /// Total timeout (seconds) for a single connector API call.
+    pub connector_request_timeout: Option<u64>,
     pub bypass_urls: Vec<String>,
     /// Named proxy entries. Treated as a full replacement on config override (same as api_tags.tags).
     pub proxies: HashMap<String, Proxy>,
@@ -780,6 +782,8 @@ pub struct ProxyConfig {
 #[derive(Deserialize)]
 struct ProxyConfigLegacy {
     idle_pool_connection_timeout: Option<u64>,
+    #[serde(default)]
+    connector_request_timeout: Option<u64>,
     // `bypass_proxy_urls` is the pre-named-proxy-map field name; accepted as an alias so old configs keep working.
     #[serde(default, alias = "bypass_proxy_urls")]
     bypass_urls: Vec<String>,
@@ -812,6 +816,7 @@ impl<'de> Deserialize<'de> for ProxyConfig {
         }
         Ok(ProxyConfig {
             idle_pool_connection_timeout: raw.idle_pool_connection_timeout,
+            connector_request_timeout: raw.connector_request_timeout,
             bypass_urls: raw.bypass_urls,
             proxies,
         })
@@ -1882,6 +1887,9 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::Alma(_) => Ok(
                     Self::PayLater(payment_method_data::PayLaterData::AlmaRedirect {}),
                 ),
+                grpc_api_types::payments::payment_method::PaymentMethod::TamaraRedirect(_) => Ok(
+                    Self::PayLater(payment_method_data::PayLaterData::TamaraRedirect {}),
+                ),
                 // ============================================================================
                 // DIRECT DEBIT - Direct variants
                 // ============================================================================
@@ -2615,6 +2623,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::AfterpayClearpay(_) => Ok(Some(PaymentMethodType::AfterpayClearpay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_) => Ok(Some(PaymentMethodType::Klarna)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Alma(_) => Ok(Some(PaymentMethodType::Alma)),
+                grpc_api_types::payments::payment_method::PaymentMethod::TamaraRedirect(_) => Ok(Some(PaymentMethodType::Tamara)),
                 // ============================================================================
                 // DIRECT DEBIT - PaymentMethodType mappings
                 // ============================================================================
@@ -6290,6 +6299,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::TamaraRedirect(_)),
+            } => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::Boleto(_)),
             } => Ok(Self::Voucher),
             grpc_api_types::payments::PaymentMethod {
@@ -6474,6 +6487,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
                 .map(connector_types::SplitPaymentsDetails::foreign_try_from)
                 .transpose()?,
             setup_future_usage,
+            mandate_reference: value
+                .mandate_reference
+                .map(|m| connector_types::MandateReference {
+                    connector_mandate_id: m.connector_mandate_id,
+                    payment_method_id: m.payment_method_id,
+                    connector_mandate_request_reference_id: m
+                        .connector_mandate_request_reference_id,
+                }),
         })
     }
 }
@@ -7118,7 +7139,7 @@ pub fn generate_payment_sync_response(
             PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
-                connector_metadata: _,
+                connector_metadata,
                 network_txn_id,
                 network_txn_link_id,
                 connector_response_reference_id,
@@ -7214,6 +7235,9 @@ pub fn generate_payment_sync_response(
                             SS::NotSettled => grpc_api_types::payments::SettlementStatus::NotSettled as i32,
                         }
                     }),
+                    connector_feature_data: convert_connector_metadata_to_secret_string(
+                        connector_metadata,
+                    ),
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -7319,6 +7343,7 @@ pub fn generate_payment_sync_response(
                             SS::NotSettled => grpc_api_types::payments::SettlementStatus::NotSettled as i32,
                         }
                     }),
+                    connector_feature_data: None,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -7414,6 +7439,7 @@ pub fn generate_payment_sync_response(
                 sender_payment_instrument_id: None,
                 splits: None,
                 settlement_status: None,
+                connector_feature_data: None,
             })
         }
     }
@@ -8291,6 +8317,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             sender_payment_instrument_id: value.sender_payment_instrument_id,
             splits: None,
             settlement_status: None,
+            connector_feature_data: None,
         })
     }
 }
@@ -11667,6 +11694,7 @@ pub enum PaymentMethodDataType {
     PayBrightRedirect,
     WalleyRedirect,
     AlmaRedirect,
+    TamaraRedirect,
     AtomeRedirect,
     BancontactCard,
     Bizum,
