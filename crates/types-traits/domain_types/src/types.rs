@@ -1163,10 +1163,7 @@ impl ForeignTryFrom<grpc_api_types::payments::UpiSource> for payment_method_data
     }
 }
 
-
-impl From<crate::connector_types::SettlementStatus>
-    for grpc_api_types::payments::SettlementStatus
-{
+impl From<crate::connector_types::SettlementStatus> for grpc_api_types::payments::SettlementStatus {
     fn from(status: crate::connector_types::SettlementStatus) -> Self {
         use crate::connector_types::SettlementStatus;
         match status {
@@ -7241,10 +7238,9 @@ pub fn generate_payment_sync_response(
                             split_response,
                         )
                     }),
-                    settlement_status: router_data_v2
-                        .resource_common_data
-                        .settlement_status
-                        .map(|status| grpc_api_types::payments::SettlementStatus::from(status) as i32),
+                    settlement_status: router_data_v2.resource_common_data.settlement_status.map(
+                        |status| grpc_api_types::payments::SettlementStatus::from(status) as i32,
+                    ),
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
@@ -7345,10 +7341,9 @@ pub fn generate_payment_sync_response(
                         .sender_payment_instrument_id
                         .clone(),
                     splits: None,
-                    settlement_status: router_data_v2
-                        .resource_common_data
-                        .settlement_status
-                        .map(|status| grpc_api_types::payments::SettlementStatus::from(status) as i32),
+                    settlement_status: router_data_v2.resource_common_data.settlement_status.map(
+                        |status| grpc_api_types::payments::SettlementStatus::from(status) as i32,
+                    ),
                     connector_feature_data: None,
                 })
             }
