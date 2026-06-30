@@ -1352,8 +1352,8 @@ message AirlineData {
 // how Address is reused for billing/shipping.
 message AirlineSegment {
   optional uint32 sequence_no = 1;              // 1-based leg order
-  optional string carrier_code = 2;             // Marketing carrier IATA-2
-  optional string flight_number = 3;            // Flight number
+  optional string marketing_carrier_code = 2;   // Marketing carrier IATA-2 (ticket-issuing airline)
+  optional string flight_number = 3;            // Marketing flight number
   optional string flight_type = 4;              // "Domestic" / "International"
   optional string class_of_service = 5;         // F / J / Y / W
   optional string fare_basis_code = 6;          // Fare basis code
@@ -1371,6 +1371,9 @@ message AirlineSegment {
   optional string conjunction_ticket = 14;      // Conjunction ticket for >4 legs
   optional string coupon_number = 15;           // Coupon number for this leg
   optional string endorsements_restrictions = 16; // Endorsements / restrictions
+
+  optional string operating_carrier_code = 17;  // Operating carrier IATA-2
+  optional string operating_flight_number = 18; // Operating flight number
 }
 
 // A flight endpoint, reused for both departure and arrival.
@@ -1378,7 +1381,7 @@ message AirlineLocation {
   optional string airport_code = 1;             // IATA-3 airport code
   optional string city_code = 2;                // IATA-3 city code
   optional string city_name = 3;                // City name
-  optional string country_code = 4;             // ISO 3166-1 numeric-3 country code
+  optional string country_code = 4;             // ISO 3166-1 alpha-2 country code (connectors convert to numeric/alpha-3 as needed)
   optional string country_name = 5;             // Country name
   optional string date_time = 6;                // Local scheduled time (RFC 3339)
 }

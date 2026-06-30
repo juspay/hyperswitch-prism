@@ -3675,7 +3675,7 @@ impl ForeignTryFrom<grpc_payment_types::AirlineSegment> for connector_types::Air
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             sequence_no: segment.sequence_no,
-            carrier_code: segment.carrier_code,
+            marketing_carrier_code: segment.marketing_carrier_code,
             flight_number: segment.flight_number,
             flight_type: segment.flight_type,
             class_of_service: segment.class_of_service,
@@ -3701,6 +3701,8 @@ impl ForeignTryFrom<grpc_payment_types::AirlineSegment> for connector_types::Air
             conjunction_ticket: segment.conjunction_ticket,
             coupon_number: segment.coupon_number,
             endorsements_restrictions: segment.endorsements_restrictions,
+            operating_carrier_code: segment.operating_carrier_code,
+            operating_flight_number: segment.operating_flight_number,
         })
     }
 }
