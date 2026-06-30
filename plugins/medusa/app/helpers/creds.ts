@@ -66,12 +66,28 @@ export function transformGlobalpayConfig(raw: any) {
 }
 
 export function transformBraintreeConfig(raw: any) {
+  // Only include wallet config keys when present so the SDK config stays sparse
+  // (empty arrays/undefined would otherwise be forwarded to the connector).
+  const def = <T>(v: T | undefined | null): v is T =>
+    v !== undefined && v !== null && !(Array.isArray(v) && v.length === 0)
+  const m = raw.metadata ?? {}
   return {
     publicKey: wrapSecret(raw.public_key)!,
     privateKey: wrapSecret(raw.private_key)!,
-    merchantAccountId: wrapSecret(raw.metadata?.merchant_account_id),
-    merchantConfigCurrency: raw.metadata?.merchant_config_currency,
+    merchantAccountId: wrapSecret(m.merchant_account_id),
+    merchantConfigCurrency: m.merchant_config_currency,
     paypalClientId: raw.paypal_client_id,
+    ...(def(raw.base_url) ? { baseUrl: raw.base_url } : {}),
+    // Google Pay
+    ...(def(raw.gpay_merchant_name) ? { gpayMerchantName: raw.gpay_merchant_name } : {}),
+    ...(def(raw.gpay_merchant_id) ? { gpayMerchantId: raw.gpay_merchant_id } : {}),
+    ...(def(raw.gpay_gateway_merchant_id) ? { gpayGatewayMerchantId: raw.gpay_gateway_merchant_id } : {}),
+    ...(def(raw.gpay_allowed_auth_methods) ? { gpayAllowedAuthMethods: raw.gpay_allowed_auth_methods } : {}),
+    ...(def(raw.gpay_allowed_card_networks) ? { gpayAllowedCardNetworks: raw.gpay_allowed_card_networks } : {}),
+    // Apple Pay
+    ...(def(raw.apple_pay_supported_networks) ? { applePaySupportedNetworks: raw.apple_pay_supported_networks } : {}),
+    ...(def(raw.apple_pay_merchant_capabilities) ? { applePayMerchantCapabilities: raw.apple_pay_merchant_capabilities } : {}),
+    ...(def(raw.apple_pay_label) ? { applePayLabel: raw.apple_pay_label } : {}),
   }
 }
 

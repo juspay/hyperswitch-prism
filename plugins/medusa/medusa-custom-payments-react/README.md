@@ -16,7 +16,7 @@ React UI components for Hyperswitch Prism payment connectors. Ships two layers o
 | `stripe` | — | ✅ | AUTHORIZED |
 | `globalpay` | ✅ | ✅ | CAPTURED |
 | `mollie` | ✅ | ✅ | CAPTURED (Card after 3DS; Klarna after redirect) |
-| `braintree` | ○ | ○ | — |
+| `braintree` | — | — | CAPTURED |
 | `cybersource` | — | — | CAPTURED |
 | `authorizedotnet` | — | — | CAPTURED |
 
@@ -24,14 +24,18 @@ React UI components for Hyperswitch Prism payment connectors. Ships two layers o
 
 | Symbol | Meaning |
 |--------|---------|
-| ✅ | Supported — React component available |
-| ○ | No React component — connector has no client-side UI (wallet / redirect / server-side only) |
-| — | Not in `HyperswitchPrismConnectorPanel` — use the connector's wrapper directly (`StripeWrapper`, `AuthorizedotnetWrapper`) |
+| ✅ | Supported in the high-level panel/button path |
+| — | Standalone wrapper only — not wired into `HyperswitchPrismConnectorPanel` / `HyperswitchPrismPaymentButton` |
+| ○ | No React component |
 
 > **Authorize result**
 > - **AUTHORIZED** (`adyen`, `stripe`) — funds reserved; Capture or Void available as a next step
-> - **CAPTURED** (`paypal`, `globalpay`, `cybersource`, `authorizedotnet`) — funds collected immediately at authorize time; only Refund available afterward
+> - **CAPTURED** (`paypal`, `globalpay`, `mollie`, `braintree`, `cybersource`, `authorizedotnet`) — funds collected immediately at authorize time; only Refund available afterward
 
+> **`braintree`:** uses the standalone `BraintreeWrapper` for wallet checkout
+> (PayPal, Google Pay, Apple Pay). It is not wired into
+> `HyperswitchPrismConnectorPanel` / `HyperswitchPrismPaymentButton`.
+>
 > **`authorizedotnet`:** uses the standalone `AuthorizedotnetWrapper` (a raw-card form with its own built-in Pay button); it is not wired into `HyperswitchPrismConnectorPanel` / `HyperswitchPrismPaymentButton`.
 >
 > **`cybersource`:** uses the standalone `CybersourceWrapper` (Flex Microform card fields and transient-token persistence); it is not wired into `HyperswitchPrismConnectorPanel` / `HyperswitchPrismPaymentButton`.
@@ -82,6 +86,9 @@ NEXT_PUBLIC_ADYEN_CLIENT_KEY=test_...
 | `MollieWrapper` | Component | Low-level Mollie Components (in-page card tokenization) wrapper |
 | `MollieKlarnaForm` | Component | Klarna (Pay later) billing form for the Mollie redirect flow — collects name/email/postal address (Netherlands test defaults, all fields editable) and submits a `MollieKlarnaBilling`. Pair with a EUR session (Klarna via Mollie is EU-only) |
 | `MollieKlarnaBilling` | Type | Shape of the Klarna billing the form collects: `firstName`, `lastName`, `email`, `line1`, `city`, `postalCode`, `country` (ISO 3166-1 alpha-2) |
+| `BraintreeWrapper` | Component | Low-level Braintree wallet wrapper (PayPal, Google Pay, Apple Pay; persists a wallet nonce for server-side authorize) |
+| `BraintreeWalletType` | Type | Wallet discriminator: `"paypal"`, `"googlepay"`, or `"applepay"` |
+| `BraintreeSubmitPayload` | Type | Payload emitted after wallet tokenization: `{ walletType, nonce, details? }` |
 | `CybersourceWrapper` | Component | Low-level Cybersource Flex Microform wrapper (hosted card number/CVV fields, transient-token persistence) |
 | `AuthorizedotnetWrapper` | Component | Low-level Authorize.Net raw-card form (in-page PAN entry, no tokenization; self-contained Pay button) |
 | `StripePaymentButton` | Component | Place-order button for Stripe |
@@ -276,6 +283,52 @@ import { PayPalWrapper } from "@juspay-tech/medusa-custom-payments-react"
 | `onCreateOrder` | `() => Promise<string>` | Yes | Must resolve to a PayPal order ID |
 | `onSubmit` | `(data: { orderId, payerId }) => void` | Yes | Called after PayPal approval |
 | `onError` | `(error: Error) => void` | Yes | Called on SDK or approval errors |
+
+### `BraintreeWrapper`
+
+Renders eligible Braintree wallet buttons for PayPal, Google Pay, and Apple Pay.
+Each wallet tokenizes to a single Braintree nonce; persist that nonce on the
+Medusa session before placing the order.
+
+```tsx
+import { BraintreeWrapper } from "@juspay-tech/medusa-custom-payments-react"
+
+<BraintreeWrapper
+  clientToken={sessionData.clientToken}
+  currency={sessionData.currency}
+  amount={100}
+  environment="sandbox"
+  googlePay={sessionData.googlePay}
+  applePay={sessionData.applePay}
+  onSubmit={async ({ walletType, nonce }) => {
+    await initiatePaymentSession(cart, {
+      provider_id: providerId,
+      data: {
+        braintreeWalletType: walletType,
+        braintreeNonce: nonce,
+        id: sessionData.id,
+      },
+    })
+  }}
+  onError={(e) => setError(e.message)}
+/>
+```
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `clientToken` | `string` | Yes | Braintree client token from the payment session |
+| `currency` | `string` | Yes | ISO 4217 currency code |
+| `amount` | `number` | Yes | Amount in major units |
+| `environment` | `"sandbox" \| "production"` | No | Defaults to `"sandbox"` |
+| `enabledWallets` | `Array<"paypal" \| "googlepay" \| "applepay">` | No | Defaults to all wallets |
+| `googlePay` | `object` | No | Google Pay merchant/network config from session data |
+| `applePay` | `object` | No | Apple Pay network/capability config from session data |
+| `onSubmit` | `(data: { walletType, nonce, details? }) => Promise<void>` | Yes | Called after wallet tokenization; persist the nonce before order completion |
+| `onError` | `(error: Error) => void` | Yes | Called on SDK, wallet, or tokenization errors |
+
+Apple Pay only renders in Safari on Apple hardware over HTTPS, with Apple Pay
+enabled in Braintree and the storefront domain validated in the Braintree
+control panel.
 
 ### `GlobalPayWrapper`
 

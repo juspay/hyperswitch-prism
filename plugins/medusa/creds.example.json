@@ -30,12 +30,26 @@
   },
 
   "braintree": {
+    "_comment": "Wallet-only (PayPal / Google Pay / Apple Pay). paypal_client_id must be non-empty to fetch the client token; the PayPal button reads its config from the client token. gpay_*/apple_pay_* are optional and only needed for those wallets. Apple Pay also needs a validated merchant domain (manual).",
     "public_key": "...",
     "private_key": "...",
     "paypal_client_id": "...",
     "metadata": {
+      "_comment": "merchant_account_id is the SETTLEMENT merchant ACCOUNT id (e.g. 'juspay'), NOT your merchant ID. Find it in the Braintree control panel (Settings > Business > Merchant Accounts) or via GraphQL on any transaction. Using the merchant ID here yields 'You are unauthorized to perform this action'. merchant_config_currency must match the payment currency.",
       "merchant_account_id": "...",
       "merchant_config_currency": "USD"
+    },
+    "gpay_merchant_name": "Your Store",
+    "gpay_merchant_id": "...",
+    "gpay_gateway_merchant_id": "...",
+    "gpay_allowed_auth_methods": ["PAN_ONLY", "CRYPTOGRAM_3DS"],
+    "gpay_allowed_card_networks": ["VISA", "MASTERCARD", "AMEX", "DISCOVER"],
+    "apple_pay_label": "Your Store",
+    "apple_pay_supported_networks": ["visa", "masterCard", "amex", "discover"],
+    "apple_pay_merchant_capabilities": ["supports3DS"],
+    "sandbox_buyer": {
+      "email": "buyer@personal.example.com",
+      "password": "sandbox-buyer-password"
     }
   },
 

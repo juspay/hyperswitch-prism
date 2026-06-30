@@ -1,6 +1,15 @@
 import { Link } from "react-router-dom";
 
-const CONNECTORS = ["stripe", "adyen", "paypal", "globalpay", "mollie", "cybersource", "authorizedotnet"] as const;
+const CONNECTORS = [
+  "stripe",
+  "adyen",
+  "paypal",
+  "globalpay",
+  "mollie",
+  "braintree",
+  "cybersource",
+  "authorizedotnet",
+] as const;
 
 const LABELS: Record<string, string> = {
   stripe: "Stripe",
@@ -8,6 +17,7 @@ const LABELS: Record<string, string> = {
   paypal: "PayPal",
   globalpay: "GlobalPay",
   mollie: "Mollie",
+  braintree: "Braintree",
   cybersource: "Cybersource",
   authorizedotnet: "Authorize.Net",
 };

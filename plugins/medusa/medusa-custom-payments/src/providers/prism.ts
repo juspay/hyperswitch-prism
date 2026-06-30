@@ -202,6 +202,25 @@ class PrismService {
       }
     }
 
+    // Braintree: the storefront tokenizes the chosen wallet client-side and
+    // persists the resulting nonce on the session via reinitiate before
+    // cart-complete authorizes it. Detect the wallet nonce and store it as-is —
+    // re-running the hosted client-auth here would rebuild the session data and
+    // drop the nonce (it is never echoed back by the connector module).
+    if (this.options_.connector === "braintree" && (data as any)?.braintreeNonce) {
+      return {
+        id: merchantClientSessionId,
+        data: {
+          ...(data as any),
+          connector: "braintree",
+          merchantClientSessionId,
+          currency: currency_code,
+          minorAmount,
+        },
+        status: PaymentSessionStatus.PENDING,
+      }
+    }
+
     // Authorize.Net: raw-card flow — there is no SDK session
     // (createClientAuthenticationToken is not implemented for this connector).
     // First init returns a synthetic pending session so the card form can render;
@@ -328,6 +347,14 @@ class PrismService {
 
     if (connector === "paypal") {
       return connectors.paypal.authorizePayment(input, {
+        options: this.options_,
+        paymentClient: this.paymentClient_,
+        authClient: this.authClient_,
+      })
+    }
+
+    if (connector === "braintree") {
+      return connectors.braintree.authorizePayment(input, {
         options: this.options_,
         paymentClient: this.paymentClient_,
         authClient: this.authClient_,

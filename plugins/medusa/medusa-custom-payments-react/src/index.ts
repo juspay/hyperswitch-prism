@@ -14,6 +14,7 @@ export { connectors, getConnector } from "./connectors";
 export { adyenConnector } from "./connectors/adyen";
 export { paypalConnector } from "./connectors/paypal";
 export { globalpayConnector } from "./connectors/globalpay";
+export { braintreeConnector } from "./connectors/braintree";
 export { cybersourceConnector } from "./connectors/cybersource";
 
 // Re-export connector React wrappers for direct use
@@ -25,6 +26,11 @@ export { MollieWrapper } from "./connectors/mollie/MollieWrapper";
 export { CybersourceWrapper } from "./connectors/cybersource/CybersourceWrapper";
 export { MollieKlarnaForm } from "./connectors/mollie/MollieKlarnaForm";
 export type { MollieKlarnaBilling } from "./connectors/mollie/MollieKlarnaForm";
+export { BraintreeWrapper } from "./connectors/braintree/BraintreeWrapper";
+export type {
+  BraintreeWalletType,
+  BraintreeSubmitPayload,
+} from "./connectors/braintree/BraintreeWrapper";
 export { AuthorizedotnetWrapper } from "./connectors/authorizedotnet/AuthorizedotnetWrapper";
 
 // Payment button components
