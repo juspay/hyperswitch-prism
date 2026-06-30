@@ -2834,8 +2834,10 @@ pub(crate) fn decode_from_request(
 // Builds the typed webhook resource reference for a dispute notification.
 pub(crate) fn get_webhook_reference(
     notification: &Notification,
-) -> Result<Option<connector_types::WebhookResourceReference>, Report<domain_types::errors::WebhookError>>
-{
+) -> Result<
+    Option<connector_types::WebhookResourceReference>,
+    Report<domain_types::errors::WebhookError>,
+> {
     match &notification.dispute {
         // HS emits `PaymentId(ConnectorTransactionId(transaction.id))`. The shadow normaliser
         // maps a prism Dispute reference via `connector_dispute_id.or(connector_transaction_id)`,
@@ -2856,8 +2858,10 @@ pub(crate) fn get_webhook_reference(
 pub(crate) fn build_webhook_dispute_response(
     notification: &Notification,
     raw_body: &[u8],
-) -> Result<connector_types::DisputeWebhookDetailsResponse, Report<domain_types::errors::WebhookError>>
-{
+) -> Result<
+    connector_types::DisputeWebhookDetailsResponse,
+    Report<domain_types::errors::WebhookError>,
+> {
     match &notification.dispute {
         Some(dispute_data) => Ok(connector_types::DisputeWebhookDetailsResponse {
             amount: domain_types::utils::convert_amount_for_webhook(
