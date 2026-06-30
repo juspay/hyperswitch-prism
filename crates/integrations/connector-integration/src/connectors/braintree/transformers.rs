@@ -299,10 +299,27 @@ pub struct VaultTransactionBody {
 }
 
 #[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandateTransactionBody {
+    amount: StringMajorUnit,
+    merchant_account_id: Secret<String>,
+    channel: String,
+    order_id: String,
+    payment_initiator: PaymentInitiatorType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum PaymentInitiatorType {
+    Unscheduled,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum TransactionBody {
     Regular(RegularTransactionBody),
     Vault(VaultTransactionBody),
+    Mandate(MandateTransactionBody),
 }
 
 #[derive(Debug, Serialize)]
@@ -363,16 +380,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 true => constants::CHARGE_CREDIT_CARD_MUTATION.to_string(),
                 false => constants::AUTHORIZE_CREDIT_CARD_MUTATION.to_string(),
             },
-            TransactionBody::Regular(RegularTransactionBody {
+            TransactionBody::Mandate(MandateTransactionBody {
                 amount,
                 merchant_account_id: metadata.merchant_account_id,
                 channel: constants::CHANNEL_CODE.to_string(),
-                customer_details: None,
                 order_id: item
                     .router_data
                     .resource_common_data
                     .connector_request_reference_id
                     .clone(),
+                payment_initiator: PaymentInitiatorType::Unscheduled,
             }),
         );
         Ok(Self {
