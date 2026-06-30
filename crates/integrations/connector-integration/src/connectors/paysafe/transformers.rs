@@ -9,7 +9,7 @@ use domain_types::{
         RepeatPaymentData, ResponseId,
     },
     payment_method_data::{
-        ApplePayPaymentData, BankDebitData, BankRedirectData, GpayTokenizationData,
+        ApplePayPaymentData, BankDebitData, BankRedirectData, GiftCardData, GpayTokenizationData,
         PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
     router_data::{ConnectorSpecificConfig, PaysafePaymentMethodDetails},
@@ -489,8 +489,35 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Some(account_id),
                     )
                 }
+                PaymentMethodData::GiftCard(gift_card_data) => match gift_card_data.as_ref() {
+                    GiftCardData::PaySafeCard {} => {
+                        // paysafecard consumerId is the billing email. It is mandatory
+                        // (the PaySafeCard {} variant carries no fields of its own).
+                        let consumer_id = router_data
+                            .resource_common_data
+                            .get_optional_billing_email()
+                            .ok_or(IntegrationError::MissingRequiredField {
+                                field_name: "email",
+                                context: Default::default(),
+                            })?;
+                        let paysafecard = PaysafePaysafecard { consumer_id };
+                        // Mirror Skrill: omit accountId entirely for paysafecard.
+                        (
+                            PaysafePaymentMethod::Paysafecard { paysafecard },
+                            PaysafePaymentType::Paysafecard,
+                            None,
+                        )
+                    }
+                    GiftCardData::Givex(_) => {
+                        return Err(IntegrationError::NotImplemented(
+                            "Givex gift cards are not supported for Paysafe".to_string(),
+                            Default::default(),
+                        )
+                        .into())
+                    }
+                },
                 _ => {
-                    return Err(IntegrationError::NotImplemented("Only card, ACH, GooglePay, ApplePay, Skrill, and Interac payment methods are supported for PaymentMethodToken"
+                    return Err(IntegrationError::NotImplemented("Only card, ACH, GooglePay, ApplePay, Skrill, Interac, and Paysafecard payment methods are supported for PaymentMethodToken"
                             .to_string() , Default::default())
                     .into())
                 }
@@ -507,6 +534,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )),
             PaysafePaymentType::Skrill => None,
             PaysafePaymentType::InteracEtransfer => None,
+            PaysafePaymentType::Paysafecard => None,
         };
 
         let billing_details = create_paysafe_billing_details(&router_data.resource_common_data)?;

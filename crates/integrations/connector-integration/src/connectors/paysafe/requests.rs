@@ -116,6 +116,9 @@ pub enum PaysafePaymentMethod<T: PaymentMethodDataTypes> {
         #[serde(rename = "interacEtransfer")]
         interac_etransfer: PaysafeInterac,
     },
+    Paysafecard {
+        paysafecard: PaysafePaysafecard,
+    },
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -129,6 +132,13 @@ pub struct PaysafeSkrill {
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeInterac {
     /// Interac e-Transfer consumer email address.
+    pub consumer_id: common_utils::pii::Email,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafePaysafecard {
+    /// paysafecard consumer identifier. REQUIRED. Mapped from billing email.
     pub consumer_id: common_utils::pii::Email,
 }
 
@@ -275,6 +285,7 @@ pub enum PaysafePaymentType {
     Skrill,
     #[serde(rename = "INTERAC_ETRANSFER")]
     InteracEtransfer,
+    Paysafecard,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
