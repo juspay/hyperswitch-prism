@@ -1,0 +1,27 @@
+{
+  "name": "hyperswitch-prism-workshop-js",
+  "version": "1.0.0",
+  "description": "Hands-on workshop for hyperswitch-prism (JavaScript/TypeScript SDK): run a payment with one PSP, switch PSPs with a one-line change, build a payment orchestrator (routing + retry), extend a flow/processor, and run a test suite.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "run:payment": "tsx src/steps/step1-run-payment.ts",
+    "run:routing": "tsx src/steps/step2-routing.ts",
+    "run:retry": "tsx src/steps/step3-retry.ts",
+    "run:extend": "tsx src/steps/step4-extend.ts",
+    "test": "tsx --test test/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "hyperswitch-prism": "^0.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}
