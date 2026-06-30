@@ -8531,6 +8531,7 @@ pub fn generate_void_post_refund_response(
                 raw_connector_request,
                 acquirer_reference_number: None,
                 state_metadata: Some(Secret::new(state_metadata)),
+                merchant_transaction_id: None,
             })
         }
         Err(e) => Ok(RefundResponse {
@@ -8588,6 +8589,7 @@ pub fn generate_void_post_refund_response(
                     },
                 })?,
             )),
+            merchant_transaction_id: None,
         }),
     }
 }

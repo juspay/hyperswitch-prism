@@ -10,8 +10,8 @@ use domain_types::{
     connector_flow::{Capture, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
         EventType, MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     mandates::MandateDataType,
     payment_method_data::PaymentMethodDataTypes,
@@ -751,6 +751,8 @@ pub enum PproWebhookData {
 
 impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
+where
+    Req: GetPproPaymentMethodType,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PproPaymentsResponse, Self>) -> Result<Self, Self::Error> {
@@ -789,7 +791,10 @@ impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
         let mut redirection_data: Option<domain_types::router_response_types::RedirectForm> = None;
         if status == common_enums::AttemptStatus::AuthenticationPending {
             if let Some(auth_methods) = item.response.authentication_methods.as_ref() {
-                redirection_data = build_auth_redirect(auth_methods);
+                redirection_data = build_auth_redirect(
+                    auth_methods,
+                    item.router_data.request.ppro_payment_method_type(),
+                );
             }
         }
 
@@ -1037,52 +1042,69 @@ pub struct PproAgreementRequest {
     pub instrument: Option<PproInstrument>,
 }
 
-/// Selects the appropriate authentication method from PPRO's response and builds a
-/// `RedirectForm` using priority: `AppIntent` → `ScanCode` → `Redirect`.
-/// PPRO returns the auth types that correspond to what was requested, so this
-/// priority correctly picks the UPI-specific flow when present and falls back to
-/// Redirect for all other payment methods.
+/// Exposes the requested `PaymentMethodType` so the generic payments response handler can
+/// pick the PPRO authentication method matching the consumer's choice (UPI Intent vs QR).
+pub(crate) trait GetPproPaymentMethodType {
+    fn ppro_payment_method_type(&self) -> Option<common_enums::PaymentMethodType>;
+}
+
+impl<T: PaymentMethodDataTypes> GetPproPaymentMethodType for PaymentsAuthorizeData<T> {
+    fn ppro_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
+impl GetPproPaymentMethodType for PaymentsSyncData {
+    fn ppro_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
+impl<T: PaymentMethodDataTypes> GetPproPaymentMethodType for RepeatPaymentData<T> {
+    fn ppro_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
+impl GetPproPaymentMethodType for PaymentsCaptureData {
+    fn ppro_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        None
+    }
+}
+
+impl GetPproPaymentMethodType for PaymentVoidData {
+    fn ppro_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        None
+    }
+}
+
+/// Builds a `RedirectForm` from the PPRO authentication method matching the requested
+/// payment method: UPI Intent → `APP_INTENT`, UPI QR → `SCAN_CODE`, otherwise `REDIRECT`.
 pub(crate) fn build_auth_redirect(
     auth_methods: &[PproAuthenticationResponse],
+    payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> Option<domain_types::router_response_types::RedirectForm> {
     use domain_types::router_response_types::RedirectForm;
 
-    let priorities = [
-        PproAuthenticationType::AppIntent,
-        PproAuthenticationType::ScanCode,
-        PproAuthenticationType::Redirect,
-    ];
+    let wanted_type = match payment_method_type {
+        Some(common_enums::PaymentMethodType::UpiIntent) => PproAuthenticationType::AppIntent,
+        Some(common_enums::PaymentMethodType::UpiQr) => PproAuthenticationType::ScanCode,
+        _ => PproAuthenticationType::Redirect,
+    };
 
-    for priority_type in &priorities {
-        for method in auth_methods {
-            if method.r#type != *priority_type {
-                continue;
-            }
-            let details = match method.details.as_ref() {
-                Some(d) => d,
-                None => continue,
-            };
-            match method.r#type {
-                PproAuthenticationType::AppIntent => {
-                    if let Some(uri) = &details.mobile_intent_uri {
-                        return Some(RedirectForm::Uri { uri: uri.clone() });
-                    }
-                }
-                PproAuthenticationType::ScanCode => {
-                    if let Some(uri) = &details.code_payload {
-                        return Some(RedirectForm::Uri { uri: uri.clone() });
-                    }
-                }
-                PproAuthenticationType::Redirect => {
-                    if let Some(url) = &details.request_url {
-                        return Some(RedirectForm::Uri { uri: url.clone() });
-                    }
-                }
-                _ => {}
-            }
+    auth_methods.iter().find_map(|method| {
+        if method.r#type != wanted_type {
+            return None;
         }
-    }
-    None
+        let details = method.details.as_ref()?;
+        let uri = match wanted_type {
+            PproAuthenticationType::AppIntent => details.mobile_intent_uri.clone(),
+            PproAuthenticationType::ScanCode => details.code_payload.clone(),
+            PproAuthenticationType::Redirect => details.request_url.clone(),
+            _ => None,
+        }?;
+        Some(RedirectForm::Uri { uri })
+    })
 }
 
 #[derive(Debug, Serialize)]
@@ -1459,7 +1481,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
         let mut redirection_data = None;
         if status == common_enums::AttemptStatus::AuthenticationPending {
             if let Some(auth_methods) = item.response.authentication_methods.as_ref() {
-                redirection_data = build_auth_redirect(auth_methods);
+                redirection_data = build_auth_redirect(auth_methods, None);
             }
         }
 

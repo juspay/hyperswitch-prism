@@ -2991,7 +2991,7 @@ message RefundResponse {
 
   // Merchant's reference for the original payment/transaction the refund
   // belongs to
-  optional string merchant_transaction_id = 23;
+  optional string merchant_transaction_id = 24;
 }
 
 // Request message for voiding/reversing a refund before settlement.
