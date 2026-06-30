@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.30.2
+
+### Features
+
+- **connector:** 2c2p paco address, typed airline data, full raw response ([#1574](https://github.com/juspay/connector-service/pull/1574)) ([`481bcd1`](https://github.com/juspay/connector-service/commit/481bcd1e363e15d157f1b3ae0c499d7df9ea50c8))
+
+### Bug Fixes
+
+- **braintree:** Send paymentInitiator on repeat_payment to match Hyperswitch ([#1684](https://github.com/juspay/connector-service/pull/1684)) ([`9673019`](https://github.com/juspay/connector-service/commit/9673019efbe01c265f9c6679cb518c6f95725233))
+- **core:** Add ServerAuthentication support to FRM and payout connector ([#1757](https://github.com/juspay/connector-service/pull/1757)) ([`fc608eb`](https://github.com/juspay/connector-service/commit/fc608ebeb1a89634a34499854a474b58bfd19891))
+- **nmi:**
+  - Map declined/errored authorize response to Err (issue #17004) ([#1630](https://github.com/juspay/connector-service/pull/1630)) ([`4e23444`](https://github.com/juspay/connector-service/commit/4e2344442b8b1fc7e73ca24b590fbdaea5974fc6))
+  - Send email and shipping address on repeat_payment (MIT) ([#1682](https://github.com/juspay/connector-service/pull/1682)) ([`dab4b83`](https://github.com/juspay/connector-service/commit/dab4b8359ddc976efd900a601335e82e221f181b))
+
+**Full Changelog:** [`2026.06.30.1...2026.06.30.2`](https://github.com/juspay/connector-service/compare/2026.06.30.1...2026.06.30.2)
+
+- - -
+
 ## 2026.06.30.1
 
 ### Features
