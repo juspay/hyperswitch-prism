@@ -1,0 +1,6 @@
+{
+  "connector": "kount",
+  "supported_suites": [
+    "MerchantAuthenticationService/CreateServerAuthenticationToken"
+  ]
+}

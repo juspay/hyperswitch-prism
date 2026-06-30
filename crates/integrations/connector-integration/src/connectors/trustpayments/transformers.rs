@@ -561,6 +561,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: Some(item.response.requestreference.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -797,6 +798,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsPSyncResponse, Self>>
             connector_response_reference_id: Some(item.response.requestreference.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -969,6 +971,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsCaptureResponse, Self>>
             connector_response_reference_id: Some(item.response.requestreference.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1111,6 +1114,7 @@ impl TryFrom<ResponseRouterData<TrustpaymentsVoidResponse, Self>>
             connector_response_reference_id: Some(item.response.requestreference.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1846,6 +1850,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: Some(item.response.requestreference.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -2035,6 +2040,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_response_reference_id: Some(item.response.requestreference.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {

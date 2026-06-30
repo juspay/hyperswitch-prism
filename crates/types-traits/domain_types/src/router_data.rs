@@ -798,6 +798,13 @@ pub enum ConnectorSpecificConfig {
         recipient_id: String,
         base_url: Option<String>,
     },
+    Kount {
+        api_key: Secret<String>,
+        /// Kount OAuth authorization-server id; account/environment specific.
+        /// Falls back to the sandbox auth server when `None`.
+        auth_server_id: Option<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1125,6 +1132,7 @@ impl ConnectorSpecificConfig {
                 account_id
             },
             Tamara { api_key },
+            Kount { api_key },
             Hyperswitch { api_key },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
@@ -1562,6 +1570,7 @@ impl ConnectorSpecificConfig {
                     account_id
                 },
                 Tamara { api_key },
+                Kount { api_key },
                 Hyperswitch { api_key },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
@@ -2132,6 +2141,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Tamara(tamara) => Ok(Self::Tamara {
                 api_key: tamara.api_key.ok_or_else(err)?,
                 base_url: tamara.base_url,
+            }),
+            AuthType::Kount(kount) => Ok(Self::Kount {
+                api_key: kount.api_key.ok_or_else(err)?,
+                auth_server_id: kount.auth_server_id,
+                base_url: kount.base_url,
             }),
             AuthType::Hyperswitch(hyperswitch) => Ok(Self::Hyperswitch {
                 api_key: hyperswitch.api_key.ok_or_else(err)?,
@@ -3253,6 +3267,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     }),
                     _ => Err(err().into()),
                 },
+                ConnectorEnum::Kount => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
+                        api_key: api_key.clone(),
+                        auth_server_id: None,
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
                 ConnectorEnum::Hyperswitch => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Hyperswitch {
                         api_key: api_key.clone(),
@@ -3332,6 +3354,16 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 SurchargeConnectorEnum::Interpayments => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Interpayments {
                         api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+            },
+            connector_types::ConnectorVariant::Frm(connector_enum) => match connector_enum {
+                connector_types::FrmConnectorEnum::Kount => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Kount {
+                        api_key: api_key.clone(),
+                        auth_server_id: None,
                         base_url: None,
                     }),
                     _ => Err(err().into()),

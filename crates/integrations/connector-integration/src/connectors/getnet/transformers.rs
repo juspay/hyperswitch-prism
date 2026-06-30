@@ -1105,6 +1105,7 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1198,6 +1199,7 @@ impl TryFrom<ResponseRouterData<GetnetCaptureResponse, Self>>
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1267,6 +1269,7 @@ impl TryFrom<ResponseRouterData<GetnetSyncResponse, Self>>
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1515,6 +1518,7 @@ impl TryFrom<ResponseRouterData<GetnetVoidResponse, Self>>
                 connector_response_reference_id: item.response.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

@@ -346,7 +346,7 @@ examples_python: none
 connector_id: imerchantsolutions
 doc: docs/connectors/imerchantsolutions.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
+payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
 flows: authorize, capture, get, handle_event, parse_event, proxy_authorize, refund, refund_get, void
 examples_python: examples/imerchantsolutions/imerchantsolutions.py
 
@@ -373,6 +373,14 @@ scenarios: checkout_autocapture, refund, void_payment, get_payment
 payment_methods: AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, GCash, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, KakaoPay, LazyPayRedirect, Momo, Netbanking, PaypalRedirect, PaypalSdk, PhonePeRedirect, SamsungPay, TouchNGo, UpiCollect, UpiIntent, UpiQr, WeChatPayQr
 flows: authorize, capture, create_order, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/juspay/juspay.py
+
+## Kount
+connector_id: kount
+doc: docs/connectors/kount.md
+scenarios: none
+payment_methods: none
+flows: create_server_authentication_token
+examples_python: none
 
 ## Loonio
 connector_id: loonio

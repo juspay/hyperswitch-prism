@@ -1350,6 +1350,7 @@ where
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1418,6 +1419,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 connector_response_reference_id: ref_id,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1485,6 +1487,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 connector_response_reference_id: ref_id,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1552,6 +1555,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 connector_response_reference_id: ref_id,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1775,6 +1779,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 connector_response_reference_id: order,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })

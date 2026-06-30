@@ -7,6 +7,7 @@ export interface HyperswitchPrismOptions {
     | "globalpay"
     | "cybersource"
     | "mollie"
+    | "authorizedotnet"
   connectorConfig: Record<string, unknown>
   /**
    * Webhook verification secret — required to process webhooks; events that
@@ -119,5 +120,17 @@ export interface HyperswitchPrismMollieOptions
     profileToken?: { value: string }
     baseUrl?: string
     secondaryBaseUrl?: string
+  }
+}
+
+export interface HyperswitchPrismAuthorizedotnetOptions
+  extends HyperswitchPrismOptions {
+  connector: "authorizedotnet"
+  connectorConfig: {
+    /** API Login ID. Used server-side only; never surfaced to the browser. */
+    name: { value: string }
+    /** Transaction Key (secret). Server-side only. */
+    transactionKey: { value: string }
+    baseUrl?: string
   }
 }

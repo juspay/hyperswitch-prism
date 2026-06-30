@@ -714,5 +714,10 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             recipient_id: "ZENDD".to_string(),
             base_url: None,
         },
+        ConnectorEnum::Kount => ConnectorSpecificConfig::Kount {
+            api_key: k(),
+            auth_server_id: None,
+            base_url: None,
+        },
     }
 }
