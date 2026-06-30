@@ -19,6 +19,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.30.1
+
+### Features
+
+- **proto:** Migrate MandateAmountData.amount to Money type ([#1708](https://github.com/juspay/connector-service/pull/1708)) ([`b39f8ea`](https://github.com/juspay/connector-service/commit/b39f8ea7083754ed51c73dbfce797f584600d7a6))
+- **tamara:** Tamara payment method ([#1681](https://github.com/juspay/connector-service/pull/1681)) ([`35b5409`](https://github.com/juspay/connector-service/commit/35b54099190b09b20c8cbb61983b99e3752fc610))
+
+**Full Changelog:** [`2026.06.30.0...2026.06.30.1`](https://github.com/juspay/connector-service/compare/2026.06.30.0...2026.06.30.1)
+
+- - -
+
+## 2026.06.30.0
+
+### Miscellaneous Tasks
+
+- Update the blog ([#1755](https://github.com/juspay/connector-service/pull/1755)) ([`eeebeb8`](https://github.com/juspay/connector-service/commit/eeebeb8a504d8075aec68b68b6c704e1cdfcd5a6))
+
+**Full Changelog:** [`2026.06.29.0...2026.06.30.0`](https://github.com/juspay/connector-service/compare/2026.06.29.0...2026.06.30.0)
+
+- - -
+
+## 2026.06.29.0
+
+### Features
+
+- **medusa:**
+  - Add Authorize.Net (raw-card) checkout to the test plugin ([#1617](https://github.com/juspay/connector-service/pull/1617)) ([`589bfc6`](https://github.com/juspay/connector-service/commit/589bfc60f11b5f0519cef6f4060d29c03a5f0213))
+  - Add Cybersource Flex Microform checkout to the test plugin ([#1614](https://github.com/juspay/connector-service/pull/1614)) ([`b473e1c`](https://github.com/juspay/connector-service/commit/b473e1c43c0f5e8fff1cc3684acca034a6394064))
+
+### Bug Fixes
+
+- **cybersource:** Preserve Flex target origin port ([#1744](https://github.com/juspay/connector-service/pull/1744)) ([`2d4be0a`](https://github.com/juspay/connector-service/commit/2d4be0a340335028e543975257b3b455b6ad5f3b))
+- **nexixpay:** PSync router-data parity (resource_id, connector_metadata, mandate_reference) [#16983] ([#1673](https://github.com/juspay/connector-service/pull/1673)) ([`5dec794`](https://github.com/juspay/connector-service/commit/5dec794307fec1d88555f447a6df2d2135b60d4f))
+
+### Miscellaneous Tasks
+
+- **docs:** Payment status blog ([#1745](https://github.com/juspay/connector-service/pull/1745)) ([`447804a`](https://github.com/juspay/connector-service/commit/447804a9c4b99e82fed1b112d9668742c7f46e1f))
+
+**Full Changelog:** [`2026.06.26.0...2026.06.29.0`](https://github.com/juspay/connector-service/compare/2026.06.26.0...2026.06.29.0)
+
+- - -
+
+## 2026.06.26.0
+
+### Features
+
+- **connector:** [iMerchant Solutions] Add Google Pay and Apple Pay Pre-Decrypt Flows ([#1505](https://github.com/juspay/connector-service/pull/1505)) ([`c417c0e`](https://github.com/juspay/connector-service/commit/c417c0edde6efd1877a411a50fff96194edaca17))
+
+**Full Changelog:** [`2026.06.25.0...2026.06.26.0`](https://github.com/juspay/connector-service/compare/2026.06.25.0...2026.06.26.0)
+
+- - -
+
 ## 2026.06.25.0
 
 ### Features
