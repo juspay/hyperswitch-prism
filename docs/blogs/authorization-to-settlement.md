@@ -1,4 +1,4 @@
-# A Payment Is Not a Resource
+# From Authorization to Settlement: A Payment Is a Lifecycle
 
 A payment isn't a thing you fetch. It's a thing that happens.
 
@@ -179,7 +179,7 @@ otherwise:
 
 ## The takeaway
 
-Treat a payment as a process and a few habits follow:
+Treat a payment as a lifecycle and a few habits follow:
 
 - **Don't branch on one `status`.** Ask the specific question: authorized,
   captured, or refunded? They're different flows.
@@ -188,8 +188,9 @@ Treat a payment as a process and a few habits follow:
 - **Never fulfill on authorization.** Only a capture means you've been paid.
 - **Money is a currency-scaled integer**, not a number.
 
-A payment isn't a resource. It's a process. That's not wordplay; it's the gap
-between code that works and code that only looks like it does. [Prism](https://github.com/juspay/hyperswitch-prism) puts the
+A payment runs from authorization to settlement, and treating it as a lifecycle
+rather than a single status is the gap between code that works and code that only
+looks like it does. [Prism](https://github.com/juspay/hyperswitch-prism) puts the
 lifecycle in front of you, with separate verbs, separate flows, and events it
 actually verifies, so the obvious thing to write tends to be the right thing too.
 
