@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.30.1
+
+### Features
+
+- **proto:** Migrate MandateAmountData.amount to Money type ([#1708](https://github.com/juspay/connector-service/pull/1708)) ([`b39f8ea`](https://github.com/juspay/connector-service/commit/b39f8ea7083754ed51c73dbfce797f584600d7a6))
+- **tamara:** Tamara payment method ([#1681](https://github.com/juspay/connector-service/pull/1681)) ([`35b5409`](https://github.com/juspay/connector-service/commit/35b54099190b09b20c8cbb61983b99e3752fc610))
+
+**Full Changelog:** [`2026.06.30.0...2026.06.30.1`](https://github.com/juspay/connector-service/compare/2026.06.30.0...2026.06.30.1)
+
+- - -
+
 ## 2026.06.30.0
 
 ### Miscellaneous Tasks
