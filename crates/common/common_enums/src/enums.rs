@@ -1006,6 +1006,7 @@ pub enum PaymentMethodType {
     AliPay,
     AliPayHk,
     Alma,
+    Tamara,
     AmazonPay,
     ApplePay,
     Atome,

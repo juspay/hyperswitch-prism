@@ -33,7 +33,15 @@ export function createAdminRoutes(credentials?: Record<string, any>) {
       ((session.data as any)?.connectorTransactionId as string | undefined)
     const prismService = getPrismService(session.connector)
 
-    if (txId && prismService) {
+    // A terminal status is final — don't re-sync it. Some connectors (e.g.
+    // Authorize.Net's synchronous auth+capture) return a transient/unsettled
+    // PSync status that would otherwise overwrite a good "captured". Redirect
+    // connectors (Mollie/PayPal) sit at "pending"/"requires_more" until the
+    // customer returns, so those still PSync to reach their final status.
+    const isTerminal =
+      status === "captured" || status === "canceled" || status === "error"
+
+    if (txId && prismService && !isTerminal) {
       try {
         const result = await prismService.getPaymentStatus({
           data: {

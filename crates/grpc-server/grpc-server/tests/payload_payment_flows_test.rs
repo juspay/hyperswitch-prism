@@ -187,6 +187,7 @@ fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServ
         split_payments: None,
         merchant_request_id: None,
         payment_method_type: None,
+        mandate_reference: None,
     }
 }
 
@@ -365,9 +366,11 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
             update_mandate_id: None,
             customer_acceptance: None,
             mandate_type: Some(MandateType {
+                #[allow(deprecated)]
                 mandate_type: Some(MandateTypeInner::MultiUse(MandateAmountData {
                     amount: 0,
                     currency: i32::from(Currency::Usd),
+                    amount_money: None,
                     start_date: None,
                     end_date: None,
                     amount_type: Some("max".to_string()),
@@ -540,6 +543,7 @@ async fn test_authorize_capture_refund_rsync() {
             split_payments: None,
             merchant_request_id: None,
             payment_method_type: None,
+            mandate_reference: None,
         };
         let mut rsync_grpc_request = Request::new(rsync_request);
         add_payload_metadata(&mut rsync_grpc_request);

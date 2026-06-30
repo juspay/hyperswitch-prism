@@ -338,7 +338,7 @@ examples_python: none
 connector_id: imerchantsolutions
 doc: docs/connectors/imerchantsolutions.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
+payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
 flows: authorize, capture, get, handle_event, parse_event, proxy_authorize, refund, refund_get, void
 examples_python: examples/imerchantsolutions/imerchantsolutions.py
 
