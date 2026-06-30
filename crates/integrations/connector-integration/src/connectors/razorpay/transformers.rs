@@ -304,7 +304,8 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             WalletData::BillDeskRedirect(_) => Ok(Self::BillDesk),
             WalletData::CashfreeRedirect(_) => Ok(Self::Cashfree),
             WalletData::PayURedirect(_) => Ok(Self::PayU),
-            WalletData::EaseBuzzRedirect(_) | WalletData::QwikcilverWalletDirect(_) => {
+            WalletData::EaseBuzzRedirect(_) | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => {
                 Ok(Self::EaseBuzz)
             }
             WalletData::AliPayQr(_)

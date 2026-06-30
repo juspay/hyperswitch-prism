@@ -313,9 +313,12 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            // Google Pay requires singleusepaymenthandles endpoint per Paysafe docs
-            let endpoint = match req.resource_common_data.payment_method {
-                PaymentMethod::Wallet => "v1/singleusepaymenthandles",
+            use domain_types::payment_method_data::{PaymentMethodData, WalletData};
+            // Google Pay requires the singleusepaymenthandles endpoint per Paysafe docs.
+            // Skrill (redirect wallet) uses the standard paymenthandles endpoint.
+            let endpoint = match &req.request.payment_method_data {
+                PaymentMethodData::Wallet(WalletData::Skrill(_)) => "v1/paymenthandles",
+                PaymentMethodData::Wallet(_) => "v1/singleusepaymenthandles",
                 _ => "v1/paymenthandles",
             };
             Ok(format!("{}{}", self.connector_base_url_payments(req), endpoint))

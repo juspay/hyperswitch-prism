@@ -69,7 +69,10 @@ pub struct PaysafeRefundRequest {
 pub struct PaysafeSetupMandateRequest<T: PaymentMethodDataTypes> {
     pub merchant_ref_num: String,
     pub amount: MinorUnit,
-    pub settle_with_auth: bool,
+    // Omitted for redirect wallets (e.g. Skrill) whose verified payment-handle body
+    // does not include settleWithAuth.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settle_with_auth: Option<bool>,
     #[serde(flatten)]
     pub payment_method: PaysafePaymentMethod<T>,
     pub currency_code: common_enums::Currency,
@@ -77,7 +80,9 @@ pub struct PaysafeSetupMandateRequest<T: PaymentMethodDataTypes> {
     pub transaction_type: TransactionType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub return_links: Option<Vec<ReturnLink>>,
-    pub account_id: Secret<String>,
+    // Skrill must omit accountId entirely (sending the card accountId returns error 5068).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_id: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub three_ds: Option<ThreeDs>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -100,6 +105,16 @@ pub enum PaysafePaymentMethod<T: PaymentMethodDataTypes> {
         #[serde(rename = "googlePay")]
         google_pay: PaysafeGooglePay,
     },
+    Skrill {
+        skrill: PaysafeSkrill,
+    },
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeSkrill {
+    /// Skrill consumer email address.
+    pub consumer_id: common_utils::pii::Email,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -207,6 +222,7 @@ pub struct PaysafeCardExpiry {
 pub enum PaysafePaymentType {
     Card,
     Ach,
+    Skrill,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

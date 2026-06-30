@@ -247,7 +247,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     (
                         PaysafePaymentMethod::Card { card },
                         PaysafePaymentType::Card,
-                        account_id,
+                        Some(account_id),
                     )
                 }
                 PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
@@ -286,7 +286,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     (
                         PaysafePaymentMethod::Ach { ach },
                         PaysafePaymentType::Ach,
-                        account_id,
+                        Some(account_id),
                     )
                 }
                 PaymentMethodData::Wallet(WalletData::GooglePay(google_pay_data)) => {
@@ -388,24 +388,44 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             },
                         },
                         PaysafePaymentType::Card,
-                        account_id,
+                        Some(account_id),
+                    )
+                }
+                PaymentMethodData::Wallet(WalletData::Skrill(_)) => {
+                    // Skrill consumer id is the billing email. It is mandatory.
+                    let consumer_id = router_data
+                        .resource_common_data
+                        .get_optional_billing_email()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "email",
+                            context: Default::default(),
+                        })?;
+                    let skrill = PaysafeSkrill { consumer_id };
+                    // Skrill must omit accountId entirely (sending the card accountId
+                    // returns Paysafe error 5068 "AccountId doesn't exist or not configured").
+                    (
+                        PaysafePaymentMethod::Skrill { skrill },
+                        PaysafePaymentType::Skrill,
+                        None,
                     )
                 }
                 _ => {
-                    return Err(IntegrationError::NotImplemented("Only card, ACH, and GooglePay payment methods are supported for PaymentMethodToken"
+                    return Err(IntegrationError::NotImplemented("Only card, ACH, GooglePay, and Skrill payment methods are supported for PaymentMethodToken"
                             .to_string() , Default::default())
                     .into())
                 }
             };
 
-        // For ACH payments, Paysafe requires settleWithAuth to be true
-        // For Card (including GooglePay which maps to Card), settle based on capture_method
+        // For ACH payments, Paysafe requires settleWithAuth to be true.
+        // For Card (including GooglePay which maps to Card), settle based on capture_method.
+        // For Skrill (redirect wallet), the verified payment-handle body omits settleWithAuth.
         let settle_with_auth = match payment_type {
-            PaysafePaymentType::Ach => true,
-            PaysafePaymentType::Card => matches!(
+            PaysafePaymentType::Ach => Some(true),
+            PaysafePaymentType::Card => Some(matches!(
                 router_data.request.capture_method,
                 Some(enums::CaptureMethod::Automatic) | None
-            ),
+            )),
+            PaysafePaymentType::Skrill => None,
         };
 
         let billing_details = create_paysafe_billing_details(&router_data.resource_common_data)?;
