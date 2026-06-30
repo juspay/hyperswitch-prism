@@ -65,6 +65,22 @@ pub struct PaysafeMandateMetadata {
     pub initial_transaction_id: String,
 }
 
+/// Self-contained mandate reference encoded into `connector_mandate_id`.
+///
+/// The gRPC recurring path cannot carry `mandate_metadata` (the proto
+/// `ConnectorMandateReferenceId` has no metadata field and the Charge ->
+/// RepeatPaymentData conversion hardcodes it to `None`), so the CIT Authorize
+/// response encodes BOTH the reusable payment-handle token and the initial
+/// transaction id (Paysafe payment `id`) into `connector_mandate_id`. The MIT
+/// RepeatPayment request decodes both back out. Older bare-token values are
+/// still handled via the `mandate_metadata` fallback.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct PaysafeMandateReference {
+    pub payment_handle_token: String,
+    pub initial_transaction_id: String,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaysafeMeta {
     pub payment_handle_token: Secret<String>,
@@ -753,15 +769,25 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
             item.router_data.request.capture_method,
         );
 
-        // Store payment_handle_token for mandate if present
+        // Store payment_handle_token for mandate if present. Encode both the reusable
+        // payment-handle token and the initial transaction id (Paysafe payment `id`)
+        // into connector_mandate_id, because the gRPC recurring path cannot carry
+        // mandate_metadata. The MIT RepeatPayment request decodes both back out.
         let mandate_reference =
             item.response
                 .payment_handle_token
                 .as_ref()
-                .map(|token| MandateReference {
-                    connector_mandate_id: Some(token.peek().to_string()),
-                    payment_method_id: None,
-                    connector_mandate_request_reference_id: None,
+                .map(|token| {
+                    let connector_mandate_id = serde_json::to_string(&PaysafeMandateReference {
+                        payment_handle_token: token.peek().to_string(),
+                        initial_transaction_id: item.response.id.clone(),
+                    })
+                    .unwrap_or_else(|_| token.peek().to_string());
+                    MandateReference {
+                        connector_mandate_id: Some(connector_mandate_id),
+                        payment_method_id: None,
+                        connector_mandate_request_reference_id: None,
+                    }
                 });
 
         let mut router_data = item.router_data;
@@ -816,18 +842,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let router_data = &item.router_data;
         let amount = router_data.request.minor_amount;
 
-        // Get mandate ID and metadata
-        let (payment_handle_token, mandate_data) = match &router_data.request.mandate_reference {
-            MandateReferenceId::ConnectorMandateId(mandate_data) => {
-                let token = mandate_data
-                    .get_connector_mandate_id()
-                    .ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "connector_mandate_id",
-                        context: Default::default(),
-                    })?
-                    .into();
-                (token, mandate_data)
-            }
+        // Get mandate reference (carries the connector_mandate_id we issued at CIT time)
+        let mandate_data = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(mandate_data) => mandate_data,
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::MissingRequiredField {
@@ -838,16 +855,41 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        let mandate_metadata: PaysafeMandateMetadata = mandate_data
-            .get_mandate_metadata()
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "mandate_metadata",
+        let raw_connector_mandate_id = mandate_data.get_connector_mandate_id().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "connector_mandate_id",
                 context: Default::default(),
-            })?
-            .parse_value("PaysafeMandateMetadata")
-            .change_context(IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
-            })?;
+            },
+        )?;
+
+        // Decode the connector_mandate_id. The CIT Authorize response encodes both the
+        // reusable payment-handle token and the initial transaction id as JSON (because
+        // the gRPC recurring path cannot carry mandate_metadata). For backward
+        // compatibility, a bare (non-JSON) value is treated as the payment-handle token
+        // and the initial transaction id is sourced from mandate_metadata instead.
+        let (payment_handle_token, initial_transaction_id): (Secret<String>, String) =
+            match serde_json::from_str::<PaysafeMandateReference>(&raw_connector_mandate_id) {
+                Ok(decoded) => (
+                    Secret::new(decoded.payment_handle_token),
+                    decoded.initial_transaction_id,
+                ),
+                Err(_) => {
+                    let mandate_metadata: PaysafeMandateMetadata = mandate_data
+                        .get_mandate_metadata()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "mandate_metadata",
+                            context: Default::default(),
+                        })?
+                        .parse_value("PaysafeMandateMetadata")
+                        .change_context(IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        })?;
+                    (
+                        Secret::new(raw_connector_mandate_id),
+                        mandate_metadata.initial_transaction_id,
+                    )
+                }
+            };
 
         let customer_ip = router_data
             .request
@@ -865,7 +907,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let stored_credential = Some(PaysafeStoredCredential {
             stored_credential_type: PaysafeStoredCredentialType::Topup,
             occurrence: MandateOccurrence::Subsequent,
-            initial_transaction_id: Some(mandate_metadata.initial_transaction_id),
+            initial_transaction_id: Some(initial_transaction_id),
         });
 
         Ok(Self {
