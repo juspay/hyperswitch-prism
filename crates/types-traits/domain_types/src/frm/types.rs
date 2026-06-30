@@ -1,6 +1,7 @@
 use super::frm_types::{
     FrmChargebackReceivedRequest, FrmFlowData, FrmPaymentOutcomeRequest, FrmRefundProcessedRequest,
-    PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest, PreRiskCheckResponse,
+    MandateInfo, PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest,
+    PreRiskCheckResponse,
 };
 use crate::{
     connector_types::{
@@ -268,6 +269,19 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
                 },
             })?;
 
+        let mandate_info = value.mandate_info.map(|m| MandateInfo {
+            start_date: m.start_date,
+            end_date: m.end_date,
+            initial_billing_amount: m.initial_billing_amount,
+            period_billing_amount: m.period_billing_amount,
+            period: m.period,
+            external_subscription_id: m.external_subscription_id,
+            status: m.status,
+            next_billing_date: m.next_billing_date,
+            billing_cycle: m.billing_cycle,
+            description: m.description,
+        });
+
         Ok(Self {
             amount: Money {
                 amount: MinorUnit::new(amount.minor_amount),
@@ -282,6 +296,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             metadata: value.metadata,
             connector_feature_data: value.connector_feature_data,
             test_mode: value.test_mode,
+            mandate_info,
         })
     }
 }

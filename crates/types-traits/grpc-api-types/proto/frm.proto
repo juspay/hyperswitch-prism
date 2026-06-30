@@ -22,6 +22,42 @@ import "payment_methods.proto";
 
 option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
+// Recurring / mandate details for a subscription order, mirroring the Kount
+// Orders `recurring` (RecurringDetails) block. Carried on the Pre Risk Check
+// request so connectors that risk-score subscriptions (e.g. Kount) have the
+// billing schedule and subscription context.
+message MandateInfo {
+  // Subscription start date (connector-defined format, typically RFC 3339 / date).
+  optional string start_date = 1;
+
+  // Subscription end date.
+  optional string end_date = 2;
+
+  // First billing amount in the smallest currency unit.
+  optional uint64 initial_billing_amount = 3;
+
+  // Recurring (per-period) billing amount in the smallest currency unit.
+  optional uint64 period_billing_amount = 4;
+
+  // Billing period (e.g. "MONTHLY", "WEEKLY").
+  optional string period = 5;
+
+  // Merchant's external subscription identifier.
+  optional string external_subscription_id = 6;
+
+  // Subscription status (e.g. "ACTIVE").
+  optional string status = 7;
+
+  // Next billing date.
+  optional string next_billing_date = 8;
+
+  // Number of billing cycles elapsed / scheduled.
+  optional int32 billing_cycle = 9;
+
+  // Free-form description of the subscription.
+  optional string description = 10;
+}
+
 // Request for FrmService.PreRiskCheck
 message FrmServicePreRiskCheckRequest {
   // Transaction details
@@ -56,6 +92,9 @@ message FrmServicePreRiskCheckRequest {
 
   // State Information
   optional ConnectorState state = 11;
+
+  // Recurring / mandate details for subscription risk scoring
+  optional MandateInfo mandate_info = 12;
 }
 
 // Response for FrmService.PreRiskCheck

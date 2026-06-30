@@ -50,6 +50,22 @@ impl ConnectorResponseHeaders for FrmFlowData {
     }
 }
 
+/// Recurring / mandate details for a subscription order, mirroring the Kount
+/// Orders `recurring` (RecurringDetails) block.
+#[derive(Debug, Clone)]
+pub struct MandateInfo {
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub initial_billing_amount: Option<u64>,
+    pub period_billing_amount: Option<u64>,
+    pub period: Option<String>,
+    pub external_subscription_id: Option<String>,
+    pub status: Option<String>,
+    pub next_billing_date: Option<String>,
+    pub billing_cycle: Option<i32>,
+    pub description: Option<String>,
+}
+
 /// Request data for pre-risk check
 #[derive(Debug, Clone)]
 pub struct PreRiskCheckRequest {
@@ -63,6 +79,7 @@ pub struct PreRiskCheckRequest {
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,
     pub test_mode: Option<bool>,
+    pub mandate_info: Option<MandateInfo>,
 }
 
 /// Response data for pre-risk check

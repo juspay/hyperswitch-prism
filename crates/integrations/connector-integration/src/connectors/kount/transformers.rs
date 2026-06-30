@@ -10,7 +10,7 @@ use domain_types::{
     errors,
     frm::frm_types::{
         FrmFlowData, FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse,
-        FrmRefundProcessedRequest, FrmRefundProcessedResponse, PreRiskCheckRequest,
+        FrmRefundProcessedRequest, FrmRefundProcessedResponse, MandateInfo, PreRiskCheckRequest,
         PreRiskCheckResponse,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -374,6 +374,63 @@ pub struct KountItem {
     pub is_digital: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub sku: Option<String>,
+    /// Subscription / recurring billing context for this line item, when the
+    /// order carries mandate info.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recurring: Option<KountRecurring>,
+}
+
+/// Kount Orders `recurring` (RecurringDetails) block carried on a line item.
+/// Populated from the FRM request's `mandate_info`. Amounts are serialized as
+/// strings to match Kount's `string<uint64>` schema.
+#[derive(Debug, Clone, Serialize)]
+pub struct KountRecurring {
+    #[serde(rename = "startDate", skip_serializing_if = "Option::is_none")]
+    pub start_date: Option<String>,
+    #[serde(rename = "endDate", skip_serializing_if = "Option::is_none")]
+    pub end_date: Option<String>,
+    #[serde(
+        rename = "initialBillingAmount",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub initial_billing_amount: Option<String>,
+    #[serde(
+        rename = "periodBillingAmount",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub period_billing_amount: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub period: Option<String>,
+    #[serde(
+        rename = "externalSubscriptionId",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub external_subscription_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    #[serde(rename = "nextBillingDate", skip_serializing_if = "Option::is_none")]
+    pub next_billing_date: Option<String>,
+    #[serde(rename = "billingCycle", skip_serializing_if = "Option::is_none")]
+    pub billing_cycle: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+impl From<&MandateInfo> for KountRecurring {
+    fn from(m: &MandateInfo) -> Self {
+        Self {
+            start_date: m.start_date.clone(),
+            end_date: m.end_date.clone(),
+            initial_billing_amount: m.initial_billing_amount.map(|amount| amount.to_string()),
+            period_billing_amount: m.period_billing_amount.map(|amount| amount.to_string()),
+            period: m.period.clone(),
+            external_subscription_id: m.external_subscription_id.clone(),
+            status: m.status.clone(),
+            next_billing_date: m.next_billing_date.clone(),
+            billing_cycle: m.billing_cycle,
+            description: m.description.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -407,6 +464,10 @@ pub struct KountPayment {
     pub bin: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
+    /// Stable, salted hash of the payment instrument (never the raw PAN). Lets
+    /// Kount link/score the instrument across orders. See [`payment_token_hash`].
+    #[serde(rename = "paymentToken", skip_serializing_if = "Option::is_none")]
+    pub payment_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -532,6 +593,18 @@ impl TryFrom<&CustomerInfo> for KountPerson {
     }
 }
 
+/// Stable payment-instrument token for Kount: `hex(HMAC-SHA256(key = api_key,
+/// msg = PAN))`. The Kount `api_key` secret is reused as the salt so the token
+/// is consistent for a given card under a merchant's credentials while never
+/// emitting the raw PAN. Returns `None` if signing fails.
+fn payment_token_hash(api_key: &Secret<String>, pan: &str) -> Option<String> {
+    use common_utils::crypto::{HmacSha256, SignMessage};
+    HmacSha256
+        .sign_message(api_key.peek().as_bytes(), pan.as_bytes())
+        .ok()
+        .map(hex::encode)
+}
+
 /// Card BIN (first 6) + last4 from a raw PAN, ignoring formatting. Never emits
 /// the full PAN.
 fn card_bin_last4(pan: &str) -> (Option<String>, Option<String>) {
@@ -609,6 +682,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let currency = req.amount.currency;
 
+        // Subscription / recurring context, applied to every line item when the
+        // order carries mandate info.
+        let recurring = req.mandate_info.as_ref().map(KountRecurring::from);
+
         // Line items from order details.
         let items = match req.order_details.as_ref() {
             Some(details) => details
@@ -622,6 +699,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         category: detail.category.clone(),
                         is_digital: detail.requires_shipping.map(|ships| !ships),
                         sku: detail.sku.clone(),
+                        recurring: recurring.clone(),
                     })
                 })
                 .collect::<Result<Vec<_>, _>>()?,
@@ -668,14 +746,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
             .unwrap_or_default();
 
-        // Payment instrument (BIN/last4 only) from the payment method.
+        // Payment instrument (BIN/last4 + salted token only) from the payment
+        // method. The api_key is reused as the token salt; if auth can't be
+        // resolved we still send BIN/last4 and simply omit the token.
+        let api_key = KountAuthType::try_from(&item.router_data.connector_config)
+            .ok()
+            .map(|auth| auth.api_key);
         let payment = match req.payment_method.as_ref() {
             Some(PaymentMethodData::Card(card)) => {
-                let (bin, last4) = card_bin_last4(card.card_number.peek());
+                let pan = card.card_number.peek();
+                let (bin, last4) = card_bin_last4(pan);
+                let payment_token = api_key
+                    .as_ref()
+                    .and_then(|api_key| payment_token_hash(api_key, pan));
                 Some(KountPayment {
                     payment_type: KountPaymentType::CreditCard,
                     bin,
                     last4,
+                    payment_token,
                 })
             }
             _ => None,
