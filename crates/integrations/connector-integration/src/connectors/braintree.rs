@@ -297,7 +297,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_transaction_id: Some(dispute_data.transaction.id),
                 },
             ))),
-            None => Err(error_stack::report!(WebhookError::WebhookReferenceIdNotFound)),
+            None => Err(error_stack::report!(
+                WebhookError::WebhookReferenceIdNotFound
+            )),
         }
     }
 

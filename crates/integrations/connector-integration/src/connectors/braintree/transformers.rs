@@ -2748,9 +2748,7 @@ pub(crate) fn get_status(status: &str) -> connector_types::EventType {
         "dispute_opened" => connector_types::EventType::DisputeOpened,
         "dispute_lost" => connector_types::EventType::DisputeLost,
         "dispute_won" => connector_types::EventType::DisputeWon,
-        "dispute_accepted" | "dispute_auto_accepted" => {
-            connector_types::EventType::DisputeAccepted
-        }
+        "dispute_accepted" | "dispute_auto_accepted" => connector_types::EventType::DisputeAccepted,
         "dispute_expired" => connector_types::EventType::DisputeExpired,
         "dispute_disputed" => connector_types::EventType::DisputeChallenged,
         _ => connector_types::EventType::IncomingWebhookEventUnspecified,
