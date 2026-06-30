@@ -2488,12 +2488,11 @@ message PaymentServiceGetRequest {
   optional ConnectorMandateReferenceId mandate_reference = 18;
 }
 
-// Response message for a payment status synchronization
-// Settlement phase reported by the connector on PSync. Distinct from
-// AttemptStatus which collapses Authorized + Settled into Charged.
+// Settlement phase reported by the connector on PaymentServiceGetResponse.
+// Distinct from AttemptStatus which collapses Authorized + Settled into Charged.
 enum SettlementStatus {
-  // Connector emits the field but the txn is in neither Settled nor
-  // Not-Settled phase (e.g. PACO Voided / Refunded / Failed / Pending).
+  // Connector emitted the field but the txn is in neither Settled nor
+  // Not-Settled phase (terminal or in-flight states).
   SETTLEMENT_STATUS_UNSPECIFIED = 0;
   // Funds finalised — Refund is the valid reversal.
   SETTLEMENT_STATUS_SETTLED = 1;
@@ -2560,9 +2559,8 @@ message PaymentServiceGetResponse {
   optional ConnectorSplitResponseData splits = 32;
 
   optional SecretString connector_feature_data = 33;
-  // How the connector reports the txn's settlement phase. `SETTLED` means funds
-  // are finalised and Refund is the valid reversal; `NOT_SETTLED` means
-  // authorised only and Void is the valid reversal; `UNSPECIFIED` means the
+  // Settlement phase reported by the connector. See SettlementStatus for the
+  // per-value semantics. Absent when the connector doesn't distinguish phases.
   optional SettlementStatus settlement_status = 34;
   
 }
@@ -2630,8 +2628,7 @@ message PaymentServiceVoidResponse {
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 12;
 
-  // Raw connector response (useful for void debugging — async statuses like
-  // PACO's VOID_INITIATED are easier to diagnose with the raw payload).
+  // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 13;
 }
 

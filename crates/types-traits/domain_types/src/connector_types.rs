@@ -703,11 +703,9 @@ pub struct PaymentFlowData {
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
-    /// Settlement phase reported by the connector. `Some(Settled)` -> Refund is
-    /// the valid reversal; `Some(NotSettled)` -> Void is the valid reversal;
-    /// `Some(Unspecified)` -> connector spoke but the txn is in neither phase
-    /// (terminal / pending state); `None` -> connector doesn't distinguish.
-    /// Currently populated by 2C2P PACO PSync.
+    /// Settlement phase reported by the connector.
+    /// Lives on PaymentFlowData (not PaymentsSyncData) so other flows can
+    /// populate it in the future if a connector starts reporting settlement state on authorize, capture, etc.
     pub settlement_status: Option<SettlementStatus>,
 }
 
