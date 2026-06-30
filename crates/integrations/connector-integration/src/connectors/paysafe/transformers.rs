@@ -9,8 +9,8 @@ use domain_types::{
         RepeatPaymentData, ResponseId,
     },
     payment_method_data::{
-        ApplePayPaymentData, BankDebitData, GpayTokenizationData, PaymentMethodData,
-        PaymentMethodDataTypes, WalletData,
+        ApplePayPaymentData, BankDebitData, BankRedirectData, GpayTokenizationData,
+        PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
     router_data::{ConnectorSpecificConfig, PaysafePaymentMethodDetails},
     router_data_v2::RouterDataV2,
@@ -465,8 +465,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         None,
                     )
                 }
+                PaymentMethodData::BankRedirect(BankRedirectData::Interac { email, .. }) => {
+                    // Interac e-Transfer consumer id: prefer the variant email, else billing
+                    // email. Mandatory.
+                    let consumer_id = email
+                        .clone()
+                        .or_else(|| {
+                            router_data
+                                .resource_common_data
+                                .get_optional_billing_email()
+                        })
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "email",
+                            context: Default::default(),
+                        })?;
+                    let interac_etransfer = PaysafeInterac { consumer_id };
+                    // Interac REQUIRES an accountId for CAD (unlike Skrill). Resolve from the
+                    // interac CAD metadata slot; gracefully errors if unprovisioned.
+                    let account_id = account_id.get_interac_account_id(currency)?;
+                    (
+                        PaysafePaymentMethod::InteracEtransfer { interac_etransfer },
+                        PaysafePaymentType::InteracEtransfer,
+                        Some(account_id),
+                    )
+                }
                 _ => {
-                    return Err(IntegrationError::NotImplemented("Only card, ACH, GooglePay, ApplePay, and Skrill payment methods are supported for PaymentMethodToken"
+                    return Err(IntegrationError::NotImplemented("Only card, ACH, GooglePay, ApplePay, Skrill, and Interac payment methods are supported for PaymentMethodToken"
                             .to_string() , Default::default())
                     .into())
                 }
@@ -482,6 +506,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Some(enums::CaptureMethod::Automatic) | None
             )),
             PaysafePaymentType::Skrill => None,
+            PaysafePaymentType::InteracEtransfer => None,
         };
 
         let billing_details = create_paysafe_billing_details(&router_data.resource_common_data)?;

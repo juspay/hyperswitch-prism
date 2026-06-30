@@ -146,6 +146,7 @@ impl ConnectorAuthType {
 pub struct PaysafePaymentMethodDetails {
     pub card: Option<HashMap<common_enums::enums::Currency, PaysafeCardAccountId>>,
     pub ach: Option<HashMap<common_enums::enums::Currency, PaysafeAchAccountId>>,
+    pub interac: Option<HashMap<common_enums::enums::Currency, PaysafeInteracAccountId>>,
 }
 
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
@@ -156,6 +157,11 @@ pub struct PaysafeCardAccountId {
 
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaysafeAchAccountId {
+    pub account_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaysafeInteracAccountId {
     pub account_id: Option<Secret<String>>,
 }
 
@@ -198,6 +204,20 @@ impl PaysafePaymentMethodDetails {
             .and_then(|ach| ach.account_id.clone())
             .ok_or(errors::IntegrationError::InvalidConnectorConfig {
                 config: "Missing ach account_id",
+                context: Default::default(),
+            })
+    }
+
+    pub fn get_interac_account_id(
+        &self,
+        currency: common_enums::enums::Currency,
+    ) -> Result<Secret<String>, errors::IntegrationError> {
+        self.interac
+            .as_ref()
+            .and_then(|interac| interac.get(&currency))
+            .and_then(|interac| interac.account_id.clone())
+            .ok_or(errors::IntegrationError::InvalidConnectorConfig {
+                config: "Missing interac account_id",
                 context: Default::default(),
             })
     }
