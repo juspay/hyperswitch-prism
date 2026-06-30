@@ -105,6 +105,10 @@ pub enum PaysafePaymentMethod<T: PaymentMethodDataTypes> {
         #[serde(rename = "googlePay")]
         google_pay: PaysafeGooglePay,
     },
+    ApplePay {
+        #[serde(rename = "applePay")]
+        apple_pay: PaysafeApplePay,
+    },
     Skrill {
         skrill: PaysafeSkrill,
     },
@@ -121,6 +125,41 @@ pub struct PaysafeSkrill {
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeGooglePay {
     pub google_pay_payment_token: PaysafeGooglePayPaymentToken,
+}
+
+/// Apple Pay payment-handle body. Paysafe expects the full (encrypted) Apple Pay
+/// PKPaymentToken forwarded under `applePay.applePayPaymentToken.token`.
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePay {
+    /// User-facing label (Apple Pay payment-method display name).
+    pub label: String,
+    pub apple_pay_payment_token: PaysafeApplePayPaymentToken,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayPaymentToken {
+    pub token: PaysafeApplePayToken,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayToken {
+    /// The encrypted Apple Pay payment data object
+    /// (`{data, signature, header, version}`), forwarded verbatim.
+    pub payment_data: serde_json::Value,
+    pub payment_method: PaysafeApplePayPaymentMethod,
+    pub transaction_identifier: String,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayPaymentMethod {
+    pub display_name: String,
+    pub network: String,
+    #[serde(rename = "type")]
+    pub pm_type: String,
 }
 
 /// The full Google Pay SDK response object that Paysafe expects

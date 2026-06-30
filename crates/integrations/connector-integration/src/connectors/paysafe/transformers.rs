@@ -9,7 +9,8 @@ use domain_types::{
         RepeatPaymentData, ResponseId,
     },
     payment_method_data::{
-        BankDebitData, GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, WalletData,
+        ApplePayPaymentData, BankDebitData, GpayTokenizationData, PaymentMethodData,
+        PaymentMethodDataTypes, WalletData,
     },
     router_data::{ConnectorSpecificConfig, PaysafePaymentMethodDetails},
     router_data_v2::RouterDataV2,
@@ -391,6 +392,61 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         Some(account_id),
                     )
                 }
+                PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
+                    // Paysafe expects the full (encrypted) Apple Pay PKPaymentToken
+                    // forwarded under `applePay.applePayPaymentToken.token`. The decoded
+                    // payment_data is the {data, signature, header, version} object.
+                    let payment_data: serde_json::Value = match &apple_pay_data.payment_data {
+                        ApplePayPaymentData::Encrypted(_) => {
+                            let decoded_token = apple_pay_data
+                                .get_applepay_decoded_payment_data()
+                                .change_context(IntegrationError::InvalidDataFormat {
+                                    field_name: "apple_pay.payment_data",
+                                    context: Default::default(),
+                                })?;
+                            serde_json::from_str(decoded_token.peek()).change_context(
+                                IntegrationError::InvalidDataFormat {
+                                    field_name: "apple_pay.payment_data",
+                                    context: Default::default(),
+                                },
+                            )?
+                        }
+                        ApplePayPaymentData::Decrypted(_) => {
+                            return Err(IntegrationError::NotImplemented(
+                                "Decrypted Apple Pay data is not supported for Paysafe; an encrypted Apple Pay token is required".to_string(),
+                                Default::default(),
+                            )
+                            .into())
+                        }
+                    };
+
+                    let apple_pay = PaysafeApplePay {
+                        label: apple_pay_data.payment_method.display_name.clone(),
+                        apple_pay_payment_token: PaysafeApplePayPaymentToken {
+                            token: PaysafeApplePayToken {
+                                payment_data,
+                                payment_method: PaysafeApplePayPaymentMethod {
+                                    display_name: apple_pay_data
+                                        .payment_method
+                                        .display_name
+                                        .clone(),
+                                    network: apple_pay_data.payment_method.network.clone(),
+                                    pm_type: apple_pay_data.payment_method.pm_type.clone(),
+                                },
+                                transaction_identifier: apple_pay_data
+                                    .transaction_identifier
+                                    .clone(),
+                            },
+                        },
+                    };
+
+                    let account_id = account_id.get_no_three_ds_account_id(currency)?;
+                    (
+                        PaysafePaymentMethod::ApplePay { apple_pay },
+                        PaysafePaymentType::Card,
+                        Some(account_id),
+                    )
+                }
                 PaymentMethodData::Wallet(WalletData::Skrill(_)) => {
                     // Skrill consumer id is the billing email. It is mandatory.
                     let consumer_id = router_data
@@ -410,7 +466,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )
                 }
                 _ => {
-                    return Err(IntegrationError::NotImplemented("Only card, ACH, GooglePay, and Skrill payment methods are supported for PaymentMethodToken"
+                    return Err(IntegrationError::NotImplemented("Only card, ACH, GooglePay, ApplePay, and Skrill payment methods are supported for PaymentMethodToken"
                             .to_string() , Default::default())
                     .into())
                 }

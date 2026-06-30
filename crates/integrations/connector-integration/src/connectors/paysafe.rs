@@ -315,9 +315,11 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             use domain_types::payment_method_data::{PaymentMethodData, WalletData};
             // Google Pay requires the singleusepaymenthandles endpoint per Paysafe docs.
-            // Skrill (redirect wallet) uses the standard paymenthandles endpoint.
+            // Apple Pay (CARD account) and Skrill (redirect wallet) use the standard
+            // paymenthandles endpoint; singleusepaymenthandles returns 5270 for them.
             let endpoint = match &req.request.payment_method_data {
-                PaymentMethodData::Wallet(WalletData::Skrill(_)) => "v1/paymenthandles",
+                PaymentMethodData::Wallet(WalletData::Skrill(_))
+                | PaymentMethodData::Wallet(WalletData::ApplePay(_)) => "v1/paymenthandles",
                 PaymentMethodData::Wallet(_) => "v1/singleusepaymenthandles",
                 _ => "v1/paymenthandles",
             };
