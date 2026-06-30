@@ -7227,14 +7227,22 @@ pub fn generate_payment_sync_response(
                             split_response,
                         )
                     }),
-                    settlement_status: router_data_v2.resource_common_data.settlement_status.map(|s| {
-                        use crate::connector_types::SettlementStatus as SS;
-                        match s {
-                            SS::Unspecified => grpc_api_types::payments::SettlementStatus::Unspecified as i32,
-                            SS::Settled => grpc_api_types::payments::SettlementStatus::Settled as i32,
-                            SS::NotSettled => grpc_api_types::payments::SettlementStatus::NotSettled as i32,
-                        }
-                    }),
+                    settlement_status: router_data_v2.resource_common_data.settlement_status.map(
+                        |s| {
+                            use crate::connector_types::SettlementStatus as SS;
+                            match s {
+                                SS::Unspecified => {
+                                    grpc_api_types::payments::SettlementStatus::Unspecified as i32
+                                }
+                                SS::Settled => {
+                                    grpc_api_types::payments::SettlementStatus::Settled as i32
+                                }
+                                SS::NotSettled => {
+                                    grpc_api_types::payments::SettlementStatus::NotSettled as i32
+                                }
+                            }
+                        },
+                    ),
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
@@ -7335,14 +7343,22 @@ pub fn generate_payment_sync_response(
                         .sender_payment_instrument_id
                         .clone(),
                     splits: None,
-                    settlement_status: router_data_v2.resource_common_data.settlement_status.map(|s| {
-                        use crate::connector_types::SettlementStatus as SS;
-                        match s {
-                            SS::Unspecified => grpc_api_types::payments::SettlementStatus::Unspecified as i32,
-                            SS::Settled => grpc_api_types::payments::SettlementStatus::Settled as i32,
-                            SS::NotSettled => grpc_api_types::payments::SettlementStatus::NotSettled as i32,
-                        }
-                    }),
+                    settlement_status: router_data_v2.resource_common_data.settlement_status.map(
+                        |s| {
+                            use crate::connector_types::SettlementStatus as SS;
+                            match s {
+                                SS::Unspecified => {
+                                    grpc_api_types::payments::SettlementStatus::Unspecified as i32
+                                }
+                                SS::Settled => {
+                                    grpc_api_types::payments::SettlementStatus::Settled as i32
+                                }
+                                SS::NotSettled => {
+                                    grpc_api_types::payments::SettlementStatus::NotSettled as i32
+                                }
+                            }
+                        },
+                    ),
                     connector_feature_data: None,
                 })
             }

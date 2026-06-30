@@ -655,7 +655,6 @@ pub enum SettlementStatus {
     NotSettled,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct PaymentFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
