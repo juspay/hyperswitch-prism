@@ -2745,7 +2745,7 @@ pub struct DisputeEvidence {
 
 // Maps the Braintree notification `kind` to the prism webhook event type.
 // Ports HS `get_status` (hyperswitch braintree/transformers.rs `get_status`) 1:1.
-pub(crate) fn get_status(status: &str) -> connector_types::EventType {
+pub(super) fn get_status(status: &str) -> connector_types::EventType {
     match status {
         "dispute_opened" => connector_types::EventType::DisputeOpened,
         "dispute_lost" => connector_types::EventType::DisputeLost,
@@ -2759,7 +2759,7 @@ pub(crate) fn get_status(status: &str) -> connector_types::EventType {
 
 // Maps the Braintree notification `kind` to the prism dispute status.
 // Mirrors how the HS router derives `DisputeStatus` from the webhook event.
-pub(crate) fn get_dispute_status(status: &str) -> enums::DisputeStatus {
+pub(super) fn get_dispute_status(status: &str) -> enums::DisputeStatus {
     match status {
         "dispute_opened" => enums::DisputeStatus::DisputeOpened,
         "dispute_lost" => enums::DisputeStatus::DisputeLost,
@@ -2773,7 +2773,7 @@ pub(crate) fn get_dispute_status(status: &str) -> enums::DisputeStatus {
 
 // Maps the Braintree dispute `kind` to the prism dispute stage.
 // Ports HS `get_dispute_stage` 1:1.
-pub(crate) fn get_dispute_stage(
+pub(super) fn get_dispute_stage(
     code: &str,
 ) -> Result<enums::DisputeStage, Report<domain_types::errors::WebhookError>> {
     match code {
@@ -2787,32 +2787,36 @@ pub(crate) fn get_dispute_stage(
 }
 
 // Decodes the form-urlencoded webhook envelope (`bt_signature` + `bt_payload`).
-pub(crate) fn get_webhook_object_from_body(
+pub(super) fn get_webhook_object_from_body(
     body: &[u8],
 ) -> Result<BraintreeWebhookResponse, Report<domain_types::errors::WebhookError>> {
     serde_urlencoded::from_bytes::<BraintreeWebhookResponse>(body)
         .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
+        .attach_printable("failed to url-decode the Braintree webhook body (bt_signature/bt_payload)")
 }
 
 // Base64-decodes the (newline-stripped) `bt_payload` and parses the XML `Notification`.
-pub(crate) fn decode_webhook_payload(
+pub(super) fn decode_webhook_payload(
     payload: &[u8],
 ) -> Result<Notification, Report<domain_types::errors::WebhookError>> {
     let decoded_response = super::BASE64_ENGINE
         .decode(payload)
-        .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+        .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
+        .attach_printable("failed to base64-decode the Braintree bt_payload")?;
 
     let xml_response = String::from_utf8(decoded_response)
-        .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)?;
+        .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
+        .attach_printable("Braintree bt_payload is not valid UTF-8")?;
 
     xml_response
         .parse_xml::<Notification>()
         .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
+        .attach_printable("failed to parse the Braintree notification XML")
 }
 
 // `bt_signature` is `pubkey1|sig1&pubkey2|sig2&...`; pick the signature whose
 // public key matches the merchant's Braintree public key.
-pub(crate) fn get_matching_webhook_signature(
+pub(super) fn get_matching_webhook_signature(
     signature_pairs: &[(&str, &str)],
     secret: &str,
 ) -> Option<String> {
@@ -2824,7 +2828,7 @@ pub(crate) fn get_matching_webhook_signature(
 
 // Full request -> `Notification` decode: urlencoded envelope, then base64 + XML on the
 // newline-stripped `bt_payload`. Mirrors the two-step decode the trait methods performed inline.
-pub(crate) fn decode_from_request(
+pub(super) fn decode_from_request(
     request: &connector_types::RequestDetails,
 ) -> Result<Notification, Report<domain_types::errors::WebhookError>> {
     let notif = get_webhook_object_from_body(&request.body)?;
@@ -2832,7 +2836,7 @@ pub(crate) fn decode_from_request(
 }
 
 // Builds the typed webhook resource reference for a dispute notification.
-pub(crate) fn get_webhook_reference(
+pub(super) fn get_webhook_reference(
     notification: &Notification,
 ) -> Result<
     Option<connector_types::WebhookResourceReference>,
@@ -2855,7 +2859,7 @@ pub(crate) fn get_webhook_reference(
 }
 
 // Builds the dispute webhook response, including the webhook amount conversion.
-pub(crate) fn build_webhook_dispute_response(
+pub(super) fn build_webhook_dispute_response(
     notification: &Notification,
     raw_body: &[u8],
 ) -> Result<
