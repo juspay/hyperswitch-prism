@@ -2792,7 +2792,9 @@ pub(super) fn get_webhook_object_from_body(
 ) -> Result<BraintreeWebhookResponse, Report<domain_types::errors::WebhookError>> {
     serde_urlencoded::from_bytes::<BraintreeWebhookResponse>(body)
         .change_context(domain_types::errors::WebhookError::WebhookBodyDecodingFailed)
-        .attach_printable("failed to url-decode the Braintree webhook body (bt_signature/bt_payload)")
+        .attach_printable(
+            "failed to url-decode the Braintree webhook body (bt_signature/bt_payload)",
+        )
 }
 
 // Base64-decodes the (newline-stripped) `bt_payload` and parses the XML `Notification`.
