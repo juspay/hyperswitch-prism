@@ -380,6 +380,20 @@ pub struct PaysafeBillingDetails {
     pub country: common_enums::CountryAlpha2,
 }
 
+/// Authorize-flow request.
+///
+/// Non-redirect payment methods settle an existing payment handle via
+/// `v1/payments` (`Payment`). Redirect APMs (Skrill, Interac e-Transfer,
+/// paysafecard) instead create a payment handle via `v1/paymenthandles`
+/// (`PaymentHandle`) so Paysafe returns the customer redirect link. `untagged`
+/// so each variant serialises as its bare JSON body (no discriminant wrapper).
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum PaysafeAuthorizeRequest<T: PaymentMethodDataTypes> {
+    Payment(Box<PaysafePaymentsRequest>),
+    PaymentHandle(Box<PaysafeSetupMandateRequest<T>>),
+}
+
 // Type aliases for flows
 pub type PaysafePaymentMethodTokenRequest<T> = PaysafeSetupMandateRequest<T>;
 pub type PaysafeRepeatPaymentRequest = PaysafePaymentsRequest;

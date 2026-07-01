@@ -14,6 +14,7 @@ use domain_types::{
     },
     router_data::{ConnectorSpecificConfig, PaysafePaymentMethodDetails},
     router_data_v2::RouterDataV2,
+    router_response_types::RedirectForm,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -110,6 +111,173 @@ fn create_paysafe_billing_details(
     } else {
         Ok(None)
     }
+}
+
+/// Whether this payment method is a Paysafe redirect APM that must create a payment
+/// handle (and surface a customer redirect) in the Authorize flow rather than
+/// settling a pre-created handle token. Shared by the Authorize URL selector and the
+/// Authorize request builder so both agree on the routing.
+pub(crate) fn is_paysafe_redirect_apm<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+) -> bool {
+    match payment_method_data {
+        PaymentMethodData::Wallet(WalletData::Skrill(_))
+        | PaymentMethodData::BankRedirect(BankRedirectData::Interac { .. }) => true,
+        PaymentMethodData::GiftCard(gift_card_data) => {
+            matches!(gift_card_data.as_ref(), GiftCardData::PaySafeCard {})
+        }
+        _ => false,
+    }
+}
+
+/// Build a Paysafe payment-handle body for a redirect APM (Skrill, Interac
+/// e-Transfer, paysafecard) directly from the Authorize request. Mirrors the
+/// payment-handle body created by the PaymentMethodToken flow, but sourced from
+/// `PaymentsAuthorizeData` so the Authorize response can return the redirect link
+/// (matching hyperswitch's single Authorize -> paymenthandles behaviour).
+fn build_paysafe_redirect_handle_request<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    router_data: &RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+) -> Result<PaysafeSetupMandateRequest<T>, error_stack::Report<IntegrationError>> {
+    let auth = PaysafeAuthType::try_from(&router_data.connector_config)?;
+    let account_id = auth
+        .account_id
+        .ok_or(IntegrationError::InvalidConnectorConfig {
+            config: "account_id",
+            context: Default::default(),
+        })?;
+
+    let currency = router_data.request.currency;
+    let amount = router_data.request.minor_amount;
+
+    let (payment_method, payment_type, account_id) = match &router_data.request.payment_method_data {
+        PaymentMethodData::Wallet(WalletData::Skrill(_)) => {
+            // Skrill consumer id is the billing email (mandatory). Skrill omits
+            // accountId entirely (sending the card accountId returns error 5068).
+            let consumer_id = router_data
+                .resource_common_data
+                .get_optional_billing_email()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "email",
+                    context: Default::default(),
+                })?;
+            (
+                PaysafePaymentMethod::Skrill {
+                    skrill: PaysafeSkrill { consumer_id },
+                },
+                PaysafePaymentType::Skrill,
+                None,
+            )
+        }
+        PaymentMethodData::BankRedirect(BankRedirectData::Interac { email, .. }) => {
+            // Interac e-Transfer consumer id: prefer the variant email, else billing.
+            let consumer_id = email
+                .clone()
+                .or_else(|| {
+                    router_data
+                        .resource_common_data
+                        .get_optional_billing_email()
+                })
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "email",
+                    context: Default::default(),
+                })?;
+            // Interac REQUIRES an accountId for CAD (unlike Skrill).
+            let account_id = account_id.get_interac_account_id(currency)?;
+            (
+                PaysafePaymentMethod::InteracEtransfer {
+                    interac_etransfer: PaysafeInterac { consumer_id },
+                },
+                PaysafePaymentType::InteracEtransfer,
+                Some(account_id),
+            )
+        }
+        PaymentMethodData::GiftCard(gift_card_data)
+            if matches!(gift_card_data.as_ref(), GiftCardData::PaySafeCard {}) =>
+        {
+            // paysafecard consumerId is the billing email (mandatory). Mirror Skrill:
+            // omit accountId entirely.
+            let consumer_id = router_data
+                .resource_common_data
+                .get_optional_billing_email()
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "email",
+                    context: Default::default(),
+                })?;
+            (
+                PaysafePaymentMethod::Paysafecard {
+                    paysafecard: PaysafePaysafecard { consumer_id },
+                },
+                PaysafePaymentType::Paysafecard,
+                None,
+            )
+        }
+        _ => {
+            return Err(IntegrationError::NotImplemented(
+                "Only Skrill, Interac e-Transfer, and paysafecard are supported as redirect payment methods for the Paysafe Authorize flow".to_string(),
+                Default::default(),
+            )
+            .into())
+        }
+    };
+
+    let billing_details = create_paysafe_billing_details(&router_data.resource_common_data)?;
+
+    // Paysafe requires return_links to build the customer redirect.
+    let redirect_url = router_data.resource_common_data.get_return_url().ok_or(
+        IntegrationError::MissingRequiredField {
+            field_name: "return_url",
+            context: Default::default(),
+        },
+    )?;
+
+    let return_links = Some(vec![
+        ReturnLink {
+            rel: LinkType::Default,
+            href: redirect_url.clone(),
+            method: Method::Get.to_string(),
+        },
+        ReturnLink {
+            rel: LinkType::OnCompleted,
+            href: redirect_url.clone(),
+            method: Method::Get.to_string(),
+        },
+        ReturnLink {
+            rel: LinkType::OnFailed,
+            href: redirect_url.clone(),
+            method: Method::Get.to_string(),
+        },
+        ReturnLink {
+            rel: LinkType::OnCancelled,
+            href: redirect_url,
+            method: Method::Get.to_string(),
+        },
+    ]);
+
+    Ok(PaysafeSetupMandateRequest {
+        merchant_ref_num: router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone(),
+        amount,
+        // Redirect APMs omit settleWithAuth on the payment-handle body.
+        settle_with_auth: None,
+        payment_method,
+        currency_code: currency,
+        payment_type,
+        transaction_type: TransactionType::Payment,
+        return_links,
+        account_id,
+        three_ds: None,
+        profile: None,
+        billing_details,
+    })
 }
 
 // Status Mapping Functions
@@ -754,6 +922,48 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+// Authorize Flow - Request (redirect-APM aware dispatch)
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaysafeRouterData<
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PaysafeAuthorizeRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: PaysafeRouterData<
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Redirect APMs (Skrill, Interac e-Transfer, paysafecard) create a payment
+        // handle directly in the Authorize flow (mirrors hyperswitch): they carry no
+        // pre-created token and must surface a customer redirect. Every other payment
+        // method settles a previously created handle token via v1/payments.
+        if is_paysafe_redirect_apm(&item.router_data.request.payment_method_data) {
+            let handle_request = build_paysafe_redirect_handle_request(&item.router_data)?;
+            Ok(Self::PaymentHandle(Box::new(handle_request)))
+        } else {
+            let payments_request = PaysafePaymentsRequest::try_from(item)?;
+            Ok(Self::Payment(Box::new(payments_request)))
+        }
+    }
+}
+
 // Authorize Flow - Response
 
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeResponse, Self>>
@@ -764,23 +974,25 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
     fn try_from(
         item: ResponseRouterData<PaysafeAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let status = get_paysafe_payment_status(
-            item.response.status,
-            item.router_data.request.capture_method,
-        );
+        let http_code = item.http_code;
+        let capture_method = item.router_data.request.capture_method;
+        let mut router_data = item.router_data;
 
-        // Store payment_handle_token for mandate if present. Encode both the reusable
-        // payment-handle token and the initial transaction id (Paysafe payment `id`)
-        // into connector_mandate_id, because the gRPC recurring path cannot carry
-        // mandate_metadata. The MIT RepeatPayment request decodes both back out.
-        let mandate_reference =
-            item.response
-                .payment_handle_token
-                .as_ref()
-                .map(|token| {
+        let response_data = match item.response {
+            // Non-redirect settlement (v1/payments): card no-3DS, Apple Pay, or a token
+            // settlement. Behaves exactly as before.
+            PaysafeAuthorizeResponse::Payment(response) => {
+                let status = get_paysafe_payment_status(response.status, capture_method);
+
+                // Store payment_handle_token for mandate if present. Encode both the
+                // reusable payment-handle token and the initial transaction id (Paysafe
+                // payment `id`) into connector_mandate_id, because the gRPC recurring path
+                // cannot carry mandate_metadata. The MIT RepeatPayment request decodes both
+                // back out.
+                let mandate_reference = response.payment_handle_token.as_ref().map(|token| {
                     let connector_mandate_id = serde_json::to_string(&PaysafeMandateReference {
                         payment_handle_token: token.peek().to_string(),
-                        initial_transaction_id: item.response.id.clone(),
+                        initial_transaction_id: response.id.clone(),
                     })
                     .unwrap_or_else(|_| token.peek().to_string());
                     MandateReference {
@@ -790,22 +1002,70 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
                     }
                 });
 
-        let mut router_data = item.router_data;
-        router_data.resource_common_data.status = status;
+                router_data.resource_common_data.status = status;
+
+                PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
+                    redirection_data: None,
+                    mandate_reference: mandate_reference.map(Box::new),
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: Some(response.merchant_ref_num),
+                    incremental_authorization_allowed: None,
+                    status_code: http_code,
+                    splits: None,
+                }
+            }
+            // Redirect APM (v1/paymenthandles): Skrill, Interac e-Transfer, paysafecard.
+            // Paysafe returns the handle INITIATED + a customer redirect link; surface it
+            // as redirection_data and keep the handle token in connector_metadata so the
+            // follow-up v1/payments settlement can locate it after the redirect returns.
+            PaysafeAuthorizeResponse::PaymentHandle(response) => {
+                let status = enums::AttemptStatus::try_from(response.status)?;
+
+                // Prefer a customer-facing redirect link (rel contains "redirect"); fall
+                // back to the first link, matching hyperswitch's links.first() behaviour.
+                let redirection_data = response
+                    .links
+                    .as_ref()
+                    .and_then(|links| {
+                        links
+                            .iter()
+                            .find(|link| link.rel.to_lowercase().contains("redirect"))
+                            .or_else(|| links.first())
+                    })
+                    .map(|link| {
+                        Box::new(RedirectForm::Form {
+                            endpoint: link.href.clone(),
+                            method: Method::Get,
+                            form_fields: Default::default(),
+                        })
+                    });
+
+                let connector_metadata = Some(serde_json::json!(PaysafeMeta {
+                    payment_handle_token: response.payment_handle_token.clone(),
+                }));
+
+                router_data.resource_common_data.status = status;
+
+                PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
+                    redirection_data,
+                    mandate_reference: None,
+                    connector_metadata,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: Some(response.merchant_ref_num),
+                    incremental_authorization_allowed: None,
+                    status_code: http_code,
+                    splits: None,
+                }
+            }
+        };
 
         Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
-                redirection_data: None,
-                mandate_reference: mandate_reference.map(Box::new),
-                connector_metadata: None,
-                network_txn_id: None,
-                network_txn_link_id: None,
-                connector_response_reference_id: Some(item.response.merchant_ref_num),
-                incremental_authorization_allowed: None,
-                status_code: item.http_code,
-                splits: None,
-            }),
+            response: Ok(response_data),
             ..router_data
         })
     }

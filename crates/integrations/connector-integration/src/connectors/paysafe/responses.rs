@@ -188,8 +188,27 @@ pub struct PaysafeErrorResponse {
     pub error: Error,
 }
 
+/// Authorize-flow response.
+///
+/// Non-redirect payment methods (card no-3DS, Apple Pay, and settlements of an
+/// existing payment handle) POST to `v1/payments` and return a
+/// [`PaysafePaymentsResponse`]. Redirect APMs (Skrill, Interac e-Transfer,
+/// paysafecard) instead POST to `v1/paymenthandles` and return a
+/// [`PaysafePaymentHandleResponse`] carrying the customer redirect `links`.
+///
+/// The variants are discriminated structurally (`untagged`): only
+/// `PaysafePaymentsResponse` has the required `amount` + `currencyCode` fields, so
+/// a payment-handle body (which lacks them) cannot match `Payment` and falls
+/// through to `PaymentHandle`. `Payment` is listed first so a genuine payments
+/// response is never mis-parsed as a handle.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PaysafeAuthorizeResponse {
+    Payment(PaysafePaymentsResponse),
+    PaymentHandle(PaysafePaymentHandleResponse),
+}
+
 // Type aliases for flows
 pub type PaysafePaymentMethodTokenResponse = PaysafePaymentHandleResponse;
-pub type PaysafeAuthorizeResponse = PaysafePaymentsResponse;
 pub type PaysafeCaptureResponse = PaysafeSettlementResponse;
 pub type PaysafeRepeatPaymentResponse = PaysafePaymentsResponse;

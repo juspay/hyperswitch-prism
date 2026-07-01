@@ -30,11 +30,11 @@ use interfaces::{
 use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
-    self as paysafe, PaysafeAuthorizeResponse, PaysafeCaptureRequest, PaysafeCaptureResponse,
-    PaysafeErrorResponse, PaysafePaymentMethodTokenRequest, PaysafePaymentMethodTokenResponse,
-    PaysafePaymentsRequest, PaysafeRSyncResponse, PaysafeRefundRequest, PaysafeRefundResponse,
-    PaysafeRepeatPaymentRequest, PaysafeRepeatPaymentResponse, PaysafeSyncResponse,
-    PaysafeVoidRequest, PaysafeVoidResponse,
+    self as paysafe, PaysafeAuthorizeRequest, PaysafeAuthorizeResponse, PaysafeCaptureRequest,
+    PaysafeCaptureResponse, PaysafeErrorResponse, PaysafePaymentMethodTokenRequest,
+    PaysafePaymentMethodTokenResponse, PaysafeRSyncResponse, PaysafeRefundRequest,
+    PaysafeRefundResponse, PaysafeRepeatPaymentRequest, PaysafeRepeatPaymentResponse,
+    PaysafeSyncResponse, PaysafeVoidRequest, PaysafeVoidResponse,
 };
 
 use super::macros;
@@ -132,7 +132,7 @@ macros::create_all_prerequisites!(
         ),
         (
             flow: Authorize,
-            request_body: PaysafePaymentsRequest,
+            request_body: PaysafeAuthorizeRequest<T>,
             response_body: PaysafeAuthorizeResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ),
@@ -331,7 +331,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Paysafe,
-    curl_request: Json(PaysafePaymentsRequest),
+    curl_request: Json(PaysafeAuthorizeRequest<T>),
     curl_response: PaysafeAuthorizeResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
@@ -351,7 +351,15 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}v1/payments", self.connector_base_url_payments(req)))
+            // Redirect APMs (Skrill, Interac e-Transfer, paysafecard) create a payment
+            // handle so Paysafe returns the customer redirect link; everything else
+            // settles a pre-created handle token via v1/payments. Mirrors hyperswitch.
+            let endpoint = if paysafe::is_paysafe_redirect_apm(&req.request.payment_method_data) {
+                "v1/paymenthandles"
+            } else {
+                "v1/payments"
+            };
+            Ok(format!("{}{}", self.connector_base_url_payments(req), endpoint))
         }
     }
 );
