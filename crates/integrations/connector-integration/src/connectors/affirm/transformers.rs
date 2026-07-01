@@ -101,7 +101,10 @@ impl From<AffirmTransactionStatus> for AttemptStatus {
             | AffirmTransactionStatus::DisputeRefunded
             | AffirmTransactionStatus::PartiallyRefunded => Self::Unresolved,
             AffirmTransactionStatus::Declined => Self::Failure,
-            AffirmTransactionStatus::Unknown => Self::Pending,
+            // An unrecognised/unmapped Affirm status is surfaced as `Unknown` (not `Pending`)
+            // so a genuinely unknown state is never silently treated as still-processing
+            // (mirrors the hyperswitch connector's `Unknown => AttemptStatus::Unknown`).
+            AffirmTransactionStatus::Unknown => Self::Unknown,
         }
     }
 }
@@ -166,7 +169,13 @@ fn ensure_affirm_paylater<T: PaymentMethodDataTypes>(
         _ => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 "Affirm only supports the PayLater (Affirm) payment method".to_string(),
-                Default::default(),
+                errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             )
         )),
     }
@@ -365,14 +374,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         .ok_or_else(|| {
                             error_stack::report!(errors::IntegrationError::MissingRequiredField {
                                 field_name: "complete_authorize_url",
-                                context: Default::default(),
+                                context: errors::IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "Affirm INITIATE needs complete_authorize_url to build the hosted-checkout user_confirmation_url."
+                                            .to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
                             })
                         })?,
                     user_cancel_url: router_data.request.router_return_url.clone().ok_or_else(
                         || {
                             error_stack::report!(errors::IntegrationError::MissingRequiredField {
                                 field_name: "router_return_url",
-                                context: Default::default(),
+                                context: errors::IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "Affirm INITIATE needs router_return_url to build the hosted-checkout user_cancel_url."
+                                            .to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
                             })
                         },
                     )?,
@@ -441,7 +462,13 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AffirmPaymentsRespons
             AffirmPaymentsResponse::Checkout(resp) => {
                 let redirect_url = Url::parse(&resp.redirect_url).change_context(
                     errors::ConnectorError::ResponseHandlingFailed {
-                        context: Default::default(),
+                        context: errors::ResponseTransformationErrorContext {
+                            http_status_code: None,
+                            additional_context: Some(
+                                "Affirm returned an unparseable hosted-checkout redirect_url."
+                                    .to_string(),
+                            ),
+                        },
                     },
                 )?;
                 let redirection_data = RedirectForm::from((redirect_url, Method::Get));
@@ -597,7 +624,13 @@ impl TryFrom<ResponseRouterData<AffirmCaptureResponse, Self>>
             .connector_transaction_id
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::ResponseHandlingFailed {
-                context: Default::default(),
+                context: errors::ResponseTransformationErrorContext {
+                    http_status_code: None,
+                    additional_context: Some(
+                        "Affirm capture response is missing the connector transaction id."
+                            .to_string(),
+                    ),
+                },
             })?;
 
         Ok(Self {

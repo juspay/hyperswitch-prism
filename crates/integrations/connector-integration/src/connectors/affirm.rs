@@ -18,7 +18,10 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -217,7 +220,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = AffirmAuthType::try_from(auth_type).change_context(
             IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Affirm uses HTTP Basic auth: provide public_key and private_key via x-connector-config."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
         // HTTP Basic auth: base64(public_key:private_key)
@@ -239,7 +248,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             .response
             .parse_struct("AffirmErrorResponse")
             .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: Default::default(),
+                context: ResponseTransformationErrorContext {
+                    http_status_code: Some(res.status_code),
+                    additional_context: Some(
+                        "Failed to parse the Affirm error response body.".to_string(),
+                    ),
+                },
             })?;
 
         with_error_response_body!(event_builder, response);
@@ -327,7 +341,13 @@ macros::macro_connector_implementation!(
                 .request
                 .get_connector_transaction_id()
                 .change_context(IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Affirm PSync requires the connector_transaction_id returned by Authorize COMPLETE."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 })?;
             Ok(format!(
                 "{}{TRANSACTIONS_PATH}/{transaction_id}?expand=events",
@@ -366,7 +386,13 @@ macros::macro_connector_implementation!(
                 .connector_transaction_id
                 .get_connector_transaction_id()
                 .change_context(IntegrationError::MissingConnectorTransactionID {
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Affirm Capture requires the connector_transaction_id returned by Authorize COMPLETE."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 })?;
             Ok(format!(
                 "{}{TRANSACTIONS_PATH}/{transaction_id}/capture",
