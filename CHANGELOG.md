@@ -19,6 +19,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.01.0
+
+### Features
+
+- **connector:** [barclaycard] add ApplePay/GooglePay wallets + 3DS card authentication ([#1599](https://github.com/juspay/connector-service/pull/1599)) ([`a40565d`](https://github.com/juspay/connector-service/commit/a40565d7af9825aff61324176af6814dd8aa8f70))
+
+### Bug Fixes
+
+- **nmi:** Map customer_vault_id to mandate_reference on repeat_payment response ([#1679](https://github.com/juspay/connector-service/pull/1679)) ([`26fc2f3`](https://github.com/juspay/connector-service/commit/26fc2f3d0cc3c128a9619a9d1f9fbf701f91c45a))
+
+### Documentation
+
+- **medusa:** Update connector support matrix (Mollie, Authorize.Net) ([#1758](https://github.com/juspay/connector-service/pull/1758)) ([`9e7ddf1`](https://github.com/juspay/connector-service/commit/9e7ddf19b7c6f77ec5ac402cefdc881da47c7c1d))
+
+**Full Changelog:** [`2026.06.30.2...2026.07.01.0`](https://github.com/juspay/connector-service/compare/2026.06.30.2...2026.07.01.0)
+
+- - -
+
 ## 2026.06.30.2
 
 ### Features
