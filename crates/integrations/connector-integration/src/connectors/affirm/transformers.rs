@@ -596,9 +596,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        // Send the merchant reference as `order_id` (parity with hyperswitch's Affirm
+        // capture, which uses connector_request_reference_id — the same source the
+        // Authorize/INITIATE leg uses). Empty reference → omit the field.
+        let order_id = match item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone()
+        {
+            ref_id if ref_id.is_empty() => None,
+            ref_id => Some(ref_id),
+        };
         Ok(Self {
             amount: item.router_data.request.minor_amount_to_capture,
-            order_id: item.router_data.resource_common_data.reference_id.clone(),
+            order_id,
         })
     }
 }
