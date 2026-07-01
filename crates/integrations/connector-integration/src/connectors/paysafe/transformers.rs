@@ -1,12 +1,15 @@
 use common_enums::enums;
 use common_utils::{ext_traits::ValueExt, request::Method};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PaymentMethodToken, RSync, Refund, RepeatPayment, Void},
+    connector_flow::{
+        Authorize, Capture, CreateConnectorCustomer, PaymentMethodToken, RSync, Refund,
+        RepeatPayment, Void,
+    },
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId,
+        ConnectorCustomerData, ConnectorCustomerResponse, MandateReference, MandateReferenceId,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     payment_method_data::{
         ApplePayPaymentData, BankDebitData, BankRedirectData, GiftCardData, GpayTokenizationData,
@@ -391,6 +394,108 @@ impl TryFrom<&enums::BankType> for PaysafeAchAccountType {
                 Default::default(),
             )),
         }
+    }
+}
+
+// CreateConnectorCustomer Flow - Request
+//
+// Registers a Paysafe customer (POST v1/customers) so a reusable MULTI_USE
+// payment handle can later be minted under v1/customers/{customerId}/paymenthandles
+// for card-on-file recurring (MIT). Mirrors hyperswitch's PaysafeCustomerDetails:
+// merchantCustomerId is mandatory; name/email/phone are optional and sourced from
+// the customer request and billing details.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaysafeRouterData<
+            RouterDataV2<
+                CreateConnectorCustomer,
+                PaymentFlowData,
+                ConnectorCustomerData,
+                ConnectorCustomerResponse,
+            >,
+            T,
+        >,
+    > for PaysafeCustomerRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: PaysafeRouterData<
+            RouterDataV2<
+                CreateConnectorCustomer,
+                PaymentFlowData,
+                ConnectorCustomerData,
+                ConnectorCustomerResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let customer_data = &router_data.request;
+
+        // merchantCustomerId is the merchant's stable customer identifier and is
+        // required by Paysafe.
+        let merchant_customer_id = customer_data
+            .customer_id
+            .as_ref()
+            .map(|id| id.peek().to_string())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "customer_id",
+                context: Default::default(),
+            })?;
+
+        let email = customer_data
+            .email
+            .as_ref()
+            .map(|email| email.peek().clone())
+            .or_else(|| {
+                router_data
+                    .resource_common_data
+                    .get_optional_billing_email()
+            });
+
+        let phone = customer_data.phone.clone().or_else(|| {
+            router_data
+                .resource_common_data
+                .get_optional_billing_phone_number()
+        });
+
+        Ok(Self {
+            merchant_customer_id,
+            first_name: router_data
+                .resource_common_data
+                .get_optional_billing_first_name(),
+            last_name: router_data
+                .resource_common_data
+                .get_optional_billing_last_name(),
+            email,
+            phone,
+        })
+    }
+}
+
+// CreateConnectorCustomer Flow - Response
+
+impl TryFrom<ResponseRouterData<PaysafeCustomerResponse, Self>>
+    for RouterDataV2<
+        CreateConnectorCustomer,
+        PaymentFlowData,
+        ConnectorCustomerData,
+        ConnectorCustomerResponse,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaysafeCustomerResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(ConnectorCustomerResponse {
+                connector_customer_id: item.response.id,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
     }
 }
 
@@ -953,7 +1058,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             settle_with_auth,
             currency_code: router_data.request.currency,
             customer_ip,
-            stored_credential: None,
+            // CIT (first mandate payment): register the initial transaction of the
+            // stored-credential series so the subsequent MIT — which references
+            // initialTransactionId — is accepted/scored correctly by Paysafe.
+            // Mirrors hyperswitch's storedCredential {type: ADHOC, occurrence: INITIAL}.
+            // One-off (non-mandate) payments send no storedCredential.
+            stored_credential: if router_data.request.is_customer_initiated_mandate_payment() {
+                Some(PaysafeStoredCredential {
+                    stored_credential_type: PaysafeStoredCredentialType::Adhoc,
+                    occurrence: MandateOccurrence::Initial,
+                    initial_transaction_id: None,
+                })
+            } else {
+                None
+            },
             account_id,
         })
     }
@@ -1207,6 +1325,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             initial_transaction_id: Some(initial_transaction_id),
         });
 
+        // Paysafe requires the processing accountId on the MIT settlement, just as
+        // on the CIT. The reusable handle was vaulted under the card account, so the
+        // MIT replays against the card no_three_ds account (MITs are never 3DS).
+        // Mirrors hyperswitch, which sends the no_three_ds card account for
+        // PaymentMethodData::MandatePayment.
+        let auth = PaysafeAuthType::try_from(&router_data.connector_config)?;
+        let account_id = auth
+            .account_id
+            .ok_or(IntegrationError::InvalidConnectorConfig {
+                config: "account_id",
+                context: Default::default(),
+            })?
+            .get_no_three_ds_account_id(router_data.request.currency)?;
+
         Ok(Self {
             merchant_ref_num: router_data
                 .resource_common_data
@@ -1218,7 +1350,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             currency_code: router_data.request.currency,
             customer_ip,
             stored_credential,
-            account_id: None,
+            account_id: Some(account_id),
         })
     }
 }

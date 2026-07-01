@@ -43,6 +43,27 @@ pub enum PaysafeStoredCredentialType {
     Topup,
 }
 
+/// CreateConnectorCustomer request body (`POST v1/customers`).
+///
+/// Registers a Paysafe customer profile so a reusable (MULTI_USE) payment handle
+/// can later be minted under `v1/customers/{customerId}/paymenthandles`. Mirrors
+/// hyperswitch's `PaysafeCustomerDetails`: `merchantCustomerId` is mandatory; the
+/// name/email/phone fields are optional and sourced from the customer/billing
+/// details the caller supplies.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeCustomerRequest {
+    pub merchant_customer_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<common_utils::pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<Secret<String>>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeCaptureRequest {

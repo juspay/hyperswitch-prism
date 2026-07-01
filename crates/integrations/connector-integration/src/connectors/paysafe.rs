@@ -7,13 +7,14 @@ use common_enums::{CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, RepeatPayment, Void,
+        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund,
+        RepeatPayment, Void,
     },
     connector_types::{
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData,
+        ConnectorCustomerData, ConnectorCustomerResponse, PaymentFlowData,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -31,10 +32,10 @@ use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
     self as paysafe, PaysafeAuthorizeRequest, PaysafeAuthorizeResponse, PaysafeCaptureRequest,
-    PaysafeCaptureResponse, PaysafeErrorResponse, PaysafePaymentMethodTokenRequest,
-    PaysafePaymentMethodTokenResponse, PaysafeRSyncResponse, PaysafeRefundRequest,
-    PaysafeRefundResponse, PaysafeRepeatPaymentRequest, PaysafeRepeatPaymentResponse,
-    PaysafeSyncResponse, PaysafeVoidRequest, PaysafeVoidResponse,
+    PaysafeCaptureResponse, PaysafeCustomerRequest, PaysafeCustomerResponse, PaysafeErrorResponse,
+    PaysafePaymentMethodTokenRequest, PaysafePaymentMethodTokenResponse, PaysafeRSyncResponse,
+    PaysafeRefundRequest, PaysafeRefundResponse, PaysafeRepeatPaymentRequest,
+    PaysafeRepeatPaymentResponse, PaysafeSyncResponse, PaysafeVoidRequest, PaysafeVoidResponse,
 };
 
 use super::macros;
@@ -95,6 +96,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::CreateConnectorCustomer for Paysafe<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentTokenV2<T> for Paysafe<T>
 {
 }
@@ -124,6 +129,12 @@ macros::create_all_prerequisites!(
     connector_name: Paysafe,
     generic_type: T,
     api: [
+        (
+            flow: CreateConnectorCustomer,
+            request_body: PaysafeCustomerRequest,
+            response_body: PaysafeCustomerResponse,
+            router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ),
         (
             flow: PaymentMethodToken,
             request_body: PaysafePaymentMethodTokenRequest<T>,
@@ -293,6 +304,34 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Paysafe,
+    curl_request: Json(PaysafeCustomerRequest),
+    curl_response: PaysafeCustomerResponse,
+    flow_name: CreateConnectorCustomer,
+    resource_common_data: PaymentFlowData,
+    flow_request: ConnectorCustomerData,
+    flow_response: ConnectorCustomerResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}v1/customers", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paysafe,
     curl_request: Json(PaysafePaymentMethodTokenRequest<T>),
     curl_response: PaysafePaymentMethodTokenResponse,
     flow_name: PaymentMethodToken,
@@ -314,6 +353,23 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
             use domain_types::payment_method_data::{PaymentMethodData, WalletData};
+            // Card-on-file recurring (CIT): when a Paysafe customer was created
+            // upstream (its id is carried on the flow data), mint a reusable
+            // MULTI_USE payment handle under the customer vault so the later MIT
+            // (RepeatPayment) can replay it. Mirrors hyperswitch's
+            // v1/customers/{customerId}/paymenthandles. The Tokenize proto does not
+            // carry setup_future_usage, so the presence of a connector_customer_id is
+            // the CIT signal; one-off card payments (no customer) fall through to the
+            // single-use v1/paymenthandles endpoint below (unchanged).
+            if matches!(req.request.payment_method_data, PaymentMethodData::Card(_)) {
+                if let Some(customer_id) = req.resource_common_data.connector_customer.as_ref() {
+                    return Ok(format!(
+                        "{}v1/customers/{}/paymenthandles",
+                        self.connector_base_url_payments(req),
+                        customer_id
+                    ));
+                }
+            }
             // Google Pay requires the singleusepaymenthandles endpoint per Paysafe docs.
             // Apple Pay (CARD account) and Skrill (redirect wallet) use the standard
             // paymenthandles endpoint; singleusepaymenthandles returns 5270 for them.
@@ -586,7 +642,6 @@ macros::macro_connector_flow_status_impls!(
         SetupMandate,
         VoidPC,
         PostAuthenticate,
-        CreateConnectorCustomer,
     ],
     not_supported: [
         VoidPostRefund,

@@ -188,6 +188,21 @@ pub struct PaysafeErrorResponse {
     pub error: Error,
 }
 
+/// CreateConnectorCustomer response body (`POST v1/customers`).
+///
+/// `id` is the Paysafe customer id (used as the connector_customer_id and later
+/// as the `{customerId}` path segment when minting a reusable payment handle).
+/// Mirrors hyperswitch's `PaysafeCustomerResponse`.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeCustomerResponse {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_customer_id: Option<String>,
+}
+
 /// Authorize-flow response.
 ///
 /// Non-redirect payment methods (card no-3DS, Apple Pay, and settlements of an
