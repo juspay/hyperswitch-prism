@@ -784,9 +784,7 @@ where
             if let Some(auth_methods) = item.response.authentication_methods.as_ref() {
                 redirection_data = build_auth_redirect(
                     auth_methods,
-                    item.router_data
-                        .request
-                        .get_optional_payment_method_type(),
+                    item.router_data.request.get_optional_payment_method_type(),
                 );
             }
         }
