@@ -398,7 +398,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentServiceAuthorizeResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "redirectionData": "RedirectForm", "state": "ConnectorState", "authorizedMoney": "Money", "mandateReference": "MandateReference", "connectorResponse": "ConnectorResponseData", "splits": "ConnectorSplitResponseData" },
   PaymentServiceGetRequest: { "amount": "Money", "state": "ConnectorState", "splitPayments": "SplitPaymentsDetails", "mandateReference": "ConnectorMandateReferenceId" },
   PaymentServiceGetResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "mandateReference": "MandateReference", "amount": "Money", "connectorResponse": "ConnectorResponseData", "state": "ConnectorState", "redirectionData": "RedirectForm", "paymentMethodUpdate": "PaymentMethodUpdate", "splits": "ConnectorSplitResponseData" },
-  PaymentServiceVoidRequest: { "browserInfo": "BrowserInformation", "amount": "Money", "state": "ConnectorState" },
+  PaymentServiceVoidRequest: { "browserInfo": "BrowserInformation", "amount": "Money", "state": "ConnectorState", "splitPayments": "SplitPaymentsDetails" },
   PaymentServiceVoidResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry", "state": "ConnectorState", "mandateReference": "MandateReference", "splits": "ConnectorSplitResponseData" },
   PaymentServiceReverseRequest: { "browserInfo": "BrowserInformation" },
   PaymentServiceReverseResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
