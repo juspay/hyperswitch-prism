@@ -46,6 +46,10 @@ pub enum RedirectForm {
     Mifinity {
         initialization_token: String,
     },
+    Flywire {
+        iframe_src: String,
+        return_url: String,
+    },
     WorldpayDDCForm {
         endpoint: url::Url,
         method: Method,

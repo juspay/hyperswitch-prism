@@ -20,45 +20,6 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
-// Iframe wrapper around the Flywire hosted form URL.
-// `__FLYWIRE_IFRAME_SRC__` is replaced at runtime with the live session URL;
-// `__FLYWIRE_RETURN_URL__` is replaced with the merchant's return_url.
-// Flywire postMessage event spec: https://developers.flywire.com/docs/hosted-checkout-js-sdk
-const FLYWIRE_HOSTED_TEMPLATE: &str = r#"<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Flywire Payment</title>
-  <style>
-    body, html { margin: 0; height: 100%; }
-    iframe { width: 100%; height: 100%; border: none; }
-  </style>
-</head>
-<body>
-  <iframe src="__FLYWIRE_IFRAME_SRC__" allow="payment"></iframe>
-  <script>
-    // Flywire's iframe emits many non-completion messages (focus, validation,
-    // resize); a false positive here interrupts customer input mid-entry.
-    function isCompletion(d) {
-      if (!d || typeof d !== 'object') return false;
-      if (d.success === true || d.success === false) return true;
-      var t = ((d.type || d.event) || '').toString().toUpperCase();
-      if (t === 'PAYMENT_COMPLETED' || t === 'PAYMENT_SUCCESS' ||
-          t === 'PAYMENT_FAILED'    || t === 'PAYMENT_CANCELLED') return true;
-      var s = (d.status || '').toString().toLowerCase();
-      return s === 'completed' || s === 'succeeded' ||
-             s === 'failed'    || s === 'cancelled';
-    }
-    window.addEventListener('message', function (e) {
-      if (!e.origin || !e.origin.endsWith('.flywire.com')) return;
-      if (!isCompletion(e.data)) return;
-      window.location.href = '__FLYWIRE_RETURN_URL__';
-    });
-  </script>
-</body>
-</html>"#;
-
 // =============================================================================
 // Auth
 // =============================================================================
@@ -322,10 +283,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
         let session_id = response.id.clone();
 
-        // The hosted-checkout iframe redirects the payer to `return_url` once the
-        // payment completes. Without it the payer would have no way back to the
-        // merchant, so treat a missing value as a hard error rather than an empty
-        // redirect target.
+        // Send only the raw fields the client needs; the hosted-checkout iframe
+        // and its completion-postMessage script are constructed upstream.
+        // `return_url` is where the payer is navigated once payment completes —
+        // without it there is no way back to the merchant, so a missing value is
+        // a hard error rather than an empty redirect target.
         let return_url = item
             .router_data
             .resource_common_data
@@ -343,10 +305,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 })
             })?;
-        let html_data = FLYWIRE_HOSTED_TEMPLATE
-            .replace("__FLYWIRE_IFRAME_SRC__", &response.hosted_form.url)
-            .replace("__FLYWIRE_RETURN_URL__", &return_url);
-        let redirection_data = Some(Box::new(RedirectForm::Html { html_data }));
+        let redirection_data = Some(Box::new(RedirectForm::Flywire {
+            iframe_src: response.hosted_form.url.clone(),
+            return_url,
+        }));
 
         Ok(Self {
             response: Ok(PaymentsResponseData::AuthenticateResponse {

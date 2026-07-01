@@ -1428,6 +1428,9 @@ message RedirectForm {
 
     // NMI-specific redirection data for 3DS flows.
     NmiData nmi = 6;
+
+    // Flywire-specific redirection data for hosted-checkout iframe flows.
+    FlywireData flywire = 7;
   }
 }
 
@@ -1474,6 +1477,19 @@ message BraintreeData {
 message MifinityData {
   // Initialization token for Mifinity SDK initialization
   string initialization_token = 1;
+}
+
+// Represents Flywire-specific redirection data.
+//
+// The connector returns only the raw fields; the client (upstream) renders the
+// hosted-checkout iframe and listens for Flywire's completion postMessage, then
+// navigates to `return_url`.
+message FlywireData {
+  // Flywire hosted-checkout form URL to load inside the iframe.
+  string iframe_src = 1;
+
+  // URL to navigate the payer to once the payment completes.
+  string return_url = 2;
 }
 
 // Represents NMI-specific redirection data for 3DS flows

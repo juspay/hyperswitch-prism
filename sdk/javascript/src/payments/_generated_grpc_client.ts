@@ -365,7 +365,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   AirlineSegment: { "departure": "AirlineLocation", "arrival": "AirlineLocation", "fareAmount": "Money", "feeAmount": "Money", "taxAmount": "Money" },
   AirlinePassenger: { "customer": "Customer" },
   RedirectionResponse: { "payload": "PayloadEntry" },
-  RedirectForm: { "form": "FormData", "html": "HtmlData", "uri": "UriData", "braintree": "BraintreeData", "mifinity": "MifinityData", "nmi": "NmiData" },
+  RedirectForm: { "form": "FormData", "html": "HtmlData", "uri": "UriData", "braintree": "BraintreeData", "mifinity": "MifinityData", "nmi": "NmiData", "flywire": "FlywireData" },
   FormData: { "formFields": "FormFieldsEntry" },
   NmiData: { "amount": "Money" },
   RequestDetails: { "headers": "HeadersEntry" },
