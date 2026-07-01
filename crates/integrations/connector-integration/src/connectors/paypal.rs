@@ -1804,6 +1804,7 @@ macros::macro_connector_flow_status_impls!(
         SubmitEvidence,
         DefendDispute,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         PaymentMethodToken,
         PreAuthenticate,
         Authenticate,

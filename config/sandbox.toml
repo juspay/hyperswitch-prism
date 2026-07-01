@@ -22,6 +22,7 @@ idle_pool_connection_timeout = 90
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+glomopay.base_url = "https://api.glomopay.com/api/v1/"
 hyperswitch.base_url = "https://sandbox.hyperswitch.io"
 payconex.base_url = "https://cert.payconex.net"
 tamara.base_url = "https://api-sandbox.tamara.co"

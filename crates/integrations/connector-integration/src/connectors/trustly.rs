@@ -487,6 +487,7 @@ macros::macro_connector_flow_status_impls!(
         DefendDispute,
         Accept,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         PostAuthenticate,
         MandateRevoke,
         ServerAuthenticationToken,

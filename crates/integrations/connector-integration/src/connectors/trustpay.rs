@@ -1055,6 +1055,7 @@ macros::macro_connector_flow_status_impls!(
         VoidPostRefund,
         IncrementalAuthorization,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         Accept,
         SubmitEvidence,
         DefendDispute,

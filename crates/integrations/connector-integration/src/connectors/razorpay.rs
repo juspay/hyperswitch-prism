@@ -1351,6 +1351,7 @@ macros::macro_connector_flow_status_impls!(
         ClientAuthenticationToken,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         RepeatPayment,
     ],
     not_supported: [

@@ -91,6 +91,7 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + ServerSessionAuthentication
     + ServerAuthentication
     + CreateConnectorCustomer
+    + GetConnectorCustomer
     + PaymentTokenV2<T>
     + RechargeV2
     + CreatePaymentMethodV2
@@ -185,6 +186,10 @@ pub trait ValidationTrait: ConnectorCommon {
         false
     }
 
+    fn should_lookup_connector_customer(&self) -> bool {
+        false
+    }
+
     fn should_do_payment_method_token(
         &self,
         _payment_method: PaymentMethod,
@@ -224,6 +229,13 @@ pub trait ValidationTrait: ConnectorCommon {
     /// Returns whether this connector requires Authorize to be called
     /// after VerifyRedirectResponse in the composite flow.
     fn requires_authorize_post_redirect(&self) -> bool {
+        false
+    }
+
+    /// Returns true if a PSync call must be made after receiving a webhook
+    /// before the payment status is trusted. Use for connectors that send
+    /// unsigned webhooks where the payload cannot be verified cryptographically.
+    fn should_psync_after_webhook(&self) -> bool {
         false
     }
 }
@@ -271,6 +283,16 @@ pub trait ServerAuthentication:
 pub trait CreateConnectorCustomer:
     ConnectorIntegrationV2<
     connector_flow::CreateConnectorCustomer,
+    PaymentFlowData,
+    ConnectorCustomerData,
+    ConnectorCustomerResponse,
+>
+{
+}
+
+pub trait GetConnectorCustomer:
+    ConnectorIntegrationV2<
+    connector_flow::GetConnectorCustomer,
     PaymentFlowData,
     ConnectorCustomerData,
     ConnectorCustomerResponse,

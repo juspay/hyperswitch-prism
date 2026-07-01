@@ -18,12 +18,12 @@ buffer_limit = 100000
 
 [server]
 host = "0.0.0.0"
-port = 8000
-type = "grpc"
+port = 8011
+type = "http"
 
 [metrics]
 host = "0.0.0.0"
-port = 8080
+port = 9090
 
 # OpenTelemetry (OTLP) metrics push. Requires building with the `otel` feature.
 # Disabled by default; the Prometheus /metrics scrape endpoint above is unaffected.
@@ -61,6 +61,7 @@ hyperswitch.base_url = "https://sandbox.hyperswitch.io"
 payconex.base_url = "https://cert.payconex.net"
 tamara.base_url = "https://api-sandbox.tamara.co"
 juspay.base_url = "https://sandbox.juspay.in/"
+glomopay.base_url = "https://api.glomopay.com/api/v1/"
 qwikcilver.base_url = "https://qc3.qwikcilver.com/"
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"

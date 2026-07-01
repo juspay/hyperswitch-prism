@@ -258,7 +258,8 @@ impl ForeignTryFrom<(Secret<String>, &'static str)> for SecretSerdeValue {
 use crate::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization, PSync,
+        CreateConnectorCustomer, CreateOrder, DefendDispute, GetConnectorCustomer,
+        IncrementalAuthorization, PSync,
         PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
         ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence,
         Void, VoidPC, VoidPostRefund,
@@ -409,6 +410,7 @@ pub struct Connectors {
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
     pub juspay: ConnectorParams,
+    pub glomopay: ConnectorParams,
     pub payconex: ConnectorParams,
     pub tamara: ConnectorParams,
     pub hyperswitch: ConnectorParams,
@@ -12629,6 +12631,49 @@ impl
 pub fn generate_create_connector_customer_response(
     router_data_v2: RouterDataV2<
         CreateConnectorCustomer,
+        PaymentFlowData,
+        ConnectorCustomerData,
+        crate::connector_types::ConnectorCustomerResponse,
+    >,
+) -> Result<grpc_payment_types::CustomerServiceCreateResponse, error_stack::Report<ConnectorError>>
+{
+    let customer_response = router_data_v2.response;
+
+    match customer_response {
+        Ok(response) => Ok(grpc_payment_types::CustomerServiceCreateResponse {
+            connector_customer_id: response.connector_customer_id.clone(),
+            error: None,
+            status_code: response.status_code as u32,
+            response_headers: router_data_v2
+                .resource_common_data
+                .get_connector_response_headers_as_map(),
+            merchant_customer_id: Some(response.connector_customer_id.clone()),
+        }),
+        Err(e) => Ok(grpc_payment_types::CustomerServiceCreateResponse {
+            connector_customer_id: String::new(),
+            status_code: e.status_code as u32,
+            response_headers: router_data_v2
+                .resource_common_data
+                .get_connector_response_headers_as_map(),
+            merchant_customer_id: e.connector_transaction_id.clone(),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    message: Some(e.message.clone()),
+                    code: Some(e.code.clone()),
+                    reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: None,
+                }),
+                issuer_details: None,
+            }),
+        }),
+    }
+}
+
+pub fn generate_get_connector_customer_response(
+    router_data_v2: RouterDataV2<
+        GetConnectorCustomer,
         PaymentFlowData,
         ConnectorCustomerData,
         crate::connector_types::ConnectorCustomerResponse,

@@ -1001,6 +1001,7 @@ macros::macro_connector_flow_status_impls!(
         VoidPostRefund,
         VoidPC,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         IncrementalAuthorization,
     ],
 );

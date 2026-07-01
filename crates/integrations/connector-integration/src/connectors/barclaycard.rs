@@ -731,6 +731,7 @@ macros::macro_connector_flow_status_impls!(
         VoidPC,
         PaymentMethodToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
         ClientAuthenticationToken,

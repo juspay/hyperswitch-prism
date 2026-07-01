@@ -811,6 +811,7 @@ enum Connector {
   QWIKCILVER = 125;
   HYPERSWITCH = 126;
   TSYS_TRANSIT = 127;
+  GLOMOPAY = 128;
 }
 
 // Payment method types
@@ -1559,6 +1560,10 @@ message EventServiceHandleResponse {
 
   // Integrity fields that downstream can use to verify the webhook payload.
   repeated IntegrityCheck supported_integrity_checks = 6;
+
+  // If true, caller must perform a PSync before trusting the webhook status.
+  // Set for connectors that send unsigned webhooks (e.g. Glomopay).
+  bool requires_payment_sync = 7;
 }
 
 // Request for notifying connectors about events
@@ -4935,6 +4940,11 @@ message HyperswitchConfig {
   optional string base_url = 50;
 }
 
+message GlomopayConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -5225,6 +5235,8 @@ message ConnectorSpecificConfig {
     HyperswitchConfig hyperswitch = 132;
     // TSYS_TRANSIT = 127
     TsysTransitConfig tsys_transit = 133;
+    // GLOMOPAY = 128
+    GlomopayConfig glomopay = 134;
   }
 }
 

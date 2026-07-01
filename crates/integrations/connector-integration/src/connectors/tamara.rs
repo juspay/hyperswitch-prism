@@ -426,6 +426,7 @@ macros::macro_connector_flow_status_impls!(
         PostAuthenticate,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         ClientAuthenticationToken,
     ],
 );
