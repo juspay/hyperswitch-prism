@@ -2098,8 +2098,8 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoPSyncInquiryResponse, Self>>
 
 fn paco_status_to_settlement_status(
     status: &PacoPaymentStatus,
-) -> domain_types::connector_types::SettlementStatus {
-    use domain_types::connector_types::SettlementStatus;
+) -> connector_types::SettlementStatus {
+    use connector_types::SettlementStatus;
     match status {
         PacoPaymentStatus::S => SettlementStatus::Settled,
         PacoPaymentStatus::A => SettlementStatus::NotSettled,
