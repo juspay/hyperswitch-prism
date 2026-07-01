@@ -156,7 +156,10 @@ fn build_paysafe_redirect_handle_request<
     let currency = router_data.request.currency;
     let amount = router_data.request.minor_amount;
 
-    let (payment_method, payment_type, account_id) = match &router_data.request.payment_method_data {
+    let (payment_method, payment_type, account_id, profile) = match &router_data
+        .request
+        .payment_method_data
+    {
         PaymentMethodData::Wallet(WalletData::Skrill(_)) => {
             // Skrill consumer id is the billing email (mandatory). Skrill omits
             // accountId entirely (sending the card accountId returns error 5068).
@@ -172,6 +175,7 @@ fn build_paysafe_redirect_handle_request<
                     skrill: PaysafeSkrill { consumer_id },
                 },
                 PaysafePaymentType::Skrill,
+                None,
                 None,
             )
         }
@@ -190,12 +194,34 @@ fn build_paysafe_redirect_handle_request<
                 })?;
             // Interac REQUIRES an accountId for CAD (unlike Skrill).
             let account_id = account_id.get_interac_account_id(currency)?;
+            // Paysafe REQUIRES a consumer profile on the INTERAC_ETRANSFER payment
+            // handle. Mirror hyperswitch: firstName, lastName and email are all
+            // mandatory, sourced from billing details. profile is set ONLY for
+            // Interac (never for Skrill/paysafecard/card/wallet).
+            let profile = Some(PaysafeProfile {
+                first_name: router_data
+                    .resource_common_data
+                    .get_optional_billing_first_name()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "billing_first_name",
+                        context: Default::default(),
+                    })?,
+                last_name: router_data
+                    .resource_common_data
+                    .get_optional_billing_last_name()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "billing_last_name",
+                        context: Default::default(),
+                    })?,
+                email: consumer_id.clone(),
+            });
             (
                 PaysafePaymentMethod::InteracEtransfer {
                     interac_etransfer: PaysafeInterac { consumer_id },
                 },
                 PaysafePaymentType::InteracEtransfer,
                 Some(account_id),
+                profile,
             )
         }
         PaymentMethodData::GiftCard(gift_card_data)
@@ -215,6 +241,7 @@ fn build_paysafe_redirect_handle_request<
                     paysafecard: PaysafePaysafecard { consumer_id },
                 },
                 PaysafePaymentType::Paysafecard,
+                None,
                 None,
             )
         }
@@ -275,7 +302,7 @@ fn build_paysafe_redirect_handle_request<
         return_links,
         account_id,
         three_ds: None,
-        profile: None,
+        profile,
         billing_details,
     })
 }
