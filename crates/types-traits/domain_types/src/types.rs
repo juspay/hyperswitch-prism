@@ -1887,6 +1887,9 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::Alma(_) => Ok(
                     Self::PayLater(payment_method_data::PayLaterData::AlmaRedirect {}),
                 ),
+                grpc_api_types::payments::payment_method::PaymentMethod::TamaraRedirect(_) => Ok(
+                    Self::PayLater(payment_method_data::PayLaterData::TamaraRedirect {}),
+                ),
                 // ============================================================================
                 // DIRECT DEBIT - Direct variants
                 // ============================================================================
@@ -2620,6 +2623,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::AfterpayClearpay(_) => Ok(Some(PaymentMethodType::AfterpayClearpay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_) => Ok(Some(PaymentMethodType::Klarna)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Alma(_) => Ok(Some(PaymentMethodType::Alma)),
+                grpc_api_types::payments::payment_method::PaymentMethod::TamaraRedirect(_) => Ok(Some(PaymentMethodType::Tamara)),
                 // ============================================================================
                 // DIRECT DEBIT - PaymentMethodType mappings
                 // ============================================================================
@@ -3671,7 +3675,7 @@ impl ForeignTryFrom<grpc_payment_types::AirlineSegment> for connector_types::Air
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             sequence_no: segment.sequence_no,
-            carrier_code: segment.carrier_code,
+            marketing_carrier_code: segment.marketing_carrier_code,
             flight_number: segment.flight_number,
             flight_type: segment.flight_type,
             class_of_service: segment.class_of_service,
@@ -3697,6 +3701,8 @@ impl ForeignTryFrom<grpc_payment_types::AirlineSegment> for connector_types::Air
             conjunction_ticket: segment.conjunction_ticket,
             coupon_number: segment.coupon_number,
             endorsements_restrictions: segment.endorsements_restrictions,
+            operating_carrier_code: segment.operating_carrier_code,
+            operating_flight_number: segment.operating_flight_number,
         })
     }
 }
@@ -6285,6 +6291,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::Alma(_)),
+            } => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::TamaraRedirect(_)),
             } => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -10871,6 +10881,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SetupMandateDetails> for MandateDa
         value: grpc_api_types::payments::SetupMandateDetails,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         // Map the mandate_type from grpc type to domain type
+        #[allow(deprecated)]
         let mandate_type = value
             .mandate_type
             .and_then(|grpc_mandate_type| match grpc_mandate_type.mandate_type {
@@ -11628,6 +11639,7 @@ pub enum PaymentMethodDataType {
     PayBrightRedirect,
     WalleyRedirect,
     AlmaRedirect,
+    TamaraRedirect,
     AtomeRedirect,
     BancontactCard,
     Bizum,

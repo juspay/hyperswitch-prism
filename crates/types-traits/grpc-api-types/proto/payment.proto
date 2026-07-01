@@ -1140,28 +1140,28 @@ message OnlineMandate {
 // scoring (e.g. Kount's `recurring` block). In that FRM usage `amount` is the
 // per-period billing amount and `frequency` is the billing period.
 message MandateAmountData {
-  int64 amount = 1;              // Amount
-  Currency currency = 2;         // Currency code (ISO 4217)
-  optional int64 start_date = 3; // Unix timestamp for start date
-  optional int64 end_date = 4;   // Unix timestamp for end date
+  int64 amount = 1 [deprecated = true]; // Use amount_money instead (will be removed in a future release)
+  Currency currency = 2 [deprecated = true]; // Use amount_money.currency instead (will be removed in a future release)
+  optional int64 start_date = 3;        // Unix timestamp for start date
+  optional int64 end_date = 4;          // Unix timestamp for end date
   optional string amount_type =
       5; // Amount type for variable mandates ("exact", "max", "variable")
   optional string frequency =
-      6; // Frequency / billing period ("daily", "weekly", "monthly")
+      6; // Frequency for recurring mandates ("daily", "weekly", "monthly")
+  optional Money amount_money = 7; // Amount in Money type
 
-  // ── Subscription / recurring-order fields (FRM risk scoring) ──────────────
   // First billing amount in the smallest currency unit.
-  optional uint64 initial_billing_amount = 7;
+  optional uint64 initial_billing_amount = 8;
   // Merchant's external subscription identifier.
-  optional string external_subscription_id = 8;
+  optional string external_subscription_id = 9;
   // Subscription status (e.g. "ACTIVE").
-  optional string status = 9;
+  optional string status = 10;
   // Unix timestamp for the next billing date.
-  optional int64 next_billing_date = 10;
+  optional int64 next_billing_date = 11;
   // Number of billing cycles elapsed / scheduled.
-  optional int32 billing_cycle = 11;
+  optional int32 billing_cycle = 12;
   // Free-form description of the subscription.
-  optional string description = 12;
+  optional string description = 13;
 }
 
 // Mandate type with amount details
@@ -1369,8 +1369,8 @@ message AirlineData {
 // how Address is reused for billing/shipping.
 message AirlineSegment {
   optional uint32 sequence_no = 1;              // 1-based leg order
-  optional string carrier_code = 2;             // Marketing carrier IATA-2
-  optional string flight_number = 3;            // Flight number
+  optional string marketing_carrier_code = 2;   // Marketing carrier IATA-2 (ticket-issuing airline)
+  optional string flight_number = 3;            // Marketing flight number
   optional string flight_type = 4;              // "Domestic" / "International"
   optional string class_of_service = 5;         // F / J / Y / W
   optional string fare_basis_code = 6;          // Fare basis code
@@ -1388,6 +1388,9 @@ message AirlineSegment {
   optional string conjunction_ticket = 14;      // Conjunction ticket for >4 legs
   optional string coupon_number = 15;           // Coupon number for this leg
   optional string endorsements_restrictions = 16; // Endorsements / restrictions
+
+  optional string operating_carrier_code = 17;  // Operating carrier IATA-2
+  optional string operating_flight_number = 18; // Operating flight number
 }
 
 // A flight endpoint, reused for both departure and arrival.
@@ -1395,7 +1398,7 @@ message AirlineLocation {
   optional string airport_code = 1;             // IATA-3 airport code
   optional string city_code = 2;                // IATA-3 city code
   optional string city_name = 3;                // City name
-  optional string country_code = 4;             // ISO 3166-1 numeric-3 country code
+  optional string country_code = 4;             // ISO 3166-1 alpha-2 country code (connectors convert to numeric/alpha-3 as needed)
   optional string country_name = 5;             // Country name
   optional string date_time = 6;                // Local scheduled time (RFC 3339)
 }
