@@ -227,15 +227,13 @@ fn build_paysafe_redirect_handle_request<
         PaymentMethodData::GiftCard(gift_card_data)
             if matches!(gift_card_data.as_ref(), GiftCardData::PaySafeCard {}) =>
         {
-            // paysafecard consumerId is the billing email (mandatory). Mirror Skrill:
-            // omit accountId entirely.
-            let consumer_id = router_data
-                .resource_common_data
-                .get_optional_billing_email()
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "email",
-                    context: Default::default(),
-                })?;
+            // paysafecard consumerId is the merchant customer id (mandatory),
+            // NOT the billing email. paysafecard restricts consumerId to a
+            // limited character set (alphanumeric + a few specials), so a raw
+            // email containing '@' is rejected. Mirror hyperswitch, which sources
+            // this field from get_customer_id() (id_type::CustomerId) and reserves
+            // billing email for Skrill/Interac only. Mirror Skrill: omit accountId.
+            let consumer_id = router_data.resource_common_data.get_customer_id()?;
             (
                 PaysafePaymentMethod::Paysafecard {
                     paysafecard: PaysafePaysafecard { consumer_id },
@@ -702,15 +700,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
                 PaymentMethodData::GiftCard(gift_card_data) => match gift_card_data.as_ref() {
                     GiftCardData::PaySafeCard {} => {
-                        // paysafecard consumerId is the billing email. It is mandatory
-                        // (the PaySafeCard {} variant carries no fields of its own).
-                        let consumer_id = router_data
-                            .resource_common_data
-                            .get_optional_billing_email()
-                            .ok_or(IntegrationError::MissingRequiredField {
-                                field_name: "email",
-                                context: Default::default(),
-                            })?;
+                        // paysafecard consumerId is the merchant customer id, NOT the
+                        // billing email. paysafecard restricts consumerId to a limited
+                        // character set, so a raw email ('@') is rejected. Mirror
+                        // hyperswitch: source from get_customer_id() (id_type::CustomerId),
+                        // reserving billing email for Skrill/Interac only.
+                        let consumer_id = router_data.resource_common_data.get_customer_id()?;
                         let paysafecard = PaysafePaysafecard { consumer_id };
                         // Mirror Skrill: omit accountId entirely for paysafecard.
                         (

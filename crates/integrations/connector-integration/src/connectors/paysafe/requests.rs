@@ -138,8 +138,13 @@ pub struct PaysafeInterac {
 #[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafePaysafecard {
-    /// paysafecard consumer identifier. REQUIRED. Mapped from billing email.
-    pub consumer_id: common_utils::pii::Email,
+    /// paysafecard consumer identifier. REQUIRED. Mapped from the merchant
+    /// customer id (a stable, non-PII identifier). paysafecard's consumerId has
+    /// a restricted format (alphanumeric + limited specials), so a raw billing
+    /// email (containing '@') is not a valid value. Mirrors hyperswitch, which
+    /// maps this field from get_customer_id() (id_type::CustomerId), reserving
+    /// billing email for Skrill/Interac only.
+    pub consumer_id: common_utils::id_type::CustomerId,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
