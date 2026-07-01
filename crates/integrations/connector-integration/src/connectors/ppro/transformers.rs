@@ -5,19 +5,20 @@ use serde::{Deserialize, Serialize};
 
 use super::PproRouterData;
 use crate::types::ResponseRouterData;
+use crate::utils::GetOptionalPaymentMethodType;
 use domain_types::errors::{ConnectorError, IntegrationError, WebhookError};
 use domain_types::{
     connector_flow::{Capture, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
         EventType, MandateReference, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
-        SetupMandateRequestData,
+        PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     mandates::MandateDataType,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
+    router_response_types::RedirectForm,
 };
 use interfaces::webhooks::IncomingWebhookEvent;
 
@@ -213,18 +214,7 @@ where
                 }
                 .into());
             }
-            let billing_country = router_data
-                .resource_common_data
-                .get_billing_address()
-                .ok()
-                .and_then(|billing| billing.country);
-            if billing_country.is_none() {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name: "billing.address.country",
-                    context: Default::default(),
-                }
-                .into());
-            }
+            router_data.resource_common_data.get_billing_country()?;
         }
 
         let merchant_consumer_reference = if matches!(
@@ -753,7 +743,7 @@ pub enum PproWebhookData {
 impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, Req, PaymentsResponseData>
 where
-    Req: GetPproPaymentMethodType,
+    Req: GetOptionalPaymentMethodType,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PproPaymentsResponse, Self>) -> Result<Self, Self::Error> {
@@ -789,12 +779,14 @@ where
             }
         }
 
-        let mut redirection_data: Option<domain_types::router_response_types::RedirectForm> = None;
+        let mut redirection_data: Option<RedirectForm> = None;
         if status == common_enums::AttemptStatus::AuthenticationPending {
             if let Some(auth_methods) = item.response.authentication_methods.as_ref() {
                 redirection_data = build_auth_redirect(
                     auth_methods,
-                    item.router_data.request.ppro_payment_method_type(),
+                    item.router_data
+                        .request
+                        .get_optional_payment_method_type(),
                 );
             }
         }
@@ -1043,50 +1035,12 @@ pub struct PproAgreementRequest {
     pub instrument: Option<PproInstrument>,
 }
 
-/// Exposes the requested `PaymentMethodType` so the generic payments response handler can
-/// pick the PPRO authentication method matching the consumer's choice (UPI Intent vs QR).
-pub(crate) trait GetPproPaymentMethodType {
-    fn ppro_payment_method_type(&self) -> Option<common_enums::PaymentMethodType>;
-}
-
-impl<T: PaymentMethodDataTypes> GetPproPaymentMethodType for PaymentsAuthorizeData<T> {
-    fn ppro_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
-        self.payment_method_type
-    }
-}
-
-impl GetPproPaymentMethodType for PaymentsSyncData {
-    fn ppro_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
-        self.payment_method_type
-    }
-}
-
-impl<T: PaymentMethodDataTypes> GetPproPaymentMethodType for RepeatPaymentData<T> {
-    fn ppro_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
-        self.payment_method_type
-    }
-}
-
-impl GetPproPaymentMethodType for PaymentsCaptureData {
-    fn ppro_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
-        None
-    }
-}
-
-impl GetPproPaymentMethodType for PaymentVoidData {
-    fn ppro_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
-        None
-    }
-}
-
 /// Builds a `RedirectForm` from the PPRO authentication method matching the requested
 /// payment method: UPI Intent → `APP_INTENT`, UPI QR → `SCAN_CODE`, otherwise `REDIRECT`.
 pub(crate) fn build_auth_redirect(
     auth_methods: &[PproAuthenticationResponse],
     payment_method_type: Option<common_enums::PaymentMethodType>,
-) -> Option<domain_types::router_response_types::RedirectForm> {
-    use domain_types::router_response_types::RedirectForm;
-
+) -> Option<RedirectForm> {
     let wanted_type = match payment_method_type {
         Some(common_enums::PaymentMethodType::UpiIntent) => PproAuthenticationType::AppIntent,
         Some(common_enums::PaymentMethodType::UpiQr) => PproAuthenticationType::ScanCode,
