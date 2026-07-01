@@ -7,6 +7,7 @@ import types.Payment.*
 import types.Payouts.*
 import types.PaymentMethods.*
 import types.Surcharge.*
+import types.Frm.*
 
 import uniffi.connector_service_ffi.acceptReqTransformer
 import uniffi.connector_service_ffi.acceptResTransformer
@@ -54,8 +55,12 @@ import uniffi.connector_service_ffi.payoutVoidReqTransformer
 import uniffi.connector_service_ffi.payoutVoidResTransformer
 import uniffi.connector_service_ffi.postAuthenticateReqTransformer
 import uniffi.connector_service_ffi.postAuthenticateResTransformer
+import uniffi.connector_service_ffi.postRiskCheckReqTransformer
+import uniffi.connector_service_ffi.postRiskCheckResTransformer
 import uniffi.connector_service_ffi.preAuthenticateReqTransformer
 import uniffi.connector_service_ffi.preAuthenticateResTransformer
+import uniffi.connector_service_ffi.preRiskCheckReqTransformer
+import uniffi.connector_service_ffi.preRiskCheckResTransformer
 import uniffi.connector_service_ffi.proxyAuthorizeReqTransformer
 import uniffi.connector_service_ffi.proxyAuthorizeResTransformer
 import uniffi.connector_service_ffi.proxySetupRecurringReqTransformer
@@ -111,7 +116,9 @@ object FlowRegistry {
         "payout_transfer" to ::payoutTransferReqTransformer,
         "payout_void" to ::payoutVoidReqTransformer,
         "post_authenticate" to ::postAuthenticateReqTransformer,
+        "post_risk_check" to ::postRiskCheckReqTransformer,
         "pre_authenticate" to ::preAuthenticateReqTransformer,
+        "pre_risk_check" to ::preRiskCheckReqTransformer,
         "proxy_authorize" to ::proxyAuthorizeReqTransformer,
         "proxy_setup_recurring" to ::proxySetupRecurringReqTransformer,
         "recurring_revoke" to ::recurringRevokeReqTransformer,
@@ -151,7 +158,9 @@ object FlowRegistry {
         "payout_transfer" to ::payoutTransferResTransformer,
         "payout_void" to ::payoutVoidResTransformer,
         "post_authenticate" to ::postAuthenticateResTransformer,
+        "post_risk_check" to ::postRiskCheckResTransformer,
         "pre_authenticate" to ::preAuthenticateResTransformer,
+        "pre_risk_check" to ::preRiskCheckResTransformer,
         "proxy_authorize" to ::proxyAuthorizeResTransformer,
         "proxy_setup_recurring" to ::proxySetupRecurringResTransformer,
         "recurring_revoke" to ::recurringRevokeResTransformer,
@@ -218,6 +227,21 @@ class EventClient(
     // parse_event: EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit.
     fun parse_event(request: EventServiceParseRequest, options: RequestConfig? = null): EventServiceParseResponse =
         executeDirect("parse_event", request.toByteArray(), EventServiceParseResponse.parser(), options)
+
+}
+
+class FraudAndRiskManagementClient(
+    config: ConnectorConfig,
+    defaults: RequestConfig = RequestConfig.getDefaultInstance(),
+    libPath: String? = null
+) : ConnectorClient(config, defaults, libPath) {
+    // post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+    fun post_risk_check(request: FrmServicePostRiskCheckRequest, options: RequestConfig? = null): FrmServicePostRiskCheckResponse =
+        executeFlow("post_risk_check", request.toByteArray(), FrmServicePostRiskCheckResponse.parser(), options)
+
+    // pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+    fun pre_risk_check(request: FrmServicePreRiskCheckRequest, options: RequestConfig? = null): FrmServicePreRiskCheckResponse =
+        executeFlow("pre_risk_check", request.toByteArray(), FrmServicePreRiskCheckResponse.parser(), options)
 
 }
 

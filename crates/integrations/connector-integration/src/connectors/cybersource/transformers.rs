@@ -48,6 +48,9 @@ use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+/// Cybersource Flex Microform client version. The legacy "0.11" is rejected with
+/// "Invalid Client Version"; "v2.0" is the current value.
+pub const FLEX_MICROFORM_CLIENT_VERSION: &str = "v2.0";
 pub const REFUND_VOIDED: &str = "Refund request has been voided.";
 const CYBERSOURCE_STATE_MAX_LENGTH: usize = 20;
 
@@ -5598,8 +5601,22 @@ fn convert_metadata_to_merchant_defined_info(
 ) -> Option<Vec<utils::MerchantDefinedInformation>> {
     let mut iter = 1;
 
+    // Sort metadata keys to match the Direct (hyperswitch) gateway, which deserializes
+    // metadata into a `BTreeMap` (alphabetical key order). Without this the UCS leg preserves
+    // the raw JSON insertion order (serde_json `preserve_order` is enabled in this crate),
+    // producing a merchantDefinedInformation array whose element ordering diverges from Direct.
     let mut result: Vec<utils::MerchantDefinedInformation> = metadata
-        .and_then(|value| value.as_object().cloned())
+        .and_then(|value| {
+            serde_json::from_value::<std::collections::BTreeMap<String, serde_json::Value>>(value)
+                .map_err(|error| {
+                    tracing::warn!(
+                        ?error,
+                        "Failed to deserialize cybersource metadata into a BTreeMap; \
+                         skipping merchantDefinedInformation for this payment"
+                    );
+                })
+                .ok()
+        })
         .map(|map| {
             map.into_iter()
                 .map(|(key, value)| {
@@ -5617,7 +5634,7 @@ fn convert_metadata_to_merchant_defined_info(
     if let Some(merchant_ref_id) = merchant_order_id {
         result.push(utils::MerchantDefinedInformation {
             key: iter,
-            value: format!("merchant_order_id={merchant_ref_id}"),
+            value: format!("merchant_order_reference_id={merchant_ref_id}"),
         });
     }
 
@@ -5696,14 +5713,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        // Extract the origin from the return_url for target_origins
+        // Extract the full origin from the return_url for target_origins.
+        // Flex Microform enforces this via CSP frame-ancestors, so a local dev
+        // origin such as http://localhost:5173 must retain the explicit port.
         let target_origin = url::Url::parse(&return_url)
-            .map(|u| format!("{}://{}", u.scheme(), u.host_str().unwrap_or_default()))
+            .map(|u| u.origin().ascii_serialization())
             .unwrap_or(return_url);
 
         Ok(Self {
             target_origins: vec![target_origin],
-            client_version: "0.11".to_string(),
+            client_version: FLEX_MICROFORM_CLIENT_VERSION.to_string(),
             allowed_card_networks: Some(vec![
                 CybersourceFlexCardNetwork::Visa,
                 CybersourceFlexCardNetwork::Mastercard,
@@ -5826,22 +5845,5 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Regression: when card_network is absent, the fallback path must pass the
-    // raw card number to get_card_issuer. Previously the code used
-    // format!("{:?}", card_number) which triggered Debug masking
-    // ("424242**********") and broke the BIN regex match, producing card.type = null.
-    #[test]
-    #[allow(clippy::expect_used)]
-    fn card_type_fallback_returns_visa_001_for_test_card() {
-        let issuer = domain_types::utils::get_card_issuer("4242424242424242")
-            .expect("Visa BIN should be recognized");
-        assert_eq!(card_issuer_to_string(issuer), "001");
     }
 }

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::errors::EventPublisherError;
+use crate::types::ExecutionMode;
 use crate::{
     global_id::{
         customer::GlobalCustomerId,
@@ -230,6 +231,8 @@ pub struct Event {
     #[serde(serialize_with = "serialize_method")]
     pub method: Option<String>,
     pub stage: EventStage,
+    /// Primary execution or shadow mirror.
+    pub execution_mode: ExecutionMode,
     pub latency_ms: Option<u64>,
     pub status_code: Option<i32>,
     pub request_data: Option<MaskedSerdeValue>,
@@ -360,6 +363,8 @@ pub enum FlowName {
     Recharge,
     CreatePaymentMethod,
     GetPaymentMethod,
+    PreRiskCheck,
+    PostRiskCheck,
     PaymentMethodEligibility,
 }
 
@@ -406,6 +411,8 @@ impl FlowName {
             Self::Recharge => "Recharge",
             Self::CreatePaymentMethod => "CreatePaymentMethod",
             Self::GetPaymentMethod => "GetPaymentMethod",
+            Self::PreRiskCheck => "PreRiskCheck",
+            Self::PostRiskCheck => "PostRiskCheck",
             Self::PaymentMethodEligibility => "PaymentMethodEligibility",
             Self::Unknown => "Unknown",
         }
@@ -427,13 +434,22 @@ impl EventStage {
     }
 }
 
+/// A Kafka topic plus the payload field whose value is used as its partition key.
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
+pub struct KafkaTopicConfig {
+    pub topic: String,
+    pub partition_key_field: String,
+}
+
 /// Configuration for events system
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct EventConfig {
     pub enabled: bool,
-    pub topic: String,
     pub brokers: Vec<String>,
-    pub partition_key_field: String,
+    /// Outbound connector-call events.
+    pub connector_events: KafkaTopicConfig,
+    /// Inbound request events.
+    pub api_events: KafkaTopicConfig,
     #[serde(default)]
     pub transformations: HashMap<String, String>, // target_path → source_field
     #[serde(default)]
@@ -442,13 +458,23 @@ pub struct EventConfig {
     pub extractions: HashMap<String, String>, // target_path → extraction_path
 }
 
+impl EventConfig {
+    /// Topic + partition key for the given event stage.
+    pub fn topic_config(&self, stage: &EventStage) -> &KafkaTopicConfig {
+        match stage {
+            EventStage::ConnectorCall => &self.connector_events,
+            EventStage::GrpcRequest => &self.api_events,
+        }
+    }
+}
+
 impl Default for EventConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            topic: "events".to_string(),
             brokers: vec!["localhost:9092".to_string()],
-            partition_key_field: "request_id".to_string(),
+            connector_events: KafkaTopicConfig::default(),
+            api_events: KafkaTopicConfig::default(),
             transformations: HashMap::new(),
             static_values: HashMap::new(),
             extractions: HashMap::new(),

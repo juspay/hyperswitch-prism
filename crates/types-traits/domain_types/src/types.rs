@@ -414,6 +414,7 @@ pub struct Connectors {
     pub hyperswitch: ConnectorParams,
     pub qwikcilver: ConnectorParams,
     pub affirm: ConnectorParams,
+    pub kount: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -773,6 +774,8 @@ impl Proxy {
 #[derive(Debug, Serialize, Clone, PartialEq, Eq, Default, config_patch_derive::Patch)]
 pub struct ProxyConfig {
     pub idle_pool_connection_timeout: Option<u64>,
+    /// Total timeout (seconds) for a single connector API call.
+    pub connector_request_timeout: Option<u64>,
     pub bypass_urls: Vec<String>,
     /// Named proxy entries. Treated as a full replacement on config override (same as api_tags.tags).
     pub proxies: HashMap<String, Proxy>,
@@ -783,6 +786,8 @@ pub struct ProxyConfig {
 #[derive(Deserialize)]
 struct ProxyConfigLegacy {
     idle_pool_connection_timeout: Option<u64>,
+    #[serde(default)]
+    connector_request_timeout: Option<u64>,
     // `bypass_proxy_urls` is the pre-named-proxy-map field name; accepted as an alias so old configs keep working.
     #[serde(default, alias = "bypass_proxy_urls")]
     bypass_urls: Vec<String>,
@@ -815,6 +820,7 @@ impl<'de> Deserialize<'de> for ProxyConfig {
         }
         Ok(ProxyConfig {
             idle_pool_connection_timeout: raw.idle_pool_connection_timeout,
+            connector_request_timeout: raw.connector_request_timeout,
             bypass_urls: raw.bypass_urls,
             proxies,
         })
@@ -1885,6 +1891,9 @@ impl<
                 grpc_api_types::payments::payment_method::PaymentMethod::Alma(_) => Ok(
                     Self::PayLater(payment_method_data::PayLaterData::AlmaRedirect {}),
                 ),
+                grpc_api_types::payments::payment_method::PaymentMethod::TamaraRedirect(_) => Ok(
+                    Self::PayLater(payment_method_data::PayLaterData::TamaraRedirect {}),
+                ),
                 // ============================================================================
                 // DIRECT DEBIT - Direct variants
                 // ============================================================================
@@ -2619,6 +2628,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::AfterpayClearpay(_) => Ok(Some(PaymentMethodType::AfterpayClearpay)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Klarna(_) => Ok(Some(PaymentMethodType::Klarna)),
                 grpc_api_types::payments::payment_method::PaymentMethod::Alma(_) => Ok(Some(PaymentMethodType::Alma)),
+                grpc_api_types::payments::payment_method::PaymentMethod::TamaraRedirect(_) => Ok(Some(PaymentMethodType::Tamara)),
                 // ============================================================================
                 // DIRECT DEBIT - PaymentMethodType mappings
                 // ============================================================================
@@ -3670,7 +3680,7 @@ impl ForeignTryFrom<grpc_payment_types::AirlineSegment> for connector_types::Air
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         Ok(Self {
             sequence_no: segment.sequence_no,
-            carrier_code: segment.carrier_code,
+            marketing_carrier_code: segment.marketing_carrier_code,
             flight_number: segment.flight_number,
             flight_type: segment.flight_type,
             class_of_service: segment.class_of_service,
@@ -3696,6 +3706,8 @@ impl ForeignTryFrom<grpc_payment_types::AirlineSegment> for connector_types::Air
             conjunction_ticket: segment.conjunction_ticket,
             coupon_number: segment.coupon_number,
             endorsements_restrictions: segment.endorsements_restrictions,
+            operating_carrier_code: segment.operating_carrier_code,
+            operating_flight_number: segment.operating_flight_number,
         })
     }
 }
@@ -6287,6 +6299,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             } => Ok(Self::PayLater),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::TamaraRedirect(_)),
+            } => Ok(Self::PayLater),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::Boleto(_)),
             } => Ok(Self::Voucher),
             grpc_api_types::payments::PaymentMethod {
@@ -6471,6 +6487,14 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceGetRequest> for Paym
                 .map(connector_types::SplitPaymentsDetails::foreign_try_from)
                 .transpose()?,
             setup_future_usage,
+            mandate_reference: value
+                .mandate_reference
+                .map(|m| connector_types::MandateReference {
+                    connector_mandate_id: m.connector_mandate_id,
+                    payment_method_id: m.payment_method_id,
+                    connector_mandate_request_reference_id: m
+                        .connector_mandate_request_reference_id,
+                }),
         })
     }
 }
@@ -7109,7 +7133,7 @@ pub fn generate_payment_sync_response(
             PaymentsResponseData::TransactionResponse {
                 resource_id,
                 redirection_data,
-                connector_metadata: _,
+                connector_metadata,
                 network_txn_id,
                 network_txn_link_id,
                 connector_response_reference_id,
@@ -7197,6 +7221,9 @@ pub fn generate_payment_sync_response(
                             split_response,
                         )
                     }),
+                    connector_feature_data: convert_connector_metadata_to_secret_string(
+                        connector_metadata,
+                    ),
                 })
             }
             PaymentsResponseData::MultipleCaptureResponse {
@@ -7294,6 +7321,7 @@ pub fn generate_payment_sync_response(
                         .sender_payment_instrument_id
                         .clone(),
                     splits: None,
+                    connector_feature_data: None,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -7388,6 +7416,7 @@ pub fn generate_payment_sync_response(
                 payment_method_update: None,
                 sender_payment_instrument_id: None,
                 splits: None,
+                connector_feature_data: None,
             })
         }
     }
@@ -8264,6 +8293,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             payment_method_update: payment_method_update_grpc,
             sender_payment_instrument_id: value.sender_payment_instrument_id,
             splits: None,
+            connector_feature_data: None,
         })
     }
 }
@@ -10745,56 +10775,6 @@ impl ForeignTryFrom<&grpc_api_types::payments::Customer> for CustomerInfo {
     }
 }
 
-impl ForeignTryFrom<&grpc_api_types::payouts::Customer> for CustomerInfo {
-    type Error = IntegrationError;
-    fn foreign_try_from(
-        value: &grpc_api_types::payouts::Customer,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let customer_id = value
-            .id
-            .clone()
-            .map(|customer_id| CustomerId::try_from(Cow::from(customer_id)))
-            .transpose()
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "customer.id",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Failed to parse Customer Id".to_string()),
-                    suggested_action: Some("Provide a valid customer ID".to_string()),
-                    doc_url: None,
-                },
-            })?;
-
-        let customer_email: Option<Email> = match value.email {
-            Some(ref email_str) => {
-                Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
-                    error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                        field_name: "customer.email",
-                        context: IntegrationErrorContext {
-                            additional_context: Some("Invalid customer email format".to_string()),
-                            suggested_action: Some(
-                                "Provide a valid email address in customer.email".to_string(),
-                            ),
-                            doc_url: None,
-                        },
-                    })
-                })?)
-            }
-            None => None,
-        };
-
-        Ok(Self {
-            customer_id,
-            customer_email,
-            customer_name: value.name.clone().map(Into::into),
-            first_name: value.first_name.clone().map(Into::into),
-            last_name: value.last_name.clone().map(Into::into),
-            customer_phone_number: value.phone_number.clone(),
-            customer_phone_country_code: value.phone_country_code.clone(),
-            salutation: value.salutation.clone(),
-        })
-    }
-}
-
 impl ForeignFrom<connector_types::CustomerInfo> for grpc_api_types::payments::Customer {
     fn foreign_from(info: connector_types::CustomerInfo) -> Self {
         Self {
@@ -10873,6 +10853,7 @@ impl ForeignTryFrom<grpc_api_types::payments::SetupMandateDetails> for MandateDa
         value: grpc_api_types::payments::SetupMandateDetails,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         // Map the mandate_type from grpc type to domain type
+        #[allow(deprecated)]
         let mandate_type = value
             .mandate_type
             .and_then(|grpc_mandate_type| match grpc_mandate_type.mandate_type {
@@ -10880,9 +10861,18 @@ impl ForeignTryFrom<grpc_api_types::payments::SetupMandateDetails> for MandateDa
                     amount_data,
                 )) => Some(mandates::MandateDataType::SingleUse(
                     mandates::MandateAmountData {
-                        amount: common_utils::types::MinorUnit::new(amount_data.amount),
+                        amount: common_utils::types::MinorUnit::new(
+                            amount_data
+                                .amount_money
+                                .map(|m| m.minor_amount)
+                                .unwrap_or(amount_data.amount),
+                        ),
                         currency: grpc_api_types::payments::Currency::try_from(
-                            amount_data.currency,
+                            amount_data
+                                .amount_money
+                                .as_ref()
+                                .map(|m| m.currency)
+                                .unwrap_or(amount_data.currency),
                         )
                         .ok()
                         .and_then(|grpc_currency| {
@@ -10912,9 +10902,18 @@ impl ForeignTryFrom<grpc_api_types::payments::SetupMandateDetails> for MandateDa
                     amount_data,
                 )) => Some(mandates::MandateDataType::MultiUse(Some(
                     mandates::MandateAmountData {
-                        amount: common_utils::types::MinorUnit::new(amount_data.amount),
+                        amount: common_utils::types::MinorUnit::new(
+                            amount_data
+                                .amount_money
+                                .map(|m| m.minor_amount)
+                                .unwrap_or(amount_data.amount),
+                        ),
                         currency: grpc_api_types::payments::Currency::try_from(
-                            amount_data.currency,
+                            amount_data
+                                .amount_money
+                                .as_ref()
+                                .map(|m| m.currency)
+                                .unwrap_or(amount_data.currency),
                         )
                         .ok()
                         .and_then(|grpc_currency| {
@@ -11684,6 +11683,7 @@ pub enum PaymentMethodDataType {
     PayBrightRedirect,
     WalleyRedirect,
     AlmaRedirect,
+    TamaraRedirect,
     AtomeRedirect,
     BancontactCard,
     Bizum,
