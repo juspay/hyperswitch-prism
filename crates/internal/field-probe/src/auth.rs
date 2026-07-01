@@ -80,6 +80,9 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             api_key: k(),
             base_url: None,
         },
+        // Netcetera is an authentication-only (3DS) connector without a
+        // dedicated auth config variant yet; probe with no credentials.
+        ConnectorEnum::Netcetera => ConnectorSpecificConfig::NoKey,
         ConnectorEnum::Nexixpay => ConnectorSpecificConfig::Nexixpay {
             api_key: k(),
             base_url: None,

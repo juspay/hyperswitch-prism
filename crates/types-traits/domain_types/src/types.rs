@@ -333,6 +333,7 @@ pub struct Connectors {
     pub cashtocode: ConnectorParams,
     pub novalnet: ConnectorParams,
     pub nexinets: ConnectorParams,
+    pub netcetera: ConnectorParams,
     pub noon: ConnectorParams,
     pub braintree: ConnectorParams,
     pub volt: ConnectorParams,
@@ -14090,9 +14091,13 @@ impl<
             amount: amount.amount,
             currency: Some(amount.currency),
             email,
-            payment_method_type: <Option<PaymentMethodType>>::foreign_try_from(
-                payment_method_clone.unwrap_or_default(),
-            )?,
+            // The PostAuthenticate (RReq / results) flow carries no payment method, so
+            // `payment_method` is absent; map that to `None` instead of failing the conversion
+            // (the shared `Option<PaymentMethodType>` impl rejects an empty payment_method).
+            payment_method_type: payment_method_clone
+                .map(<Option<PaymentMethodType>>::foreign_try_from)
+                .transpose()?
+                .flatten(),
             router_return_url: return_url
                 .map(|url_str| {
                     url::Url::parse(&url_str).change_context(IntegrationError::InvalidDataFormat {
@@ -14374,9 +14379,14 @@ impl
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::foreign_try_from(
-                value.payment_method.unwrap_or_default(),
-            )?,
+            // The PostAuthenticate (RReq / results) flow is keyed by `threeDSServerTransID` and
+            // carries no card/payment method, so `value.payment_method` is absent. Default to
+            // `Card` instead of failing on an empty payment_method (the field is unused by the RReq).
+            payment_method: value
+                .payment_method
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
+                .unwrap_or(PaymentMethod::Card),
             address,
             auth_type: common_enums::AuthenticationType::ThreeDs, // Post-auth uses 3DS
             connector_request_reference_id: extract_connector_request_reference_id(

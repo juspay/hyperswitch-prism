@@ -23,7 +23,7 @@ type = "grpc"
 
 [metrics]
 host = "0.0.0.0"
-port = 8080
+port = 8090
 
 # OpenTelemetry (OTLP) metrics push. Requires building with the `otel` feature.
 # Disabled by default; the Prometheus /metrics scrape endpoint above is unaffected.
@@ -166,6 +166,10 @@ easebuzz.base_url = "https://testpay.easebuzz.in"
 easebuzz.secondary_base_url = "https://testdashboard.easebuzz.in"
 axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
 tsys_transit.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Server"
+# {{merchant_endpoint_prefix}} is a per-merchant Netcetera endpoint prefix, substituted
+# per-request in connectors/netcetera.rs (resolve_netcetera_base_url) from the merchant's
+# `endpoint_prefix` forwarded on connector_feature_data.
+netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
 
 # Generic Events Configuration
 [events]
