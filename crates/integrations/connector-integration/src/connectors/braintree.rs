@@ -233,10 +233,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, Report<WebhookError>> {
-        let connector_webhook_secrets = connector_webhook_secret
-            .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))?;
+        let connector_webhook_secrets = connector_webhook_secret.ok_or_else(|| {
+            tracing::warn!(
+                target: "braintree_webhook",
+                "no webhook secret configured for Braintree source verification"
+            );
+            error_stack::report!(WebhookError::WebhookVerificationSecretNotFound)
+        })?;
 
         let notif = braintree::get_webhook_object_from_body(&request.body)
+            .inspect_err(|error| {
+                tracing::warn!(
+                    target: "braintree_webhook",
+                    ?error,
+                    "failed to decode the Braintree webhook body for source verification"
+                );
+            })
             .change_context(WebhookError::WebhookSourceVerificationFailed)?;
 
         // `bt_signature` is `pubkey1|sig1&pubkey2|sig2&...`; split into (public_key, signature) pairs.
@@ -250,11 +262,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let public_key = connector_webhook_secrets
             .additional_secret
             .as_ref()
-            .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))?;
+            .ok_or_else(|| {
+                tracing::warn!(
+                    target: "braintree_webhook",
+                    "missing Braintree public key (additional_secret) for source verification"
+                );
+                error_stack::report!(WebhookError::WebhookVerificationSecretNotFound)
+            })?;
 
         let extracted_signature =
             braintree::get_matching_webhook_signature(&signature_pairs, public_key.peek())
-                .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
+                .ok_or_else(|| {
+                    tracing::warn!(
+                        target: "braintree_webhook",
+                        "no bt_signature entry matched the merchant Braintree public key"
+                    );
+                    error_stack::report!(WebhookError::WebhookSignatureNotFound)
+                })?;
 
         let message = notif.bt_payload.as_bytes();
 
@@ -266,6 +290,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let signed_message = crypto::HmacSha1
             .sign_message(sha1_hash_key.as_ref(), message)
+            .inspect_err(|error| {
+                tracing::warn!(
+                    target: "braintree_webhook",
+                    ?error,
+                    "failed to compute the HMAC-SHA1 signature over the Braintree bt_payload"
+                );
+            })
             .change_context(WebhookError::WebhookSourceVerificationFailed)?;
 
         let payload_sign = hex::encode(signed_message);
