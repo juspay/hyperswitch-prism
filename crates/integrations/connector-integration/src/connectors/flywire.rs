@@ -173,9 +173,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 )
                 .map_err(|e| e.change_context(WebhookError::WebhookSourceVerificationFailed))?;
 
-                // No shared secret configured — merchant has not set up webhook verification.
-                // Return source_verified=false rather than blindly trusting the webhook.
                 let Some(shared_secret) = auth.shared_secret else {
+                    tracing::warn!(
+                        connector = "flywire",
+                        "Incoming Flywire webhook could not be source-verified: no \
+                         shared_secret configured on the merchant connector account. \
+                         Treating as unverified (source_verified=false)."
+                    );
                     return Ok(false);
                 };
 

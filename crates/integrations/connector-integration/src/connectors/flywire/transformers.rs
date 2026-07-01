@@ -139,7 +139,7 @@ pub struct FlywireCheckoutSessionResponse {
     pub id: String,
     pub expires_in_seconds: Option<u64>,
     pub hosted_form: FlywireHostedForm,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub warnings: Option<Vec<serde_json::Value>>,
 }
 
@@ -259,7 +259,7 @@ fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {
         city: address.city.clone(),
         country: address.country.map(|c| c.to_string()),
         state: address.state.clone(),
-        phone: None,
+        phone: billing.phone.as_ref().and_then(|p| p.number.clone()),
         email: billing.email.clone(),
         zip: address.zip.clone(),
     })
@@ -338,15 +338,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 pub struct FlywirePayment {
     pub payment_id: String,
     pub status: FlywirePaymentStatus,
-    #[serde(default)]
     pub status_detail: Option<String>,
     pub amount_from: Option<MinorUnit>,
     pub currency_from: Option<String>,
     pub amount_to: Option<MinorUnit>,
     pub currency_to: Option<String>,
-    #[serde(default)]
     pub external_reference: Option<String>,
-    #[serde(default)]
     pub payor_id: Option<String>,
 }
 
@@ -470,17 +467,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FlywireConfirmResponse {
     pub payment_reference: String,
-    #[serde(default)]
     pub charge_info: Option<FlywireConfirmChargeInfo>,
-    #[serde(default)]
     pub payor: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FlywireConfirmChargeInfo {
-    #[serde(default)]
     pub amount: Option<MinorUnit>,
-    #[serde(default)]
     pub currency: Option<String>,
 }
 
@@ -543,18 +536,12 @@ pub struct FlywireRefundRequest {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FlywireRefundResponse {
     pub refund_id: String,
-    #[serde(default)]
     pub payment_id: Option<String>,
-    #[serde(default)]
     pub bundle_id: Option<String>,
     pub status: FlywireRefundStatus,
-    #[serde(default)]
     pub amount: Option<MinorUnit>,
-    #[serde(default)]
     pub currency: Option<String>,
-    #[serde(default)]
     pub external_reference: Option<String>,
-    #[serde(default)]
     pub notifications_url: Option<String>,
 }
 
@@ -579,8 +566,10 @@ impl FlywireRefundStatus {
     pub fn to_refund_status(&self) -> RefundStatus {
         match self {
             Self::Finished | Self::Completed | Self::Approved => RefundStatus::Success,
-            Self::Rejected | Self::Cancelled | Self::Failed => RefundStatus::Failure,
-            Self::Initiated | Self::Pending | Self::Received | Self::Returned | Self::Unknown => {
+            Self::Rejected | Self::Cancelled | Self::Failed | Self::Returned => {
+                RefundStatus::Failure
+            }
+            Self::Initiated | Self::Pending | Self::Received | Self::Unknown => {
                 RefundStatus::Pending
             }
         }
@@ -705,7 +694,7 @@ pub struct FlywireErrorResponse {
     pub title: Option<String>,
     pub status: Option<i32>,
     pub detail: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub errors: Option<Vec<FlywireErrorDetail>>,
 }
 
@@ -713,9 +702,7 @@ pub struct FlywireErrorResponse {
 pub struct FlywireErrorDetail {
     #[serde(default, rename = "type")]
     pub detail_type: Option<String>,
-    #[serde(default)]
     pub source: Option<String>,
-    #[serde(default)]
     pub param: Option<String>,
     pub message: Option<String>,
 }
@@ -750,7 +737,6 @@ pub enum FlywireWebhookResource {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct FlywireWebhookBody {
     pub event_type: String,
-    #[serde(default)]
     pub event_date: Option<String>,
     pub event_resource: FlywireWebhookResource,
     pub data: serde_json::Value,
@@ -760,15 +746,10 @@ pub struct FlywireWebhookBody {
 pub struct FlywirePaymentWebhookData {
     pub payment_id: String,
     pub status: FlywirePaymentStatus,
-    #[serde(default)]
     pub external_reference: Option<String>,
-    #[serde(default)]
     pub amount_from: Option<String>,
-    #[serde(default)]
     pub currency_from: Option<String>,
-    #[serde(default)]
     pub amount_to: Option<String>,
-    #[serde(default)]
     pub currency_to: Option<String>,
 }
 
@@ -802,14 +783,10 @@ impl FlywireRefundWebhookStatus {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FlywireRefundWebhookData {
     pub refund_id: String,
-    #[serde(default)]
     pub payment_id: Option<String>,
     pub status: FlywireRefundWebhookStatus,
-    #[serde(default)]
     pub external_reference: Option<String>,
-    #[serde(default)]
     pub amount: Option<String>,
-    #[serde(default)]
     pub currency: Option<String>,
 }
 
