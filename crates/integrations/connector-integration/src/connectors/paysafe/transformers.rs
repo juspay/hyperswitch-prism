@@ -649,7 +649,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         },
                     };
 
-                    let account_id = account_id.get_no_three_ds_account_id(currency)?;
+                    // Apple Pay uses a DEDICATED Paysafe processing account,
+                    // distinct from the card account. Mirror hyperswitch by
+                    // selecting the apple_pay `encrypt` account (this arm only
+                    // handles the encrypted PKPaymentToken flow; the decrypted
+                    // flow returns NotImplemented above).
+                    //
+                    // Fallback: hyperswitch hard-requires the apple_pay account,
+                    // but the current sandbox has no apple_pay slot provisioned
+                    // and works using the card `no_three_ds` account. To avoid a
+                    // regression while enabling parity once provisioned, prefer
+                    // the apple_pay encrypt account and gracefully fall back to
+                    // the card no_three_ds account when the apple_pay slot is
+                    // absent.
+                    let account_id = account_id
+                        .get_apple_pay_account_id(currency, true)
+                        .or_else(|_| account_id.get_no_three_ds_account_id(currency))?;
                     (
                         PaysafePaymentMethod::ApplePay { apple_pay },
                         PaysafePaymentType::Card,

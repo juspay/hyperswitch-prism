@@ -147,6 +147,13 @@ pub struct PaysafePaymentMethodDetails {
     pub card: Option<HashMap<common_enums::enums::Currency, PaysafeCardAccountId>>,
     pub ach: Option<HashMap<common_enums::enums::Currency, PaysafeAchAccountId>>,
     pub interac: Option<HashMap<common_enums::enums::Currency, PaysafeInteracAccountId>>,
+    /// Dedicated Apple Pay processing accounts (encrypt/decrypt per currency),
+    /// mirroring hyperswitch's `PaysafePaymentMethodDetails.apple_pay`.
+    pub apple_pay: Option<HashMap<common_enums::enums::Currency, PaysafeApplePayAccountId>>,
+    /// Skrill wallet processing accounts, keyed by currency.
+    pub skrill: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
+    /// paysafecard processing accounts, keyed by currency.
+    pub pay_safe_card: Option<HashMap<common_enums::enums::Currency, PaysafeRedirectAccountId>>,
 }
 
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
@@ -162,6 +169,21 @@ pub struct PaysafeAchAccountId {
 
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaysafeInteracAccountId {
+    pub account_id: Option<Secret<String>>,
+}
+
+/// Dedicated Apple Pay processing account, split by token flow. Mirrors
+/// hyperswitch's `ApplePayAccountDetails`: `encrypt` is used for the encrypted
+/// PKPaymentToken flow, `decrypt` for the decrypted-token flow.
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaysafeApplePayAccountId {
+    pub encrypt: Option<Secret<String>>,
+    pub decrypt: Option<Secret<String>>,
+}
+
+/// Redirect-APM processing account (Skrill, paysafecard).
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaysafeRedirectAccountId {
     pub account_id: Option<Secret<String>>,
 }
 
@@ -218,6 +240,63 @@ impl PaysafePaymentMethodDetails {
             .and_then(|interac| interac.account_id.clone())
             .ok_or(errors::IntegrationError::InvalidConnectorConfig {
                 config: "Missing interac account_id",
+                context: Default::default(),
+            })
+    }
+
+    /// Resolve the dedicated Apple Pay processing account for `currency`.
+    /// `encrypted = true` selects the `encrypt` account (encrypted PKPaymentToken
+    /// flow); `false` selects the `decrypt` account. Mirrors hyperswitch's
+    /// `get_applepay_encrypt_account_id` / `get_applepay_decrypt_account_id`.
+    pub fn get_apple_pay_account_id(
+        &self,
+        currency: common_enums::enums::Currency,
+        encrypted: bool,
+    ) -> Result<Secret<String>, errors::IntegrationError> {
+        self.apple_pay
+            .as_ref()
+            .and_then(|apple_pay| apple_pay.get(&currency))
+            .and_then(|flow| {
+                if encrypted {
+                    flow.encrypt.clone()
+                } else {
+                    flow.decrypt.clone()
+                }
+            })
+            .ok_or(errors::IntegrationError::InvalidConnectorConfig {
+                config: if encrypted {
+                    "Missing ApplePay encrypt account_id"
+                } else {
+                    "Missing ApplePay decrypt account_id"
+                },
+                context: Default::default(),
+            })
+    }
+
+    pub fn get_skrill_account_id(
+        &self,
+        currency: common_enums::enums::Currency,
+    ) -> Result<Secret<String>, errors::IntegrationError> {
+        self.skrill
+            .as_ref()
+            .and_then(|skrill| skrill.get(&currency))
+            .and_then(|skrill| skrill.account_id.clone())
+            .ok_or(errors::IntegrationError::InvalidConnectorConfig {
+                config: "Missing skrill account_id",
+                context: Default::default(),
+            })
+    }
+
+    pub fn get_paysafe_gift_card_account_id(
+        &self,
+        currency: common_enums::enums::Currency,
+    ) -> Result<Secret<String>, errors::IntegrationError> {
+        self.pay_safe_card
+            .as_ref()
+            .and_then(|pay_safe_card| pay_safe_card.get(&currency))
+            .and_then(|pay_safe_card| pay_safe_card.account_id.clone())
+            .ok_or(errors::IntegrationError::InvalidConnectorConfig {
+                config: "Missing paysafe gift card account_id",
                 context: Default::default(),
             })
     }

@@ -5,8 +5,9 @@ use common_utils::metadata::{HeaderMaskingConfig, MaskedMetadata};
 use domain_types::{
     connector_types::ConnectorEnum,
     router_data::{
-        ConnectorSpecificConfig, PaysafeAchAccountId, PaysafeCardAccountId,
-        PaysafePaymentMethodDetails,
+        ConnectorSpecificConfig, PaysafeAchAccountId, PaysafeApplePayAccountId,
+        PaysafeCardAccountId, PaysafeInteracAccountId, PaysafePaymentMethodDetails,
+        PaysafeRedirectAccountId,
     },
 };
 use hyperswitch_masking::Secret;
@@ -205,6 +206,31 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
                     common_enums::enums::Currency::USD,
                     PaysafeAchAccountId {
                         account_id: Some(Secret::new("probe_ach_acct".to_string())),
+                    },
+                )])),
+                interac: Some(HashMap::from([(
+                    common_enums::enums::Currency::CAD,
+                    PaysafeInteracAccountId {
+                        account_id: Some(Secret::new("probe_interac_acct".to_string())),
+                    },
+                )])),
+                apple_pay: Some(HashMap::from([(
+                    common_enums::enums::Currency::USD,
+                    PaysafeApplePayAccountId {
+                        encrypt: Some(Secret::new("probe_applepay_encrypt".to_string())),
+                        decrypt: Some(Secret::new("probe_applepay_decrypt".to_string())),
+                    },
+                )])),
+                skrill: Some(HashMap::from([(
+                    common_enums::enums::Currency::EUR,
+                    PaysafeRedirectAccountId {
+                        account_id: Some(Secret::new("probe_skrill_acct".to_string())),
+                    },
+                )])),
+                pay_safe_card: Some(HashMap::from([(
+                    common_enums::enums::Currency::EUR,
+                    PaysafeRedirectAccountId {
+                        account_id: Some(Secret::new("probe_paysafecard_acct".to_string())),
                     },
                 )])),
             }),

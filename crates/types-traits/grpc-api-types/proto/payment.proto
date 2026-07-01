@@ -4467,9 +4467,30 @@ message PaysafeCardAccountId {
 
 message PaysafeAchAccountId { optional SecretString account_id = 1; }
 
+// Dedicated Apple Pay processing account, split by token flow.
+// Mirrors hyperswitch's `ApplePayAccountDetails`: `encrypt` is used for the
+// encrypted PKPaymentToken flow, `decrypt` for the decrypted-token flow.
+message PaysafeApplePayAccountId {
+  optional SecretString encrypt = 1;
+  optional SecretString decrypt = 2;
+}
+
+message PaysafeInteracAccountId { optional SecretString account_id = 1; }
+
+// Redirect-APM processing account (Skrill, paysafecard).
+message PaysafeRedirectAccountId { optional SecretString account_id = 1; }
+
 message PaysafePaymentMethodDetails {
   map<string, PaysafeCardAccountId> card = 1;
   map<string, PaysafeAchAccountId> ach = 2;
+  // Dedicated Apple Pay processing accounts, keyed by currency.
+  map<string, PaysafeApplePayAccountId> apple_pay = 3;
+  // Interac e-Transfer processing accounts, keyed by currency.
+  map<string, PaysafeInteracAccountId> interac = 4;
+  // Skrill wallet processing accounts, keyed by currency.
+  map<string, PaysafeRedirectAccountId> skrill = 5;
+  // paysafecard processing accounts, keyed by currency.
+  map<string, PaysafeRedirectAccountId> pay_safe_card = 6;
 }
 
 message LoonioConfig {
@@ -4482,7 +4503,8 @@ message PaysafeConfig {
   SecretString username = 1;
   SecretString password = 2;
   optional string base_url = 50;
-  // Card and ACH account IDs per currency
+  // Per-currency processing account IDs for card, ACH, Apple Pay, Interac,
+  // Skrill and paysafecard.
   optional PaysafePaymentMethodDetails account_id = 51;
 }
 
