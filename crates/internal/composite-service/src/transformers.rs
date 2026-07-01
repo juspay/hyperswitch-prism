@@ -522,8 +522,6 @@ impl
             state: resolved_state,
             capture_method: item.capture_method,
             description: item.description.clone(),
-            // Forwarded so FRM DDC (e.g. Kount) derives its sessionId from the same
-            // merchant transaction id the Pre Risk Check hashes for deviceSessionId.
             merchant_transaction_id: item.merchant_transaction_id.clone(),
         }
     }

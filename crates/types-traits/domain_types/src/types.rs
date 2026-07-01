@@ -10842,28 +10842,53 @@ impl ForeignTryFrom<grpc_api_types::payments::AcceptanceType> for mandates::Acce
     }
 }
 
-impl ForeignFrom<grpc_api_types::payments::MandateAmountData> for mandates::MandateAmountData {
-    fn foreign_from(amount_data: grpc_api_types::payments::MandateAmountData) -> Self {
+#[allow(deprecated)]
+impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::MandateAmountData {
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        amount_data: grpc_api_types::payments::MandateAmountData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
         // proto carries dates as Unix timestamps; the domain uses PrimitiveDateTime (assumed UTC).
-        let to_primitive_date_time = |ts: i64| {
-            time::OffsetDateTime::from_unix_timestamp(ts)
+        let to_primitive_date_time = |timestamp: i64| {
+            time::OffsetDateTime::from_unix_timestamp(timestamp)
                 .ok()
                 .map(|offset_dt| time::PrimitiveDateTime::new(offset_dt.date(), offset_dt.time()))
         };
-        Self {
-            amount: common_utils::types::MinorUnit::new(amount_data.amount),
-            currency: grpc_api_types::payments::Currency::try_from(amount_data.currency)
-                .ok()
-                .and_then(|grpc_currency| {
-                    common_enums::Currency::foreign_try_from(grpc_currency).ok()
-                })
-                .unwrap_or(common_enums::Currency::USD),
+        Ok(Self {
+            amount: common_utils::types::Money {
+                amount: common_utils::types::MinorUnit::new(
+                    amount_data
+                        .amount_money
+                        .map(|amount_money| amount_money.minor_amount)
+                        .unwrap_or(amount_data.amount),
+                ),
+                currency: common_enums::Currency::foreign_try_from(
+                    amount_data
+                        .amount_money
+                        .as_ref()
+                        .map(|amount_money| amount_money.currency())
+                        .unwrap_or(amount_data.currency()),
+                )?,
+            },
             start_date: amount_data.start_date.and_then(to_primitive_date_time),
             end_date: amount_data.end_date.and_then(to_primitive_date_time),
             metadata: None,
             amount_type: amount_data.amount_type,
             frequency: amount_data.frequency,
-            initial_billing_amount: amount_data.initial_billing_amount,
+            initial_billing_amount: if let Some(initial_billing_amount) =
+                amount_data.initial_billing_amount
+            {
+                Some(common_utils::types::Money {
+                    amount: common_utils::types::MinorUnit::new(
+                        initial_billing_amount.minor_amount,
+                    ),
+                    currency: common_enums::Currency::foreign_try_from(
+                        initial_billing_amount.currency(),
+                    )?,
+                })
+            } else {
+                None
+            },
             external_subscription_id: amount_data.external_subscription_id,
             status: amount_data.status,
             next_billing_date: amount_data
@@ -10871,7 +10896,7 @@ impl ForeignFrom<grpc_api_types::payments::MandateAmountData> for mandates::Mand
                 .and_then(to_primitive_date_time),
             billing_cycle: amount_data.billing_cycle,
             description: amount_data.description,
-        }
+        })
     }
 }
 
@@ -10882,21 +10907,22 @@ impl ForeignTryFrom<grpc_api_types::payments::SetupMandateDetails> for MandateDa
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         // Map the mandate_type from grpc type to domain type
         #[allow(deprecated)]
-        let mandate_type = value
+        let mandate_type = match value
             .mandate_type
-            .and_then(|grpc_mandate_type| match grpc_mandate_type.mandate_type {
-                Some(grpc_api_types::payments::mandate_type::MandateType::SingleUse(
-                    amount_data,
-                )) => Some(mandates::MandateDataType::SingleUse(
-                    mandates::MandateAmountData::foreign_from(amount_data),
-                )),
-                Some(grpc_api_types::payments::mandate_type::MandateType::MultiUse(
-                    amount_data,
-                )) => Some(mandates::MandateDataType::MultiUse(Some(
-                    mandates::MandateAmountData::foreign_from(amount_data),
-                ))),
-                None => None,
-            });
+            .and_then(|grpc_mandate_type| grpc_mandate_type.mandate_type)
+        {
+            Some(grpc_api_types::payments::mandate_type::MandateType::SingleUse(amount_data)) => {
+                Some(mandates::MandateDataType::SingleUse(
+                    mandates::MandateAmountData::foreign_try_from(amount_data)?,
+                ))
+            }
+            Some(grpc_api_types::payments::mandate_type::MandateType::MultiUse(amount_data)) => {
+                Some(mandates::MandateDataType::MultiUse(Some(
+                    mandates::MandateAmountData::foreign_try_from(amount_data)?,
+                )))
+            }
+            None => None,
+        };
 
         Ok(Self {
             update_mandate_id: value.update_mandate_id,

@@ -29,8 +29,8 @@ use hyperswitch_masking::ExposeInterface;
 impl ForeignFrom<grpc_api_types::payments::MerchantDetails> for MerchantDetails {
     fn foreign_from(value: grpc_api_types::payments::MerchantDetails) -> Self {
         Self {
-            id: value.id,
-            mcc: value.mcc,
+            merchant_id: value.merchant_id,
+            merchant_category_code: value.merchant_category_code,
         }
     }
 }
@@ -281,7 +281,10 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
                 },
             })?;
 
-        let mandate_info = value.mandate_info.map(MandateAmountData::foreign_from);
+        let mandate_info = value
+            .mandate_info
+            .map(MandateAmountData::foreign_try_from)
+            .transpose()?;
 
         Ok(Self {
             amount: Money {

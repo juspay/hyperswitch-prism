@@ -531,13 +531,16 @@ impl From<&MandateAmountData> for KountRecurring {
         // `amount` is the per-period billing amount; omit it when unset (0) so we
         // don't emit a bogus "0" to Kount.
         let period_billing_amount = {
-            let amount = m.amount.get_amount_as_i64();
+            let amount = m.amount.amount.get_amount_as_i64();
             (amount != 0).then(|| amount.to_string())
         };
         Self {
             start_date: m.start_date.and_then(format_date),
             end_date: m.end_date.and_then(format_date),
-            initial_billing_amount: m.initial_billing_amount.map(|amount| amount.to_string()),
+            initial_billing_amount: m
+                .initial_billing_amount
+                .as_ref()
+                .map(|money| money.amount.get_amount_as_i64().to_string()),
             period_billing_amount,
             period: m.frequency.clone(),
             external_subscription_id: m.external_subscription_id.clone(),
@@ -735,10 +738,10 @@ fn card_bin_last4(pan: &str) -> (Option<String>, Option<String>) {
 fn kount_merchant(details: Option<&MerchantDetails>) -> (Option<KountMerchant>, Option<u32>) {
     match details {
         Some(details) => (
-            details.id.as_ref().map(|id| KountMerchant {
+            details.merchant_id.as_ref().map(|id| KountMerchant {
                 id: Some(id.clone()),
             }),
-            details.mcc,
+            details.merchant_category_code,
         ),
         None => (None, None),
     }

@@ -51,12 +51,11 @@ impl ConnectorResponseHeaders for FrmFlowData {
     }
 }
 
-/// Merchant details (id + MCC) for risk scoring. Maps to Kount's `merchant`
-/// object + `merchantCategoryCode` on Evaluate/Update Order.
+/// Merchant details used for FRM risk scoring.
 #[derive(Debug, Clone, Default)]
 pub struct MerchantDetails {
-    pub id: Option<String>,
-    pub mcc: Option<u32>,
+    pub merchant_id: Option<String>,
+    pub merchant_category_code: Option<u32>,
 }
 
 /// Request data for pre-risk check

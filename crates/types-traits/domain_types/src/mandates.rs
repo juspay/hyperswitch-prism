@@ -1,5 +1,4 @@
-use common_enums::Currency;
-use common_utils::{date_time, pii::IpAddress, SecretSerdeValue};
+use common_utils::{date_time, pii::IpAddress, types::Money, SecretSerdeValue};
 use error_stack::ResultExt;
 use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
@@ -53,8 +52,7 @@ pub enum MandateDataType {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 pub struct MandateAmountData {
-    pub amount: common_utils::types::MinorUnit,
-    pub currency: Currency,
+    pub amount: Money,
     pub start_date: Option<PrimitiveDateTime>,
     pub end_date: Option<PrimitiveDateTime>,
     pub metadata: Option<SecretSerdeValue>,
@@ -62,7 +60,7 @@ pub struct MandateAmountData {
     pub frequency: Option<String>,   // Frequency / billing period (daily, weekly, monthly)
     // Subscription / recurring-order context consumed by FRM risk scoring (e.g.
     // Kount). In that usage `amount` is the per-period billing amount.
-    pub initial_billing_amount: Option<u64>,
+    pub initial_billing_amount: Option<Money>,
     pub external_subscription_id: Option<String>,
     pub status: Option<String>,
     pub next_billing_date: Option<PrimitiveDateTime>,

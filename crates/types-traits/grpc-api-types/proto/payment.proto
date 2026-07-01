@@ -1150,8 +1150,8 @@ message MandateAmountData {
       6; // Frequency for recurring mandates ("daily", "weekly", "monthly")
   optional Money amount_money = 7; // Amount in Money type
 
-  // First billing amount in the smallest currency unit.
-  optional uint64 initial_billing_amount = 8;
+  // Initial / First billing amount.
+  optional Money initial_billing_amount = 8;
   // Merchant's external subscription identifier.
   optional string external_subscription_id = 9;
   // Subscription status (e.g. "ACTIVE").
@@ -1629,17 +1629,13 @@ enum FrmDecision {
   ERROR = 4;                    // The FRM check itself failed (network, timeout, misconfiguration).
 }
 
-// Merchant details for an order, used by FRM risk scoring (maps to Kount's
-// `merchant` object + `merchantCategoryCode` on Evaluate/Update Order). Only id
-// and mcc for now; extend as more merchant fields are needed. Defined here (the
-// base proto) so both the FRM Pre Risk Check request (frm.proto) and the notify
-// content below can reference it.
+// Merchant details used for FRM risk scoring.
 message MerchantDetails {
-  // Merchant identifier (Kount `merchant.id`).
-  optional string id = 1;
+  // Merchant identifier.
+  optional string merchant_id = 1;
 
-  // Merchant Category Code (ISO 18245); Kount `merchantCategoryCode`.
-  optional uint32 mcc = 2;
+  // Merchant Category Code (ISO 18245).
+  optional uint32 merchant_category_code = 2;
 }
 
 // Unified FRM notification content.
@@ -1662,7 +1658,7 @@ message FrmNotificationContent {
   // Risk assessment outcome
   optional FrmDecision frm_decision = 7;
 
-  // Merchant details (id + MCC) for risk scoring on the Update Order call.
+  // Merchant details for risk scoring.
   optional MerchantDetails merchant_details = 8;
 }
 
@@ -3440,9 +3436,7 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
   // Description
   optional string description = 14;
 
-  // Merchant transaction identifier. Used by FRM device-data collection (e.g.
-  // Kount) to derive the DDC sessionId, which must match the deviceSessionId
-  // sent on the corresponding Pre Risk Check / Evaluate Order.
+  // Merchant transaction identifier.
   optional string merchant_transaction_id = 15;
 }
 
