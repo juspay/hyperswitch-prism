@@ -935,6 +935,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::EaseBuzz
             | common_enums::PaymentMethodType::Skrill
             | common_enums::PaymentMethodType::Paysera
+            | common_enums::PaymentMethodType::Tamara
             | common_enums::PaymentMethodType::Netbanking
             | common_enums::PaymentMethodType::QwikcilverWallet => {
                 Err(IntegrationError::NotImplemented(
@@ -1151,7 +1152,8 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
             PayLaterData::KlarnaSdk { .. }
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
-            | PayLaterData::AtomeRedirect {} => Err(IntegrationError::NotImplemented(
+            | PayLaterData::AtomeRedirect {}
+            | PayLaterData::TamaraRedirect {} => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )),

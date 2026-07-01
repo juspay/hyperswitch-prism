@@ -405,9 +405,11 @@ pub(crate) fn base_tokenized_setup_recurring_request() -> PaymentServiceTokenSet
         setup_mandate_details: Some(proto::SetupMandateDetails {
             mandate_type: Some(proto::MandateType {
                 mandate_type: Some(proto::mandate_type::MandateType::MultiUse(
+                    #[allow(deprecated)]
                     proto::MandateAmountData {
                         amount: 0,
                         currency: proto::Currency::Usd as i32,
+                        amount_money: Some(usd_money(0)),
                         ..Default::default()
                     },
                 )),
