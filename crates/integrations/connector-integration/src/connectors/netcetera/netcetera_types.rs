@@ -22,7 +22,7 @@ use domain_types::{
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodDataTypes, RawCardNumber},
 };
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 // ---------------------------------------------------------------------------
@@ -270,7 +270,12 @@ impl
             bill_addr_line2: billing.and_then(|add| add.line2.clone()),
             bill_addr_line3: billing.and_then(|add| add.line3.clone()),
             bill_addr_post_code: billing.and_then(|add| add.zip.clone()),
-            bill_addr_state: billing.and_then(|add| add.state.clone()),
+            // EMVCo billAddrState must be an ISO 3166-2 subdivision code (max 3 chars). Drop full
+            // state names (e.g. "California") so Netcetera doesn't reject the AReq with
+            // "billAddrState: string is too long. Expected maximum 3 characters".
+            bill_addr_state: billing
+                .and_then(|add| add.state.clone())
+                .filter(|s| s.peek().chars().count() <= 3),
             email: billing_address.as_ref().and_then(|a| a.email.clone()),
             cardholder_name: billing.and_then(get_optional_full_name),
             ship_addr_city: shipping.and_then(|add| add.city.clone()),
@@ -279,7 +284,9 @@ impl
             ship_addr_line2: shipping.and_then(|add| add.line2.clone()),
             ship_addr_line3: shipping.and_then(|add| add.line3.clone()),
             ship_addr_post_code: shipping.and_then(|add| add.zip.clone()),
-            ship_addr_state: shipping.and_then(|add| add.state.clone()),
+            ship_addr_state: shipping
+                .and_then(|add| add.state.clone())
+                .filter(|s| s.peek().chars().count() <= 3),
         })
     }
 }
@@ -419,7 +426,7 @@ impl NetceteraMeta {
         // (resultsResponseNotificationUrl) to a public webhook.site endpoint to observe whether
         // Netcetera pushes the challenge result. Revert to `_notification_url` /
         // `self.results_response_notification_url.clone()`.
-        let webhook = Some("https://e6e4-219-65-110-2.ngrok-free.app/webhooks/merchant_1782862646/mca_Cgk6mVDMwsYGQUSnEGpo".to_string());
+        let webhook = Some("https://webhook.site/cef99d23-079e-405f-ac55-5265c76c544b".to_string());
         MerchantData {
             merchant_configuration_id: self.merchant_configuration_id.clone(),
             mcc: self.mcc.clone(),
