@@ -5608,6 +5608,13 @@ fn convert_metadata_to_merchant_defined_info(
     let mut result: Vec<utils::MerchantDefinedInformation> = metadata
         .and_then(|value| {
             serde_json::from_value::<std::collections::BTreeMap<String, serde_json::Value>>(value)
+                .map_err(|error| {
+                    tracing::warn!(
+                        ?error,
+                        "Failed to deserialize cybersource metadata into a BTreeMap; \
+                         skipping merchantDefinedInformation for this payment"
+                    );
+                })
                 .ok()
         })
         .map(|map| {
