@@ -698,10 +698,37 @@ pub struct FlywireErrorResponse {
     pub errors: Option<Vec<FlywireErrorDetail>>,
 }
 
+/// Inner `errors[].type` reason codes on Flywire refund errors. Every listed
+/// value is a terminal failure (the refund can never succeed); unknown codes
+/// deserialize to `Other`.
+/// https://developers.flywire.com/education/Content/resource_refunds.htm
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FlywireRefundErrorType {
+    InvalidStatus,
+    NotFound,
+    AlreadyRefund,
+    Status,
+    AmountOverRemainingBalance,
+    MinimumThreshold,
+    Currency,
+    Multiple,
+    #[serde(other)]
+    Other,
+}
+
+impl FlywireRefundErrorType {
+    /// A known reason code means the refund is permanently failed, so the refund
+    /// row should be marked FAILED rather than left transient/PENDING.
+    pub fn is_terminal_refund_failure(&self) -> bool {
+        !matches!(self, Self::Other)
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct FlywireErrorDetail {
-    #[serde(default, rename = "type")]
-    pub detail_type: Option<String>,
+    #[serde(rename = "type")]
+    pub detail_type: Option<FlywireRefundErrorType>,
     pub source: Option<String>,
     pub param: Option<String>,
     pub message: Option<String>,

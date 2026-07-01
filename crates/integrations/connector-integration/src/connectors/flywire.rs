@@ -355,30 +355,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         // succeed; we surface that as FlowStatus::Refund(Failure) so the
         // framework marks the refund row FAILED rather than leaving it
         // transient/PENDING.
-        //
-        // Reason codes per FLYWIRE refund docs:
-        // https://developers.flywire.com/education/Content/resource_refunds.htm
-        //   not_found                      — parent payment missing
-        //   already_refund                 — one-active-refund rule violated
-        //   status                         — payment in non-refundable state
-        //   amount_over_remaining_balance  — over-refund
-        //   minimum_threshold              — below recipient's configured floor
-        //   currency                       — currency mismatch
-        //   multiple                       — payment already fully refunded
-        // Plus the wire-observed `invalid_status` (used in 422 responses for
-        // the same conditions; not formally listed but actually emitted).
         let is_refund_failure = response.errors.iter().flatten().any(|e| {
-            matches!(
-                e.detail_type.as_deref(),
-                Some("invalid_status")
-                    | Some("not_found")
-                    | Some("already_refund")
-                    | Some("status")
-                    | Some("amount_over_remaining_balance")
-                    | Some("minimum_threshold")
-                    | Some("currency")
-                    | Some("multiple")
-            )
+            e.detail_type
+                .as_ref()
+                .is_some_and(flywire::FlywireRefundErrorType::is_terminal_refund_failure)
         });
 
         let attempt_status: FlowStatus = if is_refund_failure {
