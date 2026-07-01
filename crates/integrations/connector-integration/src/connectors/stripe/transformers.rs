@@ -3730,7 +3730,7 @@ pub enum WebhookEventObjectType {
     Refund,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Copy, Deserialize)]
 pub enum WebhookEventType {
     #[serde(rename = "payment_intent.payment_failed")]
     PaymentIntentFailed,
@@ -3862,32 +3862,6 @@ pub(crate) fn get_webhook_object_from_body(
     body.parse_struct("WebhookEvent")
 }
 
-/// Map a Stripe webhook object `status` to a prism dispute `EventType`.
-///
-/// Ports HS `From<WebhookEventStatus> for IncomingWebhookEvent` (dispute arms). Non-dispute
-/// statuses map to `IncomingWebhookEventUnspecified` (HS `EventNotSupported`).
-fn dispute_status_to_event_type(status: &WebhookEventStatus) -> EventType {
-    use self::WebhookEventStatus as S;
-    match status {
-        S::WarningNeedsResponse | S::NeedsResponse => EventType::DisputeOpened,
-        S::WarningClosed => EventType::DisputeCancelled,
-        S::WarningUnderReview | S::UnderReview => EventType::DisputeChallenged,
-        S::Won => EventType::DisputeWon,
-        S::Lost => EventType::DisputeLost,
-        S::ChargeRefunded
-        | S::Succeeded
-        | S::RequiresPaymentMethod
-        | S::RequiresConfirmation
-        | S::RequiresAction
-        | S::Processing
-        | S::RequiresCapture
-        | S::Canceled
-        | S::Chargeable
-        | S::Failed
-        | S::Unknown => EventType::IncomingWebhookEventUnspecified,
-    }
-}
-
 /// Map a decoded Stripe webhook event (type + object status) to the prism `EventType`.
 ///
 /// Ports `get_event_type` verbatim. Operates on the lighter `WebhookEventTypeBody`, which
@@ -3920,27 +3894,32 @@ pub(crate) fn map_webhook_event_type(details: &WebhookEventTypeBody) -> EventTyp
             _ => EventType::IncomingWebhookEventUnspecified,
         },
         WebhookEventType::SourceChargeable => EventType::SourceChargeable,
-        // Dispute events: prefer object.status, fall back to event type.
-        WebhookEventType::DisputeCreated => status
-            .as_ref()
-            .map(dispute_status_to_event_type)
-            .unwrap_or(EventType::DisputeOpened),
-        WebhookEventType::DisputeUpdated => status
-            .as_ref()
-            .map(dispute_status_to_event_type)
-            .unwrap_or(EventType::IncomingWebhookEventUnspecified),
-        WebhookEventType::DisputeClosed => status
-            .as_ref()
-            .map(dispute_status_to_event_type)
-            .unwrap_or(EventType::DisputeCancelled),
-        WebhookEventType::ChargeDisputeFundsWithdrawn => status
-            .as_ref()
-            .map(dispute_status_to_event_type)
-            .unwrap_or(EventType::DisputeLost),
-        WebhookEventType::ChargeDisputeFundsReinstated => status
-            .as_ref()
-            .map(dispute_status_to_event_type)
-            .unwrap_or(EventType::DisputeWon),
+        // Dispute events: map the dispute object's `status` directly to the event; when the
+        // status is absent, fall back to a per-event-code default.
+        code @ (WebhookEventType::DisputeCreated
+        | WebhookEventType::DisputeUpdated
+        | WebhookEventType::DisputeClosed
+        | WebhookEventType::ChargeDisputeFundsWithdrawn
+        | WebhookEventType::ChargeDisputeFundsReinstated) => match status.as_ref() {
+            Some(WebhookEventStatus::WarningNeedsResponse | WebhookEventStatus::NeedsResponse) => {
+                EventType::DisputeOpened
+            }
+            Some(WebhookEventStatus::WarningClosed) => EventType::DisputeCancelled,
+            Some(WebhookEventStatus::WarningUnderReview | WebhookEventStatus::UnderReview) => {
+                EventType::DisputeChallenged
+            }
+            Some(WebhookEventStatus::Won) => EventType::DisputeWon,
+            Some(WebhookEventStatus::Lost) => EventType::DisputeLost,
+            // A non-dispute status on a dispute event is not actionable.
+            Some(_) => EventType::IncomingWebhookEventUnspecified,
+            None => match code {
+                WebhookEventType::DisputeClosed => EventType::DisputeCancelled,
+                WebhookEventType::ChargeDisputeFundsWithdrawn => EventType::DisputeLost,
+                WebhookEventType::ChargeDisputeFundsReinstated => EventType::DisputeWon,
+                WebhookEventType::DisputeUpdated => EventType::IncomingWebhookEventUnspecified,
+                _ => EventType::DisputeOpened,
+            },
+        },
         WebhookEventType::PaymentIntentPartiallyFunded => EventType::PaymentIntentPartiallyFunded,
         WebhookEventType::PaymentIntentRequiresAction => EventType::PaymentActionRequired,
         WebhookEventType::Unknown
@@ -4040,32 +4019,22 @@ pub(crate) fn get_webhook_reference(
     Ok(Some(reference))
 }
 
-/// Map a Stripe payment-intent `status` to a prism `AttemptStatus`.
+/// Map a Stripe payment-intent webhook `status` to a prism `AttemptStatus`.
 ///
-/// Ports HS `From<StripePaymentStatus> for AttemptStatus`. The webhook object `status` field is
-/// the live payment-intent status, so this is the authoritative attempt-status source.
+/// Only the terminal / actionable payment-intent statuses are mapped explicitly. Every other
+/// value — `processing` (still in-flight), the source-only `chargeable`, and the refund/dispute
+/// statuses carried by the shared `WebhookEventStatus` enum — is treated as `Pending`.
 fn payment_status_to_attempt_status(status: &WebhookEventStatus) -> common_enums::AttemptStatus {
     use self::WebhookEventStatus as S;
     match status {
         S::Succeeded => common_enums::AttemptStatus::Charged,
-        S::Failed => common_enums::AttemptStatus::Failure,
         // Stripe sets `requires_payment_method` after a declined attempt -> treat as failure.
-        S::RequiresPaymentMethod => common_enums::AttemptStatus::Failure,
+        S::Failed | S::RequiresPaymentMethod => common_enums::AttemptStatus::Failure,
         S::RequiresConfirmation => common_enums::AttemptStatus::ConfirmationAwaited,
         S::RequiresAction => common_enums::AttemptStatus::AuthenticationPending,
-        S::Processing => common_enums::AttemptStatus::Authorizing,
         S::RequiresCapture => common_enums::AttemptStatus::Authorized,
-        S::Chargeable => common_enums::AttemptStatus::Authorizing,
         S::Canceled => common_enums::AttemptStatus::Voided,
-        S::ChargeRefunded
-        | S::WarningNeedsResponse
-        | S::WarningClosed
-        | S::WarningUnderReview
-        | S::Won
-        | S::Lost
-        | S::NeedsResponse
-        | S::UnderReview
-        | S::Unknown => common_enums::AttemptStatus::Pending,
+        _ => common_enums::AttemptStatus::Pending,
     }
 }
 
