@@ -448,16 +448,14 @@ fn observe_internal_latency(
         let connector = metadata_payload
             .map(|md| md.connector.get_connector_name())
             .unwrap_or_else(|| "unknown".to_string());
-        let mode = if metadata_payload.map(|md| md.shadow_mode).unwrap_or(false) {
-            "shadow"
-        } else {
-            "primary"
-        };
+        let mode = ExecutionMode::from_shadow_flag(
+            metadata_payload.map(|md| md.shadow_mode).unwrap_or(false),
+        );
         external_services::otel_metrics::record_internal_latency(
             &flow_name.to_string(),
             service_name,
             &connector,
-            mode,
+            mode.as_str(),
             internal.as_secs_f64(),
         );
     }
