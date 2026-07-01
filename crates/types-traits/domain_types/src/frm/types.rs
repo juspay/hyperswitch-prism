@@ -1,6 +1,6 @@
 use super::frm_types::{
     FrmChargebackReceivedRequest, FrmFlowData, FrmPaymentOutcomeRequest, FrmRefundProcessedRequest,
-    MandateInfo, PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest,
+    MerchantDetails, PostRiskCheckRequest, PostRiskCheckResponse, PreRiskCheckRequest,
     PreRiskCheckResponse,
 };
 use crate::{
@@ -9,6 +9,7 @@ use crate::{
         ServerAuthenticationTokenResponseData,
     },
     errors::IntegrationError,
+    mandates::MandateAmountData,
     payment_address::{Address, OrderDetailsWithAmount, PaymentAddress},
     payment_method_data::{Card, DefaultPCIHolder, PaymentMethodData},
     router_request_types::BrowserInformation,
@@ -22,6 +23,17 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::ExposeInterface;
+
+// ── MerchantDetails conversion ────────────────────────────────────────────────
+
+impl ForeignFrom<grpc_api_types::payments::MerchantDetails> for MerchantDetails {
+    fn foreign_from(value: grpc_api_types::payments::MerchantDetails) -> Self {
+        Self {
+            id: value.id,
+            mcc: value.mcc,
+        }
+    }
+}
 
 // ── FrmDecision conversions ───────────────────────────────────────────────────
 
@@ -269,18 +281,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
                 },
             })?;
 
-        let mandate_info = value.mandate_info.map(|m| MandateInfo {
-            start_date: m.start_date,
-            end_date: m.end_date,
-            initial_billing_amount: m.initial_billing_amount,
-            period_billing_amount: m.period_billing_amount,
-            period: m.period,
-            external_subscription_id: m.external_subscription_id,
-            status: m.status,
-            next_billing_date: m.next_billing_date,
-            billing_cycle: m.billing_cycle,
-            description: m.description,
-        });
+        let mandate_info = value.mandate_info.map(MandateAmountData::foreign_from);
 
         Ok(Self {
             amount: Money {
@@ -297,6 +298,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             connector_feature_data: value.connector_feature_data,
             test_mode: value.test_mode,
             mandate_info,
+            merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
         })
     }
 }
@@ -543,6 +545,7 @@ impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent> for FrmPay
             payment_status,
             merchant_transaction_id: payment_details.merchant_transaction_id,
             frm_decision,
+            merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
         })
     }
 }
@@ -615,6 +618,7 @@ impl ForeignTryFrom<grpc_api_types::payments::FrmNotificationContent>
             merchant_refund_id: refund.merchant_refund_id,
             refund_reason: refund.refund_reason,
             frm_decision,
+            merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
         })
     }
 }

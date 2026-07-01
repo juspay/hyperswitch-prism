@@ -373,6 +373,7 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
                     end_date: None,
                     amount_type: Some("max".to_string()),
                     frequency: Some("monthly".to_string()),
+                    ..Default::default()
                 })),
             }),
         }),

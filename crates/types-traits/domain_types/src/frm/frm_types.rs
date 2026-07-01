@@ -3,6 +3,7 @@ use crate::{
         ConnectorResponseHeaders, CustomerInfo, RawConnectorRequestResponse,
         ServerAuthenticationTokenResponseData,
     },
+    mandates::MandateAmountData,
     payment_address::{OrderDetailsWithAmount, PaymentAddress},
     payment_method_data::{DefaultPCIHolder, PaymentMethodData},
     router_request_types::BrowserInformation,
@@ -50,20 +51,12 @@ impl ConnectorResponseHeaders for FrmFlowData {
     }
 }
 
-/// Recurring / mandate details for a subscription order, mirroring the Kount
-/// Orders `recurring` (RecurringDetails) block.
-#[derive(Debug, Clone)]
-pub struct MandateInfo {
-    pub start_date: Option<String>,
-    pub end_date: Option<String>,
-    pub initial_billing_amount: Option<u64>,
-    pub period_billing_amount: Option<u64>,
-    pub period: Option<String>,
-    pub external_subscription_id: Option<String>,
-    pub status: Option<String>,
-    pub next_billing_date: Option<String>,
-    pub billing_cycle: Option<i32>,
-    pub description: Option<String>,
+/// Merchant details (id + MCC) for risk scoring. Maps to Kount's `merchant`
+/// object + `merchantCategoryCode` on Evaluate/Update Order.
+#[derive(Debug, Clone, Default)]
+pub struct MerchantDetails {
+    pub id: Option<String>,
+    pub mcc: Option<u32>,
 }
 
 /// Request data for pre-risk check
@@ -79,7 +72,11 @@ pub struct PreRiskCheckRequest {
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,
     pub test_mode: Option<bool>,
-    pub mandate_info: Option<MandateInfo>,
+    /// Recurring / subscription details for risk scoring (shared MandateAmountData;
+    /// `amount` is the per-period billing amount, `frequency` the billing period).
+    pub mandate_info: Option<MandateAmountData>,
+    /// Merchant details (id + MCC) for risk scoring.
+    pub merchant_details: Option<MerchantDetails>,
 }
 
 /// Response data for pre-risk check
@@ -128,6 +125,8 @@ pub struct FrmPaymentOutcomeRequest {
     pub payment_status: Option<AttemptStatus>,
     pub merchant_transaction_id: Option<String>,
     pub frm_decision: Option<FrmDecision>,
+    /// Merchant details (id + MCC) for the Update Order call.
+    pub merchant_details: Option<MerchantDetails>,
 }
 
 #[derive(Debug, Clone)]
@@ -139,6 +138,8 @@ pub struct FrmRefundProcessedRequest {
     pub merchant_refund_id: Option<String>,
     pub refund_reason: Option<String>,
     pub frm_decision: Option<FrmDecision>,
+    /// Merchant details (id + MCC) for the Update Order call.
+    pub merchant_details: Option<MerchantDetails>,
 }
 
 #[derive(Debug, Clone)]

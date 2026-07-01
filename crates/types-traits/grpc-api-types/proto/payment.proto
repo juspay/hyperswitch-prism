@@ -1134,7 +1134,11 @@ message OnlineMandate {
   string user_agent = 2;
 }
 
-// Amount data for mandate
+// Amount data for mandate.
+//
+// Also carries subscription / recurring-order context consumed by FRM risk
+// scoring (e.g. Kount's `recurring` block). In that FRM usage `amount` is the
+// per-period billing amount and `frequency` is the billing period.
 message MandateAmountData {
   int64 amount = 1;              // Amount
   Currency currency = 2;         // Currency code (ISO 4217)
@@ -1143,7 +1147,21 @@ message MandateAmountData {
   optional string amount_type =
       5; // Amount type for variable mandates ("exact", "max", "variable")
   optional string frequency =
-      6; // Frequency for recurring mandates ("daily", "weekly", "monthly")
+      6; // Frequency / billing period ("daily", "weekly", "monthly")
+
+  // ── Subscription / recurring-order fields (FRM risk scoring) ──────────────
+  // First billing amount in the smallest currency unit.
+  optional uint64 initial_billing_amount = 7;
+  // Merchant's external subscription identifier.
+  optional string external_subscription_id = 8;
+  // Subscription status (e.g. "ACTIVE").
+  optional string status = 9;
+  // Unix timestamp for the next billing date.
+  optional int64 next_billing_date = 10;
+  // Number of billing cycles elapsed / scheduled.
+  optional int32 billing_cycle = 11;
+  // Free-form description of the subscription.
+  optional string description = 12;
 }
 
 // Mandate type with amount details
@@ -1608,6 +1626,19 @@ enum FrmDecision {
   ERROR = 4;                    // The FRM check itself failed (network, timeout, misconfiguration).
 }
 
+// Merchant details for an order, used by FRM risk scoring (maps to Kount's
+// `merchant` object + `merchantCategoryCode` on Evaluate/Update Order). Only id
+// and mcc for now; extend as more merchant fields are needed. Defined here (the
+// base proto) so both the FRM Pre Risk Check request (frm.proto) and the notify
+// content below can reference it.
+message MerchantDetails {
+  // Merchant identifier (Kount `merchant.id`).
+  optional string id = 1;
+
+  // Merchant Category Code (ISO 18245); Kount `merchantCategoryCode`.
+  optional uint32 mcc = 2;
+}
+
 // Unified FRM notification content.
 // Used for all FRM lifecycle events (payment success, refund, chargeback).
 message FrmNotificationContent {
@@ -1627,6 +1658,9 @@ message FrmNotificationContent {
 
   // Risk assessment outcome
   optional FrmDecision frm_decision = 7;
+
+  // Merchant details (id + MCC) for risk scoring on the Update Order call.
+  optional MerchantDetails merchant_details = 8;
 }
 
 // FRM payment success details
@@ -3402,6 +3436,11 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Description
   optional string description = 14;
+
+  // Merchant transaction identifier. Used by FRM device-data collection (e.g.
+  // Kount) to derive the DDC sessionId, which must match the deviceSessionId
+  // sent on the corresponding Pre Risk Check / Evaluate Order.
+  optional string merchant_transaction_id = 15;
 }
 
 // Response message for pre-authentication step

@@ -10,12 +10,16 @@ use domain_types::{
     errors,
     frm::frm_types::{
         FrmFlowData, FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse,
-        FrmRefundProcessedRequest, FrmRefundProcessedResponse, MandateInfo, PreRiskCheckRequest,
-        PreRiskCheckResponse,
+        FrmRefundProcessedRequest, FrmRefundProcessedResponse, MerchantDetails,
+        PreRiskCheckRequest, PreRiskCheckResponse,
     },
+    mandates::MandateAmountData,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_address::Address,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        BankDebitData, BankRedirectData, Card, PayLaterData, PaymentMethodData,
+        PaymentMethodDataTypes, WalletData,
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
@@ -247,13 +251,26 @@ pub struct KountUpdateOrderResponse {
 }
 
 /// Truncate a merchant-supplied id into a valid Kount `sessionId` (≤32 chars,
-/// alphanumeric / `-` / `_`). Shared by the DDC HTML and the Evaluate Order
-/// `deviceSessionId` so the two correlate.
+/// alphanumeric / `-` / `_`). Fallback for [`hash_session_id`].
 pub fn to_session_id(raw: &str) -> String {
     raw.chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_')
         .take(32)
         .collect()
+}
+
+/// Kount `sessionId` / `deviceSessionId` derived from the merchant transaction
+/// id: the first 32 hex chars of its SHA-256 digest. Hashing keeps the raw
+/// merchant id out of the client-visible DDC HTML and yields a valid (≤32-char,
+/// alphanumeric) session id regardless of the source format. The DDC HTML
+/// (PreAuthenticate) and the Evaluate Order both hash the *same* merchant
+/// transaction id, so the collected device data correlates.
+pub fn hash_session_id(raw: &str) -> String {
+    use common_utils::crypto::{GenerateDigest, Sha256};
+    Sha256
+        .generate_digest(raw.as_bytes())
+        .map(|digest| hex::encode(digest).chars().take(32).collect())
+        .unwrap_or_else(|_| to_session_id(raw))
 }
 
 /// Round a Kount omniscore (a 0–99 float) to the integer FRM risk score.
@@ -293,11 +310,80 @@ pub enum KountFulfillmentType {
     Digital,
 }
 
-/// Kount payment instrument type.
+/// Kount payment instrument type (`transactions[].payment.type`). The full
+/// enumeration from the Kount Orders API is modelled here; only the variants
+/// with a UCS payment-method equivalent are ever produced (see
+/// [`kount_payment_type`]).
 #[derive(Debug, Clone, Copy, Serialize)]
-#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum KountPaymentType {
+    #[serde(rename = "APAY")]
+    ApplePay,
+    #[serde(rename = "CARD")]
+    Card,
+    #[serde(rename = "CREDIT_CARD")]
     CreditCard,
+    #[serde(rename = "DEBIT_CARD")]
+    DebitCard,
+    #[serde(rename = "PYPL")]
+    Paypal,
+    #[serde(rename = "CHEK")]
+    Check,
+    #[serde(rename = "NONE")]
+    None,
+    #[serde(rename = "TOKEN")]
+    Token,
+    #[serde(rename = "GDMP")]
+    GreenDotMoneyPak,
+    #[serde(rename = "GOOG")]
+    GooglePay,
+    #[serde(rename = "BLML")]
+    BillMeLater,
+    #[serde(rename = "GIFT")]
+    GiftCard,
+    #[serde(rename = "BPAY")]
+    Bpay,
+    #[serde(rename = "NETELLER")]
+    Neteller,
+    #[serde(rename = "GIROPAY")]
+    Giropay,
+    #[serde(rename = "ELV")]
+    Elv,
+    #[serde(rename = "MERCADE_PAGO")]
+    MercadoPago,
+    #[serde(rename = "SEPA")]
+    Sepa,
+    #[serde(rename = "INTERAC")]
+    Interac,
+    #[serde(rename = "CARTE_BLEUE")]
+    CarteBleue,
+    #[serde(rename = "POLI")]
+    Poli,
+    #[serde(rename = "SKRILL")]
+    Skrill,
+    #[serde(rename = "SOFORT")]
+    Sofort,
+    #[serde(rename = "AMZN")]
+    AmazonPay,
+    #[serde(rename = "SAMPAY")]
+    SamsungPay,
+    #[serde(rename = "ALIPAY")]
+    AliPay,
+    #[serde(rename = "WCPAY")]
+    WeChatPay,
+    #[serde(rename = "CRYPTO")]
+    Crypto,
+    #[serde(rename = "KLARNA")]
+    Klarna,
+    #[serde(rename = "AFTRPAY")]
+    Afterpay,
+    #[serde(rename = "AFFIRM")]
+    Affirm,
+    #[serde(rename = "SPLIT")]
+    Splitit,
+    #[serde(rename = "FBPAY")]
+    FacebookPay,
+    #[serde(rename = "CASH")]
+    Cash,
 }
 
 /// Evaluate Order request (`POST /commerce/v2/orders`). Modelled on the Kount
@@ -336,6 +422,23 @@ pub struct KountEvaluateOrderRequest {
     /// Device/browser details derived from the browser info, when available.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device: Option<KountDevice>,
+    /// Merchant Category Code (ISO 18245), when provided.
+    #[serde(
+        rename = "merchantCategoryCode",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_category_code: Option<u32>,
+    /// Merchant details (id), when provided.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant: Option<KountMerchant>,
+}
+
+/// Kount `merchant` object. Only `id` for now (matches the FRM `MerchantDetails`
+/// contract); the Kount schema also allows name/storeName/websiteUrl/etc.
+#[derive(Debug, Clone, Serialize)]
+pub struct KountMerchant {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -416,17 +519,30 @@ pub struct KountRecurring {
     pub description: Option<String>,
 }
 
-impl From<&MandateInfo> for KountRecurring {
-    fn from(m: &MandateInfo) -> Self {
+impl From<&MandateAmountData> for KountRecurring {
+    fn from(m: &MandateAmountData) -> Self {
+        // Shared MandateAmountData carries dates as PrimitiveDateTime; Kount's
+        // recurring block wants strings, so format each as RFC 3339 (UTC).
+        let format_date = |d: time::PrimitiveDateTime| {
+            d.assume_utc()
+                .format(&time::format_description::well_known::Rfc3339)
+                .ok()
+        };
+        // `amount` is the per-period billing amount; omit it when unset (0) so we
+        // don't emit a bogus "0" to Kount.
+        let period_billing_amount = {
+            let amount = m.amount.get_amount_as_i64();
+            (amount != 0).then(|| amount.to_string())
+        };
         Self {
-            start_date: m.start_date.clone(),
-            end_date: m.end_date.clone(),
+            start_date: m.start_date.and_then(format_date),
+            end_date: m.end_date.and_then(format_date),
             initial_billing_amount: m.initial_billing_amount.map(|amount| amount.to_string()),
-            period_billing_amount: m.period_billing_amount.map(|amount| amount.to_string()),
-            period: m.period.clone(),
+            period_billing_amount,
+            period: m.frequency.clone(),
             external_subscription_id: m.external_subscription_id.clone(),
             status: m.status.clone(),
-            next_billing_date: m.next_billing_date.clone(),
+            next_billing_date: m.next_billing_date.and_then(format_date),
             billing_cycle: m.billing_cycle,
             description: m.description.clone(),
         }
@@ -614,6 +730,162 @@ fn card_bin_last4(pan: &str) -> (Option<String>, Option<String>) {
     (bin, last4)
 }
 
+/// Kount `merchant` object + top-level `merchantCategoryCode` from the FRM
+/// merchant details. Shared by Evaluate Order and Update Order.
+fn kount_merchant(details: Option<&MerchantDetails>) -> (Option<KountMerchant>, Option<u32>) {
+    match details {
+        Some(details) => (
+            details.id.as_ref().map(|id| KountMerchant {
+                id: Some(id.clone()),
+            }),
+            details.mcc,
+        ),
+        None => (None, None),
+    }
+}
+
+/// Kount payment type for a card, from its (optional) `card_type`. Falls back to
+/// the generic `CARD` when credit/debit is unknown.
+fn card_payment_type<T: PaymentMethodDataTypes>(card: &Card<T>) -> KountPaymentType {
+    match card
+        .card_type
+        .as_deref()
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+    {
+        Some("credit") => KountPaymentType::CreditCard,
+        Some("debit") => KountPaymentType::DebitCard,
+        _ => KountPaymentType::Card,
+    }
+}
+
+/// A non-card payment instrument mapped for Kount: the payment `type` plus an
+/// optional raw instrument identifier (payer email, IBAN, account number, …)
+/// that the caller salted-hashes into `paymentToken`. `token_source` is `None`
+/// when the method has no stable identifier worth sending (e.g. device-bound
+/// wallet tokens that rotate per transaction and can't link across orders).
+struct KountInstrument {
+    payment_type: KountPaymentType,
+    token_source: Option<String>,
+}
+
+impl KountInstrument {
+    fn typed(payment_type: KountPaymentType) -> Self {
+        Self {
+            payment_type,
+            token_source: None,
+        }
+    }
+
+    fn with_token(payment_type: KountPaymentType, token_source: Option<String>) -> Self {
+        Self {
+            payment_type,
+            token_source,
+        }
+    }
+}
+
+/// Maps a non-card UCS payment method to a Kount payment instrument (type +
+/// optional token source). Returns `None` for methods with no Kount equivalent,
+/// in which case the `payment` block is omitted from the Evaluate Order. Cards
+/// are handled separately (they carry BIN/last4 + a PAN-derived token).
+fn kount_instrument<T: PaymentMethodDataTypes>(
+    pm: &PaymentMethodData<T>,
+) -> Option<KountInstrument> {
+    use KountPaymentType as K;
+    Some(match pm {
+        PaymentMethodData::CardRedirect(_) => KountInstrument::typed(K::Card),
+        // Processor / network tokens: send the token itself as the (salted-hashed)
+        // paymentToken, matching Kount's post-auth `paymentType=TOKEN` guidance.
+        PaymentMethodData::NetworkToken(token_data) => {
+            KountInstrument::with_token(K::Token, Some(token_data.token_number.peek().to_string()))
+        }
+        PaymentMethodData::PaymentMethodToken(token_data) => {
+            KountInstrument::with_token(K::Token, Some(token_data.token.peek().to_string()))
+        }
+        PaymentMethodData::Crypto(_) => KountInstrument::typed(K::Crypto),
+        PaymentMethodData::GiftCard(_) => KountInstrument::typed(K::GiftCard),
+        PaymentMethodData::Wallet(wallet) => return kount_wallet_instrument(wallet),
+        PaymentMethodData::PayLater(pay_later) => return kount_pay_later_instrument(pay_later),
+        PaymentMethodData::BankRedirect(bank) => return kount_bank_redirect_instrument(bank),
+        PaymentMethodData::BankDebit(bank) => return kount_bank_debit_instrument(bank),
+        _ => return None,
+    })
+}
+
+fn kount_wallet_instrument(wallet: &WalletData) -> Option<KountInstrument> {
+    use KountPaymentType as K;
+    Some(match wallet {
+        WalletData::ApplePay(_)
+        | WalletData::ApplePayRedirect(_)
+        | WalletData::ApplePayThirdPartySdk(_) => KountInstrument::typed(K::ApplePay),
+        WalletData::GooglePay(_)
+        | WalletData::GooglePayRedirect(_)
+        | WalletData::GooglePayThirdPartySdk(_) => KountInstrument::typed(K::GooglePay),
+        // PayPal identifies the payer by email (redirect) or a processor token (SDK).
+        WalletData::PaypalRedirect(paypal) => KountInstrument::with_token(
+            K::Paypal,
+            paypal.email.as_ref().map(|email| email.peek().to_string()),
+        ),
+        WalletData::PaypalSdk(paypal) => {
+            KountInstrument::with_token(K::Paypal, Some(paypal.token.clone()))
+        }
+        WalletData::AmazonPayRedirect(_) => KountInstrument::typed(K::AmazonPay),
+        WalletData::SamsungPay(_) => KountInstrument::typed(K::SamsungPay),
+        WalletData::AliPayQr(_)
+        | WalletData::AliPayRedirect(_)
+        | WalletData::AliPayHkRedirect(_) => KountInstrument::typed(K::AliPay),
+        WalletData::WeChatPayRedirect(_) | WalletData::WeChatPayQr(_) => {
+            KountInstrument::typed(K::WeChatPay)
+        }
+        _ => return None,
+    })
+}
+
+fn kount_pay_later_instrument(pay_later: &PayLaterData) -> Option<KountInstrument> {
+    use KountPaymentType as K;
+    Some(match pay_later {
+        PayLaterData::KlarnaRedirect {} | PayLaterData::KlarnaSdk { .. } => {
+            KountInstrument::typed(K::Klarna)
+        }
+        PayLaterData::AffirmRedirect {} => KountInstrument::typed(K::Affirm),
+        PayLaterData::AfterpayClearpayRedirect {} => KountInstrument::typed(K::Afterpay),
+        _ => return None,
+    })
+}
+
+fn kount_bank_redirect_instrument(bank: &BankRedirectData) -> Option<KountInstrument> {
+    use KountPaymentType as K;
+    Some(match bank {
+        BankRedirectData::Giropay {
+            bank_account_iban, ..
+        } => KountInstrument::with_token(
+            K::Giropay,
+            bank_account_iban
+                .as_ref()
+                .map(|iban| iban.peek().to_string()),
+        ),
+        BankRedirectData::Interac { email, .. } => KountInstrument::with_token(
+            K::Interac,
+            email.as_ref().map(|email| email.peek().to_string()),
+        ),
+        BankRedirectData::Sofort { .. } => KountInstrument::typed(K::Sofort),
+        _ => return None,
+    })
+}
+
+fn kount_bank_debit_instrument(bank: &BankDebitData) -> Option<KountInstrument> {
+    use KountPaymentType as K;
+    // The account identifier (IBAN / account number) is the instrument token.
+    Some(match bank {
+        BankDebitData::SepaBankDebit { iban, .. }
+        | BankDebitData::SepaGuaranteedBankDebit { iban, .. } => {
+            KountInstrument::with_token(K::Sepa, Some(iban.peek().to_string()))
+        }
+        _ => return None,
+    })
+}
+
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         KountRouterData<
@@ -735,10 +1007,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .as_ref()
                     .and_then(|customer| KountPerson::try_from(customer).ok())
             });
-        let fulfillment = address
+        // Fulfillment recipient: identity (name / email / phone) from customer
+        // info, with the shipping address attached (customer info has no address).
+        let shipping_address = address
             .and_then(|addr| addr.get_shipping())
             .and_then(|addr| KountPerson::try_from(addr).ok())
-            .map(|recipient| {
+            .and_then(|person| person.address);
+        let fulfillment = req
+            .customer_info
+            .as_ref()
+            .and_then(|customer| KountPerson::try_from(customer).ok())
+            .map(|mut recipient| {
+                recipient.address = shipping_address;
                 vec![KountFulfillment {
                     fulfillment_type,
                     recipient_person: Some(recipient),
@@ -746,27 +1026,40 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
             .unwrap_or_default();
 
-        // Payment instrument (BIN/last4 + salted token only) from the payment
-        // method. The api_key is reused as the token salt; if auth can't be
-        // resolved we still send BIN/last4 and simply omit the token.
+        // Payment instrument from the payment method. The api_key is reused as
+        // the salt for `paymentToken` (a salted hash of the instrument
+        // identifier); if auth can't be resolved we still send type + BIN/last4
+        // and simply omit the token.
         let api_key = KountAuthType::try_from(&item.router_data.connector_config)
             .ok()
             .map(|auth| auth.api_key);
+        let salted_token = |source: &str| {
+            api_key
+                .as_ref()
+                .and_then(|api_key| payment_token_hash(api_key, source))
+        };
         let payment = match req.payment_method.as_ref() {
+            // Cards carry BIN/last4 + a PAN-derived token; the type reflects credit/debit.
             Some(PaymentMethodData::Card(card)) => {
                 let pan = card.card_number.peek();
                 let (bin, last4) = card_bin_last4(pan);
-                let payment_token = api_key
-                    .as_ref()
-                    .and_then(|api_key| payment_token_hash(api_key, pan));
                 Some(KountPayment {
-                    payment_type: KountPaymentType::CreditCard,
+                    payment_type: card_payment_type(card),
                     bin,
                     last4,
-                    payment_token,
+                    payment_token: salted_token(pan),
                 })
             }
-            _ => None,
+            // Non-card methods: mapped Kount type + a salted token of the
+            // instrument identifier (payer email, IBAN, account number, …) when
+            // one is available. Methods with no Kount equivalent omit the block.
+            Some(other) => kount_instrument(other).map(|instrument| KountPayment {
+                payment_type: instrument.payment_type,
+                bin: None,
+                last4: None,
+                payment_token: instrument.token_source.as_deref().and_then(salted_token),
+            }),
+            None => None,
         };
 
         let amount = super::KountAmountConvertor::convert(req.amount.amount, currency)?;
@@ -782,9 +1075,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .format(&time::format_description::well_known::Rfc3339)
             .unwrap_or_default();
 
+        let (merchant, merchant_category_code) = kount_merchant(req.merchant_details.as_ref());
+
         Ok(Self {
             order_id: order_id.clone(),
-            session_id: to_session_id(&order_id),
+            session_id: hash_session_id(&order_id),
             channel: KountChannel::Web,
             creation_date_time,
             user_ip,
@@ -793,6 +1088,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             fulfillment,
             transactions,
             device,
+            merchant_category_code,
+            merchant,
         })
     }
 }
@@ -910,6 +1207,15 @@ pub struct KountUpdateOrderRequest {
     /// FRM decision being notified (APPROVE / DECLINE / REVIEW).
     #[serde(rename = "frmDisposition", skip_serializing_if = "Option::is_none")]
     pub frm_disposition: Option<KountDisposition>,
+    /// Merchant Category Code (ISO 18245), when provided.
+    #[serde(
+        rename = "merchantCategoryCode",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_category_code: Option<u32>,
+    /// Merchant details (id), when provided.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant: Option<KountMerchant>,
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -939,6 +1245,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
+        let (merchant, merchant_category_code) = kount_merchant(req.merchant_details.as_ref());
         Ok(Self {
             merchant_transaction_id: req
                 .merchant_transaction_id
@@ -953,6 +1260,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )?,
             currency: req.amount.currency.to_string(),
             frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
+            merchant_category_code,
+            merchant,
         })
     }
 }
@@ -1006,6 +1315,15 @@ pub struct KountRefundUpdateRequest {
     /// FRM decision being notified (APPROVE / DECLINE / REVIEW).
     #[serde(rename = "frmDisposition", skip_serializing_if = "Option::is_none")]
     pub frm_disposition: Option<KountDisposition>,
+    /// Merchant Category Code (ISO 18245), when provided.
+    #[serde(
+        rename = "merchantCategoryCode",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub merchant_category_code: Option<u32>,
+    /// Merchant details (id), when provided.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant: Option<KountMerchant>,
 }
 
 /// Response from the refund Update Order PATCH. Distinct type from
@@ -1044,6 +1362,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let req = &item.router_data.request;
+        let (merchant, merchant_category_code) = kount_merchant(req.merchant_details.as_ref());
         Ok(Self {
             merchant_transaction_id: req.connector_transaction_id.clone(),
             refund_id: req
@@ -1057,6 +1376,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )?,
             currency: req.amount.currency.to_string(),
             frm_disposition: req.frm_decision.and_then(KountDisposition::from_decision),
+            merchant_category_code,
+            merchant,
         })
     }
 }

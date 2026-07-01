@@ -70,8 +70,12 @@ message CompositeFrmPreRiskCheckRequest {
   // Per-request idempotency / correlation token propagated from the parent composite request
   optional string merchant_request_id = 13;
 
-  // Recurring / mandate details for subscription risk scoring
-  optional MandateInfo mandate_info = 14;
+  // Recurring / mandate details for subscription risk scoring (shared
+  // MandateAmountData from payment.proto).
+  optional MandateAmountData mandate_info = 14;
+
+  // Merchant details (id + MCC) for risk scoring.
+  optional MerchantDetails merchant_details = 15;
 }
 
 // Composite request for PostRiskCheck that includes all fields from
