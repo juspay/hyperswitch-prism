@@ -6741,6 +6741,23 @@ pub fn generate_payment_void_response(
         .resource_common_data
         .get_raw_connector_request();
 
+    let connector_response = router_data_v2
+        .resource_common_data
+        .connector_response
+        .as_ref()
+        .and_then(|connector_response_data| {
+            grpc_api_types::payments::ConnectorResponseData::foreign_try_from(
+                connector_response_data.clone(),
+            )
+            .map_err(|error| {
+                tracing::warn!(
+                    ?error,
+                    "Failed to convert connector_response for void response; omitting it"
+                );
+            })
+            .ok()
+        });
+
     match transaction_response {
         Ok(response) => match response {
             PaymentsResponseData::TransactionResponse {
@@ -6794,6 +6811,7 @@ pub fn generate_payment_void_response(
                             split_response,
                         )
                     }),
+                    connector_response,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -6842,6 +6860,7 @@ pub fn generate_payment_void_response(
                 incremental_authorization_allowed: None,
                 connector_feature_data: None,
                 splits: None,
+                connector_response,
             })
         }
     }

@@ -2616,6 +2616,11 @@ message PaymentServiceVoidResponse {
 
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 12;
+
+  // Additional payment-method-specific data from the connector response
+  // (e.g. AVS / payment_checks). Mirrors PaymentServiceCaptureResponse.connector_response
+  // so the void router-data carries connector_response identically to the native flow.
+  optional ConnectorResponseData connector_response = 13;
 }
 
 // Request message for reversing a captured payment if not yet settled (similar
