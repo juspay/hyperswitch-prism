@@ -468,7 +468,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AffirmPaymentsRespons
                         context: errors::ResponseTransformationErrorContext {
                             http_status_code: Some(item.http_code),
                             additional_context: Some(
-                                "Affirm returned an unparseable hosted-checkout redirect_url."
+                                "Affirm returned an unparsable hosted-checkout redirect_url."
                                     .to_string(),
                             ),
                         },
