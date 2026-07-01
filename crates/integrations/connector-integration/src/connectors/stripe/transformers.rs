@@ -7,7 +7,7 @@ use common_utils::{
     ext_traits::{ByteSliceExt, Encode, OptionExt},
     pii::{self, Email},
     request::Method,
-    types::MinorUnit,
+    types::{MinorUnit, StringMinorUnitForConnector},
 };
 use domain_types::{
     connector_flow::{
@@ -16,15 +16,18 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
+        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse,
+        DisputeWebhookDetailsResponse, DisputeWebhookReference, EventType, MandateReference,
         MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData, SplitPaymentsDetails,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentWebhookReference,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData, SplitPaymentsDetails,
         StripeClientAuthenticationResponse as StripeClientAuthenticationResponseDomain,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError},
     mandates::AcceptanceType,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
@@ -45,7 +48,7 @@ use domain_types::{
     router_response_types::RedirectForm,
     utils::{get_unimplemented_payment_method_error_message, is_payment_failure},
 };
-use error_stack::ResultExt;
+use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -3807,6 +3810,426 @@ pub enum WebhookEventStatus {
 pub struct EvidenceDetails {
     #[serde(with = "common_utils::custom_serde::timestamp")]
     pub due_by: PrimitiveDateTime,
+}
+
+// =============================================================================
+// INCOMING WEBHOOKS
+// =============================================================================
+// Free functions that back the `IncomingWebhook` trait methods in `stripe.rs`.
+// The trait methods are thin wrappers: decode the body then delegate here. All
+// mapping / status / content / reference logic lives here so it can be diffed
+// against the canonical connector convention (see `hyperswitch::transformers`
+// and `adyen::transformers`). The logic below is a verbatim relocation of the
+// pre-refactor `stripe.rs` implementation; semantics are unchanged.
+
+/// Parse the `Stripe-Signature` header into its key/value elements.
+///
+/// Stripe sends a header of the form `t=1700000000,v1=<hex_hmac>[,v0=...]`. We split on `,`
+/// and then on the first `=` of each element, mirroring HS `get_signature_elements_from_header`.
+/// The header lookup is case-insensitive because the gateway may normalise header casing.
+pub(crate) fn get_signature_elements_from_header(
+    headers: &HashMap<String, String>,
+) -> Result<HashMap<String, Vec<u8>>, error_stack::Report<WebhookError>> {
+    let security_header = headers
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case("Stripe-Signature"))
+        .map(|(_, value)| value.clone())
+        .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
+
+    let props = security_header.split(',').collect::<Vec<&str>>();
+    let mut security_header_kvs: HashMap<String, Vec<u8>> = HashMap::with_capacity(props.len());
+
+    for prop_str in &props {
+        let (prop_key, prop_value) = prop_str
+            .split_once('=')
+            .ok_or_else(|| report!(WebhookError::WebhookSourceVerificationFailed))?;
+
+        security_header_kvs.insert(prop_key.to_string(), prop_value.bytes().collect());
+    }
+
+    Ok(security_header_kvs)
+}
+
+/// Decode the Stripe webhook envelope (`WebhookEvent`) from the raw request body.
+///
+/// Returns the raw parse result so each `IncomingWebhook` method can attach its own
+/// `WebhookError` context variant via `change_context`, preserving the pre-refactor
+/// per-method error mapping (reference -> `WebhookReferenceIdNotFound`, payment/refund/
+/// dispute -> `WebhookBodyDecodingFailed`, resource object -> `WebhookResourceObjectNotFound`).
+pub(crate) fn get_webhook_object_from_body(
+    body: &[u8],
+) -> CustomResult<WebhookEvent, common_utils::errors::ParsingError> {
+    body.parse_struct("WebhookEvent")
+}
+
+/// Map a Stripe webhook object `status` to a prism dispute `EventType`.
+///
+/// Ports HS `From<WebhookEventStatus> for IncomingWebhookEvent` (dispute arms). Non-dispute
+/// statuses map to `IncomingWebhookEventUnspecified` (HS `EventNotSupported`).
+fn dispute_status_to_event_type(status: &WebhookEventStatus) -> EventType {
+    use self::WebhookEventStatus as S;
+    match status {
+        S::WarningNeedsResponse | S::NeedsResponse => EventType::DisputeOpened,
+        S::WarningClosed => EventType::DisputeCancelled,
+        S::WarningUnderReview | S::UnderReview => EventType::DisputeChallenged,
+        S::Won => EventType::DisputeWon,
+        S::Lost => EventType::DisputeLost,
+        S::ChargeRefunded
+        | S::Succeeded
+        | S::RequiresPaymentMethod
+        | S::RequiresConfirmation
+        | S::RequiresAction
+        | S::Processing
+        | S::RequiresCapture
+        | S::Canceled
+        | S::Chargeable
+        | S::Failed
+        | S::Unknown => EventType::IncomingWebhookEventUnspecified,
+    }
+}
+
+/// Map a decoded Stripe webhook event (type + object status) to the prism `EventType`.
+///
+/// Ports `get_event_type` verbatim. Operates on the lighter `WebhookEventTypeBody`, which
+/// carries `payment_method_details` (required for the `charge.succeeded` ACH/Multibanco
+/// sub-mapping); the full `WebhookEvent` object does not expose that field.
+pub(crate) fn map_webhook_event_type(details: &WebhookEventTypeBody) -> EventType {
+    let WebhookStatusObjectData {
+        status,
+        payment_method_details,
+    } = &details.event_data.event_object;
+
+    match details.event_type {
+        WebhookEventType::PaymentIntentFailed => EventType::PaymentIntentFailure,
+        WebhookEventType::PaymentIntentSucceed => EventType::PaymentIntentSuccess,
+        WebhookEventType::PaymentIntentCanceled => EventType::PaymentIntentCancelled,
+        WebhookEventType::PaymentIntentAmountCapturableUpdated => {
+            EventType::PaymentIntentAuthorizationSuccess
+        }
+        WebhookEventType::ChargeSucceeded => match payment_method_details {
+            Some(WebhookPaymentMethodDetails {
+                payment_method:
+                    WebhookPaymentMethodType::AchCreditTransfer
+                    | WebhookPaymentMethodType::MultibancoBankTransfers,
+            }) => EventType::PaymentIntentSuccess,
+            _ => EventType::IncomingWebhookEventUnspecified,
+        },
+        WebhookEventType::ChargeRefundUpdated => match status.as_ref() {
+            Some(WebhookEventStatus::Succeeded) => EventType::RefundSuccess,
+            Some(WebhookEventStatus::Failed) => EventType::RefundFailure,
+            _ => EventType::IncomingWebhookEventUnspecified,
+        },
+        WebhookEventType::SourceChargeable => EventType::SourceChargeable,
+        // Dispute events: prefer object.status, fall back to event type.
+        WebhookEventType::DisputeCreated => status
+            .as_ref()
+            .map(dispute_status_to_event_type)
+            .unwrap_or(EventType::DisputeOpened),
+        WebhookEventType::DisputeUpdated => status
+            .as_ref()
+            .map(dispute_status_to_event_type)
+            .unwrap_or(EventType::IncomingWebhookEventUnspecified),
+        WebhookEventType::DisputeClosed => status
+            .as_ref()
+            .map(dispute_status_to_event_type)
+            .unwrap_or(EventType::DisputeCancelled),
+        WebhookEventType::ChargeDisputeFundsWithdrawn => status
+            .as_ref()
+            .map(dispute_status_to_event_type)
+            .unwrap_or(EventType::DisputeLost),
+        WebhookEventType::ChargeDisputeFundsReinstated => status
+            .as_ref()
+            .map(dispute_status_to_event_type)
+            .unwrap_or(EventType::DisputeWon),
+        WebhookEventType::PaymentIntentPartiallyFunded => EventType::PaymentIntentPartiallyFunded,
+        WebhookEventType::PaymentIntentRequiresAction => EventType::PaymentActionRequired,
+        WebhookEventType::Unknown
+        | WebhookEventType::ChargeCaptured
+        | WebhookEventType::ChargeExpired
+        | WebhookEventType::ChargeFailed
+        | WebhookEventType::ChargePending
+        | WebhookEventType::ChargeUpdated
+        | WebhookEventType::ChargeRefunded
+        | WebhookEventType::PaymentIntentCreated
+        | WebhookEventType::PaymentIntentProcessing
+        | WebhookEventType::SourceTransactionCreated => EventType::IncomingWebhookEventUnspecified,
+    }
+}
+
+/// Build the typed resource reference for a decoded Stripe webhook event.
+///
+/// Preserves the exact either/or selection that was fixed for HS shadow parity.
+pub(crate) fn get_webhook_reference(
+    event: &WebhookEvent,
+) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+    let event_object = &event.event_data.event_object;
+    let order_id = event_object
+        .metadata
+        .as_ref()
+        .and_then(|meta_data| meta_data.order_id.clone());
+
+    let reference = match event_object.object {
+        WebhookEventObjectType::PaymentIntent => {
+            // Mirror HS get_webhook_object_reference_id exactly: when metadata.order_id is
+            // present the reference is the merchant order id (PaymentAttemptId), otherwise the
+            // PaymentIntent object id (ConnectorTransactionId). Either/or — never both, because
+            // the shadow snapshot normaliser prefers connector_transaction_id whenever it is set.
+            match order_id {
+                Some(order_id) => WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: None,
+                    merchant_transaction_id: Some(order_id),
+                }),
+                None => WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(event_object.id.clone()),
+                    merchant_transaction_id: None,
+                }),
+            }
+        }
+        WebhookEventObjectType::Charge => {
+            // HS: order_id -> PaymentAttemptId, else the linked payment_intent as the
+            // ConnectorTransactionId. Either/or, as for PaymentIntent.
+            match order_id {
+                Some(order_id) => WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: None,
+                    merchant_transaction_id: Some(order_id),
+                }),
+                None => WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: event_object.payment_intent.clone(),
+                    merchant_transaction_id: None,
+                }),
+            }
+        }
+        WebhookEventObjectType::Dispute => {
+            // HS maps a dispute to its PARENT payment:
+            // PaymentId(ConnectorTransactionId(payment_intent)). The shadow normaliser prefers
+            // connector_dispute_id, so leave it None and surface the parent payment_intent as
+            // connector_transaction_id to match HS byte-for-byte.
+            WebhookResourceReference::Dispute(DisputeWebhookReference {
+                connector_dispute_id: None,
+                connector_transaction_id: event_object.payment_intent.clone(),
+            })
+        }
+        WebhookEventObjectType::Source => {
+            // HS uses a PreprocessingId here; prism has no source/preprocessing reference,
+            // so surface the source id as the payment connector transaction id.
+            WebhookResourceReference::Payment(PaymentWebhookReference {
+                connector_transaction_id: Some(event_object.id.clone()),
+                merchant_transaction_id: None,
+            })
+        }
+        WebhookEventObjectType::Refund => {
+            let is_refund_id_as_reference = event_object
+                .metadata
+                .as_ref()
+                .and_then(|meta_data| meta_data.is_refund_id_as_reference.clone());
+            // Ports HS issue-2076 logic: a refund-id reference becomes the merchant refund
+            // id, otherwise the object id is the connector refund id.
+            let (merchant_refund_id, connector_refund_id) =
+                match (order_id, is_refund_id_as_reference) {
+                    (Some(order_id), Some(_)) => (Some(order_id), None),
+                    _ => (None, Some(event_object.id.clone())),
+                };
+            WebhookResourceReference::Refund(RefundWebhookReference {
+                connector_refund_id,
+                merchant_refund_id,
+                connector_transaction_id: event_object.payment_intent.clone(),
+            })
+        }
+    };
+
+    Ok(Some(reference))
+}
+
+/// Map a Stripe payment-intent `status` to a prism `AttemptStatus`.
+///
+/// Ports HS `From<StripePaymentStatus> for AttemptStatus`. The webhook object `status` field is
+/// the live payment-intent status, so this is the authoritative attempt-status source.
+fn payment_status_to_attempt_status(status: &WebhookEventStatus) -> common_enums::AttemptStatus {
+    use self::WebhookEventStatus as S;
+    match status {
+        S::Succeeded => common_enums::AttemptStatus::Charged,
+        S::Failed => common_enums::AttemptStatus::Failure,
+        // Stripe sets `requires_payment_method` after a declined attempt -> treat as failure.
+        S::RequiresPaymentMethod => common_enums::AttemptStatus::Failure,
+        S::RequiresConfirmation => common_enums::AttemptStatus::ConfirmationAwaited,
+        S::RequiresAction => common_enums::AttemptStatus::AuthenticationPending,
+        S::Processing => common_enums::AttemptStatus::Authorizing,
+        S::RequiresCapture => common_enums::AttemptStatus::Authorized,
+        S::Chargeable => common_enums::AttemptStatus::Authorizing,
+        S::Canceled => common_enums::AttemptStatus::Voided,
+        S::ChargeRefunded
+        | S::WarningNeedsResponse
+        | S::WarningClosed
+        | S::WarningUnderReview
+        | S::Won
+        | S::Lost
+        | S::NeedsResponse
+        | S::UnderReview
+        | S::Unknown => common_enums::AttemptStatus::Pending,
+    }
+}
+
+/// Map a Stripe webhook object `status` to a prism `DisputeStatus`.
+///
+/// Mirrors the dispute arms of HS `From<WebhookEventStatus> for IncomingWebhookEvent`; statuses
+/// that do not denote a dispute state default to `DisputeOpened`.
+fn dispute_status_to_dispute_status(status: &WebhookEventStatus) -> common_enums::DisputeStatus {
+    use self::WebhookEventStatus as S;
+    match status {
+        S::WarningNeedsResponse | S::NeedsResponse => common_enums::DisputeStatus::DisputeOpened,
+        S::WarningClosed => common_enums::DisputeStatus::DisputeCancelled,
+        S::WarningUnderReview | S::UnderReview => common_enums::DisputeStatus::DisputeChallenged,
+        S::Won => common_enums::DisputeStatus::DisputeWon,
+        S::Lost => common_enums::DisputeStatus::DisputeLost,
+        _ => common_enums::DisputeStatus::DisputeOpened,
+    }
+}
+
+/// Build the payment webhook response from a decoded Stripe webhook event.
+pub(crate) fn build_webhook_payment_response(
+    event: &WebhookEvent,
+    raw_body: &[u8],
+) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+    let event_object = &event.event_data.event_object;
+
+    let status = match event.event_type {
+        WebhookEventType::PaymentIntentPartiallyFunded => {
+            common_enums::AttemptStatus::PartialCharged
+        }
+        WebhookEventType::PaymentIntentSucceed | WebhookEventType::ChargeSucceeded => {
+            common_enums::AttemptStatus::Charged
+        }
+        WebhookEventType::PaymentIntentFailed => common_enums::AttemptStatus::Failure,
+        WebhookEventType::PaymentIntentCanceled => common_enums::AttemptStatus::Voided,
+        WebhookEventType::PaymentIntentAmountCapturableUpdated => {
+            common_enums::AttemptStatus::Authorized
+        }
+        WebhookEventType::PaymentIntentRequiresAction => {
+            common_enums::AttemptStatus::AuthenticationPending
+        }
+        WebhookEventType::PaymentIntentProcessing => common_enums::AttemptStatus::Pending,
+        // Fall back to the live payment-intent status carried on the object.
+        _ => event_object
+            .status
+            .as_ref()
+            .map(payment_status_to_attempt_status)
+            .unwrap_or(common_enums::AttemptStatus::Pending),
+    };
+
+    let (error_code, error_message, error_reason) =
+        if status == common_enums::AttemptStatus::Failure {
+            let error = event_object.last_payment_error.as_ref();
+            (
+                error.and_then(|error| error.code.clone()),
+                error.and_then(|error| error.message.clone()),
+                error.and_then(|error| error.message.clone()),
+            )
+        } else {
+            (None, None, None)
+        };
+
+    // For a Charge object the connector transaction id is the linked payment_intent.
+    let connector_transaction_id = match event_object.object {
+        WebhookEventObjectType::Charge => event_object.payment_intent.clone(),
+        _ => Some(event_object.id.clone()),
+    };
+
+    let connector_response_reference_id = event_object
+        .metadata
+        .as_ref()
+        .and_then(|meta_data| meta_data.order_id.clone())
+        .or_else(|| connector_transaction_id.clone());
+
+    Ok(WebhookDetailsResponse {
+        resource_id: connector_transaction_id.map(ResponseId::ConnectorTransactionId),
+        status,
+        connector_response_reference_id,
+        mandate_reference: None,
+        error_code,
+        error_message,
+        error_reason,
+        raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+        status_code: 200,
+        response_headers: None,
+        amount_captured: None,
+        minor_amount_captured: None,
+        network_txn_id: None,
+        payment_method_update: None,
+        sender_payment_instrument_id: None,
+    })
+}
+
+/// Build the refund webhook response from a decoded Stripe webhook event.
+pub(crate) fn build_webhook_refund_response(
+    event: &WebhookEvent,
+    raw_body: &[u8],
+) -> Result<RefundWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+    let event_object = &event.event_data.event_object;
+
+    let status = match event_object.status.as_ref() {
+        Some(WebhookEventStatus::Succeeded) => common_enums::RefundStatus::Success,
+        Some(WebhookEventStatus::Failed) => common_enums::RefundStatus::Failure,
+        _ => common_enums::RefundStatus::Pending,
+    };
+
+    let (error_code, error_message) = if status == common_enums::RefundStatus::Failure {
+        let error = event_object.last_payment_error.as_ref();
+        (
+            error.and_then(|error| error.code.clone()),
+            error.and_then(|error| error.message.clone()),
+        )
+    } else {
+        (None, None)
+    };
+
+    Ok(RefundWebhookDetailsResponse {
+        connector_refund_id: Some(event_object.id.clone()),
+        status,
+        connector_response_reference_id: Some(event_object.id.clone()),
+        error_code,
+        error_message,
+        raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+        status_code: 200,
+        response_headers: None,
+    })
+}
+
+/// Build the dispute webhook response from a decoded Stripe webhook event.
+pub(crate) fn build_webhook_dispute_response(
+    event: &WebhookEvent,
+    raw_body: &[u8],
+) -> Result<DisputeWebhookDetailsResponse, error_stack::Report<WebhookError>> {
+    let event_object = &event.event_data.event_object;
+
+    let amount = event_object
+        .amount
+        .ok_or_else(|| report!(WebhookError::WebhookMissingRequiredField { field: "amount" }))?;
+
+    let amount = domain_types::utils::convert_amount_for_webhook(
+        &StringMinorUnitForConnector,
+        amount,
+        event_object.currency,
+    )?;
+
+    let status = event_object
+        .status
+        .as_ref()
+        .map(dispute_status_to_dispute_status)
+        .unwrap_or(common_enums::DisputeStatus::DisputeOpened);
+
+    Ok(DisputeWebhookDetailsResponse {
+        amount,
+        currency: event_object.currency,
+        dispute_id: event_object.id.clone(),
+        status,
+        stage: common_enums::DisputeStage::Dispute,
+        connector_response_reference_id: Some(event_object.id.clone()),
+        dispute_message: event_object.reason.clone(),
+        raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
+        status_code: 200,
+        response_headers: None,
+        connector_reason_code: None,
+    })
 }
 
 #[derive(Debug, Deserialize)]
