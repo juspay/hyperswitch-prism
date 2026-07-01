@@ -352,6 +352,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   NetworkParams: { "cartesBancaires": "CartesBancairesParams" },
   AuthenticationData: { "networkParams": "NetworkParams" },
   CustomerAcceptance: { "onlineMandateDetails": "OnlineMandate" },
+  MandateAmountData: { "amountMoney": "Money" },
   MandateType: { "singleUse": "MandateAmountData", "multiUse": "MandateAmountData" },
   SetupMandateDetails: { "customerAcceptance": "CustomerAcceptance", "mandateType": "MandateType" },
   MandateReference: { "connectorMandateId": "ConnectorMandateReferenceId", "networkTokenWithNti": "NetworkTokenWithNTI" },

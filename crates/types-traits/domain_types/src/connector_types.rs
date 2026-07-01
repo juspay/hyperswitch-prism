@@ -4154,7 +4154,7 @@ pub struct AirlineData {
 #[derive(Debug, Clone, Default)]
 pub struct AirlineSegment {
     pub sequence_no: Option<u32>,
-    pub carrier_code: Option<String>,
+    pub marketing_carrier_code: Option<String>,
     pub flight_number: Option<String>,
     pub flight_type: Option<String>,
     pub class_of_service: Option<String>,
@@ -4171,6 +4171,8 @@ pub struct AirlineSegment {
     pub conjunction_ticket: Option<String>,
     pub coupon_number: Option<String>,
     pub endorsements_restrictions: Option<String>,
+    pub operating_carrier_code: Option<String>,
+    pub operating_flight_number: Option<String>,
 }
 
 /// A flight endpoint, reused for both departure and arrival.

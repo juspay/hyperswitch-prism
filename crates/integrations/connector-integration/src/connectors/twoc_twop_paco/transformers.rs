@@ -10,9 +10,9 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        self, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
@@ -382,6 +382,8 @@ pub struct TwocTwopPacoCardAuthorizeRequest {
     pub billing_address: Option<PacoBillingAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping_address: Option<PacoShippingAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub airline_data: Option<PacoAirlineData>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -432,6 +434,8 @@ pub struct TwocTwopPacoWalletAuthorizeRequest {
     pub billing_address: Option<PacoBillingAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping_address: Option<PacoShippingAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub airline_data: Option<PacoAirlineData>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -501,6 +505,368 @@ pub struct TwocTwopPacoVoidPcResponse(pub PacoResponseWithRaw<TwocTwopPacoNonUiR
 #[serde(transparent)]
 pub struct TwocTwopPacoRefundResponse(pub PacoResponseWithRaw<TwocTwopPacoNonUiResponse>);
 
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoAirlineData {
+    pub booking_reference: PacoBookingReference,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agency: Option<PacoAgency>,
+    pub flight_segments: Vec<PacoFlightSegment>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tickets: Vec<PacoTicket>,
+    pub passengers: Vec<PacoPassenger>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoBookingReference {
+    pub pnr_code: String,
+    pub booking_date_time: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoAgency {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub invoice_no: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plan_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoFlightSegment {
+    pub sequence_no: u32,
+    pub marketing_airline_code: String,
+    pub marketing_flight_no: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operating_airline_code: Option<String>,
+    // PACO's wire spec uses lowercase 'f' here. Override the auto-camel rename.
+    #[serde(rename = "operatingflightNo", skip_serializing_if = "Option::is_none")]
+    pub operating_flight_no: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flight_type: Option<String>,
+    pub departure: PacoAirlineLocation,
+    pub arrival: PacoAirlineLocation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fare_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fare_basis_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub endorsement_or_restriction: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoAirlineLocation {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub airport_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date_time: Option<String>,
+}
+
+/// A `tickets[]` entry. PACO scopes all per-purchase amounts (ticketFare,
+/// taxAmount, agentFee, etc.) here — they do NOT live at the airlineData top
+/// level or on flightSegments. We synthesize one ticket from the proto's
+/// top-level totals; if the proto-side model grows a real ticket array, this
+/// becomes a 1-to-1 map.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoTicket {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub passenger_sequence_no: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket_no: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket_issue_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket_reservation_system_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_amount: Option<PacoTransactionAmount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket_fare: Option<PacoTransactionAmount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_fee: Option<PacoTransactionAmount>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoPassenger {
+    pub sequence_no: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identification_no: Option<Secret<String>>,
+    /// PACO accepts free-form `documentType` (≤30 chars). We set "Passport"
+    /// when sourcing `identificationNo` from the proto's `passport_number`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    pub first_name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub middle_name: Option<Secret<String>>,
+    pub last_name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gender: Option<String>,
+    pub email: common_utils::pii::Email,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mobile_no: Option<Secret<String>>,
+    /// PACO names this field `type` on the wire — it's an IATA PTC code.
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub passenger_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequent_flyer_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequent_flyer_number: Option<String>,
+}
+
+impl TryFrom<&common_utils::types::Money> for PacoTransactionAmount {
+    type Error = errors::IntegrationError;
+    fn try_from(money: &common_utils::types::Money) -> Result<Self, Self::Error> {
+        Self::new(money.amount, money.currency)
+    }
+}
+
+fn paco_numeric_country_code(country: CountryAlpha2) -> String {
+    format!("{:03}", CountryAlpha2::to_numeric(country))
+}
+
+fn invalid_airline_field(
+    field_name: &'static str,
+) -> error_stack::Report<errors::IntegrationError> {
+    error_stack::Report::new(errors::IntegrationError::InvalidDataFormat {
+        field_name,
+        context: errors::IntegrationErrorContext {
+            suggested_action: Some(format!(
+                "PACO airlineData expects `{field_name}` to be an ISO 3166-1 alpha-2 country code."
+            )),
+            doc_url: Some(PACO_INTEGRATION_DOC_URL.to_string()),
+            additional_context: None,
+        },
+    })
+}
+
+impl TryFrom<&connector_types::AirlineLocation> for PacoAirlineLocation {
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(location: &connector_types::AirlineLocation) -> Result<Self, Self::Error> {
+        // Upstream sends ISO 3166-1 alpha-2; PACO expects numeric-3.
+        let numeric_cc = location
+            .country_code
+            .as_deref()
+            .map(|country| {
+                country
+                    .parse::<CountryAlpha2>()
+                    .map(paco_numeric_country_code)
+                    .map_err(|_| {
+                        invalid_airline_field(
+                            "airline_data.flight_segments[].location.country_code",
+                        )
+                    })
+            })
+            .transpose()?;
+        Ok(Self {
+            airport_code: location.airport_code.clone(),
+            city_code: location.city_code.clone(),
+            city_name: location.city_name.clone(),
+            country_code: numeric_cc,
+            country_name: location.country_name.clone(),
+            date_time: location.date_time.clone(),
+        })
+    }
+}
+
+fn missing_airline_field(
+    field_name: &'static str,
+) -> error_stack::Report<errors::IntegrationError> {
+    error_stack::Report::new(errors::IntegrationError::MissingRequiredField {
+        field_name,
+        context: errors::IntegrationErrorContext {
+            suggested_action: Some(format!(
+                "PACO airlineData requires `{field_name}`; supply it via domain_data.airline_data."
+            )),
+            doc_url: Some(PACO_INTEGRATION_DOC_URL.to_string()),
+            additional_context: None,
+        },
+    })
+}
+
+impl TryFrom<&connector_types::AirlineSegment> for PacoFlightSegment {
+    type Error = error_stack::Report<errors::IntegrationError>;
+    fn try_from(segment: &connector_types::AirlineSegment) -> Result<Self, Self::Error> {
+        Ok(Self {
+            sequence_no: segment.sequence_no.ok_or_else(|| {
+                missing_airline_field("airline_data.flight_segments[].sequence_no")
+            })?,
+            marketing_airline_code: segment.marketing_carrier_code.clone().ok_or_else(|| {
+                missing_airline_field("airline_data.flight_segments[].marketing_carrier_code")
+            })?,
+            marketing_flight_no: segment.flight_number.clone().ok_or_else(|| {
+                missing_airline_field("airline_data.flight_segments[].flight_number")
+            })?,
+            operating_airline_code: segment.operating_carrier_code.clone(),
+            operating_flight_no: segment.operating_flight_number.clone(),
+            flight_type: segment.flight_type.clone(),
+            departure: PacoAirlineLocation::try_from(segment.departure.as_ref().ok_or_else(
+                || missing_airline_field("airline_data.flight_segments[].departure"),
+            )?)?,
+            arrival: PacoAirlineLocation::try_from(
+                segment.arrival.as_ref().ok_or_else(|| {
+                    missing_airline_field("airline_data.flight_segments[].arrival")
+                })?,
+            )?,
+            fare_class: segment.class_of_service.clone(),
+            fare_basis_code: segment.fare_basis_code.clone(),
+            endorsement_or_restriction: segment.endorsements_restrictions.clone(),
+        })
+    }
+}
+
+impl TryFrom<&connector_types::AirlinePassenger> for PacoPassenger {
+    type Error = error_stack::Report<errors::IntegrationError>;
+    fn try_from(passenger: &connector_types::AirlinePassenger) -> Result<Self, Self::Error> {
+        let customer = passenger.customer.as_ref();
+        let first_name = customer
+            .and_then(|cust| cust.first_name.clone())
+            .ok_or_else(|| {
+                missing_airline_field("airline_data.passengers[].customer.first_name")
+            })?;
+        let last_name = customer
+            .and_then(|cust| cust.last_name.clone())
+            .ok_or_else(|| missing_airline_field("airline_data.passengers[].customer.last_name"))?;
+        let email = customer
+            .and_then(|cust| cust.customer_email.clone())
+            .ok_or_else(|| {
+                missing_airline_field("airline_data.passengers[].customer.customer_email")
+            })?;
+        let (identification_no, document_type) = passenger
+            .passport_number
+            .clone()
+            .map(|passport| (passport, "Passport".to_string()))
+            .unzip();
+        Ok(Self {
+            sequence_no: passenger
+                .sequence_no
+                .ok_or_else(|| missing_airline_field("airline_data.passengers[].sequence_no"))?,
+            identification_no,
+            document_type,
+            title: customer.and_then(|cust| cust.salutation.clone()),
+            first_name,
+            middle_name: passenger.middle_name.clone().map(Secret::new),
+            last_name,
+            gender: passenger.gender.clone(),
+            email,
+            mobile_no: customer.and_then(|cust| cust.customer_phone_number.clone()),
+            passenger_type: passenger.passenger_type.clone(),
+            frequent_flyer_status: passenger.loyalty_tier.clone(),
+            frequent_flyer_number: passenger.frequent_flyer_number.clone(),
+        })
+    }
+}
+
+impl TryFrom<&connector_types::AirlineData> for PacoAirlineData {
+    type Error = error_stack::Report<errors::IntegrationError>;
+    fn try_from(airline: &connector_types::AirlineData) -> Result<Self, Self::Error> {
+        let booking_reference = PacoBookingReference {
+            pnr_code: airline
+                .pnr_code
+                .clone()
+                .ok_or_else(|| missing_airline_field("airline_data.pnr_code"))?,
+            booking_date_time: airline
+                .booking_date_time
+                .clone()
+                .ok_or_else(|| missing_airline_field("airline_data.booking_date_time"))?,
+        };
+
+        let agency = (airline.agency_name.is_some()
+            || airline.agency_code.is_some()
+            || airline.agency_invoice_number.is_some()
+            || airline.agency_plan_name.is_some())
+        .then(|| PacoAgency {
+            name: airline.agency_name.clone(),
+            code: airline.agency_code.clone(),
+            invoice_no: airline.agency_invoice_number.clone(),
+            plan_name: airline.agency_plan_name.clone(),
+        });
+
+        let flight_segments = airline
+            .flight_segments
+            .iter()
+            .map(PacoFlightSegment::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+        if flight_segments.is_empty() {
+            return Err(missing_airline_field("airline_data.flight_segments"));
+        }
+
+        let passengers = airline
+            .passengers
+            .iter()
+            .map(PacoPassenger::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+        if passengers.is_empty() {
+            return Err(missing_airline_field("airline_data.passengers"));
+        }
+
+        // Synthesize a single PacoTicket from the proto's top-level totals so
+        // the per-purchase amounts land at the right path (tickets[]) instead
+        // of being silently dropped at the airlineData top level.
+        let ticket_fare = airline
+            .total_fare
+            .as_ref()
+            .map(PacoTransactionAmount::try_from)
+            .transpose()?;
+        let tax_amount = airline
+            .total_taxes
+            .as_ref()
+            .map(PacoTransactionAmount::try_from)
+            .transpose()?;
+        let agent_fee = airline
+            .total_fee
+            .as_ref()
+            .map(PacoTransactionAmount::try_from)
+            .transpose()?;
+        let has_ticket_fields = airline.ticket_number.is_some()
+            || airline.ticket_issue_date.is_some()
+            || airline.booking_system_unique_id.is_some()
+            || ticket_fare.is_some()
+            || tax_amount.is_some()
+            || agent_fee.is_some();
+        let tickets = if has_ticket_fields {
+            vec![PacoTicket {
+                passenger_sequence_no: passengers.first().map(|p| p.sequence_no),
+                ticket_no: airline.ticket_number.clone().map(Secret::new),
+                ticket_issue_date: airline.ticket_issue_date.clone(),
+                ticket_reservation_system_code: airline.booking_system_unique_id.clone(),
+                tax_amount,
+                ticket_fare,
+                agent_fee,
+            }]
+        } else {
+            // No ticket-scoped fields supplied — omit tickets[] entirely.
+            Vec::new()
+        };
+
+        Ok(Self {
+            booking_reference,
+            agency,
+            flight_segments,
+            tickets,
+            passengers,
+        })
+    }
+}
+
 pub fn build_authorize_request<T>(
     item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
     auth: &TwocTwopPacoAuthType,
@@ -536,7 +902,7 @@ where
             bill_addr_city: common.get_optional_billing_city(),
             bill_addr_country: common
                 .get_optional_billing_country()
-                .map(|c| CountryAlpha2::to_numeric(c).to_string()),
+                .map(paco_numeric_country_code),
             bill_addr_line1: common.get_optional_billing_line1(),
             bill_addr_line2: common.get_optional_billing_line2(),
             bill_addr_line3: common.get_optional_billing_line3(),
@@ -550,12 +916,20 @@ where
             ship_addr_city: common.get_optional_shipping_city(),
             ship_addr_country: common
                 .get_optional_shipping_country()
-                .map(|c| CountryAlpha2::to_numeric(c).to_string()),
+                .map(paco_numeric_country_code),
             ship_addr_line1: common.get_optional_shipping_line1(),
             ship_addr_line2: common.get_optional_shipping_line2(),
             ship_addr_line3: common.get_optional_shipping_line3(),
             ship_addr_post_code: common.get_optional_shipping_zip(),
         });
+
+    let airline_data = item
+        .request
+        .domain_data
+        .as_ref()
+        .and_then(|d| d.airline_data.as_ref())
+        .map(PacoAirlineData::try_from)
+        .transpose()?;
 
     match &item.request.payment_method_data {
         PaymentMethodData::Card(card) => {
@@ -599,6 +973,7 @@ where
                 device_details,
                 billing_address: paco_billing_address,
                 shipping_address: paco_shipping_address,
+                airline_data: airline_data.clone(),
             };
             Ok(TwocTwopPacoAuthorizeRequest::Card(body))
         }
@@ -624,6 +999,7 @@ where
                 device_details,
                 billing_address: paco_billing_address,
                 shipping_address: paco_shipping_address,
+                airline_data,
             };
             Ok(TwocTwopPacoAuthorizeRequest::Wallet(body))
         }
