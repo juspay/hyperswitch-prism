@@ -17,7 +17,7 @@ pub struct ConnectorLatencyTracker {
 
 impl ConnectorLatencyTracker {
     pub fn add_connector_time(&self, elapsed: Duration) {
-        let nanos = elapsed.as_nanos().min(u128::from(u64::MAX)) as u64;
+        let nanos = u64::try_from(elapsed.as_nanos()).unwrap_or(u64::MAX);
         self.nanos.fetch_add(nanos, Ordering::Relaxed);
     }
 

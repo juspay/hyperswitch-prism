@@ -351,6 +351,7 @@ where
     }
     .await;
 
+    #[cfg(feature = "otel")]
     observe_internal_latency(
         start_time,
         flow_name,
@@ -412,6 +413,7 @@ where
     }
     .await;
 
+    #[cfg(feature = "otel")]
     observe_internal_latency(
         start_time,
         flow_name,
@@ -432,33 +434,29 @@ where
     grpc_response
 }
 
-#[cfg_attr(not(feature = "otel"), allow(unused_variables))]
+#[cfg(feature = "otel")]
 fn observe_internal_latency(
     start_time: tokio::time::Instant,
     flow_name: FlowName,
     service_name: &str,
     metadata_payload: Option<&MetadataPayload>,
 ) {
-    #[cfg(feature = "otel")]
-    {
-        let connector_time = metadata_payload
-            .map(|metadata| metadata.connector_latency.connector_time())
-            .unwrap_or_default();
-        let internal = start_time.elapsed().saturating_sub(connector_time);
-        let connector = metadata_payload
-            .map(|md| md.connector.get_connector_name())
-            .unwrap_or_else(|| "unknown".to_string());
-        let mode = ExecutionMode::from_shadow_flag(
-            metadata_payload.map(|md| md.shadow_mode).unwrap_or(false),
-        );
-        external_services::otel_metrics::record_internal_latency(
-            &flow_name.to_string(),
-            service_name,
-            &connector,
-            mode.as_str(),
-            internal.as_secs_f64(),
-        );
-    }
+    let connector_time = metadata_payload
+        .map(|metadata| metadata.connector_latency.connector_time())
+        .unwrap_or_default();
+    let internal = start_time.elapsed().saturating_sub(connector_time);
+    let connector = metadata_payload
+        .map(|md| md.connector.get_connector_name())
+        .unwrap_or_else(|| "unknown".to_string());
+    let mode =
+        ExecutionMode::from_shadow_flag(metadata_payload.map(|md| md.shadow_mode).unwrap_or(false));
+    external_services::otel_metrics::record_internal_latency(
+        &flow_name.to_string(),
+        service_name,
+        &connector,
+        mode.as_str(),
+        internal.as_secs_f64(),
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
