@@ -238,14 +238,17 @@ fn build_recipient_fields(
     use hyperswitch_masking::PeekInterface;
     let value = metadata.as_ref().map(|m| m.peek())?;
     let fields_value = value.get("flywire_recipient_fields")?;
-    let arr = fields_value.as_array()?;
-    let mut out = Vec::with_capacity(arr.len());
-    for entry in arr {
-        let id = entry.get("id").and_then(|v| v.as_str())?.to_string();
-        let val = entry.get("value").and_then(|v| v.as_str())?.to_string();
-        out.push(FlywireRecipientField { id, value: val });
-    }
-    Some(out)
+    // `collect::<Option<Vec<_>>>` short-circuits to `None` if any entry is
+    // missing `id`/`value`, matching the previous loop's `?` behaviour.
+    fields_value
+        .as_array()?
+        .iter()
+        .map(|entry| {
+            let id = entry.get("id").and_then(|v| v.as_str())?.to_string();
+            let value = entry.get("value").and_then(|v| v.as_str())?.to_string();
+            Some(FlywireRecipientField { id, value })
+        })
+        .collect()
 }
 
 fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {
