@@ -5941,16 +5941,6 @@ impl ForeignTryFrom<grpc_api_types::payments::UpdatedMandateDetails> for Updated
     }
 }
 
-impl ForeignTryFrom<MandateReferenceId> for grpc_api_types::payments::MandateReference {
-    type Error = ConnectorError;
-
-    fn foreign_try_from(
-        value: MandateReferenceId,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        Ok(Self::foreign_from(value))
-    }
-}
-
 impl ForeignTryFrom<grpc_api_types::payments::MandateReference> for MandateReferenceId {
     type Error = IntegrationError;
 
