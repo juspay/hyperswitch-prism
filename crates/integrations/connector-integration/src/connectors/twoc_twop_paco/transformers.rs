@@ -906,7 +906,7 @@ fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Refu
         (PacoPaymentStatus::R, PacoPaymentStep::RF) => RefundStatus::Success,
         (PacoPaymentStatus::R, PacoPaymentStep::RR) => RefundStatus::Pending,
         (PacoPaymentStatus::P, PacoPaymentStep::RP) => RefundStatus::Pending,
-        (PacoPaymentStatus::V, PacoPaymentStep::VD) => RefundStatus::RefundTransactionVoided,
+        (PacoPaymentStatus::V, PacoPaymentStep::VD) => RefundStatus::Success,
         (PacoPaymentStatus::F, _) => RefundStatus::Failure,
         (s, st) => {
             tracing::warn!(

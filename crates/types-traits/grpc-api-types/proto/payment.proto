@@ -251,8 +251,6 @@ enum RefundStatus {
   REFUND_SUCCESS = 4;
   REFUND_TRANSACTION_FAILURE =
       5; // Failure at the transaction level for the refund
-  // Refund was satisfied by voiding the underlying txn
-  REFUND_TRANSACTION_VOIDED = 6;
 }
 
 // Status of a dispute
