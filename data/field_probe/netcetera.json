@@ -1,0 +1,628 @@
+{
+  "connector": "netcetera",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "error",
+        "error": "Invalid connector configuration: netcetera.endpoint_prefix"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Affirm": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_supported",
+        "error": "capture flow not supported by netcetera connector"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by netcetera connector"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by netcetera connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by netcetera connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by netcetera connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by netcetera connector"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by netcetera connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by netcetera connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by netcetera connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment_sync flow not supported by netcetera connector"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by netcetera connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "error",
+        "error": "Invalid connector configuration: netcetera.endpoint_prefix"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "error",
+        "error": "Invalid connector configuration: netcetera.endpoint_prefix"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by netcetera connector"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_supported",
+        "error": "repeat_payment flow not supported by netcetera connector"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by netcetera connector"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_supported",
+        "error": "refund flow not supported by netcetera connector"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "refund_sync flow not supported by netcetera connector"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by netcetera connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by netcetera connector"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Authorize flow is not supported by the Netcetera (3DS authentication-only) connector"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by netcetera connector"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for netcetera"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_supported",
+        "error": "void flow not supported by netcetera connector"
+      }
+    }
+  }
+}

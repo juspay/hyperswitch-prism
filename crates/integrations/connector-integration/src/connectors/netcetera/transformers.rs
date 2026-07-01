@@ -390,8 +390,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let purchase = request.currency.map(|currency| {
             // EMVCo exponent: number of minor-unit digits. Falls back to 2 for
             // currencies UCS cannot classify.
-            let purchase_exponent =
-                currency.number_of_digits_after_decimal_point().unwrap_or(2);
+            let purchase_exponent = currency.number_of_digits_after_decimal_point().unwrap_or(2);
             let purchase_date = common_utils::date_time::format_date(
                 common_utils::date_time::now(),
                 common_utils::date_time::DateFormat::YYYYMMDDHHmmss,
@@ -531,8 +530,10 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Self, Self::Error> {
         match item.response {
             NetceteraAuthenticateResponse::Success(response) => {
-                let is_challenge =
-                    matches!(response.acs_challenge_mandated, Some(ACSChallengeMandatedIndicator::Y));
+                let is_challenge = matches!(
+                    response.acs_challenge_mandated,
+                    Some(ACSChallengeMandatedIndicator::Y)
+                );
 
                 // Challenge flow -> redirection (ACS) form. Frictionless flow ->
                 // authentication data carrying the cryptogram / ECI / status.
@@ -567,9 +568,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     eci: response.eci.clone(),
                     cavv: response.authentication_value.clone(),
                     ucaf_collection_indicator: None,
-                    threeds_server_transaction_id: Some(
-                        response.three_ds_server_trans_id.clone(),
-                    ),
+                    threeds_server_transaction_id: Some(response.three_ds_server_trans_id.clone()),
                     message_version: None,
                     ds_trans_id: response.authentication_response.ds_trans_id.clone(),
                     acs_transaction_id: response.authentication_response.acs_trans_id.clone(),
@@ -590,9 +589,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             Some(authentication_data)
                         },
                         connector_feature_data: None,
-                        connector_response_reference_id: Some(
-                            response.three_ds_server_trans_id,
-                        ),
+                        connector_response_reference_id: Some(response.three_ds_server_trans_id),
                         status_code: item.http_code,
                     }),
                     ..item.router_data
@@ -727,7 +724,12 @@ pub struct NetceteraAuthorizeResponse;
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         NetceteraRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for NetceteraAuthorizeRequest
@@ -735,7 +737,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     type Error = error_stack::Report<IntegrationError>;
     fn try_from(
         _item: NetceteraRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     ) -> Result<Self, Self::Error> {
@@ -796,9 +803,7 @@ fn resolve_scheme_id<T: PaymentMethodDataTypes>(
         })
     })?;
     match (is_cobadged, card.card_network.clone()) {
-        (true, Some(card_network)) => {
-            Ok(Some(netcetera_types::SchemeId::try_from(card_network)?))
-        }
+        (true, Some(card_network)) => Ok(Some(netcetera_types::SchemeId::try_from(card_network)?)),
         _ => Ok(None),
     }
 }

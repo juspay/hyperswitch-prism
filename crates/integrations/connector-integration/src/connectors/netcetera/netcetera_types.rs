@@ -289,11 +289,7 @@ fn get_optional_full_name(
 ) -> Option<Secret<String>> {
     use hyperswitch_masking::PeekInterface;
     match (address.first_name.as_ref(), address.last_name.as_ref()) {
-        (Some(first), Some(last)) => Some(Secret::new(format!(
-            "{} {}",
-            first.peek(),
-            last.peek()
-        ))),
+        (Some(first), Some(last)) => Some(Secret::new(format!("{} {}", first.peek(), last.peek()))),
         (Some(name), None) | (None, Some(name)) => Some(name.clone()),
         (None, None) => None,
     }
@@ -465,9 +461,7 @@ impl From<domain_types::router_request_types::BrowserInformation> for Browser {
     fn from(value: domain_types::router_request_types::BrowserInformation) -> Self {
         Self {
             browser_accept_header: value.accept_header,
-            browser_ip: value
-                .ip_address
-                .map(|ip| Secret::new(ip.to_string())),
+            browser_ip: value.ip_address.map(|ip| Secret::new(ip.to_string())),
             browser_java_enabled: value.java_enabled,
             browser_language: value.language,
             browser_color_depth: value.color_depth.map(|cd| cd.to_string()),

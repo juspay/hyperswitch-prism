@@ -249,7 +249,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                         .error_description
                         .clone()
                         .unwrap_or_else(|| common_utils::consts::NO_ERROR_MESSAGE.to_string()),
-                    reason: error_response.error_detail.or(error_response.error_description),
+                    reason: error_response
+                        .error_detail
+                        .or(error_response.error_description),
                     attempt_status: None,
                     connector_transaction_id: None,
                     network_decline_code: None,
