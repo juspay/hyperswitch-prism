@@ -311,6 +311,61 @@ fn mit_uses_stored_on_file_marker() {
 }
 
 #[test]
+fn cit_using_stored_uses_stored_on_file_marker() {
+    // TSYS_MOTO_V2 rows 161/162 (25.50 Visa / 29.75 MC CIT-using-stored) carry
+    // the STORED_ON_FILE input mode, same as an MIT.
+    let p = profile(
+        AcceptanceProfile::MotoPhone,
+        CardFamily::Mastercard,
+        CofPhase::CitUsingStored,
+        CommercialLevel::None,
+        CaptureKind::Auto,
+    );
+    let block = AcceptanceProfile::MotoPhone.terminal_data();
+    assert!(matches!(
+        card_input_mode::card_data_input_mode(&p, &block, false),
+        TsysTransitCardDataInputMode::MerchantInitiatedTransactionCardCredentialStoredOnFile
+    ));
+}
+
+#[test]
+fn derive_stored_replay_off_session_without_mit_category_is_cit_using_stored() {
+    // Hyperswitch sends off_session=true for EVERY stored-credential replay,
+    // including consumer-present CIT-using-stored (cert MOTO 25.50 Visa /
+    // 29.75 MC). Without an explicit mit_category it must resolve to
+    // CIT-using-stored (→ C101, no NTID), NOT an MIT (M101).
+    let mandate = domain_types::connector_types::MandateIds {
+        mandate_id: None,
+        mandate_reference_id: Some(
+            domain_types::connector_types::MandateReferenceId::NetworkMandateId("VTL1".into()),
+        ),
+    };
+    assert_eq!(
+        CofPhase::derive(Some(&mandate), None, None, Some(true)),
+        CofPhase::CitUsingStored
+    );
+}
+
+#[test]
+fn derive_stored_replay_with_mit_category_is_mit() {
+    let mandate = domain_types::connector_types::MandateIds {
+        mandate_id: None,
+        mandate_reference_id: Some(
+            domain_types::connector_types::MandateReferenceId::NetworkMandateId("VTL1".into()),
+        ),
+    };
+    assert_eq!(
+        CofPhase::derive(
+            Some(&mandate),
+            Some(common_enums::MitCategory::Unscheduled),
+            None,
+            Some(true),
+        ),
+        CofPhase::Mit(MitKind::Unscheduled)
+    );
+}
+
+#[test]
 fn moto_phone_no_cof_no_cvv_uses_key_entered_input() {
     let p = profile(
         AcceptanceProfile::MotoPhone,

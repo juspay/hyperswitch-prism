@@ -69,10 +69,17 @@ impl CofPhase {
             });
 
         if has_mandate {
-            // off_session=true (or any MIT category set) ⇒ MIT.
-            // Otherwise consumer is present and just re-using the stored
-            // card (CitUsingStored — MOTO step-5 25.50 Visa COF case).
-            let is_mit = off_session == Some(true) || mit_category.is_some();
+            // A stored credential is being replayed. It is merchant-initiated
+            // ONLY when an explicit `mit_category` is set; otherwise the
+            // consumer is present and re-using the stored card
+            // (CitUsingStored — cert MOTO step-5 25.50 Visa / 29.75 MC COF).
+            //
+            // NOTE: `off_session` alone does NOT imply MIT here. Hyperswitch
+            // sets `off_session=true` for ANY stored-credential replay,
+            // including the consumer-present CIT-using-stored rows, so keying
+            // MIT off `off_session` misclassifies those CITs as MITs
+            // (M101/cardOnFileTransactionIdentifier instead of C101).
+            let is_mit = mit_category.is_some();
             if !is_mit {
                 return Self::CitUsingStored;
             }
