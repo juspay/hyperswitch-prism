@@ -94,10 +94,13 @@ impl From<AffirmTransactionStatus> for AttemptStatus {
             AffirmTransactionStatus::Captured => Self::Charged,
             AffirmTransactionStatus::PartiallyCaptured => Self::PartialCharged,
             AffirmTransactionStatus::Voided => Self::Voided,
-            AffirmTransactionStatus::Refunded => Self::Charged,
-            // Disputes / partial refunds need manual reconciliation — surface as Unresolved
-            // (mirrors hyperswitch's Affirm status mapping).
-            AffirmTransactionStatus::Disputed
+            // Full/partial refunds and disputes need manual reconciliation — surface as
+            // Unresolved (mirrors hyperswitch's upstream Affirm mapping, which groups
+            // Refunded | PartiallyRefunded | Disputed | DisputeRefunded => Unresolved).
+            // There is no AttemptStatus::Refunded; the refund itself is tracked separately
+            // via the Refund/RSync flow (RefundStatus).
+            AffirmTransactionStatus::Refunded
+            | AffirmTransactionStatus::Disputed
             | AffirmTransactionStatus::DisputeRefunded
             | AffirmTransactionStatus::PartiallyRefunded => Self::Unresolved,
             AffirmTransactionStatus::Declined => Self::Failure,
@@ -463,7 +466,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AffirmPaymentsRespons
                 let redirect_url = Url::parse(&resp.redirect_url).change_context(
                     errors::ConnectorError::ResponseHandlingFailed {
                         context: errors::ResponseTransformationErrorContext {
-                            http_status_code: None,
+                            http_status_code: Some(item.http_code),
                             additional_context: Some(
                                 "Affirm returned an unparseable hosted-checkout redirect_url."
                                     .to_string(),
@@ -625,7 +628,7 @@ impl TryFrom<ResponseRouterData<AffirmCaptureResponse, Self>>
             .get_connector_transaction_id()
             .change_context(errors::ConnectorError::ResponseHandlingFailed {
                 context: errors::ResponseTransformationErrorContext {
-                    http_status_code: None,
+                    http_status_code: Some(item.http_code),
                     additional_context: Some(
                         "Affirm capture response is missing the connector transaction id."
                             .to_string(),
