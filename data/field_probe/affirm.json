@@ -468,7 +468,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000}"
+          "body": "{\"amount\":1000,\"order_id\":\"probe_capture_001\"}"
         }
       }
     },
