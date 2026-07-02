@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.02.0
+
+### Bug Fixes
+
+- **connector:** [Trustly] add payout webhook classification using messageID ([#1503](https://github.com/juspay/connector-service/pull/1503)) ([`68e041e`](https://github.com/juspay/connector-service/commit/68e041e79c018c964ae3634cd863cc4183bd7a5e))
+
+**Full Changelog:** [`2026.07.01.1...2026.07.02.0`](https://github.com/juspay/connector-service/compare/2026.07.01.1...2026.07.02.0)
+
+- - -
+
 ## 2026.07.01.1
 
 ### Bug Fixes
