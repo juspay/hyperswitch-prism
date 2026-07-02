@@ -30,23 +30,23 @@
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Bacs": {
         "status": "not_implemented",
@@ -70,7 +70,7 @@
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -82,7 +82,7 @@
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -134,11 +134,11 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
@@ -154,7 +154,7 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -170,7 +170,7 @@
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -190,7 +190,7 @@
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Giropay": {
         "status": "not_implemented",
@@ -202,19 +202,19 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Ideal": {
         "status": "not_implemented",
@@ -246,7 +246,7 @@
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Klarna": {
         "status": "error",
@@ -258,7 +258,7 @@
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
@@ -274,11 +274,11 @@
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "MiniStop": {
         "status": "not_implemented",
@@ -290,7 +290,7 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
@@ -354,15 +354,43 @@
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_redirect": {
+              "email": "test@example.com"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_txn_001\"},\"method\":\"paypal\",\"billingAddress\":null,\"shippingAddress\":null,\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null}"
+        }
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Paysera": {
         "status": "not_supported",
@@ -378,7 +406,7 @@
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Pix": {
         "status": "not_implemented",
@@ -402,15 +430,15 @@
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Seicomart": {
         "status": "not_implemented",
@@ -442,11 +470,11 @@
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Trustly": {
         "status": "not_implemented",
@@ -454,7 +482,7 @@
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "UpiCollect": {
         "status": "not_implemented",
@@ -470,15 +498,15 @@
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       }
     },
     "capture": {

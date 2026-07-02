@@ -265,12 +265,12 @@ fn mollie_wallet_payment_method(
     shipping_address: Option<&domain_types::payment_address::Address>,
 ) -> Result<MolliePaymentMethodData, error_stack::Report<IntegrationError>> {
     match wallet_data {
-        WalletData::PaypalRedirect(_) => {
-            Ok(MolliePaymentMethodData::Paypal(Box::new(PaypalMethodData {
+        WalletData::PaypalRedirect(_) => Ok(MolliePaymentMethodData::Paypal(Box::new(
+            PaypalMethodData {
                 billing_address: build_mollie_address(billing_address),
                 shipping_address: build_mollie_address(shipping_address),
-            })))
-        }
+            },
+        ))),
         _ => Err(IntegrationError::NotImplemented(
             "Selected wallet payment method is not implemented for Mollie".to_string(),
             Default::default(),
@@ -534,7 +534,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // PayPal (redirect) wallet. Mollie returns a 201 with a checkout
                 // URL for the customer to approve the payment; forward the
                 // optional billing/shipping addresses for risk assessment.
-                let billing_address = item.resource_common_data.address.get_payment_method_billing();
+                let billing_address = item
+                    .resource_common_data
+                    .address
+                    .get_payment_method_billing();
                 let shipping_address = item.resource_common_data.address.get_shipping();
                 mollie_wallet_payment_method(wallet_data, billing_address, shipping_address)?
             }
