@@ -135,6 +135,12 @@ pub enum MolliePaymentMethodData {
     /// their bank. The issuer bank is optional; when omitted Mollie shows its own
     /// bank picker on the hosted checkout page.
     Ideal(Box<IdealMethodData>),
+    /// Sofort bank redirect via Mollie. Emitted as `"method": "sofort"` (from the
+    /// container `rename_all = "lowercase"`, no magic string). Sofort is a redirect
+    /// flow — Mollie returns a checkout URL for the customer to authenticate at
+    /// their bank. It carries no extra request fields (Mollie collects the bank
+    /// details on its hosted page), so this is a plain unit variant.
+    Sofort,
     // Recurring / Merchant-Initiated charge that references an existing mandate.
     // Serialized untagged so it emits only `mandateId` (no `method`
     // discriminator) — Mollie infers the method from the mandate.
@@ -353,13 +359,14 @@ fn mollie_bank_redirect_payment_method(
         BankRedirectData::Ideal { .. } => Ok(MolliePaymentMethodData::Ideal(Box::new(
             IdealMethodData { issuer: None },
         ))),
+        // Sofort redirect flow. Sofort carries no extra request fields — Mollie
+        // collects the bank details on its hosted checkout page and returns a
+        // redirect URL — so it emits only `"method": "sofort"` (unit variant,
+        // method name from the container `rename_all`). Fields are intentionally
+        // ignored (`{ .. }`) because nothing is sourced from the request.
+        BankRedirectData::Sofort { .. } => Ok(MolliePaymentMethodData::Sofort),
         // Bank redirects Mollie supports but which are not built yet — name the
         // attempted method so the error is precise and actionable.
-        BankRedirectData::Sofort { .. } => Err(IntegrationError::NotImplemented(
-            "sofort bank redirect is not yet implemented for Mollie".to_string(),
-            Default::default(),
-        )
-        .into()),
         BankRedirectData::BancontactCard { .. } => Err(IntegrationError::NotImplemented(
             "bancontact bank redirect is not yet implemented for Mollie".to_string(),
             Default::default(),
