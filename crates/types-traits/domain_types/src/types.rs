@@ -11534,6 +11534,10 @@ pub struct PaymentMethodDetails {
     pub supported_capture_methods: Vec<CaptureMethod>,
     /// Payment method specific features
     pub specific_features: Option<PaymentMethodSpecificFeatures>,
+    /// Supported countries
+    pub supported_countries: Vec<CountryAlpha2>,
+    /// Supported currencies
+    pub supported_currencies: Vec<common_enums::Currency>,
 }
 /// The status of the feature
 #[derive(

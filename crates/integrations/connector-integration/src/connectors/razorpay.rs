@@ -1249,6 +1249,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: razorpay_supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: Some(PaymentMethodSpecificFeatures::Card(
                     CardSpecificFeatures {
                         three_ds: FeatureStatus::NotSupported,
@@ -1274,6 +1276,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     mandates: FeatureStatus::NotSupported,
                     refunds: FeatureStatus::Supported,
                     supported_capture_methods: vec![CaptureMethod::Automatic],
+                    supported_countries: Vec::new(),
+                    supported_currencies: Vec::new(),
                     specific_features: None,
                 },
             );
@@ -1291,6 +1295,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                     mandates: FeatureStatus::NotSupported,
                     refunds: FeatureStatus::NotSupported,
                     supported_capture_methods: vec![CaptureMethod::Automatic],
+                    supported_countries: Vec::new(),
+                    supported_currencies: Vec::new(),
                     specific_features: None,
                 },
             );
@@ -1303,6 +1309,8 @@ static RAZORPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                 mandates: FeatureStatus::NotSupported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: vec![CaptureMethod::Automatic],
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: None,
             },
         );

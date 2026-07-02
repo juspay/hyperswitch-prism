@@ -37,6 +37,94 @@ use interfaces::connector_types::{
     VerifyWebhookSourceV2,
 };
 
+#[macro_export]
+macro_rules! default_impl_connector_specifications {
+    ( $( $connector:ident ),* $(,)? ) => {
+        $(
+            impl<T: ::domain_types::payment_method_data::PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
+                ::domain_types::connector_types::ConnectorSpecifications for $connector<T>
+            {
+            }
+        )*
+    };
+}
+
+default_impl_connector_specifications!(
+    AbsaSanlam,
+    Aci,
+    Airwallex,
+    Authipay,
+    Bambora,
+    Bamboraapac,
+    Bankofamerica,
+    Barclaycard,
+    Billwerk,
+    Bluesnap,
+    Braintree,
+    Cashtocode,
+    Celero,
+    Checkout,
+    Cryptopay,
+    Cybersource,
+    Datatrans,
+    Dlocal,
+    Finix,
+    Fiservcommercehub,
+    Fiservemea,
+    Forte,
+    Getnet,
+    Gigadat,
+    Globalpay,
+    Helcim,
+    Hipay,
+    Hyperswitch,
+    Iatapay,
+    Itaubank,
+    Jpmorgan,
+    Juspay,
+    Kount,
+    Loonio,
+    Mifinity,
+    Mollie,
+    Multisafepay,
+    Nexinets,
+    Nexixpay,
+    Nmi,
+    Novalnet,
+    Paybox,
+    Payconex,
+    Payload,
+    Payme,
+    Paypal,
+    Paysafe,
+    Paytm,
+    Peachpayments,
+    PinelabsOnline,
+    Placetopay,
+    Powertranz,
+    Qwikcilver,
+    Rapyd,
+    Redsys,
+    Revolut,
+    Revolv3,
+    Shift4,
+    Silverflow,
+    Stax,
+    Stripe,
+    Tamara,
+    Truelayer,
+    Trustly,
+    Trustpayments,
+    Tsys,
+    TsysTransit,
+    TwocTwopPaco,
+    Volt,
+    Wellsfargo,
+    Worldpay,
+    Worldpayxml,
+    Xendit,
+);
+
 /// Inner helper: emit the `VerifyWebhookSourceV2` + `ConnectorIntegrationV2` default impls
 /// for a single connector, routing `get_url` to the chosen `IntegrationError` constructor
 /// (`connector_flow_not_supported` or `connector_flow_not_implemented`).

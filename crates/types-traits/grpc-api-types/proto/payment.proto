@@ -5553,6 +5553,44 @@ message PaymentMethodServiceEligibilityResponse {
 }
 
 // ============================================================================
+// CONNECTOR FEATURE MATRIX — Connector capability and feature metadata.
+// ============================================================================
+
+message FeatureMatrixRequest {
+  repeated string connectors = 1;
+}
+
+message FeatureMatrixResponse {
+  uint32 connector_count = 1;
+  repeated FeatureMatrixConnector connectors = 2;
+}
+
+message FeatureMatrixConnector {
+  string name = 1;
+  string display_name = 2;
+  string description = 3;
+  string base_url = 4;
+  string category = 5;
+  string integration_status = 6;
+  repeated FeatureMatrixPaymentMethod supported_payment_methods = 7;
+  repeated string supported_webhook_flows = 8;
+}
+
+message FeatureMatrixPaymentMethod {
+  string payment_method = 1;
+  string payment_method_type = 2;
+  string payment_method_type_display_name = 3;
+  string mandates = 4;
+  string refunds = 5;
+  repeated string supported_capture_methods = 6;
+  optional string three_ds = 7;
+  optional string no_three_ds = 8;
+  repeated string supported_card_networks = 9;
+  repeated string supported_countries = 10;
+  repeated string supported_currencies = 11;
+}
+
+// ============================================================================
 // SPLIT RESPONSE TYPES
 // ============================================================================
 

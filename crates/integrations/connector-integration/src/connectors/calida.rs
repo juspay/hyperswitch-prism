@@ -397,6 +397,8 @@ static CALIDA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
             mandates: FeatureStatus::NotSupported,
             refunds: FeatureStatus::NotSupported,
             supported_capture_methods,
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: None,
         },
     );
@@ -412,7 +414,9 @@ static CALIDA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static CALIDA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
-impl ConnectorSpecifications for Calida<DefaultPCIHolder> {
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
+    for Calida<T>
+{
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&CALIDA_CONNECTOR_INFO)
     }

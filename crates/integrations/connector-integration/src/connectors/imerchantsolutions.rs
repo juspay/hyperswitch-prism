@@ -1,8 +1,11 @@
 pub mod transformers;
 
-use std::{self, fmt::Debug};
+use std::{self, fmt::Debug, sync::LazyLock};
 
-use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
+use common_enums::{
+    AttemptStatus, CaptureMethod, CardNetwork, CurrencyUnit, EventClass, PaymentMethod,
+    PaymentMethodType, RefundStatus,
+};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::{self, VerifySignature},
@@ -13,18 +16,22 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, Void},
     connector_types::{
-        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentVoidData,
-        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
-        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
-        RequestDetails, ResponseId, WebhookDetailsResponse, WebhookResourceReference,
+        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
+        RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ResponseId, SupportedPaymentMethodsExt,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
-    types::Connectors,
+    types::{
+        self, CardSpecificFeatures, ConnectorInfo, Connectors, FeatureStatus, PaymentMethodDetails,
+        PaymentMethodSpecificFeatures, SupportedPaymentMethods,
+    },
 };
 use error_stack::report;
 use hyperswitch_masking::{Mask, Maskable};
@@ -468,6 +475,87 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             network_decline_code: None,
             network_error_message: None,
         })
+    }
+}
+
+static IMERCHANTSOLUTIONS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![
+            CaptureMethod::Automatic,
+            CaptureMethod::Manual,
+            CaptureMethod::ManualMultiple,
+        ];
+
+        let supported_card_networks = vec![
+            CardNetwork::Mastercard,
+            CardNetwork::Visa,
+            CardNetwork::AmericanExpress,
+            CardNetwork::JCB,
+            CardNetwork::Discover,
+            CardNetwork::UnionPay,
+        ];
+
+        let mut supported_payment_methods = SupportedPaymentMethods::new();
+
+        supported_payment_methods.add(
+            PaymentMethod::Card,
+            PaymentMethodType::Card,
+            PaymentMethodDetails {
+                mandates: FeatureStatus::Supported,
+                refunds: FeatureStatus::Supported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
+                specific_features: Some(PaymentMethodSpecificFeatures::Card(
+                    CardSpecificFeatures {
+                        three_ds: FeatureStatus::NotSupported,
+                        no_three_ds: FeatureStatus::Supported,
+                        supported_card_networks,
+                    },
+                )),
+            },
+        );
+
+        for payment_method_type in [PaymentMethodType::ApplePay, PaymentMethodType::GooglePay] {
+            supported_payment_methods.add(
+                PaymentMethod::Wallet,
+                payment_method_type,
+                PaymentMethodDetails {
+                    mandates: FeatureStatus::Supported,
+                    refunds: FeatureStatus::Supported,
+                    supported_capture_methods: supported_capture_methods.clone(),
+                    supported_countries: Vec::new(),
+                    supported_currencies: Vec::new(),
+                    specific_features: None,
+                },
+            );
+        }
+
+        supported_payment_methods
+    });
+
+static IMERCHANTSOLUTIONS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "iMerchant Solutions",
+    description: "iMerchant Solutions is a modern payment processing platform that empowers businesses to accept payments globally with fast and low-friction onboarding.",
+    connector_type: types::PaymentConnectorCategory::PaymentGateway,
+};
+
+static IMERCHANTSOLUTIONS_SUPPORTED_WEBHOOK_FLOWS: &[EventClass] =
+    &[EventClass::Payments, EventClass::Refunds];
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
+    for Imerchantsolutions<T>
+{
+    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
+        Some(&IMERCHANTSOLUTIONS_CONNECTOR_INFO)
+    }
+
+    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
+        Some(&IMERCHANTSOLUTIONS_SUPPORTED_PAYMENT_METHODS)
+    }
+
+    fn get_supported_webhook_flows(&self) -> Option<&'static [EventClass]> {
+        Some(IMERCHANTSOLUTIONS_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
 

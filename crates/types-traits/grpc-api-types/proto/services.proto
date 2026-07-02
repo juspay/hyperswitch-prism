@@ -101,6 +101,15 @@ service EventService {
 }
 
 // ============================================================================
+// CONNECTOR INFO SERVICE — Returns connector capability and feature metadata.
+// ============================================================================
+
+service ConnectorInfoService {
+  // Returns feature matrix information for the requested connectors.
+  rpc FeatureMatrix(FeatureMatrixRequest) returns (FeatureMatrixResponse);
+}
+
+// ============================================================================
 // PAYMENT SERVICE — Core payment lifecycle operations spanning authorization,
 //                    capture, void, refund, and order management.
 // ============================================================================
@@ -376,4 +385,3 @@ service FraudAndRiskManagementService {
   // and post-transaction signals to refine risk models and detect chargeback fraud.
   rpc PostRiskCheck(FrmServicePostRiskCheckRequest) returns (FrmServicePostRiskCheckResponse);
 }
-

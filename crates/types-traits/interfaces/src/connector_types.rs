@@ -90,6 +90,7 @@ pub enum RedirectState {
 
 pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     ConnectorCommon
+    + ConnectorSpecifications
     + ValidationTrait
     + PaymentAuthorizeV2<T>
     + PaymentSyncV2

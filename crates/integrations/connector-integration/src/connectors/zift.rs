@@ -301,6 +301,8 @@ static ZIFT_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             mandates: FeatureStatus::Supported,
             refunds: FeatureStatus::Supported,
             supported_capture_methods: zift_supported_capture_methods.clone(),
+            supported_countries: Vec::new(),
+            supported_currencies: Vec::new(),
             specific_features: Some(PaymentMethodSpecificFeatures::Card({
                 CardSpecificFeatures {
                     three_ds: FeatureStatus::NotSupported,
@@ -322,7 +324,9 @@ static ZIFT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static ZIFT_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for Zift<DefaultPCIHolder> {
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
+    for Zift<T>
+{
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&ZIFT_CONNECTOR_INFO)
     }

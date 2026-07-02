@@ -6,8 +6,9 @@ use grpc_api_types::{
     health_check::health_server,
     payments::{
         composite_event_service_server, composite_payment_method_service_server,
-        composite_payment_service_server, composite_refund_service_server, customer_service_server,
-        dispute_service_server, event_service_server, merchant_authentication_service_server,
+        composite_payment_service_server, composite_refund_service_server,
+        connector_info_service_server, customer_service_server, dispute_service_server,
+        event_service_server, merchant_authentication_service_server,
         payment_method_authentication_service_server, payment_method_service_server,
         payment_service_server, recurring_payment_service_server, refund_service_server,
     },
@@ -103,6 +104,7 @@ pub async fn server_builder(config: configs::Config) -> Result<(), Configuration
 
 pub struct Service {
     pub health_check_service: crate::server::health_check::HealthCheck,
+    pub connector_info_service: crate::server::feature_matrix::ConnectorInfo,
     pub composite_payments_service: composite_service::payments::Payments<
         crate::server::payments::Payments,
         crate::server::payments::MerchantAuthentication,
@@ -198,6 +200,7 @@ impl Service {
 
         Self {
             health_check_service: crate::server::health_check::HealthCheck,
+            connector_info_service: crate::server::feature_matrix::ConnectorInfo,
             composite_payments_service,
             composite_event_service,
             composite_payment_method_service,
@@ -323,6 +326,9 @@ impl Service {
             .layer(metrics_layer)
             .add_service(reflection_service)
             .add_service(health_server::HealthServer::new(self.health_check_service))
+            .add_service(connector_info_service_server::ConnectorInfoServiceServer::new(
+                self.connector_info_service,
+            ))
             .add_service(payment_service_server::PaymentServiceServer::new(
                 self.payments_service.clone(),
             ))

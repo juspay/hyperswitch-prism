@@ -411,6 +411,8 @@ static HYPERPG_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = {
                 mandates: FeatureStatus::Supported,
                 refunds: FeatureStatus::Supported,
                 supported_capture_methods: supported_capture_methods.clone(),
+                supported_countries: Vec::new(),
+                supported_currencies: Vec::new(),
                 specific_features: Some(PaymentMethodSpecificFeatures::Card({
                     CardSpecificFeatures {
                         three_ds: FeatureStatus::Supported,
