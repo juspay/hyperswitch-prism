@@ -4931,14 +4931,12 @@ mod tests {
             "PaymentService/Reverse" => validate_tonic_payload_shape::<
                 payments::PaymentServiceReverseRequest,
             >(connector, suite, scenario, grpc_req),
-            "PaymentService/VerifyRedirectResponse" => validate_tonic_payload_shape::<
-                payments::PaymentServiceVerifyRedirectResponseRequest,
-            >(connector, suite, scenario, grpc_req),
-            "EventService/HandleEvent" => {
-                // Webhook requests use base64 for the proto `bytes body` field,
-                // which grpcurl interprets correctly but tonic serde expects a
-                // byte array.  Skip tonic-level shape validation; the runtime
-                // grpcurl path is the authoritative check.
+            "PaymentService/VerifyRedirectResponse" | "EventService/HandleEvent" => {
+                // Both carry a `RequestDetails` with a proto `bytes body` field.
+                // grpcurl interprets the base64 string body correctly, but tonic
+                // serde expects a byte array, so the two representations conflict.
+                // Skip tonic-level shape validation; the runtime grpcurl path is
+                // the authoritative check.
                 Ok(())
             }
             "PaymentService/TokenAuthorize" => validate_tonic_payload_shape::<

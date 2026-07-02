@@ -413,6 +413,7 @@ pub struct Connectors {
     pub tamara: ConnectorParams,
     pub hyperswitch: ConnectorParams,
     pub qwikcilver: ConnectorParams,
+    pub flywire: ConnectorParams,
     pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
 }
@@ -725,6 +726,9 @@ impl Connectors {
             }
             ConnectorEnum::TwocTwopPaco => {
                 patched.twoc_twop_paco.apply(params_patch);
+            }
+            ConnectorEnum::Flywire => {
+                patched.flywire.apply(params_patch);
             }
             ConnectorEnum::Affirm => {
                 patched.affirm.apply(params_patch);
@@ -3147,7 +3151,7 @@ impl From<grpc_payment_types::PaymentServiceProxyAuthorizeRequest> for Authoriza
             payment_method_token: None,
             mit_category: None,
             merchant_request_id: None,
-            connector_order_id: None,
+            connector_order_id: req.connector_order_id,
             domain_data: req.domain_data,
             split_payments: None,
             partner_merchant_identifier_details: None,
@@ -7861,6 +7865,22 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
                         continue_redirection_url,
                     },
                 )),
+            }),
+            router_response_types::RedirectForm::HostedIframe {
+                endpoint,
+                method,
+                events,
+            } => Ok(Self {
+                form_type: Some(
+                    grpc_api_types::payments::redirect_form::FormType::HostedIframe(
+                        grpc_api_types::payments::HostedIframeData {
+                            endpoint,
+                            method: grpc_api_types::payments::HttpMethod::foreign_from(method)
+                                as i32,
+                            events,
+                        },
+                    ),
+                ),
             }),
             // Variants not supported in gRPC proto
             router_response_types::RedirectForm::BlueSnap { .. }
@@ -15085,6 +15105,23 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                                 ),
                             ),
                         }),
+                        router_response_types::RedirectForm::HostedIframe {
+                            endpoint,
+                            method,
+                            events,
+                        } => Ok(grpc_api_types::payments::RedirectForm {
+                            form_type: Some(
+                                grpc_api_types::payments::redirect_form::FormType::HostedIframe(
+                                    grpc_api_types::payments::HostedIframeData {
+                                        endpoint,
+                                        method: grpc_api_types::payments::HttpMethod::foreign_from(
+                                            method,
+                                        ) as i32,
+                                        events,
+                                    },
+                                ),
+                            ),
+                        }),
                         router_response_types::RedirectForm::CybersourceAuthSetup {
                             access_token,
                             ddc_url,
@@ -15286,6 +15323,23 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                                 grpc_api_types::payments::redirect_form::FormType::Uri(
                                     grpc_api_types::payments::UriData {
                                         uri: initialization_token,
+                                    },
+                                ),
+                            ),
+                        }),
+                        router_response_types::RedirectForm::HostedIframe {
+                            endpoint,
+                            method,
+                            events,
+                        } => Ok(grpc_api_types::payments::RedirectForm {
+                            form_type: Some(
+                                grpc_api_types::payments::redirect_form::FormType::HostedIframe(
+                                    grpc_api_types::payments::HostedIframeData {
+                                        endpoint,
+                                        method: grpc_api_types::payments::HttpMethod::foreign_from(
+                                            method,
+                                        ) as i32,
+                                        events,
                                     },
                                 ),
                             ),

@@ -813,6 +813,7 @@ enum Connector {
   HYPERSWITCH = 126;
   TSYS_TRANSIT = 127;
   KOUNT = 128;
+  FLYWIRE = 129;
 }
 
 // Payment method types
@@ -1452,6 +1453,10 @@ message RedirectForm {
 
     // NMI-specific redirection data for 3DS flows.
     NmiData nmi = 6;
+
+    // Generic hosted-iframe redirection: load `endpoint` in an iframe and
+    // attach the connector-built `events` postMessage listener.
+    HostedIframeData hosted_iframe = 7;
   }
 }
 
@@ -1498,6 +1503,21 @@ message BraintreeData {
 message MifinityData {
   // Initialization token for Mifinity SDK initialization
   string initialization_token = 1;
+}
+
+// Generic hosted-iframe redirection data. The connector supplies a URL to
+// load into an iframe and a self-contained postMessage listener script that
+// navigates the payer to the (pre-substituted) return URL on completion.
+message HostedIframeData {
+  // URL to load inside the iframe.
+  string endpoint = 1;
+
+  // HTTP method the client should use to fetch `endpoint`.
+  HttpMethod method = 2;
+
+  // postMessage listener script; `return_url` is already substituted by the
+  // connector so the client just inlines this verbatim in a <script> tag.
+  string events = 3;
 }
 
 // Represents NMI-specific redirection data for 3DS flows
@@ -4967,6 +4987,18 @@ message TsysTransitConfig {
   optional string base_url = 50;
 }
 
+message FlywireConfig {
+  // Flywire Payments Platform API key (X-Authentication-Key header).
+  SecretString api_key = 1;
+  // HMAC SHA-256 shared secret for inbound webhook signature verification.
+  // Optional in sandbox; required for production.
+  optional SecretString shared_secret = 2;
+  // Flywire recipient code (3-letter or 5-alphanumeric, e.g. "ZENDD").
+  // Drives currency, payout target, required institutional fields.
+  string recipient_id = 3;
+  optional string base_url = 50;
+}
+
 message AffirmConfig {
   // Affirm public API key — used as the HTTP Basic auth username.
   SecretString public_key = 1;
@@ -5338,6 +5370,8 @@ message ConnectorSpecificConfig {
     KountConfig kount = 134;
     // AFFIRM = 135
     AffirmConfig affirm = 135;
+    // FLYWIRE = 129
+    FlywireConfig flywire = 136;
   }
 }
 
