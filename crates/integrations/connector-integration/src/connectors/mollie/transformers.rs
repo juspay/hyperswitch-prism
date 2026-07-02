@@ -20,7 +20,8 @@ use domain_types::{
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+        BankRedirectData, PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -128,6 +129,12 @@ pub enum MolliePaymentMethodData {
     /// `applePayPaymentToken` field and settles the wallet payment directly, so
     /// no redirect and no address forwarding is required here.
     Applepay(Box<ApplePayMethodData>),
+    /// iDeal bank redirect via Mollie. Emitted as `"method": "ideal"` (from the
+    /// container `rename_all = "lowercase"`, no magic string). iDeal is a redirect
+    /// flow — Mollie returns a checkout URL for the customer to authenticate at
+    /// their bank. The issuer bank is optional; when omitted Mollie shows its own
+    /// bank picker on the hosted checkout page.
+    Ideal(Box<IdealMethodData>),
     // Recurring / Merchant-Initiated charge that references an existing mandate.
     // Serialized untagged so it emits only `mandateId` (no `method`
     // discriminator) — Mollie infers the method from the mandate.
@@ -159,6 +166,17 @@ pub struct PaypalMethodData {
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayMethodData {
     pub apple_pay_payment_token: Secret<String>,
+}
+
+// iDeal (bank redirect) payment body. The optional `issuer` selects a specific
+// iDeal issuer bank up front; when it is `None` the field is omitted and Mollie
+// presents its own bank picker on the hosted checkout page. The issuer is not
+// currently sourced from prism's `BankRedirectData::Ideal` request, so it is
+// left as `None` (mirrors the reference hyperswitch connector).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IdealMethodData {
+    pub issuer: Option<Secret<String>>,
 }
 
 // Klarna (PayLater) Method Data
@@ -313,6 +331,58 @@ fn mollie_wallet_payment_method(
         }
         _ => Err(IntegrationError::NotImplemented(
             "Selected wallet payment method is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+    }
+}
+
+// Map a bank-redirect payment method to the corresponding Mollie payment body.
+// iDeal is supported; every other bank redirect returns a method-named
+// NotImplemented (segregated from NotSupported) so the caller surfaces a precise
+// error. This helper mirrors `mollie_wallet_payment_method` and is the extension
+// point for the later Sofort/Bancontact/EPS/Giropay/Przelewy24 tasks.
+fn mollie_bank_redirect_payment_method(
+    bank_redirect_data: &BankRedirectData,
+) -> Result<MolliePaymentMethodData, error_stack::Report<IntegrationError>> {
+    match bank_redirect_data {
+        // iDeal redirect flow. The issuer bank is optional and not currently
+        // sourced from the request, so it is omitted (`issuer: None`) and Mollie
+        // shows its own bank picker — matches the reference hyperswitch connector.
+        // Fields are intentionally ignored (`{ .. }`) because no issuer is sourced.
+        BankRedirectData::Ideal { .. } => Ok(MolliePaymentMethodData::Ideal(Box::new(
+            IdealMethodData { issuer: None },
+        ))),
+        // Bank redirects Mollie supports but which are not built yet — name the
+        // attempted method so the error is precise and actionable.
+        BankRedirectData::Sofort { .. } => Err(IntegrationError::NotImplemented(
+            "sofort bank redirect is not yet implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        BankRedirectData::BancontactCard { .. } => Err(IntegrationError::NotImplemented(
+            "bancontact bank redirect is not yet implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        BankRedirectData::Eps { .. } => Err(IntegrationError::NotImplemented(
+            "eps bank redirect is not yet implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        BankRedirectData::Giropay { .. } => Err(IntegrationError::NotImplemented(
+            "giropay bank redirect is not yet implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        BankRedirectData::Przelewy24 { .. } => Err(IntegrationError::NotImplemented(
+            "przelewy24 bank redirect is not yet implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        // Any other bank redirect is not implemented for Mollie.
+        _ => Err(IntegrationError::NotImplemented(
+            "Selected bank redirect payment method is not implemented for Mollie".to_string(),
             Default::default(),
         )
         .into()),
@@ -580,6 +650,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .get_payment_method_billing();
                 let shipping_address = item.resource_common_data.address.get_shipping();
                 mollie_wallet_payment_method(wallet_data, billing_address, shipping_address)?
+            }
+            PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                // iDeal (redirect) bank redirect. Mollie returns a 201 with a
+                // checkout URL for the customer to authenticate at their bank.
+                mollie_bank_redirect_payment_method(bank_redirect_data)?
             }
             PaymentMethodData::MandatePayment => {
                 // MIT / recurring charge referencing a stored mandate.
