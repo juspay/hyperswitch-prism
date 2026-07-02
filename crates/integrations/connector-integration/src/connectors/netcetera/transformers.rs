@@ -370,10 +370,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .as_ref()
             .and_then(|browser| browser.ip_address);
 
+        // Per-merchant NON-auth config (acquirer / merchant objects) sourced from the merchant's
+        // Netcetera account, riding the request on `connector_feature_data` and deserialized into
+        // `NetceteraMeta` (same mechanism axisbank / nexinets use). Absent => objects omitted and
+        // the 3DS Server falls back to its stored merchant config. See `NetceteraMeta` for the
+        // router-side contract.
+        let netcetera_meta: Option<netcetera_types::NetceteraMeta> =
+            match common_data.connector_feature_data {
+                Some(_) => Some(crate::utils::to_connector_meta_from_secret(
+                    common_data.connector_feature_data.clone(),
+                )?),
+                None => None,
+            };
+
         let three_ds_requestor = netcetera_types::ThreeDSRequestor::new(
             ip_address,
-            // TEMP(challenge-test): force ChallengeRequestedMandate so Netcetera returns a challenge.
-            true,
+            // 3DS Requestor challenge preference, sourced from the merchant's Netcetera MCA
+            // metadata (`force_3ds_challenge`). When absent, no preference (DS/ACS decides).
+            netcetera_meta
+                .as_ref()
+                .and_then(|m| m.force_3ds_challenge)
+                .unwrap_or(false),
             message_version
                 .as_ref()
                 .unwrap_or(&SemanticVersion::new(2, 1, 0)),
@@ -419,26 +436,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             context: Default::default(),
         })?;
 
-        // The acquirer (bin / merchant id / country) and merchant
-        // (mcc / name / country / 3DS requestor id+name) objects are per-merchant
-        // NON-auth config sourced from the merchant's Netcetera account. They are
-        // NOT auth material, so they ride the request on
-        // `PaymentFlowData.connector_feature_data` (a `SecretSerdeValue`) and are
-        // deserialized into `NetceteraMeta` here — the same mechanism axisbank /
-        // nexinets use for per-merchant config. See `NetceteraMeta` for the exact
-        // router-side JSON contract the router must put in `connector_feature_data`.
-        //
-        // When `connector_feature_data` is absent the objects are omitted and the
-        // 3DS Server is expected to fall back to its stored merchant
-        // configuration (so non-AReq-mandatory flows keep working in tests).
-        let netcetera_meta: Option<netcetera_types::NetceteraMeta> =
-            match common_data.connector_feature_data {
-                Some(_) => Some(crate::utils::to_connector_meta_from_secret(
-                    common_data.connector_feature_data.clone(),
-                )?),
-                None => None,
-            };
-
         let acquirer = netcetera_meta
             .as_ref()
             .map(netcetera_types::NetceteraMeta::to_acquirer_data);
@@ -456,11 +453,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             three_ds_comp_ind: Some(netcetera_types::ThreeDSMethodCompletionIndicator::U),
             three_ds_requestor: Some(three_ds_requestor),
             three_ds_server_trans_id,
-            // TEMP(webhook-test): point the top-level threeDSRequestorURL at the public webhook.site
-            // endpoint too. Revert to `common_data.return_url.clone()`.
-            three_ds_requestor_url: Some(
-                "https://e6e4-219-65-110-2.ngrok-free.app/webhooks/merchant_1782862646/mca_Cgk6mVDMwsYGQUSnEGpo".to_string(),
-            ),
+            three_ds_requestor_url: netcetera_meta
+                .as_ref()
+                .and_then(|m| m.notification_url.clone())
+                .or_else(|| common_data.return_url.clone()),
             cardholder_account,
             cardholder: Some(cardholder),
             purchase,

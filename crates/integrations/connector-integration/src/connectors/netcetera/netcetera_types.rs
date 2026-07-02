@@ -406,6 +406,13 @@ pub struct NetceteraMeta {
     /// result to this webhook (used when the merchant has the pull mechanism disabled). Sourced from
     /// the netcetera MCA metadata; requires the Netcetera license to allow dynamic RRes URLs.
     pub results_response_notification_url: Option<String>,
+    /// Browser CRes return URL (AReq `notificationURL` / `threeDSRequestorURL`) — where the ACS
+    /// returns the browser after the challenge. Sourced from the netcetera MCA metadata; when
+    /// absent the caller's request return_url is used instead.
+    pub notification_url: Option<String>,
+    /// Merchant-level 3DS challenge preference (EMVCo threeDSRequestorChallengeInd = 04 when true).
+    /// Sourced from the netcetera MCA metadata.
+    pub force_3ds_challenge: Option<bool>,
 }
 
 impl NetceteraMeta {
@@ -421,21 +428,20 @@ impl NetceteraMeta {
     /// Build the EMVCo `merchant` object from the per-merchant config.
     /// `notification_url` is sourced from the request (return/webhook URL), not
     /// from the merchant config, so it is threaded in by the caller.
-    pub fn to_merchant_data(&self, _notification_url: Option<String>) -> MerchantData {
-        // TEMP(webhook-test): hardcode BOTH the CRes (notificationURL) and RRes
-        // (resultsResponseNotificationUrl) to a public webhook.site endpoint to observe whether
-        // Netcetera pushes the challenge result. Revert to `_notification_url` /
-        // `self.results_response_notification_url.clone()`.
-        let webhook = Some("https://webhook.site/cef99d23-079e-405f-ac55-5265c76c544b".to_string());
+    pub fn to_merchant_data(&self, notification_url: Option<String>) -> MerchantData {
         MerchantData {
             merchant_configuration_id: self.merchant_configuration_id.clone(),
             mcc: self.mcc.clone(),
             merchant_country_code: self.merchant_country_code.clone(),
             merchant_name: self.merchant_name.clone(),
-            notification_url: webhook.clone(),
+            // Browser CRes return URL: prefer the netcetera MCA metadata value, else the
+            // caller's request return_url.
+            notification_url: self.notification_url.clone().or(notification_url),
             three_ds_requestor_id: self.three_ds_requestor_id.clone(),
             three_ds_requestor_name: self.three_ds_requestor_name.clone(),
-            results_response_notification_url: webhook,
+            // Server-side RRes push target (pull mechanism disabled), sourced from the
+            // merchant's Netcetera MCA metadata (`results_response_notification_url`).
+            results_response_notification_url: self.results_response_notification_url.clone(),
         }
     }
 }
