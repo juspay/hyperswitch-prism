@@ -24,6 +24,7 @@ use domain_types::{
     router_response_types::RedirectForm,
     utils::split_full_name,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -94,7 +95,52 @@ pub struct AirwallexPaymentRequest {
 #[serde(untagged)]
 pub enum AirwallexPaymentMethod {
     Card(AirwallexCardData),
+    Wallets(AirwallexWalletData),
     BankRedirect(AirwallexBankRedirectData),
+}
+
+// Shared Airwallex wallet enum. Each wallet payment method gets its own variant so
+// the connector serializes the correct nested object + `type` discriminator.
+// Note: Skrill (present in the reference upstream) is intentionally omitted here — the
+// UCS `domain_types::payment_method_data::WalletData` enum has no `Skrill` variant, so it
+// cannot be reached from the Authorize match arm below without a cross-cutting domain change.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum AirwallexWalletData {
+    GooglePay(AirwallexGooglePayData),
+    Paypal(AirwallexPaypalData),
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexGooglePayData {
+    pub googlepay: AirwallexGooglePayDetails,
+    #[serde(rename = "type")]
+    pub payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexGooglePayDetails {
+    pub encrypted_payment_token: Secret<String>,
+    pub payment_data_type: AirwallexGpayPaymentDataType,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AirwallexGpayPaymentDataType {
+    EncryptedPaymentToken,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexPaypalData {
+    pub paypal: AirwallexPaypalDetails,
+    #[serde(rename = "type")]
+    pub payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexPaypalDetails {
+    pub shopper_name: Secret<String>,
+    pub country_code: common_enums::CountryAlpha2,
 }
 
 #[derive(Debug, Serialize)]
@@ -123,8 +169,9 @@ pub struct AirwallexCardDetails {
     pub name: Option<Secret<String>>,
 }
 
-// Note: Wallet and PayLater data structures remain unimplemented.
-// This transformer currently supports card payments plus selected bank redirects.
+// Note: PayLater data structures remain unimplemented.
+// This transformer supports card payments, selected wallets (Google Pay, PayPal),
+// plus selected bank redirects.
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -277,6 +324,65 @@ fn get_device_data<T: PaymentMethodDataTypes>(
     }))
 }
 
+// Shared wallet conversion used by both the intent (AirwallexPaymentRequest) and
+// confirm (AirwallexConfirmRequest) builders so the two paths cannot drift.
+fn get_wallet_details(
+    wallet_data: &domain_types::payment_method_data::WalletData,
+    resource_common_data: &PaymentFlowData,
+    customer_name: Option<Secret<String>>,
+) -> Result<AirwallexPaymentMethod, error_stack::Report<IntegrationError>> {
+    match wallet_data {
+        domain_types::payment_method_data::WalletData::GooglePay(gpay_details) => {
+            let token = gpay_details
+                .tokenization_data
+                .get_encrypted_google_pay_token()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "gpay wallet_token",
+                    context: Default::default(),
+                })
+                .attach_printable("Failed to get gpay wallet token")?;
+            Ok(AirwallexPaymentMethod::Wallets(
+                AirwallexWalletData::GooglePay(AirwallexGooglePayData {
+                    googlepay: AirwallexGooglePayDetails {
+                        encrypted_payment_token: Secret::new(token),
+                        payment_data_type: AirwallexGpayPaymentDataType::EncryptedPaymentToken,
+                    },
+                    payment_method_type: AirwallexPaymentType::Googlepay,
+                }),
+            ))
+        }
+        domain_types::payment_method_data::WalletData::PaypalRedirect(_) => {
+            // Prefer the explicit customer_name; fall back to the billing full name, mirroring
+            // the reference connector's shopper_name sourcing.
+            let shopper_name = customer_name
+                .or_else(|| resource_common_data.get_billing_full_name().ok())
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "shopper_name",
+                    context: Default::default(),
+                })?;
+            let country_code = resource_common_data.get_billing_country().map_err(|_| {
+                IntegrationError::MissingRequiredField {
+                    field_name: "country_code",
+                    context: Default::default(),
+                }
+            })?;
+            Ok(AirwallexPaymentMethod::Wallets(AirwallexWalletData::Paypal(
+                AirwallexPaypalData {
+                    paypal: AirwallexPaypalDetails {
+                        shopper_name,
+                        country_code,
+                    },
+                    payment_method_type: AirwallexPaymentType::Paypal,
+                },
+            )))
+        }
+        _ => Err(error_stack::report!(IntegrationError::NotImplemented(
+            "Wallet Payment Method".to_string(),
+            Default::default()
+        ))),
+    }
+}
+
 // Implementation for new unified request type
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -381,6 +487,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )))
                 }
             },
+            domain_types::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
+                get_wallet_details(
+                    &wallet_data,
+                    &item.router_data.resource_common_data,
+                    item.router_data.request.customer_name.clone().map(Secret::new),
+                )?
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Payment Method".to_string(),
@@ -1143,6 +1256,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )))
                 }
             },
+            domain_types::payment_method_data::PaymentMethodData::Wallet(wallet_data) => {
+                get_wallet_details(
+                    &wallet_data,
+                    &item.router_data.resource_common_data,
+                    item.router_data.request.customer_name.clone().map(Secret::new),
+                )?
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Payment Method".to_string(),
