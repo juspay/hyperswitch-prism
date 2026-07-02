@@ -122,6 +122,12 @@ pub enum MolliePaymentMethodData {
     /// optional billing/shipping addresses are forwarded; PayPal itself collects
     /// the account details on its hosted page.
     Paypal(Box<PaypalMethodData>),
+    /// Apple Pay wallet via Mollie. Emitted as `"method": "applepay"` (from the
+    /// container `rename_all = "lowercase"`). Mollie is handed the Apple Pay
+    /// payment token string (the decrypted/serialized `PKPaymentToken`) via the
+    /// `applePayPaymentToken` field and settles the wallet payment directly, so
+    /// no redirect and no address forwarding is required here.
+    Applepay(Box<ApplePayMethodData>),
     // Recurring / Merchant-Initiated charge that references an existing mandate.
     // Serialized untagged so it emits only `mandateId` (no `method`
     // discriminator) — Mollie infers the method from the mandate.
@@ -144,6 +150,15 @@ pub struct MandatePaymentMethodData {
 pub struct PaypalMethodData {
     pub billing_address: Option<MollieAddress>,
     pub shipping_address: Option<MollieAddress>,
+}
+
+// Apple Pay (wallet) payment body. Mollie expects the Apple Pay payment token —
+// the decrypted/serialized `PKPaymentToken` produced by the Apple Pay session —
+// under `applePayPaymentToken` (from the container `rename_all = "camelCase"`).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayMethodData {
+    pub apple_pay_payment_token: Secret<String>,
 }
 
 // Klarna (PayLater) Method Data
@@ -256,9 +271,9 @@ fn build_mollie_address(
     })
 }
 
-// Map a wallet payment method to the corresponding Mollie payment body. Only
-// PayPal (redirect) is supported; every other wallet returns NotImplemented so
-// the caller surfaces a precise, method-named error.
+// Map a wallet payment method to the corresponding Mollie payment body. PayPal
+// (redirect) and Apple Pay are supported; every other wallet returns
+// NotImplemented so the caller surfaces a precise, method-named error.
 fn mollie_wallet_payment_method(
     wallet_data: &WalletData,
     billing_address: Option<&domain_types::payment_address::Address>,
@@ -271,6 +286,31 @@ fn mollie_wallet_payment_method(
                 shipping_address: build_mollie_address(shipping_address),
             },
         ))),
+        WalletData::ApplePay(applepay_wallet_data) => {
+            // Mollie settles Apple Pay directly (no redirect); it only needs the
+            // encrypted Apple Pay payment token string. Require it explicitly so a
+            // missing token surfaces as a field-named error rather than a silent
+            // default.
+            let apple_pay_payment_token = applepay_wallet_data
+                .payment_data
+                .get_encrypted_apple_pay_payment_data_mandatory()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "apple_pay_payment_token",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Mollie Apple Pay requires the encrypted Apple Pay payment token (applePayPaymentToken)."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })?
+                .to_owned();
+            Ok(MolliePaymentMethodData::Applepay(Box::new(
+                ApplePayMethodData {
+                    apple_pay_payment_token: Secret::new(apple_pay_payment_token),
+                },
+            )))
+        }
         _ => Err(IntegrationError::NotImplemented(
             "Selected wallet payment method is not implemented for Mollie".to_string(),
             Default::default(),
