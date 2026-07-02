@@ -173,7 +173,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Vipps | x |
 | Swish | x |
 | Affirm | x |
-| Afterpay | x |
+| Afterpay | ? |
 | Klarna | x |
 | UPI Collect | x |
 | UPI Intent | ✓ |

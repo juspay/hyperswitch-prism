@@ -21,8 +21,8 @@
         "error": "payment method affirm is not supported by PPRO is not supported by ppro"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "payment method afterpay_clearpay is not supported by PPRO is not supported by ppro"
+        "status": "error",
+        "error": "Stuck on field: email. Afterpay requires consumer email — Missing required field: email. Afterpay requires consumer email"
       },
       "Alfamart": {
         "status": "not_supported",
@@ -632,7 +632,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"APP_INTENT\",\"settings\":{\"mobileIntentUri\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "UpiQr": {
@@ -664,7 +664,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"APP_INTENT\",\"settings\":{\"mobileIntentUri\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "Vipps": {
@@ -985,7 +985,7 @@
             "request-idempotency-key": "probe_refund_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"refundReason\":\"CUSTOMER_REQUEST\"}"
+          "body": "{\"amount\":1000,\"merchantRefundReference\":\"probe_refund_001\",\"refundReason\":\"CUSTOMER_REQUEST\"}"
         }
       }
     },
