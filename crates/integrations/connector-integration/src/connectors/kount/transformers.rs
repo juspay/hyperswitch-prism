@@ -845,7 +845,11 @@ fn kount_instrument<T: PaymentMethodDataTypes>(
         PaymentMethodData::GiftCard(_) => KountInstrument::typed(K::GiftCard),
         // For all other payment methods (wallets, pay-later, bank redirect/debit, …)
         // derive the Kount type from PMT; return None when there is no mapping.
-        _ => return pmt.and_then(pmt_to_kount_payment_type).map(KountInstrument::typed),
+        _ => {
+            return pmt
+                .and_then(pmt_to_kount_payment_type)
+                .map(KountInstrument::typed)
+        }
     })
 }
 
