@@ -574,8 +574,7 @@ async fn test_setup_mandate() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let response = client
-            .setup_recurring(grpc_request)
+        let response = Box::pin(client.setup_recurring(grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();
@@ -626,8 +625,7 @@ async fn test_repeat_payment() {
         let mut register_grpc_request = Request::new(register_request);
         add_payload_metadata(&mut register_grpc_request);
 
-        let register_response = client
-            .setup_recurring(register_grpc_request)
+        let register_response = Box::pin(client.setup_recurring(register_grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();
