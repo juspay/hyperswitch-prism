@@ -77,7 +77,7 @@ const FLYWIRE_EVENT_LISTENER_TEMPLATE: &str = r#"window.addEventListener("messag
   if (!d || typeof d !== 'object') return;
   if (d.source !== 'checkout_session') return;
   if (d.success === true && d.confirm_url) {
-    window.location.href = "__RETURN_URL__";
+    window.location.href = __RETURN_URL__;
   }
 });"#;
 
@@ -317,9 +317,37 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 })
             })?;
         let endpoint = response.hosted_form.url.clone();
+        // `return_url` is caller-supplied and gets spliced into a script the client
+        // inlines verbatim in a <script> tag. Require an http(s) scheme (blocks
+        // `javascript:`/`data:`) and emit it as a JSON-encoded, HTML-safe JS string
+        // literal so it cannot break out of the string or the <script> element.
+        if !return_url.starts_with("https://") && !return_url.starts_with("http://") {
+            return Err(error_stack::report!(
+                ConnectorError::ResponseHandlingFailed {
+                    context: domain_types::errors::ResponseTransformationErrorContext {
+                        http_status_code: Some(item.http_code),
+                        additional_context: Some(
+                            "Flywire return_url must be an http(s) URL".to_string(),
+                        ),
+                    },
+                }
+            ));
+        }
+        let return_url_literal = serde_json::to_string(&return_url)
+            .map_err(|_| {
+                error_stack::report!(ConnectorError::ResponseHandlingFailed {
+                    context: domain_types::errors::ResponseTransformationErrorContext {
+                        http_status_code: Some(item.http_code),
+                        additional_context: Some("Failed to encode return_url".to_string()),
+                    },
+                })
+            })?
+            .replace('<', "\\u003c")
+            .replace('>', "\\u003e")
+            .replace('&', "\\u0026");
         // postMessage listener the client attaches; it navigates to `return_url`
         // once Flywire signals a successful checkout-session submission.
-        let events = FLYWIRE_EVENT_LISTENER_TEMPLATE.replace("__RETURN_URL__", &return_url);
+        let events = FLYWIRE_EVENT_LISTENER_TEMPLATE.replace("__RETURN_URL__", &return_url_literal);
         let redirection_data = Some(Box::new(RedirectForm::HostedIframe {
             endpoint,
             method: common_utils::Method::Get,

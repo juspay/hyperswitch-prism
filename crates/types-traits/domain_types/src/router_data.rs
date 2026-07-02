@@ -3368,15 +3368,11 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 // is not used for Qwikcilver — configure via the proto
                 // QwikcilverConfig path instead.
                 ConnectorEnum::Qwikcilver => Err(err().into()),
-                ConnectorEnum::Flywire => match auth {
-                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Flywire {
-                        api_key: api_key.clone(),
-                        shared_secret: Some(key1.clone()),
-                        recipient_id: String::new(),
-                        base_url: None,
-                    }),
-                    _ => Err(err().into()),
-                },
+                // Flywire requires `recipient_id` (drives currency, payout target
+                // and required institutional fields), which the legacy BodyKey
+                // creds path cannot supply. Configure Flywire via the proto
+                // FlywireConfig path instead of defaulting it to an empty string.
+                ConnectorEnum::Flywire => Err(err().into()),
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {

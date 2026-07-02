@@ -646,7 +646,11 @@ where
             let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
             let redirect_state = self.get_redirect_state(&payload);
 
-            // Call VerifyRedirectResponse when coming back from a redirect, if the connector requires it
+            // Call VerifyRedirectResponse when coming back from a redirect, if the connector requires it.
+            // NOTE: `source_verified` here is advisory, not gating — it is surfaced on the response
+            // but does not block the flow. The authoritative check is the connector's server-to-server
+            // Authorize/confirm step, which re-validates the payment against the connector directly;
+            // forged redirect params cannot make that call succeed.
             if redirect_state != interfaces::connector_types::RedirectState::InitialRequest
                 && connector_data.connector.requires_verify_redirect_response()
             {
