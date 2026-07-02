@@ -153,6 +153,13 @@ pub enum MolliePaymentMethodData {
     /// their bank. It carries no extra request fields (Mollie collects the bank
     /// details on its hosted page), so this is a plain unit variant.
     Eps,
+    /// Giropay bank redirect via Mollie. Emitted as `"method": "giropay"` (from
+    /// the container `rename_all = "lowercase"`, no magic string). Giropay is a
+    /// redirect flow — Mollie returns a checkout URL for the customer to
+    /// authenticate at their bank. It carries no extra request fields (Mollie
+    /// collects the bank details on its hosted page), so this is a plain unit
+    /// variant.
+    Giropay,
     // Recurring / Merchant-Initiated charge that references an existing mandate.
     // Serialized untagged so it emits only `mandateId` (no `method`
     // discriminator) — Mollie infers the method from the mandate.
@@ -392,13 +399,14 @@ fn mollie_bank_redirect_payment_method(
         // container `rename_all`). Fields are intentionally ignored (`{ .. }`)
         // because nothing is sourced from the request.
         BankRedirectData::Eps { .. } => Ok(MolliePaymentMethodData::Eps),
+        // Giropay redirect flow. Giropay carries no extra request fields — Mollie
+        // collects the bank details on its hosted checkout page and returns a
+        // redirect URL — so it emits only `"method": "giropay"` (unit variant,
+        // method name from the container `rename_all`). Fields are intentionally
+        // ignored (`{ .. }`) because nothing is sourced from the request.
+        BankRedirectData::Giropay { .. } => Ok(MolliePaymentMethodData::Giropay),
         // Bank redirects Mollie supports but which are not built yet — name the
         // attempted method so the error is precise and actionable.
-        BankRedirectData::Giropay { .. } => Err(IntegrationError::NotImplemented(
-            "giropay bank redirect is not yet implemented for Mollie".to_string(),
-            Default::default(),
-        )
-        .into()),
         BankRedirectData::Przelewy24 { .. } => Err(IntegrationError::NotImplemented(
             "przelewy24 bank redirect is not yet implemented for Mollie".to_string(),
             Default::default(),
