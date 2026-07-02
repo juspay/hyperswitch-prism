@@ -518,6 +518,7 @@ impl
             connector_feature_data: item.connector_feature_data.clone(),
             return_url: item.return_url.clone(),
             continue_redirection_url: item.continue_redirection_url.clone(),
+            webhook_url: item.webhook_url.clone(),
             browser_info: item.browser_info.clone(),
             state: resolved_state,
             capture_method: item.capture_method,
