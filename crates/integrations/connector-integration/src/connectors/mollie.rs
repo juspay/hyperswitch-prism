@@ -8,14 +8,14 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
-        Void,
+        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer, PSync,
+        PaymentMethodToken, RSync, Refund, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenRequestData, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData,
+        ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
@@ -34,8 +34,9 @@ use serde::Serialize;
 use transformers::{
     self as mollie, MollieCaptureRequest, MollieCaptureResponse, MollieCardTokenRequest,
     MollieCardTokenResponse, MollieClientAuthRequest, MollieClientAuthResponse,
-    MolliePSyncResponse, MolliePaymentsRequest, MolliePaymentsResponse, MollieRSyncResponse,
-    MollieRefundRequest, MollieRefundResponse, MollieVoidResponse,
+    MollieCustomerRequest, MollieCustomerResponse, MolliePSyncResponse, MolliePaymentsRequest,
+    MolliePaymentsResponse, MollieRSyncResponse, MollieRefundRequest, MollieRefundResponse,
+    MollieSetupMandateRequest, MollieSetupMandateResponse, MollieVoidResponse,
 };
 
 use crate::types::ResponseRouterData;
@@ -98,6 +99,18 @@ macros::create_all_prerequisites!(
             request_body: MollieClientAuthRequest,
             response_body: MollieClientAuthResponse,
             router_data: RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: CreateConnectorCustomer,
+            request_body: MollieCustomerRequest,
+            response_body: MollieCustomerResponse,
+            router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: MollieSetupMandateRequest,
+            response_body: MollieSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -189,6 +202,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+// ===== RECURRING / MANDATE FLOW TRAIT IMPLEMENTATIONS =====
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::CreateConnectorCustomer for Mollie<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Mollie<T>
+{
+}
+
 // ===== AUTHENTICATION FLOW TRAIT IMPLEMENTATIONS =====
 // ===== DISPUTE FLOW TRAIT IMPLEMENTATIONS =====
 // ===== WEBHOOK TRAIT IMPLEMENTATIONS =====
@@ -209,6 +233,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Enable auto-tokenization for Card payments
         // Mollie requires cards to be tokenized via /card-tokens before payment
         matches!(payment_method, PaymentMethod::Card)
+    }
+
+    fn should_create_connector_customer(&self) -> bool {
+        // Mollie recurring card mandates require a Mollie customer (customerId)
+        // to be created before the first/recurring payment. The orchestrator
+        // only invokes this when no connector_customer_id is already present.
+        true
     }
 }
 
@@ -524,7 +555,67 @@ macros::macro_connector_implementation!(
 // Post Authentication
 
 // ===== CONNECTOR CUSTOMER CONNECTOR INTEGRATIONS =====
-// Create Connector Customer
+// Create Connector Customer — POST /customers
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_headers, get_content_type, get_error_response_v2],
+    connector: Mollie,
+    curl_request: Json(MollieCustomerRequest),
+    curl_response: MollieCustomerResponse,
+    flow_name: CreateConnectorCustomer,
+    resource_common_data: PaymentFlowData,
+    flow_request: ConnectorCustomerData,
+    flow_response: ConnectorCustomerResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize ],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<
+                CreateConnectorCustomer,
+                PaymentFlowData,
+                ConnectorCustomerData,
+                ConnectorCustomerResponse,
+            >,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/customers",
+                self.base_url(&req.resource_common_data.connectors)
+            ))
+        }
+    }
+);
+
+// Setup Mandate — POST /payments (sequenceType=first, customerId required)
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_headers, get_content_type, get_error_response_v2],
+    connector: Mollie,
+    curl_request: Json(MollieSetupMandateRequest),
+    curl_response: MollieSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize ],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}/payments",
+                self.base_url(&req.resource_common_data.connectors)
+            ))
+        }
+    }
+);
 
 // ===== CONNECTOR COMMON IMPLEMENTATION =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
@@ -598,7 +689,6 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         VoidPC,
-        SetupMandate,
         MandateRevoke,
         RepeatPayment,
         CreateOrder,
@@ -607,7 +697,6 @@ macros::macro_connector_flow_status_impls!(
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,
-        CreateConnectorCustomer,
     ],
     not_supported: [
         VoidPostRefund,
