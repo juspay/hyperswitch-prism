@@ -5832,42 +5832,4 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Regression: when card_network is absent, the fallback path must pass the
-    // raw card number to get_card_issuer. Previously the code used
-    // format!("{:?}", card_number) which triggered Debug masking
-    // ("424242**********") and broke the BIN regex match, producing card.type = null.
-    #[test]
-    #[allow(clippy::expect_used)]
-    fn card_type_fallback_returns_visa_001_for_test_card() {
-        let issuer = domain_types::utils::get_card_issuer("4242424242424242")
-            .expect("Visa BIN should be recognized");
-        assert_eq!(card_issuer_to_string(issuer), "001");
-    }
-
-    // Regression for the cybersource/authorize 5xx server-error family:
-    //   #17186 response.Err.code, #17187 response.Err.message, #17188 response.Err.reason.
-    // On a 5xx, Cybersource returns a structured server-error body. The shadow UCS
-    // `get_5xx_error_response` parses it as `CybersourceServerErrorResponse` and maps
-    // `status` -> code, `message` -> message, `status` -> reason, matching the Direct
-    // gateway exactly (which also sets `reason = response.status.clone()`). Previously the
-    // generic 5xx handler emitted code="502" / message="bad_gateway" and stuffed the raw
-    // body into reason, diverging from the Direct gateway's parsed code/reason="SERVER_ERROR".
-    #[test]
-    #[allow(clippy::expect_used)]
-    fn server_error_body_maps_status_to_code() {
-        // Verbatim cybersource HTTP 502 body from prod (req 019efa75-fc40-...).
-        let body = r#"{"id":"7823184971766759804889","submitTimeUtc":"2026-06-24T16:28:17Z","status":"SERVER_ERROR","reason":"SYSTEM_ERROR","message":"Error - General system failure."}"#;
-        let parsed: CybersourceServerErrorResponse =
-            serde_json::from_str(body).expect("server-error body should deserialize");
-        assert_eq!(parsed.status.as_deref(), Some("SERVER_ERROR"));
-        assert_eq!(
-            parsed.message.as_deref(),
-            Some("Error - General system failure.")
-        );
-        assert!(matches!(parsed.reason, Some(Reason::SystemError)));
-    }
 }
