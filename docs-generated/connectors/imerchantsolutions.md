@@ -127,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L132) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L114) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L183)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L132) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L114) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L184)
 
 ### Card Payment (Authorize + Capture)
 
@@ -141,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L151) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L130) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L199)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L151) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L130) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L200)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L176) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L152) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L222)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L176) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L152) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L223)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L201) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L174) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L245)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L201) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L174) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L246)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L223) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L193) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L264)
+**Examples:** [Python](../../examples/imerchantsolutions/imerchantsolutions.py#L223) · [JavaScript](../../examples/imerchantsolutions/imerchantsolutions.js) · [Kotlin](../../examples/imerchantsolutions/imerchantsolutions.kt#L193) · [Rust](../../examples/imerchantsolutions/imerchantsolutions.rs#L265)
 
 ## API Reference
 
