@@ -629,13 +629,13 @@ where
             .create_order(&connector, &payload, &metadata, &extensions)
             .await?;
 
-        let mut state = AuthorizeCompositeState::default();
-
         // Extract flow parameters from payload
         let auth_type = self.get_auth_type(&payload)?;
         let payment_method = self.get_payment_method(&payload)?;
         let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
         let redirect_state = self.get_redirect_state(&payload);
+
+        let mut state = AuthorizeCompositeState::default();
 
         // Authentication loop - connector controls flow via next_authentication_step
         loop {
