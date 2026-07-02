@@ -747,6 +747,16 @@ macros::macro_connector_implementation!(
                 Self::common_get_content_type(self).to_string().into(),
             )];
             let mut api_key = self.get_auth_header(&req.connector_config)?;
+            if let Some(domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(
+                stripe_split_payment,
+            )) = &req.request.split_payments
+            {
+                transformers::transform_headers_for_connect_platform(
+                    stripe_split_payment.charge_type.clone(),
+                    Secret::new(stripe_split_payment.transfer_account_id.clone()),
+                    &mut header,
+                );
+            }
             header.append(&mut api_key);
             Ok(header)
         }
@@ -788,6 +798,16 @@ macros::macro_connector_implementation!(
                 self.common_get_content_type().to_string().into(),
             )];
             let mut api_key = self.get_auth_header(&req.connector_config)?;
+            if let Some(domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(
+            stripe_split_payment,
+            )) = &req.request.split_payments
+            {
+                transformers::transform_headers_for_connect_platform(
+                    stripe_split_payment.charge_type.clone(),
+                    Secret::new(stripe_split_payment.transfer_account_id.clone()),
+                    &mut header,
+                );
+            }
             header.append(&mut api_key);
             Ok(header)
         }

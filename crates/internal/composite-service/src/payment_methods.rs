@@ -1,5 +1,8 @@
 use connector_integration::types::ConnectorData;
-use domain_types::utils::ForeignTryFrom as _;
+use domain_types::{
+    connector_types::{ConnectorEnum, ConnectorVariant},
+    utils::ForeignTryFrom as _,
+};
 use grpc_api_types::payments::{
     composite_payment_method_service_server::CompositePaymentMethodService,
     merchant_authentication_service_server::MerchantAuthenticationService,
@@ -31,7 +34,7 @@ impl CompositeAccessTokenRequest for CompositePaymentMethodRechargeRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &domain_types::connector_types::ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
     {
         grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
@@ -51,7 +54,7 @@ impl CompositeAccessTokenRequest for CompositePaymentMethodCreateRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &domain_types::connector_types::ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
     {
         grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
@@ -71,7 +74,7 @@ impl CompositeAccessTokenRequest for CompositePaymentMethodGetRequest {
 
     fn build_access_token_request(
         &self,
-        connector: &domain_types::connector_types::ConnectorEnum,
+        connector: &ConnectorVariant,
     ) -> grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
     {
         grpc_api_types::payments::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
@@ -115,7 +118,7 @@ where
     /// `access_token_response` slot stays unset.
     async fn create_server_authentication_token<R: CompositeAccessTokenRequest>(
         &self,
-        connector: &domain_types::connector_types::ConnectorEnum,
+        connector: &ConnectorEnum,
         payload: &R,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
@@ -129,10 +132,7 @@ where
                 .map(common_enums::PaymentMethod::foreign_try_from)
                 .transpose()
                 .into_grpc_status()?;
-            let connector_data = ConnectorData::<
-                domain_types::payment_method_data::DefaultPCIHolder,
-            >::get_connector_by_name(connector);
-            connector_data
+            ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(connector)
                 .connector
                 .should_do_access_token(payment_method)
         };
@@ -149,7 +149,8 @@ where
 
         let access_token_response = match should_create_access_token {
             true => {
-                let access_token_payload = payload.build_access_token_request(connector);
+                let access_token_payload =
+                    payload.build_access_token_request(&ConnectorVariant::Payment(*connector));
                 let mut access_token_request = tonic::Request::new(access_token_payload);
                 *access_token_request.metadata_mut() = metadata.clone();
                 *access_token_request.extensions_mut() = extensions.clone();

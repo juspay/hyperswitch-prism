@@ -675,6 +675,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
                         connector_response_reference_id: item.response.transaction_code.clone(),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })
@@ -825,6 +826,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ZiftAuthPaymentsRespo
                         connector_response_reference_id: item.response.transaction_code.clone(),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })
@@ -897,6 +899,7 @@ impl TryFrom<ResponseRouterData<ZiftSyncResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -1001,6 +1004,7 @@ impl<F> TryFrom<ResponseRouterData<ZiftCaptureResponse, Self>>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 ..item.router_data
             }),
@@ -1146,6 +1150,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_response_reference_id: item.response.transaction_code.clone(),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 ..item.router_data
             })
@@ -1223,6 +1228,7 @@ impl<F> TryFrom<ResponseRouterData<ZiftVoidResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             Err(ErrorResponse {

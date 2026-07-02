@@ -153,6 +153,7 @@ pub enum ConnectorEnum {
     Tamara,
     Hyperswitch,
     Qwikcilver,
+    Kount,
 }
 
 // snake case for enum variants
@@ -172,6 +173,25 @@ pub enum ConnectorEnum {
 #[strum(serialize_all = "snake_case")]
 pub enum SurchargeConnectorEnum {
     Interpayments,
+}
+
+/// Enum representing connectors that support FRM flows
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    EnumIter,
+    EnumString,
+    serde::Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum FrmConnectorEnum {
+    Kount,
 }
 
 /// Enum representing connectors that support payout flows
@@ -261,12 +281,34 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
     }
 }
 
+impl ForeignTryFrom<AuthType> for FrmConnectorEnum {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
+        match config {
+            AuthType::Kount(_) => Ok(Self::Kount),
+            _ => Err(error_stack::Report::new(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Connector is not supported for FRM flows".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )),
+        }
+    }
+}
+
 /// Unified connector enum that can represent either payment, surcharge, or payout connectors
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectorVariant {
     Payment(ConnectorEnum),
     Surcharge(SurchargeConnectorEnum),
     Payout(PayoutConnectorEnum),
+    Frm(FrmConnectorEnum),
 }
 
 impl ConnectorVariant {
@@ -294,11 +336,20 @@ impl ConnectorVariant {
         }
     }
 
+    /// Get the FRM connector if this is a FRM variant
+    pub fn as_frm(&self) -> Option<FrmConnectorEnum> {
+        match self {
+            ConnectorVariant::Frm(conn) => Some(*conn),
+            _ => None,
+        }
+    }
+
     pub fn get_connector_name(&self) -> String {
         match self {
             ConnectorVariant::Payment(conn) => conn.to_string(),
             ConnectorVariant::Surcharge(conn) => conn.to_string(),
             ConnectorVariant::Payout(conn) => conn.to_string(),
+            ConnectorVariant::Frm(conn) => conn.to_string(),
         }
     }
 }
@@ -399,6 +450,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
             grpc_api_types::payments::Connector::Hyperswitch => Ok(Self::Hyperswitch),
             grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
+            grpc_api_types::payments::Connector::Kount => Ok(Self::Kount),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -551,6 +603,7 @@ pub struct PaymentsSyncData {
     pub integrity_object: Option<PaymentSynIntegrityObject>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
+    pub mandate_reference: Option<MandateReference>,
 }
 
 impl PaymentsSyncData {
@@ -588,6 +641,19 @@ impl PaymentsSyncData {
             Some(common_enums::FutureUsage::OffSession)
         )
     }
+}
+/// Settlement phase reported by the connector on PSync. Mirrors the proto enum
+/// `SettlementStatus`. Distinct from `AttemptStatus` which collapses
+/// Authorized + Settled into `Charged`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SettlementStatus {
+    /// Connector emits the field but the txn is in neither Settled nor
+    /// Not-Settled phase (e.g. PACO Voided / Refunded / Failed / Pending).
+    Unspecified,
+    /// Funds finalised — Refund is the valid reversal.
+    Settled,
+    /// Authorised only, settlement pending — Void is the valid reversal.
+    NotSettled,
 }
 
 #[derive(Debug, Clone)]
@@ -638,6 +704,10 @@ pub struct PaymentFlowData {
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    /// Settlement phase reported by the connector.
+    /// Lives on PaymentFlowData (not PaymentsSyncData) so other flows can
+    /// populate it in the future if a connector starts reporting settlement state on authorize, capture, etc.
+    pub settlement_status: Option<SettlementStatus>,
 }
 
 impl PaymentFlowData {
@@ -1375,6 +1445,36 @@ impl PaymentVoidData {
 }
 
 #[derive(Debug, Clone)]
+pub struct PaymentMethodEligibilityData {
+    /// Order amount and currency.
+    pub amount: common_utils::types::Money,
+    /// Customer details (phone, email, name, etc.) for eligibility check.
+    pub customer: Option<CustomerInfo>,
+    /// Market/country the eligibility check is for. BNPL eligibility is
+    /// country-gated, so connectors operating per-market rely on this.
+    /// (Billing/shipping address and order line items are carried on the
+    /// flow-level `PaymentFlowData`, consistent with the Authorize flow.)
+    pub country_code: Option<common_enums::CountryAlpha2>,
+    /// The specific payment method (e.g. a BNPL variant) eligibility is being
+    /// checked for, when the caller wants to scope the check.
+    pub payment_method_type: Option<PaymentMethodType>,
+    /// description/language hint for connector-rendered eligibility messaging.
+    pub description: Option<String>,
+    /// Connector-specific extras that don't have a first-class field.
+    pub metadata: Option<SecretSerdeValue>,
+    /// Connector-specific feature data (JSON blob) for the transaction.
+    pub connector_feature_data: Option<SecretSerdeValue>,
+    /// Sandbox/test mode flag (true for test environment).
+    pub test_mode: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentMethodEligibilityResponse {
+    pub eligibility: common_enums::EligibilityStatus,
+    pub status_code: u32,
+}
+
+#[derive(Debug, Clone)]
 pub struct PaymentsCancelPostCaptureData {
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
@@ -1733,6 +1833,7 @@ pub enum PaymentsResponseData {
         network_txn_link_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
+        splits: Option<ConnectorSplitResponseData>,
         status_code: u16,
     },
     ClientAuthenticationTokenResponse {
@@ -3651,6 +3752,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                payment_method_data::PayLaterData::TamaraRedirect {} => Self::TamaraRedirect,
                 payment_method_data::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
@@ -3872,17 +3974,17 @@ pub struct StripeSplitPaymentData {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
-pub enum ConnectorChargeResponseData {
-    /// StripeChargeResponseData
-    StripeSplitPayment(StripeChargeResponseData),
-    /// AdyenChargeResponseData
+pub enum ConnectorSplitResponseData {
+    /// StripeSplitResponseData
+    StripeSplitPayment(StripeSplitResponseData),
+    /// AdyenSplitResponseData
     AdyenSplitPayment(AdyenSplitData),
 }
 
 /// Fee information to be charged on the payment being collected via Stripe
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct StripeChargeResponseData {
+pub struct StripeSplitResponseData {
     /// Identifier for charge created for the payment
     pub charge_id: Option<String>,
 
@@ -3894,6 +3996,9 @@ pub struct StripeChargeResponseData {
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -4050,7 +4155,7 @@ pub struct AirlineData {
 #[derive(Debug, Clone, Default)]
 pub struct AirlineSegment {
     pub sequence_no: Option<u32>,
-    pub carrier_code: Option<String>,
+    pub marketing_carrier_code: Option<String>,
     pub flight_number: Option<String>,
     pub flight_type: Option<String>,
     pub class_of_service: Option<String>,
@@ -4067,6 +4172,8 @@ pub struct AirlineSegment {
     pub conjunction_ticket: Option<String>,
     pub coupon_number: Option<String>,
     pub endorsements_restrictions: Option<String>,
+    pub operating_carrier_code: Option<String>,
+    pub operating_flight_number: Option<String>,
 }
 
 /// A flight endpoint, reused for both departure and arrival.
@@ -4141,6 +4248,20 @@ impl CustomerInfo {
         self.customer_phone_number
             .clone()
             .ok_or_else(missing_field_err("customer.phone_number"))
+    }
+
+    /// Best-effort full name: the explicit `customer_name` when present, else the
+    /// first/last names joined with a space. `None` when no name is available.
+    pub fn get_full_name(&self) -> Option<Secret<String>> {
+        if let Some(name) = self.customer_name.clone() {
+            return Some(name);
+        }
+        let parts: Vec<String> = [self.first_name.as_ref(), self.last_name.as_ref()]
+            .into_iter()
+            .flatten()
+            .map(|part| part.peek().to_string())
+            .collect();
+        (!parts.is_empty()).then(|| Secret::new(parts.join(" ")))
     }
 
     pub fn get_first_name(&self) -> Result<Secret<String>, Error> {
@@ -5068,6 +5189,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
             AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
+            AuthType::Kount(_) => Ok(Self::Payment(ConnectorEnum::Kount)),
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
             AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),

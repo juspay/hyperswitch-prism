@@ -106,8 +106,8 @@ examples_python: examples/bankofamerica/bankofamerica.py
 connector_id: barclaycard
 doc: docs/connectors/barclaycard.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
-flows: authorize, capture, get, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
+payment_methods: ApplePay, ApplePayDecrypted, Card, GooglePay
+flows: authorize, capture, get, pre_authenticate, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, void
 examples_python: examples/barclaycard/barclaycard.py
 
 ## Billwerk
@@ -131,7 +131,7 @@ connector_id: braintree
 doc: docs/connectors/braintree.md
 scenarios: none
 payment_methods: ApplePayThirdPartySdk, GooglePayThirdPartySdk, PaypalSdk
-flows: authorize, capture, create_client_authentication_token, get, proxy_setup_recurring, refund, reverse, setup_recurring, tokenize, void
+flows: authorize, capture, create_client_authentication_token, get, handle_event, parse_event, proxy_setup_recurring, refund, reverse, setup_recurring, tokenize, void
 examples_python: none
 
 ## Calida
@@ -338,7 +338,7 @@ examples_python: none
 connector_id: imerchantsolutions
 doc: docs/connectors/imerchantsolutions.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Card
+payment_methods: ApplePayDecrypted, Card, GooglePayDecrypted
 flows: authorize, capture, get, handle_event, parse_event, proxy_authorize, refund, refund_get, void
 examples_python: examples/imerchantsolutions/imerchantsolutions.py
 
@@ -365,6 +365,14 @@ scenarios: checkout_autocapture, refund, void_payment, get_payment
 payment_methods: AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, ApplePayThirdPartySdk, GCash, GoPay, GooglePay, GooglePayDecrypted, GooglePayThirdPartySdk, KakaoPay, LazyPayRedirect, Momo, Netbanking, PaypalRedirect, PaypalSdk, PhonePeRedirect, SamsungPay, TouchNGo, UpiCollect, UpiIntent, UpiQr, WeChatPayQr
 flows: authorize, capture, create_order, get, proxy_authorize, refund, refund_get, void
 examples_python: examples/juspay/juspay.py
+
+## Kount
+connector_id: kount
+doc: docs/connectors/kount.md
+scenarios: none
+payment_methods: none
+flows: create_server_authentication_token
+examples_python: none
 
 ## Loonio
 connector_id: loonio
@@ -474,7 +482,7 @@ examples_python: examples/payconex/payconex.py
 connector_id: payload
 doc: docs/connectors/payload.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
-payment_methods: Ach, Card
+payment_methods: Card
 flows: authorize, capture, create_client_authentication_token, customer_create, get, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, void
 examples_python: examples/payload/payload.py
 

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_enums::{AttemptStatus, CountryAlpha2, Currency, RefundStatus};
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     crypto::jose::JoseConfig,
@@ -10,9 +10,9 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        self, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
@@ -274,6 +274,40 @@ pub struct PacoNotificationUrls {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PacoBillingAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_line2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_line3: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub bill_addr_post_code: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoShippingAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_addr_city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_addr_country: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_addr_line1: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_addr_line2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_addr_line3: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ship_addr_post_code: Option<Secret<String>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PacoCreditCardDetails {
     pub card_number: Secret<String>,
     #[serde(rename = "cardExpiryMMYY")]
@@ -344,6 +378,12 @@ pub struct TwocTwopPacoCardAuthorizeRequest {
     pub browser_info: Option<PacoBrowserInfo>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub device_details: Option<PacoDeviceDetails>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<PacoBillingAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_address: Option<PacoShippingAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub airline_data: Option<PacoAirlineData>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -390,6 +430,12 @@ pub struct TwocTwopPacoWalletAuthorizeRequest {
     #[serde(rename = "notificationURLs")]
     pub notification_urls: PacoNotificationUrls,
     pub device_details: PacoDeviceDetails,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_address: Option<PacoBillingAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shipping_address: Option<PacoShippingAddress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub airline_data: Option<PacoAirlineData>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -404,25 +450,422 @@ pub enum TwocTwopPacoAuthorizeRequest {
 #[serde(transparent)]
 pub struct TwocTwopPacoVoidPcRequest(pub TwocTwopPacoVoidRequest);
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct TwocTwopPacoAuthorizeResponse(pub TwocTwopPacoNonUiResponse);
+/// Pairs a parsed PACO response with the exact JSON it was parsed from.
+///
+/// PACO bodies are JOSE-encrypted on the wire, so the raw HTTP body is
+/// ciphertext. Re-serialising the typed struct for `raw_connector_response`
+/// silently drops every field the struct doesn't model; this keeps the full
+/// decrypted payload instead.
+#[derive(Debug, Clone)]
+pub struct PacoResponseWithRaw<T> {
+    pub parsed_response: T,
+    pub raw_response: serde_json::Value,
+}
+
+impl<'de, T: serde::de::DeserializeOwned> Deserialize<'de> for PacoResponseWithRaw<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw_response = serde_json::Value::deserialize(deserializer)?;
+        let parsed_response = T::deserialize(&raw_response).map_err(serde::de::Error::custom)?;
+        Ok(Self {
+            parsed_response,
+            raw_response,
+        })
+    }
+}
+
+impl<T> Serialize for PacoResponseWithRaw<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.raw_response.serialize(serializer)
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TwocTwopPacoCaptureResponse(pub TwocTwopPacoNonUiResponse);
+pub struct TwocTwopPacoAuthorizeResponse(pub PacoResponseWithRaw<TwocTwopPacoNonUiResponse>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TwocTwopPacoVoidResponse(pub TwocTwopPacoNonUiResponse);
+pub struct TwocTwopPacoCaptureResponse(pub PacoResponseWithRaw<TwocTwopPacoNonUiResponse>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TwocTwopPacoVoidPcResponse(pub TwocTwopPacoNonUiResponse);
+pub struct TwocTwopPacoVoidResponse(pub PacoResponseWithRaw<TwocTwopPacoNonUiResponse>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TwocTwopPacoRefundResponse(pub TwocTwopPacoNonUiResponse);
+pub struct TwocTwopPacoVoidPcResponse(pub PacoResponseWithRaw<TwocTwopPacoNonUiResponse>);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct TwocTwopPacoRefundResponse(pub PacoResponseWithRaw<TwocTwopPacoNonUiResponse>);
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoAirlineData {
+    pub booking_reference: PacoBookingReference,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agency: Option<PacoAgency>,
+    pub flight_segments: Vec<PacoFlightSegment>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tickets: Vec<PacoTicket>,
+    pub passengers: Vec<PacoPassenger>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoBookingReference {
+    pub pnr_code: String,
+    pub booking_date_time: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoAgency {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub invoice_no: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plan_name: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoFlightSegment {
+    pub sequence_no: u32,
+    pub marketing_airline_code: String,
+    pub marketing_flight_no: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub operating_airline_code: Option<String>,
+    // PACO's wire spec uses lowercase 'f' here. Override the auto-camel rename.
+    #[serde(rename = "operatingflightNo", skip_serializing_if = "Option::is_none")]
+    pub operating_flight_no: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flight_type: Option<String>,
+    pub departure: PacoAirlineLocation,
+    pub arrival: PacoAirlineLocation,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fare_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fare_basis_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub endorsement_or_restriction: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoAirlineLocation {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub airport_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date_time: Option<String>,
+}
+
+/// A `tickets[]` entry. PACO scopes all per-purchase amounts (ticketFare,
+/// taxAmount, agentFee, etc.) here — they do NOT live at the airlineData top
+/// level or on flightSegments. We synthesize one ticket from the proto's
+/// top-level totals; if the proto-side model grows a real ticket array, this
+/// becomes a 1-to-1 map.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoTicket {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub passenger_sequence_no: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket_no: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket_issue_date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket_reservation_system_code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tax_amount: Option<PacoTransactionAmount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ticket_fare: Option<PacoTransactionAmount>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent_fee: Option<PacoTransactionAmount>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PacoPassenger {
+    pub sequence_no: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identification_no: Option<Secret<String>>,
+    /// PACO accepts free-form `documentType` (≤30 chars). We set "Passport"
+    /// when sourcing `identificationNo` from the proto's `passport_number`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub document_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    pub first_name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub middle_name: Option<Secret<String>>,
+    pub last_name: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gender: Option<String>,
+    pub email: common_utils::pii::Email,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mobile_no: Option<Secret<String>>,
+    /// PACO names this field `type` on the wire — it's an IATA PTC code.
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub passenger_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequent_flyer_status: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequent_flyer_number: Option<String>,
+}
+
+impl TryFrom<&common_utils::types::Money> for PacoTransactionAmount {
+    type Error = errors::IntegrationError;
+    fn try_from(money: &common_utils::types::Money) -> Result<Self, Self::Error> {
+        Self::new(money.amount, money.currency)
+    }
+}
+
+fn paco_numeric_country_code(country: CountryAlpha2) -> String {
+    format!("{:03}", CountryAlpha2::to_numeric(country))
+}
+
+fn invalid_airline_field(
+    field_name: &'static str,
+) -> error_stack::Report<errors::IntegrationError> {
+    error_stack::Report::new(errors::IntegrationError::InvalidDataFormat {
+        field_name,
+        context: errors::IntegrationErrorContext {
+            suggested_action: Some(format!(
+                "PACO airlineData expects `{field_name}` to be an ISO 3166-1 alpha-2 country code."
+            )),
+            doc_url: Some(PACO_INTEGRATION_DOC_URL.to_string()),
+            additional_context: None,
+        },
+    })
+}
+
+impl TryFrom<&connector_types::AirlineLocation> for PacoAirlineLocation {
+    type Error = error_stack::Report<errors::IntegrationError>;
+
+    fn try_from(location: &connector_types::AirlineLocation) -> Result<Self, Self::Error> {
+        // Upstream sends ISO 3166-1 alpha-2; PACO expects numeric-3.
+        let numeric_cc = location
+            .country_code
+            .as_deref()
+            .map(|country| {
+                country
+                    .parse::<CountryAlpha2>()
+                    .map(paco_numeric_country_code)
+                    .map_err(|_| {
+                        invalid_airline_field(
+                            "airline_data.flight_segments[].location.country_code",
+                        )
+                    })
+            })
+            .transpose()?;
+        Ok(Self {
+            airport_code: location.airport_code.clone(),
+            city_code: location.city_code.clone(),
+            city_name: location.city_name.clone(),
+            country_code: numeric_cc,
+            country_name: location.country_name.clone(),
+            date_time: location.date_time.clone(),
+        })
+    }
+}
+
+fn missing_airline_field(
+    field_name: &'static str,
+) -> error_stack::Report<errors::IntegrationError> {
+    error_stack::Report::new(errors::IntegrationError::MissingRequiredField {
+        field_name,
+        context: errors::IntegrationErrorContext {
+            suggested_action: Some(format!(
+                "PACO airlineData requires `{field_name}`; supply it via domain_data.airline_data."
+            )),
+            doc_url: Some(PACO_INTEGRATION_DOC_URL.to_string()),
+            additional_context: None,
+        },
+    })
+}
+
+impl TryFrom<&connector_types::AirlineSegment> for PacoFlightSegment {
+    type Error = error_stack::Report<errors::IntegrationError>;
+    fn try_from(segment: &connector_types::AirlineSegment) -> Result<Self, Self::Error> {
+        Ok(Self {
+            sequence_no: segment.sequence_no.ok_or_else(|| {
+                missing_airline_field("airline_data.flight_segments[].sequence_no")
+            })?,
+            marketing_airline_code: segment.marketing_carrier_code.clone().ok_or_else(|| {
+                missing_airline_field("airline_data.flight_segments[].marketing_carrier_code")
+            })?,
+            marketing_flight_no: segment.flight_number.clone().ok_or_else(|| {
+                missing_airline_field("airline_data.flight_segments[].flight_number")
+            })?,
+            operating_airline_code: segment.operating_carrier_code.clone(),
+            operating_flight_no: segment.operating_flight_number.clone(),
+            flight_type: segment.flight_type.clone(),
+            departure: PacoAirlineLocation::try_from(segment.departure.as_ref().ok_or_else(
+                || missing_airline_field("airline_data.flight_segments[].departure"),
+            )?)?,
+            arrival: PacoAirlineLocation::try_from(
+                segment.arrival.as_ref().ok_or_else(|| {
+                    missing_airline_field("airline_data.flight_segments[].arrival")
+                })?,
+            )?,
+            fare_class: segment.class_of_service.clone(),
+            fare_basis_code: segment.fare_basis_code.clone(),
+            endorsement_or_restriction: segment.endorsements_restrictions.clone(),
+        })
+    }
+}
+
+impl TryFrom<&connector_types::AirlinePassenger> for PacoPassenger {
+    type Error = error_stack::Report<errors::IntegrationError>;
+    fn try_from(passenger: &connector_types::AirlinePassenger) -> Result<Self, Self::Error> {
+        let customer = passenger.customer.as_ref();
+        let first_name = customer
+            .and_then(|cust| cust.first_name.clone())
+            .ok_or_else(|| {
+                missing_airline_field("airline_data.passengers[].customer.first_name")
+            })?;
+        let last_name = customer
+            .and_then(|cust| cust.last_name.clone())
+            .ok_or_else(|| missing_airline_field("airline_data.passengers[].customer.last_name"))?;
+        let email = customer
+            .and_then(|cust| cust.customer_email.clone())
+            .ok_or_else(|| {
+                missing_airline_field("airline_data.passengers[].customer.customer_email")
+            })?;
+        let (identification_no, document_type) = passenger
+            .passport_number
+            .clone()
+            .map(|passport| (passport, "Passport".to_string()))
+            .unzip();
+        Ok(Self {
+            sequence_no: passenger
+                .sequence_no
+                .ok_or_else(|| missing_airline_field("airline_data.passengers[].sequence_no"))?,
+            identification_no,
+            document_type,
+            title: customer.and_then(|cust| cust.salutation.clone()),
+            first_name,
+            middle_name: passenger.middle_name.clone().map(Secret::new),
+            last_name,
+            gender: passenger.gender.clone(),
+            email,
+            mobile_no: customer.and_then(|cust| cust.customer_phone_number.clone()),
+            passenger_type: passenger.passenger_type.clone(),
+            frequent_flyer_status: passenger.loyalty_tier.clone(),
+            frequent_flyer_number: passenger.frequent_flyer_number.clone(),
+        })
+    }
+}
+
+impl TryFrom<&connector_types::AirlineData> for PacoAirlineData {
+    type Error = error_stack::Report<errors::IntegrationError>;
+    fn try_from(airline: &connector_types::AirlineData) -> Result<Self, Self::Error> {
+        let booking_reference = PacoBookingReference {
+            pnr_code: airline
+                .pnr_code
+                .clone()
+                .ok_or_else(|| missing_airline_field("airline_data.pnr_code"))?,
+            booking_date_time: airline
+                .booking_date_time
+                .clone()
+                .ok_or_else(|| missing_airline_field("airline_data.booking_date_time"))?,
+        };
+
+        let agency = (airline.agency_name.is_some()
+            || airline.agency_code.is_some()
+            || airline.agency_invoice_number.is_some()
+            || airline.agency_plan_name.is_some())
+        .then(|| PacoAgency {
+            name: airline.agency_name.clone(),
+            code: airline.agency_code.clone(),
+            invoice_no: airline.agency_invoice_number.clone(),
+            plan_name: airline.agency_plan_name.clone(),
+        });
+
+        let flight_segments = airline
+            .flight_segments
+            .iter()
+            .map(PacoFlightSegment::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+        if flight_segments.is_empty() {
+            return Err(missing_airline_field("airline_data.flight_segments"));
+        }
+
+        let passengers = airline
+            .passengers
+            .iter()
+            .map(PacoPassenger::try_from)
+            .collect::<Result<Vec<_>, _>>()?;
+        if passengers.is_empty() {
+            return Err(missing_airline_field("airline_data.passengers"));
+        }
+
+        // Synthesize a single PacoTicket from the proto's top-level totals so
+        // the per-purchase amounts land at the right path (tickets[]) instead
+        // of being silently dropped at the airlineData top level.
+        let ticket_fare = airline
+            .total_fare
+            .as_ref()
+            .map(PacoTransactionAmount::try_from)
+            .transpose()?;
+        let tax_amount = airline
+            .total_taxes
+            .as_ref()
+            .map(PacoTransactionAmount::try_from)
+            .transpose()?;
+        let agent_fee = airline
+            .total_fee
+            .as_ref()
+            .map(PacoTransactionAmount::try_from)
+            .transpose()?;
+        let has_ticket_fields = airline.ticket_number.is_some()
+            || airline.ticket_issue_date.is_some()
+            || airline.booking_system_unique_id.is_some()
+            || ticket_fare.is_some()
+            || tax_amount.is_some()
+            || agent_fee.is_some();
+        let tickets = if has_ticket_fields {
+            vec![PacoTicket {
+                passenger_sequence_no: passengers.first().map(|p| p.sequence_no),
+                ticket_no: airline.ticket_number.clone().map(Secret::new),
+                ticket_issue_date: airline.ticket_issue_date.clone(),
+                ticket_reservation_system_code: airline.booking_system_unique_id.clone(),
+                tax_amount,
+                ticket_fare,
+                agent_fee,
+            }]
+        } else {
+            // No ticket-scoped fields supplied — omit tickets[] entirely.
+            Vec::new()
+        };
+
+        Ok(Self {
+            booking_reference,
+            agency,
+            flight_segments,
+            tickets,
+            passengers,
+        })
+    }
+}
 
 pub fn build_authorize_request<T>(
     item: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
@@ -450,6 +893,43 @@ where
         cancellation_url: item.request.router_return_url.clone(),
         backend_url: item.request.webhook_url.clone(),
     };
+
+    let common = &item.resource_common_data;
+    let paco_billing_address = common
+        .get_optional_billing()
+        .and_then(|billing| billing.address.as_ref())
+        .map(|_| PacoBillingAddress {
+            bill_addr_city: common.get_optional_billing_city(),
+            bill_addr_country: common
+                .get_optional_billing_country()
+                .map(paco_numeric_country_code),
+            bill_addr_line1: common.get_optional_billing_line1(),
+            bill_addr_line2: common.get_optional_billing_line2(),
+            bill_addr_line3: common.get_optional_billing_line3(),
+            bill_addr_post_code: common.get_optional_billing_zip(),
+        });
+
+    let paco_shipping_address = common
+        .get_optional_shipping()
+        .and_then(|shipping| shipping.address.as_ref())
+        .map(|_| PacoShippingAddress {
+            ship_addr_city: common.get_optional_shipping_city(),
+            ship_addr_country: common
+                .get_optional_shipping_country()
+                .map(paco_numeric_country_code),
+            ship_addr_line1: common.get_optional_shipping_line1(),
+            ship_addr_line2: common.get_optional_shipping_line2(),
+            ship_addr_line3: common.get_optional_shipping_line3(),
+            ship_addr_post_code: common.get_optional_shipping_zip(),
+        });
+
+    let airline_data = item
+        .request
+        .domain_data
+        .as_ref()
+        .and_then(|d| d.airline_data.as_ref())
+        .map(PacoAirlineData::try_from)
+        .transpose()?;
 
     match &item.request.payment_method_data {
         PaymentMethodData::Card(card) => {
@@ -491,6 +971,9 @@ where
                 request3ds_flag,
                 browser_info,
                 device_details,
+                billing_address: paco_billing_address,
+                shipping_address: paco_shipping_address,
+                airline_data: airline_data.clone(),
             };
             Ok(TwocTwopPacoAuthorizeRequest::Card(body))
         }
@@ -514,6 +997,9 @@ where
                 transaction_amount: amount,
                 notification_urls,
                 device_details,
+                billing_address: paco_billing_address,
+                shipping_address: paco_shipping_address,
+                airline_data,
             };
             Ok(TwocTwopPacoAuthorizeRequest::Wallet(body))
         }
@@ -796,6 +1282,7 @@ fn map_refund_status(status: &PacoPaymentStatus, step: &PacoPaymentStep) -> Refu
         (PacoPaymentStatus::R, PacoPaymentStep::RF) => RefundStatus::Success,
         (PacoPaymentStatus::R, PacoPaymentStep::RR) => RefundStatus::Pending,
         (PacoPaymentStatus::P, PacoPaymentStep::RP) => RefundStatus::Pending,
+        (PacoPaymentStatus::V, PacoPaymentStep::VD) => RefundStatus::Success,
         (PacoPaymentStatus::F, _) => RefundStatus::Failure,
         (s, st) => {
             tracing::warn!(
@@ -1240,6 +1727,7 @@ where
                 connector_response_reference_id,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1308,6 +1796,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 connector_response_reference_id: ref_id,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1327,9 +1816,10 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             router_data,
             http_code,
         } = item;
-        let result = response.merged_result();
+        let result = response.flat_data_block();
         let api_response = response.api_response.clone();
-        let (status, txn_id, ref_id, prior) = extract_status(result, AttemptStatus::VoidInitiated);
+        let (status, txn_id, ref_id, prior) =
+            extract_status(result.as_ref(), AttemptStatus::VoidInitiated);
 
         if matches!(status, AttemptStatus::Failure) {
             let (code, message) = error_code_message(&api_response, &prior);
@@ -1375,6 +1865,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 connector_response_reference_id: ref_id,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1394,9 +1885,10 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
             router_data,
             http_code,
         } = item;
-        let result = response.merged_result();
+        let result = response.flat_data_block();
         let api_response = response.api_response.clone();
-        let (status, txn_id, ref_id, prior) = extract_status(result, AttemptStatus::VoidInitiated);
+        let (status, txn_id, ref_id, prior) =
+            extract_status(result.as_ref(), AttemptStatus::VoidInitiated);
 
         if matches!(status, AttemptStatus::Failure) {
             let (code, message) = error_code_message(&api_response, &prior);
@@ -1442,6 +1934,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoNonUiResponse, Self>>
                 connector_response_reference_id: ref_id,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1559,11 +2052,11 @@ pub struct PacoInquiryData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TwocTwopPacoPSyncInquiryResponse(pub TwocTwopPacoInquiryResponse);
+pub struct TwocTwopPacoPSyncInquiryResponse(pub PacoResponseWithRaw<TwocTwopPacoInquiryResponse>);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent)]
-pub struct TwocTwopPacoRSyncInquiryResponse(pub TwocTwopPacoInquiryResponse);
+pub struct TwocTwopPacoRSyncInquiryResponse(pub PacoResponseWithRaw<TwocTwopPacoInquiryResponse>);
 
 impl TryFrom<ResponseRouterData<TwocTwopPacoPSyncInquiryResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
@@ -1573,11 +2066,44 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoPSyncInquiryResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoPSyncInquiryResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        // Derive settlement_status from PACO's paymentStatus before we move parsed_response into
+        // the inner TryFrom. PACO splits success into A (Authorized — awaiting settlement,
+        // Void is the valid reversal) and S (Settled — Refund is the valid reversal); UCS's
+        // AttemptStatus collapses both into Charged, so euler needs this field to route
+        // refund vs void.
+        let settlement_status = parsed_response
+            .data
+            .as_ref()
+            .and_then(|d| d.payment_status_info.as_ref())
+            .map(|psi| paco_status_to_settlement_status(&psi.payment_status));
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                settlement_status,
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
+    }
+}
+
+fn paco_status_to_settlement_status(
+    status: &PacoPaymentStatus,
+) -> connector_types::SettlementStatus {
+    use connector_types::SettlementStatus;
+    match status {
+        PacoPaymentStatus::S => SettlementStatus::Settled,
+        PacoPaymentStatus::A => SettlementStatus::NotSettled,
+        _ => SettlementStatus::Unspecified,
     }
 }
 
@@ -1654,6 +2180,7 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoInquiryResponse, Self>>
                 connector_response_reference_id: order,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             }),
             ..router_data
         })
@@ -1668,10 +2195,21 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoRSyncInquiryResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoRSyncInquiryResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: RefundFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }
@@ -1978,10 +2516,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }
@@ -1994,10 +2543,21 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoCaptureResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }
@@ -2010,10 +2570,21 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoVoidResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoVoidResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }
@@ -2026,10 +2597,21 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoVoidPcResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoVoidPcResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: PaymentFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }
@@ -2042,10 +2624,21 @@ impl TryFrom<ResponseRouterData<TwocTwopPacoRefundResponse, Self>>
     fn try_from(
         item: ResponseRouterData<TwocTwopPacoRefundResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        Self::try_from(ResponseRouterData {
-            response: item.response.0,
+        let PacoResponseWithRaw {
+            parsed_response,
+            raw_response,
+        } = item.response.0;
+        let router_data = Self::try_from(ResponseRouterData {
+            response: parsed_response,
             router_data: item.router_data,
             http_code: item.http_code,
+        })?;
+        Ok(Self {
+            resource_common_data: RefundFlowData {
+                raw_connector_response: Some(Secret::new(raw_response.to_string())),
+                ..router_data.resource_common_data
+            },
+            ..router_data
         })
     }
 }

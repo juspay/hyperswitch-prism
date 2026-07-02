@@ -935,6 +935,7 @@ impl TryFrom<common_enums::PaymentMethodType> for StripePaymentMethodType {
             | common_enums::PaymentMethodType::EaseBuzz
             | common_enums::PaymentMethodType::Skrill
             | common_enums::PaymentMethodType::Paysera
+            | common_enums::PaymentMethodType::Tamara
             | common_enums::PaymentMethodType::Netbanking
             | common_enums::PaymentMethodType::QwikcilverWallet => {
                 Err(IntegrationError::NotImplemented(
@@ -1151,7 +1152,8 @@ impl TryFrom<&PayLaterData> for StripePaymentMethodType {
             PayLaterData::KlarnaSdk { .. }
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
-            | PayLaterData::AtomeRedirect {} => Err(IntegrationError::NotImplemented(
+            | PayLaterData::AtomeRedirect {}
+            | PayLaterData::TamaraRedirect {} => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )),
@@ -2721,8 +2723,8 @@ where
             MandateReference {
                 connector_mandate_id,
                 payment_method_id,
-                connector_mandate_request_reference_id: None
-}
+                connector_mandate_request_reference_id: None,
+            }
         });
 
         //Note: we might have to call retrieve_setup_intent to get the network_transaction_id in case its not sent in PaymentIntentResponse
@@ -2755,6 +2757,17 @@ where
                 item.response.id.clone(),
             )
         } else {
+            let splits = item
+                .response
+                .latest_charge
+                .as_ref()
+                .map(|charge| match charge {
+                    StripeChargeEnum::ChargeId(charges) => charges.clone(),
+                    StripeChargeEnum::ChargeObject(charge) => charge.id.clone(),
+                })
+                .and_then(|charge_id| {
+                    construct_charge_response(charge_id, &item.router_data.request)
+                });
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: redirection_data.map(Box::new),
@@ -2768,6 +2781,7 @@ where
                     .request
                     .get_request_incremental_authorization(),
                 status_code: item.http_code,
+                splits,
             })
         };
 
@@ -3044,6 +3058,18 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
                 _ => None,
             };
 
+            let splits = item
+                .response
+                .latest_charge
+                .as_ref()
+                .map(|charge| match charge {
+                    StripeChargeEnum::ChargeId(charges) => charges.clone(),
+                    StripeChargeEnum::ChargeObject(charge) => charge.id.clone(),
+                })
+                .and_then(|charge_id| {
+                    construct_charge_response(charge_id, &item.router_data.request)
+                });
+
             Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data: redirection_data.map(Box::new),
@@ -3054,6 +3080,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
                 connector_response_reference_id: Some(item.response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits,
             })
         };
 
@@ -3171,6 +3198,7 @@ impl<F, T> TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -3967,20 +3995,21 @@ fn get_stripe_payments_response_data(
 pub fn construct_charge_response<T>(
     charge_id: String,
     request: &T,
-) -> Option<domain_types::connector_types::ConnectorChargeResponseData>
+) -> Option<domain_types::connector_types::ConnectorSplitResponseData>
 where
     T: SplitPaymentData,
 {
     let charge_request = request.get_split_payment_data();
     if let Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) = charge_request {
-        let stripe_charge_response = domain_types::connector_types::StripeChargeResponseData {
+        let stripe_charge_response = domain_types::connector_types::StripeSplitResponseData {
             charge_id: Some(charge_id),
             charge_type: stripe_split_payment.charge_type,
             application_fees: stripe_split_payment.application_fees,
             transfer_account_id: stripe_split_payment.transfer_account_id,
+            on_behalf_of: stripe_split_payment.on_behalf_of,
         };
         Some(
-            domain_types::connector_types::ConnectorChargeResponseData::StripeSplitPayment(
+            domain_types::connector_types::ConnectorSplitResponseData::StripeSplitPayment(
                 stripe_charge_response,
             ),
         )

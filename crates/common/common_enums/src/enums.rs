@@ -1006,6 +1006,7 @@ pub enum PaymentMethodType {
     AliPay,
     AliPayHk,
     Alma,
+    Tamara,
     AmazonPay,
     ApplePay,
     Atome,
@@ -1526,6 +1527,29 @@ pub enum DisputeStage {
     #[default]
     Dispute,
     PreArbitration,
+}
+
+/// Indicates the payment eligibility status.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EligibilityStatus {
+    #[default]
+    Ineligible,
+    Eligible,
+    Unknown,
 }
 
 /// Indicates the card network.
@@ -2078,6 +2102,7 @@ pub enum ProductType {
 pub enum CallConnectorAction {
     Trigger,
     HandleResponse(Vec<u8>),
+    HandleResponseWithoutBuildRequest,
 }
 
 #[derive(
@@ -2411,6 +2436,31 @@ pub enum Tokenization {
 pub enum TaxStatus {
     Taxable,
     Exempt,
+}
+
+/// FRM decision outcomes for fraud risk assessment
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    strum::VariantNames,
+    ToSchema,
+)]
+pub enum FrmDecision {
+    #[default]
+    Approve,
+    Reject,
+    Review,
+    Error,
 }
 
 /// Whether the ticket can be refunded.

@@ -324,6 +324,7 @@ where
             connector_response_reference_id: Some(item.response.payment_request_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         });
 
         Ok(Self {
@@ -371,6 +372,7 @@ impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             })
         };
         Ok(Self {

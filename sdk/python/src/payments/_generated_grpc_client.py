@@ -296,6 +296,13 @@ class GrpcPaymentMethodClient:
             "payment_method/recharge",
             req, payment_pb2.PaymentMethodServiceRechargeResponse,
         )
+    def eligibility(self, req: payment_pb2.PaymentMethodServiceEligibilityRequest) -> payment_pb2.PaymentMethodServiceEligibilityResponse:
+        """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
+        return _call_grpc(
+            self._ffi, self._config,
+            "payment_method/eligibility",
+            req, payment_pb2.PaymentMethodServiceEligibilityResponse,
+        )
 
 class GrpcPaymentClient:
     """PaymentService — gRPC sub-client."""
@@ -466,11 +473,11 @@ class GrpcPayoutClient:
             "payout/enroll_disburse_account",
             req, payment_pb2.PayoutServiceEnrollDisburseAccountResponse,
         )
-    def eligibility(self, req: payment_pb2.PayoutMethodEligibilityRequest) -> payment_pb2.PayoutMethodEligibilityResponse:
+    def payout_eligibility(self, req: payment_pb2.PayoutMethodEligibilityRequest) -> payment_pb2.PayoutMethodEligibilityResponse:
         """PayoutService.Eligibility — Check if the payout method is eligible for the transaction"""
         return _call_grpc(
             self._ffi, self._config,
-            "payout/eligibility",
+            "payout/payout_eligibility",
             req, payment_pb2.PayoutMethodEligibilityResponse,
         )
 

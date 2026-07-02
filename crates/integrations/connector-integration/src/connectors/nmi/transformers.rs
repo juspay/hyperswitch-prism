@@ -708,7 +708,7 @@ fn create_ach_data<T: PaymentMethodDataTypes>(
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct StandardResponse {
-    pub response: String, // "1" = approved, "2" = declined, "3" = error
+    pub response: Response,
     pub responsetext: String,
     pub authcode: Option<String>,
     pub transactionid: String,
@@ -730,41 +730,55 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StandardResponse, Sel
     fn try_from(item: ResponseRouterData<StandardResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        // Determine status based on response code
-        let status = match response.response.as_str() {
-            "1" => {
-                // Approved - check if it was auth or sale
-                // For auth type, status is Authorized
-                // For sale type, status is Charged
-                // We need to check the original request's auto_capture flag
-                if item.router_data.request.is_auto_capture() {
+        let (status, payment_response) = match response.response {
+            Response::Approved => {
+                let status = if item.router_data.request.is_auto_capture() {
                     AttemptStatus::Charged
                 } else {
                     AttemptStatus::Authorized
-                }
+                };
+                (
+                    status,
+                    Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            response.transactionid.clone(),
+                        ),
+                        redirection_data: None,
+                        mandate_reference: response.customer_vault_id.as_ref().map(|vault_id| {
+                            Box::new(MandateReference {
+                                connector_mandate_id: Some(vault_id.clone().expose()),
+                                payment_method_id: None,
+                                connector_mandate_request_reference_id: None,
+                            })
+                        }),
+                        connector_metadata: None,
+                        network_txn_id: None,
+                        network_txn_link_id: None,
+                        connector_response_reference_id: Some(response.orderid.clone()),
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                        splits: None,
+                    }),
+                )
             }
-            "2" | "3" => AttemptStatus::Failure, // Declined or Error
-            _ => AttemptStatus::Pending,
+            Response::Declined | Response::Error => (
+                AttemptStatus::Failure,
+                Err(domain_types::router_data::ErrorResponse {
+                    code: response.response_code.clone(),
+                    message: response.responsetext.clone(),
+                    reason: Some(response.responsetext.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    connector_transaction_id: Some(response.transactionid.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+            ),
         };
 
         Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(response.transactionid.clone()),
-                redirection_data: None,
-                mandate_reference: response.customer_vault_id.as_ref().map(|vault_id| {
-                    Box::new(MandateReference {
-                        connector_mandate_id: Some(vault_id.clone().expose()),
-                        payment_method_id: None,
-                        connector_mandate_request_reference_id: None,
-                    })
-                }),
-                connector_metadata: None,
-                network_txn_id: None,
-                network_txn_link_id: None,
-                connector_response_reference_id: Some(response.orderid.clone()),
-                incremental_authorization_allowed: None,
-                status_code: item.http_code,
-            }),
+            response: payment_response,
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
@@ -891,6 +905,7 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -972,12 +987,9 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
     fn try_from(item: ResponseRouterData<StandardResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        // Capture success = Charged status
-        // Capture failure = Failure status
-        let status = match response.response.as_str() {
-            "1" => AttemptStatus::Charged,       // Capture successful
-            "2" | "3" => AttemptStatus::Failure, // Capture failed
-            _ => AttemptStatus::Pending,
+        let status = match response.response {
+            Response::Approved => AttemptStatus::Charged,
+            Response::Declined | Response::Error => AttemptStatus::Failure,
         };
 
         Ok(Self {
@@ -991,6 +1003,7 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
                 connector_response_reference_id: Some(response.orderid.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1091,12 +1104,9 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
     fn try_from(item: ResponseRouterData<StandardResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        // Map response code to RefundStatus
-        // "1" = Success, "2"/"3" = Failure
-        let status = match response.response.as_str() {
-            "1" => RefundStatus::Success,
-            "2" | "3" => RefundStatus::Failure,
-            _ => RefundStatus::Pending,
+        let status = match response.response {
+            Response::Approved => RefundStatus::Success,
+            Response::Declined | Response::Error => RefundStatus::Failure,
         };
 
         Ok(Self {
@@ -1275,12 +1285,9 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
     fn try_from(item: ResponseRouterData<StandardResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        // Void success = Voided status
-        // Void failure = VoidFailed status
-        let status = match response.response.as_str() {
-            "1" => AttemptStatus::Voided,           // Void successful
-            "2" | "3" => AttemptStatus::VoidFailed, // Void failed
-            _ => AttemptStatus::Pending,
+        let status = match response.response {
+            Response::Approved => AttemptStatus::Voided,
+            Response::Declined | Response::Error => AttemptStatus::VoidFailed,
         };
 
         Ok(Self {
@@ -1294,6 +1301,7 @@ impl TryFrom<ResponseRouterData<StandardResponse, Self>>
                 connector_response_reference_id: Some(response.orderid.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1808,6 +1816,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         connector_response_reference_id: Some(response.orderid.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                 )
             }
@@ -1870,6 +1879,11 @@ pub struct NmiRepeatPaymentRequest {
     country: Option<common_enums::CountryAlpha2>,
     #[serde(skip_serializing_if = "Option::is_none")]
     phone: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    email: Option<common_utils::pii::Email>,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shipping_details: Option<NmiShippingDetails>,
 }
 
 pub type NmiRepeatPaymentResponse = NmiSetupMandateResponse;
@@ -1956,6 +1970,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             zip: common_data.get_optional_billing_zip(),
             country: common_data.get_optional_billing_country(),
             phone: common_data.get_optional_billing_phone_number(),
+            // Prefer the billing-address email (mirrors the hyperswitch reference
+            // NMI MIT path), falling back to the top-level `RepeatPaymentData.email`
+            // so the customer email is still sent when no billing email is present.
+            email: common_data
+                .get_optional_billing_email()
+                .or_else(|| router_data.request.email.clone()),
+            shipping_details: Some(NmiShippingDetails {
+                shipping_firstname: common_data.get_optional_shipping_first_name(),
+                shipping_lastname: common_data.get_optional_shipping_last_name(),
+                shipping_address1: common_data.get_optional_shipping_line1(),
+                shipping_address2: common_data.get_optional_shipping_line2(),
+                shipping_city: common_data.get_optional_shipping_city(),
+                shipping_state: common_data.get_optional_shipping_state(),
+                shipping_zip: common_data.get_optional_shipping_zip(),
+                shipping_country: common_data.get_optional_shipping_country(),
+                // Same precedence for the shipping email: shipping-address email
+                // first, then the top-level `RepeatPaymentData.email` fallback.
+                shipping_email: common_data
+                    .get_optional_shipping_email()
+                    .or_else(|| router_data.request.email.clone()),
+            }),
         })
     }
 }
@@ -1977,7 +2012,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(response.transactionid.clone()),
                     redirection_data: None,
-                    mandate_reference: None,
+                    mandate_reference: response.customer_vault_id.as_ref().map(|vault_id| {
+                        Box::new(MandateReference {
+                            connector_mandate_id: Some(vault_id.clone().expose()),
+                            payment_method_id: None,
+                            connector_mandate_request_reference_id: None,
+                        })
+                    }),
                     connector_metadata: None,
                     network_txn_id: None,
                     network_txn_link_id: None,
@@ -1987,6 +2028,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_response_reference_id: Some(response.orderid.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
             ),
             Response::Declined | Response::Error => (

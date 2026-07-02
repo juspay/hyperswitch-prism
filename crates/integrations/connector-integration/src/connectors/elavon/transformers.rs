@@ -823,6 +823,7 @@ impl<
                     incremental_authorization_allowed: None,
                     mandate_reference,
                     status_code: http_code,
+                    splits: None,
                 })
             }
             (_, Some(err_resp)) => Err(err_resp),
@@ -1067,6 +1068,7 @@ impl<F> TryFrom<ResponseRouterData<ElavonCaptureResponse, Self>>
                     incremental_authorization_allowed: None,
                     mandate_reference: None,
                     status_code: http_code,
+                    splits: None,
                 })
             }
             (_, Some(err_resp)) => Err(err_resp),
@@ -1468,6 +1470,7 @@ impl<F> TryFrom<ResponseRouterData<ElavonPSyncResponse, Self>>
             incremental_authorization_allowed: None,
             mandate_reference: None,
             status_code: value.http_code,
+            splits: None,
         };
 
         Ok(Self {

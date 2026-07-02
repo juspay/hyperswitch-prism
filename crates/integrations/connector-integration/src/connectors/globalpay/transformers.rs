@@ -734,6 +734,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayPaymentsResp
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
         };
 
@@ -813,6 +814,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
         };
 
@@ -892,6 +894,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
         };
 
@@ -1091,6 +1094,7 @@ impl TryFrom<ResponseRouterData<GlobalpayPaymentsResponse, Self>>
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1394,6 +1398,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpaySetupMandate
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Charged,
@@ -1601,6 +1606,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GlobalpayRepeatPaymen
                 connector_response_reference_id: item.response.reference.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
         };
 

@@ -439,6 +439,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GigadatPaymentsRespon
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..router_data.clone()
         })
@@ -484,6 +485,7 @@ impl TryFrom<ResponseRouterData<GigadatSyncResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..router_data.clone()
         })

@@ -9,328 +9,328 @@
     },
     "authorize": {
       "Ach": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "AchBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Affirm": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Afterpay": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Alfamart": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "AliPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "AmazonPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "ApplePay": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "ApplePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "ApplePayThirdPartySdk": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Bacs": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "BacsBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "BancontactCard": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "BcaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Becs": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "BillDeskRedirect": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Bizum": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Blik": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Bluecode": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "BniVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Boleto": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "BriVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Card": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "CashappQr": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "CashfreeRedirect": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "CimbVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "ClassicReward": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Dana": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "DanamonVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "EaseBuzzRedirect": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Efecty": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Eft": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Eps": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "FamilyMart": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "GCash": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Giropay": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "GoPay": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "GooglePay": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "GooglePayDecrypted": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "GooglePayThirdPartySdk": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Ideal": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Indomaret": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "IndonesianBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "InstantBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "InstantBankTransferFinland": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "InstantBankTransferPoland": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Interac": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "KakaoPay": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Klarna": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Lawson": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "LazyPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "LocalBankRedirect": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "LocalBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "MandiriVaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "MbWay": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Mifinity": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "MiniStop": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Momo": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "MultibancoBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Netbanking": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "OnlineBankingFinland": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "OnlineBankingFpx": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "OnlineBankingPoland": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "OnlineBankingSlovakia": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "OnlineBankingThailand": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "OpenBanking": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Oxxo": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "PagoEfectivo": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "PayEasy": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "PaySafeCard": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PayURedirect": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "PaypalRedirect": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "PaypalSdk": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Paysera": {
         "status": "not_supported",
@@ -341,112 +341,112 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "PhonePeRedirect": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Pix": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Przelewy24": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Pse": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "RedCompra": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "RedPagos": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "RevolutPay": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "SamsungPay": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Satispay": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Seicomart": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Sepa": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "SepaBankTransfer": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "SepaGuaranteedDebit": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "SevenEleven": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Skrill": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Sofort": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Swish": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "TouchNGo": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Trustly": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Twint": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "UpiCollect": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "UpiIntent": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "UpiQr": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Vipps": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "WeChatPayQr": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       },
       "Wero": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       }
     },
     "capture": {
@@ -527,7 +527,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: customer. Customer details are required for Tamara eligibility check — Missing required field: customer. Customer details are required for Tamara eligibility check"
       }
     },
     "get": {
@@ -598,6 +599,11 @@
         }
       }
     },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "not_supported",
@@ -612,8 +618,8 @@
     },
     "proxy_authorize": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       }
     },
     "proxy_setup_recurring": {
@@ -692,8 +698,8 @@
     },
     "token_authorize": {
       "default": {
-        "status": "error",
-        "error": "Stuck on field: shipping_or_billing.address.country — Missing required field: shipping_or_billing.address.country"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Tamara"
       }
     },
     "token_setup_recurring": {

@@ -644,7 +644,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by shift4 connector"
       }
     },
     "get": {
@@ -699,6 +700,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -985,7 +991,11 @@
             "mandate_type": {
               "multi_use": {
                 "amount": 0,
-                "currency": "USD"
+                "currency": "USD",
+                "amount_money": {
+                  "minor_amount": 0,
+                  "currency": "USD"
+                }
               }
             }
           },

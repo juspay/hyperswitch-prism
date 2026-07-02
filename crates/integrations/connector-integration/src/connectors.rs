@@ -277,3 +277,6 @@ pub mod hyperswitch;
 pub use self::hyperswitch::Hyperswitch;
 pub mod qwikcilver;
 pub use self::qwikcilver::Qwikcilver;
+
+pub mod kount;
+pub use self::kount::Kount;
