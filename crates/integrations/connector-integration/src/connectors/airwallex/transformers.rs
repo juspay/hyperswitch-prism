@@ -98,6 +98,31 @@ pub enum AirwallexPaymentMethod {
     Wallets(AirwallexWalletData),
     BankRedirect(AirwallexBankRedirectData),
     PayLater(AirwallexPayLaterData),
+    BankTransfer(AirwallexBankTransferData),
+}
+
+// Shared Airwallex BankTransfer enum. Each bank-transfer payment method gets its own variant so
+// the connector serializes the correct nested object + `type` discriminator, mirroring the
+// reference upstream `AirwallexBankTransferData::IndonesianBankTransfer(IndonesianBankTransferData)`.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum AirwallexBankTransferData {
+    IndonesianBankTransfer(IndonesianBankTransferData),
+}
+
+#[derive(Debug, Serialize)]
+pub struct IndonesianBankTransferData {
+    pub bank_transfer: IndonesianBankTransferDetails,
+    #[serde(rename = "type")]
+    pub payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct IndonesianBankTransferDetails {
+    pub shopper_name: Secret<String>,
+    pub shopper_email: Email,
+    pub bank_name: common_enums::BankNames,
+    pub country_code: common_enums::CountryAlpha2,
 }
 
 // Shared Airwallex PayLater enum. Each PayLater payment method gets its own variant so
@@ -523,6 +548,54 @@ fn get_paylater_details(
     }
 }
 
+// Shared BankTransfer conversion used by both the intent (AirwallexPaymentRequest) and
+// confirm (AirwallexConfirmRequest) builders so the two paths cannot drift. Mirrors the
+// reference upstream `get_banktransfer_details`: the Indonesian bank transfer carries the
+// shopper name/email, the selected bank, and the billing country code.
+fn get_banktransfer_details(
+    banktransfer_data: &domain_types::payment_method_data::BankTransferData,
+    resource_common_data: &PaymentFlowData,
+) -> Result<AirwallexPaymentMethod, error_stack::Report<IntegrationError>> {
+    match banktransfer_data {
+        domain_types::payment_method_data::BankTransferData::IndonesianBankTransfer {
+            bank_name,
+        } => Ok(AirwallexPaymentMethod::BankTransfer(
+            AirwallexBankTransferData::IndonesianBankTransfer(IndonesianBankTransferData {
+                bank_transfer: IndonesianBankTransferDetails {
+                    shopper_name: resource_common_data.get_billing_full_name().map_err(|_| {
+                        IntegrationError::MissingRequiredField {
+                            field_name: "shopper_name",
+                            context: Default::default(),
+                        }
+                    })?,
+                    shopper_email: resource_common_data.get_billing_email().map_err(|_| {
+                        IntegrationError::MissingRequiredField {
+                            field_name: "shopper_email",
+                            context: Default::default(),
+                        }
+                    })?,
+                    // `bank_name` is required by Airwallex to route the Indonesian bank transfer.
+                    bank_name: (*bank_name).ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "bank_name",
+                        context: Default::default(),
+                    })?,
+                    country_code: resource_common_data.get_billing_country().map_err(|_| {
+                        IntegrationError::MissingRequiredField {
+                            field_name: "country_code",
+                            context: Default::default(),
+                        }
+                    })?,
+                },
+                payment_method_type: AirwallexPaymentType::BankTransfer,
+            }),
+        )),
+        _ => Err(error_stack::report!(IntegrationError::NotImplemented(
+            crate::utils::get_unimplemented_payment_method_error_message("airwallex"),
+            Default::default()
+        ))),
+    }
+}
+
 // Build the correct `payment_method_options` object for the selected payment method.
 // Card/Wallet/BankRedirect keep the historical card options; PayLater emits its own
 // klarna/atome options block with `auto_capture`, mirroring the reference upstream.
@@ -557,6 +630,9 @@ fn build_payment_method_options(
             klarna: None,
             atome: None,
         }),
+        // BankTransfer has no payment_method_options block (mirrors the reference upstream,
+        // which only emits options for Card/Klarna/Atome).
+        AirwallexPaymentMethod::BankTransfer(_) => None,
     }
 }
 
@@ -674,6 +750,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             domain_types::payment_method_data::PaymentMethodData::PayLater(paylater_data) => {
                 get_paylater_details(&paylater_data, &item.router_data.resource_common_data)?
             }
+            domain_types::payment_method_data::PaymentMethodData::BankTransfer(
+                banktransfer_data,
+            ) => get_banktransfer_details(
+                &banktransfer_data,
+                &item.router_data.resource_common_data,
+            )?,
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Payment Method".to_string(),
@@ -1442,6 +1524,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             domain_types::payment_method_data::PaymentMethodData::PayLater(paylater_data) => {
                 get_paylater_details(&paylater_data, &item.router_data.resource_common_data)?
             }
+            domain_types::payment_method_data::PaymentMethodData::BankTransfer(
+                banktransfer_data,
+            ) => get_banktransfer_details(
+                &banktransfer_data,
+                &item.router_data.resource_common_data,
+            )?,
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Payment Method".to_string(),
