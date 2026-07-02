@@ -1429,8 +1429,9 @@ message RedirectForm {
     // NMI-specific redirection data for 3DS flows.
     NmiData nmi = 6;
 
-    // Flywire-specific redirection data for hosted-checkout iframe flows.
-    FlywireData flywire = 7;
+    // Generic hosted-iframe redirection: load `endpoint` in an iframe and
+    // attach the connector-built `events` postMessage listener.
+    HostedIframeData hosted_iframe = 7;
   }
 }
 
@@ -1479,16 +1480,19 @@ message MifinityData {
   string initialization_token = 1;
 }
 
-// Represents Flywire-specific redirection data.
-message FlywireData {
-  // Flywire hosted-checkout form URL to load inside the iframe.
-  string iframe_src = 1;
+// Generic hosted-iframe redirection data. The connector supplies a URL to
+// load into an iframe and a self-contained postMessage listener script that
+// navigates the payer to the (pre-substituted) return URL on completion.
+message HostedIframeData {
+  // URL to load inside the iframe.
+  string endpoint = 1;
 
-  // URL to navigate the payer to once the checkout form is submitted.
-  string return_url = 2;
+  // HTTP method the client should use to fetch `endpoint`.
+  HttpMethod method = 2;
 
-  // postMessage listener script built by the connector. 
-  string event_listener = 3;
+  // postMessage listener script; `return_url` is already substituted by the
+  // connector so the client just inlines this verbatim in a <script> tag.
+  string events = 3;
 }
 
 // Represents NMI-specific redirection data for 3DS flows

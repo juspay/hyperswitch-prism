@@ -14,6 +14,7 @@ use domain_types::{
     payment_method_data::PaymentMethodDataTypes,
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
+    router_request_types::AuthoriseIntegrityObject,
     router_response_types::RedirectForm,
 };
 use hyperswitch_masking::Secret;
@@ -315,14 +316,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 })
             })?;
-        let iframe_src = response.hosted_form.url.clone();
+        let endpoint = response.hosted_form.url.clone();
         // postMessage listener the client attaches; it navigates to `return_url`
         // once Flywire signals a successful checkout-session submission.
-        let event_listener = FLYWIRE_EVENT_LISTENER_TEMPLATE.replace("__RETURN_URL__", &return_url);
-        let redirection_data = Some(Box::new(RedirectForm::Flywire {
-            iframe_src,
-            return_url,
-            event_listener,
+        let events = FLYWIRE_EVENT_LISTENER_TEMPLATE.replace("__RETURN_URL__", &return_url);
+        let redirection_data = Some(Box::new(RedirectForm::HostedIframe {
+            endpoint,
+            method: common_utils::Method::Get,
+            events,
         }));
 
         Ok(Self {
@@ -509,9 +510,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .connector_request_reference_id
             .clone();
 
-        // HTTP 200 from /confirm means Flywire accepted the form and finalized
-        // the payment. Mark as Charged; the subsequent PSync (GET /payments/{id})
-        // will return the live status (delivered, etc.).
+        // Flywire's /confirm response body carries only payor-side amount
+        // (charge_info.amount = amount_from after FX) and does not echo
+        // external_reference. Neither is a usable integrity counterpart. So
+        // we echo the request amount + currency into the AuthoriseIntegrityObject
+        // to enable round-trip integrity (catches prism/UCS-side tampering,
+        // NOT Flywire-side settlement drift — that is caught by PSync).
+        let response_integrity_object = Some(AuthoriseIntegrityObject {
+            amount: item.router_data.request.amount,
+            currency: item.router_data.request.currency,
+        });
+
+        // HTTP 200 from /confirm means Flywire accepted the form. The payment is
+        // at FLYWIRE status "initiated"/"processed" at this moment; funds are
+        // NOT yet guaranteed (typically 20-30s later via webhook) or delivered
+        // (daily batch). The Charged mapping here is intentionally optimistic;
+        // subsequent PSync or webhook refines to the actual FLYWIRE state.
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(response.payment_reference.clone()),
@@ -526,9 +540,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 splits: None,
             }),
             resource_common_data: PaymentFlowData {
-                status: AttemptStatus::Charged,
+                // HTTP 200 from /confirm only means Flywire accepted the form.
+                // Actual state is initiated/processed; guaranteed/delivered
+                // come async via webhook/PSync. Marking Charged here would
+                // report success on a payment that could still fail.
+                status: AttemptStatus::Pending,
                 raw_connector_response: raw_response,
                 ..item.router_data.resource_common_data
+            },
+            request: PaymentsAuthorizeData {
+                integrity_object: response_integrity_object,
+                ..item.router_data.request
             },
             ..item.router_data
         })
