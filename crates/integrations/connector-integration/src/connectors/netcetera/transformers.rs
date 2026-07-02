@@ -322,7 +322,7 @@ pub struct NetceteraAuthenticateRequest<
     #[serde(rename = "threeDSServerTransID")]
     pub three_ds_server_trans_id: Option<String>,
     #[serde(rename = "threeDSRequestorURL")]
-    pub three_ds_requestor_url: Option<String>,
+    pub three_ds_requestor_url: Option<url::Url>,
     pub cardholder_account: netcetera_types::CardholderAccount<T>,
     pub cardholder: Option<netcetera_types::Cardholder>,
     pub purchase: Option<netcetera_types::Purchase>,
@@ -414,7 +414,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
             .ok();
             netcetera_types::Purchase {
-                purchase_amount: Some(request.amount.get_amount_as_i64()),
+                purchase_amount: Some(request.amount),
                 purchase_currency: currency.iso_4217().to_string(),
                 purchase_exponent,
                 purchase_date,
@@ -439,9 +439,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let acquirer = netcetera_meta
             .as_ref()
             .map(netcetera_types::NetceteraMeta::to_acquirer_data);
-        let merchant = netcetera_meta
-            .as_ref()
-            .map(|meta| meta.to_merchant_data(common_data.return_url.clone()));
+        let merchant = netcetera_meta.as_ref().map(|meta| {
+            meta.to_merchant_data(
+                common_data
+                    .return_url
+                    .as_ref()
+                    .and_then(|u| url::Url::parse(u).ok()),
+            )
+        });
 
         Ok(Self {
             preferred_protocol_version: message_version,
@@ -456,7 +461,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             three_ds_requestor_url: netcetera_meta
                 .as_ref()
                 .and_then(|m| m.notification_url.clone())
-                .or_else(|| common_data.return_url.clone()),
+                .or_else(|| {
+                    common_data
+                        .return_url
+                        .as_ref()
+                        .and_then(|u| url::Url::parse(u).ok())
+                }),
             cardholder_account,
             cardholder: Some(cardholder),
             purchase,

@@ -2,7 +2,7 @@
 
 use domain_types::{errors::IntegrationError, utils::ForeignTryFrom};
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 /// Structured card payload serialized into the injector [`injector::TokenData`].
 ///
@@ -11,10 +11,10 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface};
 /// request carries a vault-aliased card proxy.
 #[derive(Debug, serde::Serialize)]
 struct ProxyCardTokenData {
-    card_number: String,
-    card_cvc: String,
-    card_exp_month: String,
-    card_exp_year: String,
+    card_number: Secret<String>,
+    card_cvc: Secret<String>,
+    card_exp_month: Secret<String>,
+    card_exp_year: Secret<String>,
 }
 
 /// Newtype over the injector's (foreign) [`injector::TokenData`] so the local
@@ -32,26 +32,34 @@ impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetails> for InjectorTok
         proxy_card_details: &grpc_api_types::payments::ProxyCardDetails,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let card_data = ProxyCardTokenData {
-            card_number: proxy_card_details
-                .card_number
-                .as_ref()
-                .map(|cn| cn.peek().to_owned())
-                .unwrap_or_default(),
-            card_cvc: proxy_card_details
-                .card_cvc
-                .as_ref()
-                .map(|cvc| cvc.clone().expose().to_string())
-                .unwrap_or_default(),
-            card_exp_month: proxy_card_details
-                .card_exp_month
-                .as_ref()
-                .map(|em| em.clone().expose().to_string())
-                .unwrap_or_default(),
-            card_exp_year: proxy_card_details
-                .card_exp_year
-                .as_ref()
-                .map(|ey| ey.clone().expose().to_string())
-                .unwrap_or_default(),
+            card_number: Secret::new(
+                proxy_card_details
+                    .card_number
+                    .as_ref()
+                    .map(|cn| cn.peek().to_owned())
+                    .unwrap_or_default(),
+            ),
+            card_cvc: Secret::new(
+                proxy_card_details
+                    .card_cvc
+                    .as_ref()
+                    .map(|cvc| cvc.clone().expose().to_string())
+                    .unwrap_or_default(),
+            ),
+            card_exp_month: Secret::new(
+                proxy_card_details
+                    .card_exp_month
+                    .as_ref()
+                    .map(|em| em.clone().expose().to_string())
+                    .unwrap_or_default(),
+            ),
+            card_exp_year: Secret::new(
+                proxy_card_details
+                    .card_exp_year
+                    .as_ref()
+                    .map(|ey| ey.clone().expose().to_string())
+                    .unwrap_or_default(),
+            ),
         };
 
         let card_json = serde_json::to_value(card_data).change_context(

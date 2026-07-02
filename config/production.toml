@@ -133,7 +133,7 @@ axisbank.base_url = "https://upisdk.axisbank.co.in/api/b2/"
 tsys_transit.base_url = "https://gwapi.transit-pass.com/"
 # {{merchant_endpoint_prefix}} is a per-merchant Netcetera endpoint prefix; see
 # the TODO(netcetera) in connectors/netcetera.rs base_url for prefix resolution.
-netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.netcetera-cloud-payment.ch"
+netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prod.netcetera-cloud-payment.ch"
 
 # Generic Events Configuration
 [events]

@@ -311,7 +311,7 @@ fn get_optional_full_name(
 #[serde_with::skip_serializing_none]
 pub struct Purchase {
     /// Purchase amount in minor units of currency.
-    pub purchase_amount: Option<i64>,
+    pub purchase_amount: Option<common_utils::types::MinorUnit>,
     /// ISO 4217 three-digit currency code.
     pub purchase_currency: String,
     /// ISO 4217 currency exponent (number of minor-unit digits).
@@ -344,14 +344,14 @@ pub struct MerchantData {
     pub merchant_country_code: Option<String>,
     pub merchant_name: Option<String>,
     #[serde(rename = "notificationURL")]
-    pub notification_url: Option<String>,
+    pub notification_url: Option<url::Url>,
     #[serde(rename = "threeDSRequestorId")]
     pub three_ds_requestor_id: Option<String>,
     #[serde(rename = "threeDSRequestorName")]
     pub three_ds_requestor_name: Option<String>,
     /// Dynamic RRes (Results Response) notification URL — where Netcetera pushes the final challenge
     /// result when the pull mechanism is disabled. Serializes as `resultsResponseNotificationUrl`.
-    pub results_response_notification_url: Option<String>,
+    pub results_response_notification_url: Option<url::Url>,
 }
 
 // ---------------------------------------------------------------------------
@@ -405,11 +405,11 @@ pub struct NetceteraMeta {
     /// merchant object as `resultsResponseNotificationUrl`, so Netcetera pushes the final challenge
     /// result to this webhook (used when the merchant has the pull mechanism disabled). Sourced from
     /// the netcetera MCA metadata; requires the Netcetera license to allow dynamic RRes URLs.
-    pub results_response_notification_url: Option<String>,
+    pub results_response_notification_url: Option<url::Url>,
     /// Browser CRes return URL (AReq `notificationURL` / `threeDSRequestorURL`) — where the ACS
     /// returns the browser after the challenge. Sourced from the netcetera MCA metadata; when
     /// absent the caller's request return_url is used instead.
-    pub notification_url: Option<String>,
+    pub notification_url: Option<url::Url>,
     /// Merchant-level 3DS challenge preference (EMVCo threeDSRequestorChallengeInd = 04 when true).
     /// Sourced from the netcetera MCA metadata.
     pub force_3ds_challenge: Option<bool>,
@@ -428,7 +428,7 @@ impl NetceteraMeta {
     /// Build the EMVCo `merchant` object from the per-merchant config.
     /// `notification_url` is sourced from the request (return/webhook URL), not
     /// from the merchant config, so it is threaded in by the caller.
-    pub fn to_merchant_data(&self, notification_url: Option<String>) -> MerchantData {
+    pub fn to_merchant_data(&self, notification_url: Option<url::Url>) -> MerchantData {
         MerchantData {
             merchant_configuration_id: self.merchant_configuration_id.clone(),
             mcc: self.mcc.clone(),

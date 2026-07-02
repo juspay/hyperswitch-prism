@@ -14380,8 +14380,9 @@ impl
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
             // The PostAuthenticate (RReq / results) flow is keyed by `threeDSServerTransID` and
-            // carries no card/payment method, so `value.payment_method` is absent. Default to
-            // `Card` instead of failing on an empty payment_method (the field is unused by the RReq).
+            // carries no card/payment method, so `value.payment_method` is absent. `payment_method`
+            // is a required field here but is unused by the RReq flow; external 3DS over VGS is
+            // inherently card-based, so `Card` is the correct fallback rather than failing.
             payment_method: value
                 .payment_method
                 .map(PaymentMethod::foreign_try_from)
