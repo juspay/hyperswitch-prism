@@ -2880,9 +2880,13 @@ def _rust_struct_lines(
             lines.append(f"{pad}{field}: {wrap(str(val))},{cmt_part}")
         elif isinstance(val, str):
             if child_msg and _is_proto_enum(child_msg):
-                # For proto enums, convert string value to enum variant
-                # e.g., "USD" -> Currency::Usd
-                variant = "".join(word.capitalize() for word in val.lower().split("_"))
+                # For proto enums, convert the proto value to the prost variant.
+                # prost strips the enum-name prefix from each value (e.g. HttpMethod +
+                # HTTP_METHOD_POST -> Post), so replicate that before PascalCasing.
+                # Enums whose values lack the prefix are unaffected (Currency + USD -> Usd).
+                _screaming = re.sub(r"(?<!^)(?=[A-Z])", "_", child_msg).upper()
+                _val = val[len(_screaming) + 1:] if val.upper().startswith(_screaming + "_") else val
+                variant = "".join(word.capitalize() for word in _val.lower().split("_"))
                 expr = f"{child_msg}::{variant}.into()"
                 lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
                 continue
@@ -2897,6 +2901,10 @@ def _rust_struct_lines(
                 expr = f"Secret::new({json.dumps(val)}.to_string())"
                 lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
                 continue
+            elif child_msg == "bytes":
+                # `bytes` proto fields are Vec<u8> in prost, not String.
+                expr = f"{json.dumps(val)}.as_bytes().to_vec()"
+                lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
             else:
                 expr = f"{json.dumps(val)}.to_string()"
                 lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
@@ -3427,7 +3435,11 @@ def render_consolidated_rust(
         # Also account for the variable field that's passed as a parameter
         missing = set(proto_fields.keys()) - payload_fields - {param_name}
         default_suffix = "\n        ..Default::default()" if missing else ""
+        # Inbound-only flows (e.g. handle_event) have no runnable process_ fn, so their builder
+        # is uncalled; allow(dead_code) matches the suppression already used on process_* fns.
+        allow = "#[allow(dead_code)]\n" if flow_key in _UNSUPPORTED_FLOWS else ""
         return (
+            f"{allow}"
             f"pub fn build_{flow_key}_request({param_name}: {param_type}) -> {grpc_req_b} {{\n"
             f"    {grpc_req_b} {{\n"
             f"{struct_body}{default_suffix}\n"
@@ -3443,7 +3455,11 @@ def render_consolidated_rust(
         payload_fields = {_to_snake(k) for k in proto_req.keys()}
         missing = set(proto_fields.keys()) - payload_fields
         default_suffix = "\n        ..Default::default()" if missing else ""
+        # Inbound-only flows (e.g. handle_event) have no runnable process_ fn, so their builder
+        # is uncalled; allow(dead_code) matches the suppression already used on process_* fns.
+        allow = "#[allow(dead_code)]\n" if flow_key in _UNSUPPORTED_FLOWS else ""
         return (
+            f"{allow}"
             f"pub fn build_{flow_key}_request() -> {grpc_req_b} {{\n"
             f"    {grpc_req_b} {{\n"
             f"{struct_body}{default_suffix}\n"
@@ -3579,7 +3595,10 @@ def render_consolidated_rust(
         rpc_name  = meta.get("rpc_name", flow_key)
         pm_part   = f" ({pm_label})" if pm_label else ""
 
-        if flow_key == "authorize":
+        if svc == "EventService":
+            # EventService responses (parse/handle) carry no .status(); report the response.
+            status_block = '    Ok(format!("{response:?}"))'
+        elif flow_key == "authorize":
             status_block = (
                 '    match response.status() {\n'
                 '        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed\n'
@@ -3622,11 +3641,16 @@ def render_consolidated_rust(
                 f"}}"
             )
         elif flow_key in has_no_param_builder:
+            if svc == "EventService":
+                # EventService client methods are synchronous, single-argument calls.
+                call_line = f"    let response = client.{_get_client_method(flow_key)}(build_{flow_key}_request())?;"
+            else:
+                call_line = f"    let response = client.{_get_client_method(flow_key)}(build_{flow_key}_request(), &HashMap::new(), None).await?;"
             func_blocks.append(
                 f"// Flow: {svc}.{rpc_name}{pm_part}\n"
                 f"#[allow(dead_code)]\n"
                 f"pub async fn {process_fn_name}(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {{\n"
-                f"    let response = client.{_get_client_method(flow_key)}(build_{flow_key}_request(), &HashMap::new(), None).await?;\n"
+                f"{call_line}\n"
                 f"{status_block}\n"
                 f"}}"
             )
