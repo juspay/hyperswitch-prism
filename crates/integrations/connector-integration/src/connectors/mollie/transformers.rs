@@ -823,14 +823,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
 
         // captureMode is only sent for oneoff payments; omitted for first/recurring.
+        // Use is_auto_capture() (true for None/Automatic/SequentialAutomatic) to match
+        // the reference: a plain sale with no explicit capture_method must default to
+        // automatic capture, not manual.
         let capture_mode = if sequence_type == SequenceType::Oneoff {
-            Some(
-                if item.request.capture_method == Some(common_enums::CaptureMethod::Automatic) {
-                    MollieCaptureMode::Automatic
-                } else {
-                    MollieCaptureMode::Manual
-                },
-            )
+            Some(if item.request.is_auto_capture() {
+                MollieCaptureMode::Automatic
+            } else {
+                MollieCaptureMode::Manual
+            })
         } else {
             None
         };
@@ -1582,10 +1583,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let item = item.router_data;
 
-        // SetupMandate sends a zero (near-zero) verification amount.
+        // SetupMandate sends the verification amount. Match the reference and use the
+        // request's amount when provided (Mollie's `first`-sequence payment requires a
+        // non-zero amount); fall back to zero only when no amount is present.
         let converter = StringMajorUnitForConnector;
+        let setup_amount = item
+            .request
+            .minor_amount
+            .unwrap_or_else(|| MinorUnit::new(0));
         let amount_value = converter
-            .convert(MinorUnit::new(0), item.request.currency)
+            .convert(setup_amount, item.request.currency)
             .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })
