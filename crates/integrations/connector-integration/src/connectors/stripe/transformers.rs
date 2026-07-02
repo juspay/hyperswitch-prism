@@ -4153,12 +4153,7 @@ pub(crate) fn build_webhook_refund_response(
 
     Ok(RefundWebhookDetailsResponse {
         connector_refund_id: Some(event_object.id.clone()),
-        // Merchant reference lives in `metadata.order_id` (mirrors HS
-        // get_webhook_object_reference_id and UCS get_webhook_reference).
-        merchant_transaction_id: event_object
-            .metadata
-            .as_ref()
-            .and_then(|meta_data| meta_data.order_id.clone()),
+        merchant_transaction_id: None,
         status,
         connector_response_reference_id: Some(event_object.id.clone()),
         error_code,
