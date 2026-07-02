@@ -10,9 +10,8 @@ use domain_types::{
         PaymentMethodToken, RSync, Refund, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorCustomerData, ConnectorCustomerResponse,
-        ConnectorSpecificClientAuthenticationResponse, MandateReference,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
+        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
         MollieClientAuthenticationResponse as MollieClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
@@ -471,12 +470,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::MandatePayment => {
                 // MIT / recurring charge referencing a stored mandate.
                 MolliePaymentMethodData::MandatePayment(Box::new(MandatePaymentMethodData {
-                    mandate_id: Secret::new(item.request.get_connector_mandate_id().change_context(
-                        IntegrationError::MissingRequiredField {
-                            field_name: "connector_mandate_id",
-                            context: Default::default(),
-                        },
-                    )?),
+                    mandate_id: Secret::new(
+                        item.request.get_connector_mandate_id().change_context(
+                            IntegrationError::MissingRequiredField {
+                                field_name: "connector_mandate_id",
+                                context: Default::default(),
+                            },
+                        )?,
+                    ),
                 }))
             }
             _ => {
@@ -517,12 +518,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // (first or recurring); read it from the connector customer created by
         // the CreateConnectorCustomer flow.
         let customer_id = if item.request.is_mandate_payment() {
-            Some(item.resource_common_data.get_connector_customer_id().change_context(
-                IntegrationError::MissingRequiredField {
-                    field_name: "connector_customer_id",
-                    context: Default::default(),
-                },
-            )?)
+            Some(
+                item.resource_common_data
+                    .get_connector_customer_id()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name: "connector_customer_id",
+                        context: Default::default(),
+                    })?,
+            )
         } else {
             None
         };
@@ -1354,7 +1357,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // Response transformer for SetupMandate — surfaces the created mandate via
 // `mandate_reference` and the 3DS checkout URL for cardholder authentication.
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
-    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = error_stack::Report<ConnectorError>;
 
