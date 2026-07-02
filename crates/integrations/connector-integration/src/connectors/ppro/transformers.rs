@@ -6,7 +6,9 @@ use serde::{Deserialize, Serialize};
 use super::PproRouterData;
 use crate::types::ResponseRouterData;
 use crate::utils::GetOptionalPaymentMethodType;
-use domain_types::errors::{ConnectorError, IntegrationError, WebhookError};
+use domain_types::errors::{
+    ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError,
+};
 use domain_types::{
     connector_flow::{Capture, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
@@ -210,7 +212,10 @@ where
             if email.is_none() {
                 return Err(IntegrationError::MissingRequiredField {
                     field_name: "email",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Afterpay requires consumer email".to_string()),
+                        ..Default::default()
+                    },
                 }
                 .into());
             }
@@ -1054,7 +1059,7 @@ pub(crate) fn build_auth_redirect(
             PproAuthenticationType::AppIntent => details.mobile_intent_uri.clone(),
             PproAuthenticationType::ScanCode => details.code_payload.clone(),
             PproAuthenticationType::Redirect => details.request_url.clone(),
-            _ => None,
+            PproAuthenticationType::Unknown => None,
         }?;
         Some(RedirectForm::Uri { uri })
     })

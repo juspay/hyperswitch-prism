@@ -8110,6 +8110,8 @@ pub fn generate_refund_sync_response(
                 connector_refund_id: response.connector_refund_id.clone(),
                 status: grpc_status as i32,
                 merchant_refund_id: Some(response.connector_refund_id.clone()),
+                // Not returned by connectors on the direct Refund/RSync response;
+                // only populated on the webhook path.
                 merchant_transaction_id: None,
                 error: None,
                 refund_amount: None,
@@ -9519,6 +9521,8 @@ pub fn generate_refund_response(
                 connector_refund_id: response.connector_refund_id,
                 status: grpc_status as i32,
                 merchant_refund_id: None,
+                // Not returned by connectors on the direct Refund/RSync response;
+                // only populated on the webhook path.
                 merchant_transaction_id: None,
                 error: None,
                 refund_amount: None,
