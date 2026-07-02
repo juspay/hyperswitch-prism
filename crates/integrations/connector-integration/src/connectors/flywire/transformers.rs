@@ -936,6 +936,7 @@ impl TryFrom<&FlywireWebhookBody> for RefundWebhookDetailsResponse {
         let data = body.parse_refund_data()?;
         Ok(Self {
             connector_refund_id: Some(data.refund_id),
+            merchant_transaction_id: None,
             status: data.status.to_refund_status(),
             connector_response_reference_id: data.external_reference,
             error_code: None,
