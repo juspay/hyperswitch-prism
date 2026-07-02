@@ -1154,7 +1154,8 @@ message MandateAmountData {
   optional Money initial_billing_amount = 8;
   // Merchant's external subscription identifier.
   optional string external_subscription_id = 9;
-  // Subscription status (e.g. "ACTIVE").
+  // Subscription status (e.g. "ACTIVE"). Kept as a string for backward
+  // compatibility; prefer `mandate_status` going forward.
   optional string status = 10;
   // Unix timestamp for the next billing date.
   optional int64 next_billing_date = 11;
@@ -1162,6 +1163,9 @@ message MandateAmountData {
   optional int32 billing_cycle = 12;
   // Free-form description of the subscription.
   optional string description = 13;
+  // Enum-typed subscription status. Additive/new; NOT yet consumed — the string
+  // `status` (field 10) is used for now (backward compatibility).
+  MandateStatus mandate_status = 14;
 }
 
 // Mandate type with amount details

@@ -64,6 +64,10 @@ message FrmServicePreRiskCheckRequest {
 
   // Merchant details (id + MCC) for risk scoring.
   optional MerchantDetails merchant_details = 13;
+
+  // Additive/new name for `mandate_info`; NOT yet consumed — `mandate_info`
+  // (field 12) is used for now (backward compatibility).
+  optional MandateAmountData mandate_details = 14;
 }
 
 // Response for FrmService.PreRiskCheck

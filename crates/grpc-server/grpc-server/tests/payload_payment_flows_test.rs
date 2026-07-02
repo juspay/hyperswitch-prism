@@ -381,6 +381,7 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
                     next_billing_date: None,
                     billing_cycle: None,
                     description: None,
+                    mandate_status: 0, // MANDATE_STATUS_UNSPECIFIED
                 })),
             }),
         }),

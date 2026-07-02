@@ -76,6 +76,10 @@ message CompositeFrmPreRiskCheckRequest {
 
   // Merchant details (id + MCC) for risk scoring.
   optional MerchantDetails merchant_details = 15;
+
+  // Additive/new name for `mandate_info`; NOT yet consumed — `mandate_info`
+  // (field 14) is used for now (backward compatibility).
+  optional MandateAmountData mandate_details = 16;
 }
 
 // Composite request for PostRiskCheck that includes all fields from

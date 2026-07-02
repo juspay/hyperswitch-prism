@@ -1071,6 +1071,8 @@ impl
             }),
             mandate_info: item.mandate_info.clone(),
             merchant_details: item.merchant_details.clone(),
+            // Forwarded for parity; not yet consumed by connectors (mandate_info used).
+            mandate_details: item.mandate_details.clone(),
         }
     }
 }
