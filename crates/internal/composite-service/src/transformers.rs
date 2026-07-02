@@ -274,6 +274,7 @@ impl
             merchant_request_id: item.merchant_request_id.clone(),
             payment_method_type: item.payment_method_type,
             split_payments: item.split_payments.clone(),
+            mandate_reference: item.mandate_reference.clone(),
         }
     }
 }
@@ -468,6 +469,7 @@ impl
             test_mode: item.test_mode,
             merchant_order_id: item.merchant_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
+            split_payments: item.split_payments.clone(),
         }
     }
 }
@@ -521,6 +523,7 @@ impl
             state: resolved_state,
             capture_method: item.capture_method,
             description: item.description.clone(),
+            merchant_transaction_id: item.merchant_transaction_id.clone(),
         }
     }
 }
@@ -663,6 +666,7 @@ impl
             merchant_order_id: item.merchant_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
             order_tax_amount: item.order_tax_amount,
+            split_payments: item.split_payments.clone(),
         }
     }
 }
@@ -1067,6 +1071,10 @@ impl
                 access_token,
                 connector_customer_id,
             }),
+            mandate_info: item.mandate_info.clone(),
+            merchant_details: item.merchant_details.clone(),
+            // Forwarded for parity; not yet consumed by connectors (mandate_info used).
+            mandate_details: item.mandate_details.clone(),
         }
     }
 }

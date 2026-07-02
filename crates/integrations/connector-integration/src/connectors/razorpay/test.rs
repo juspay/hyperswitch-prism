@@ -117,6 +117,7 @@ mod tests {
 
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -315,6 +316,7 @@ mod tests {
                     amount: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -465,6 +467,7 @@ mod tests {
                     amount: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -638,6 +641,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1007,6 +1011,7 @@ mod tests {
                 minor_amount_capturable: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
                 merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1214,6 +1219,7 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1421,6 +1427,7 @@ mod tests {
                     order_details: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1543,6 +1550,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1666,6 +1674,7 @@ mod tests {
                     order_details: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1838,6 +1847,7 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1970,6 +1980,7 @@ mod tests {
                 order_details: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
                 merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
@@ -2092,6 +2103,7 @@ mod tests {
                 order_details: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
                 merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {

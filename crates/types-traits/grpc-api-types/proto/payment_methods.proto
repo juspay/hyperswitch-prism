@@ -182,6 +182,7 @@ message PaymentMethod {
     AfterpayClearpay afterpay_clearpay = 111;                  // Afterpay/Clearpay - BNPL service
     Klarna klarna = 112;                                       // Klarna - Swedish BNPL service
     Alma alma = 113;                                           // Alma - French BNPL service
+    TamaraRedirect tamara_redirect = 114;                                       // Tamara - Middle Eastern BNPL service
     
     // NETWORK TRANSACTION METHODS (120-129) - For recurring payments with network transaction IDs
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
@@ -1066,6 +1067,11 @@ message Klarna {
 // Alma - French BNPL service
 message Alma {
   // Fields will be added as needed for Alma integration
+}
+
+// Tamara - Middle Eastern BNPL service (redirect-based)
+message TamaraRedirect {
+  // Fields will be added as needed for tamara integration
 }
 
 /*

@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use crate::connectors::tamara::TamaraRouterData;
 use crate::types::ResponseRouterData;
+use crate::utils;
 use common_enums::EligibilityStatus;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
 use common_utils::{types::MinorUnit, Email};
@@ -14,7 +15,7 @@ use domain_types::{
         ResponseId,
     },
     errors,
-    payment_method_data::PaymentMethodDataTypes,
+    payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -202,6 +203,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
+        //Tamaraconnector only supports PayLater payment method.
+        match &router_data.request.payment_method_data {
+            PaymentMethodData::PayLater(PayLaterData::TamaraRedirect {}) => {}
+            _ => {
+                return Err(errors::IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("Tamara"),
+                    errors::IntegrationErrorContext::default(),
+                )
+                .into())
+            }
+        }
         let amount = router_data.request.amount;
         let currency = router_data.request.currency;
         let order_ref = router_data

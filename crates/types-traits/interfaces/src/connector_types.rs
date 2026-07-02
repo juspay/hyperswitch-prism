@@ -137,6 +137,7 @@ pub trait SurchargeServiceTrait:
 pub trait FrmServiceTrait:
     ConnectorCommon
     + ValidationTrait
+    + ServerAuthentication
     + PreRiskCheckV2
     + PostRiskCheckV2
     + FrmPaymentOutcomeV2
@@ -147,6 +148,7 @@ pub trait FrmServiceTrait:
 
 pub trait PayoutServiceTrait:
     ConnectorCommon
+    + ServerAuthentication
     + PayoutCreateV2
     + PayoutTransferV2
     + PayoutGetV2

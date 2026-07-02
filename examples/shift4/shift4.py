@@ -268,8 +268,12 @@ def _build_token_setup_recurring_request():
         setup_mandate_details=payment_pb2.SetupMandateDetails(
             mandate_type=payment_pb2.MandateType(  # Type of mandate (single_use or multi_use) with amount details.
                 multi_use=payment_pb2.MandateAmountData(
-                    amount=0,  # Amount.
-                    currency=payment_pb2.Currency.Value("USD"),  # Currency code (ISO 4217).
+                    amount=0,  # Use amount_money instead (will be removed in a future release).
+                    currency=payment_pb2.Currency.Value("USD"),  # Use amount_money.currency instead (will be removed in a future release).
+                    amount_money=payment_pb2.Money(  # Amount in Money type.
+                        minor_amount=0,  # Amount in minor units (e.g., 1000 = $10.00).
+                        currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
+                    ),
                 ),
             ),
         ),
