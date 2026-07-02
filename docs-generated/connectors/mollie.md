@@ -232,9 +232,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | iDEAL | ✓ |
 | Sofort | ✓ |
 | Trustly | ⚠ |
-| Giropay | ⚠ |
+| Giropay | ✓ |
 | EPS | ✓ |
-| Przelewy24 | ⚠ |
+| Przelewy24 | ✓ |
 | PSE | ⚠ |
 | BLIK | ⚠ |
 | Interac | ⚠ |
@@ -259,7 +259,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Local | ⚠ |
 | Indonesian | ⚠ |
 | ACH | ⚠ |
-| SEPA | ⚠ |
+| SEPA | ✓ |
 | BACS | ⚠ |
 | BECS | ⚠ |
 | SEPA Guaranteed | ⚠ |
@@ -313,6 +313,17 @@ Authorize a payment amount on a payment method. This reserves funds without capt
       "type": "debit"
     },
     "transaction_identifier": "probe_txn_id"
+  }
+}
+```
+
+##### SEPA Direct Debit
+
+```python
+"payment_method": {
+  "sepa": {
+    "iban": "DE89370400440532013000",
+    "bank_account_holder_name": "John Doe"
   }
 }
 ```

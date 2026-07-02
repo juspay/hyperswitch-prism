@@ -10,7 +10,7 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: ACH bank debit is not implemented for Mollie"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
@@ -86,7 +86,7 @@
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: BACS bank debit is not implemented for Mollie"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
@@ -133,7 +133,7 @@
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: BECS bank debit is not implemented for Mollie"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
@@ -286,8 +286,34 @@
         "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: giropay bank redirect is not yet implemented for Mollie"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "giropay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_txn_001\"},\"method\":\"giropay\",\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null}"
+        }
       },
       "Givex": {
         "status": "not_supported",
@@ -532,8 +558,34 @@
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: przelewy24 bank redirect is not yet implemented for Mollie"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "przelewy24": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_txn_001\"},\"method\":\"przelewy24\",\"billingEmail\":null,\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null}"
+        }
       },
       "Pse": {
         "status": "not_implemented",
@@ -564,8 +616,37 @@
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa": {
+              "iban": "DE89370400440532013000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_txn_001\"},\"method\":\"directdebit\",\"consumerName\":null,\"consumerAccount\":\"DE89370400440532013000\",\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null}"
+        }
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
@@ -573,7 +654,7 @@
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: SEPA guaranteed bank debit is not implemented for Mollie"
       },
       "SevenEleven": {
         "status": "not_implemented",
