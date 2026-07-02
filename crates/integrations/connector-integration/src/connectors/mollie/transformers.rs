@@ -147,6 +147,12 @@ pub enum MolliePaymentMethodData {
     /// authenticate. It carries no extra request fields (Mollie collects the card /
     /// bank details on its hosted page), so this is a plain unit variant.
     Bancontact,
+    /// EPS bank redirect via Mollie. Emitted as `"method": "eps"` (from the
+    /// container `rename_all = "lowercase"`, no magic string). EPS is a redirect
+    /// flow — Mollie returns a checkout URL for the customer to authenticate at
+    /// their bank. It carries no extra request fields (Mollie collects the bank
+    /// details on its hosted page), so this is a plain unit variant.
+    Eps,
     // Recurring / Merchant-Initiated charge that references an existing mandate.
     // Serialized untagged so it emits only `mandateId` (no `method`
     // discriminator) — Mollie infers the method from the mandate.
@@ -378,13 +384,14 @@ fn mollie_bank_redirect_payment_method(
         // The card fields on `BancontactCard` are intentionally ignored (`{ .. }`)
         // because Mollie sources them itself.
         BankRedirectData::BancontactCard { .. } => Ok(MolliePaymentMethodData::Bancontact),
+        // EPS redirect flow. EPS carries no extra request fields — Mollie collects
+        // the bank details on its hosted checkout page and returns a redirect URL —
+        // so it emits only `"method": "eps"` (unit variant, method name from the
+        // container `rename_all`). Fields are intentionally ignored (`{ .. }`)
+        // because nothing is sourced from the request.
+        BankRedirectData::Eps { .. } => Ok(MolliePaymentMethodData::Eps),
         // Bank redirects Mollie supports but which are not built yet — name the
         // attempted method so the error is precise and actionable.
-        BankRedirectData::Eps { .. } => Err(IntegrationError::NotImplemented(
-            "eps bank redirect is not yet implemented for Mollie".to_string(),
-            Default::default(),
-        )
-        .into()),
         BankRedirectData::Giropay { .. } => Err(IntegrationError::NotImplemented(
             "giropay bank redirect is not yet implemented for Mollie".to_string(),
             Default::default(),
