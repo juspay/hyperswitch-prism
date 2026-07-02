@@ -19,7 +19,9 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{
+        PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -114,6 +116,12 @@ pub enum MolliePaymentMethodData {
     #[serde(rename = "creditcard")]
     CreditCard(Box<CreditCardMethodData>),
     Klarna(Box<KlarnaMethodData>),
+    /// PayPal wallet via Mollie. Emitted as `"method": "paypal"` (from the
+    /// container `rename_all = "lowercase"`). PayPal is a redirect flow — Mollie
+    /// returns a checkout URL for the customer to approve the payment. Only the
+    /// optional billing/shipping addresses are forwarded; PayPal itself collects
+    /// the account details on its hosted page.
+    Paypal(Box<PaypalMethodData>),
     // Recurring / Merchant-Initiated charge that references an existing mandate.
     // Serialized untagged so it emits only `mandateId` (no `method`
     // discriminator) — Mollie infers the method from the mandate.
@@ -126,6 +134,16 @@ pub enum MolliePaymentMethodData {
 #[serde(rename_all = "camelCase")]
 pub struct MandatePaymentMethodData {
     pub mandate_id: Secret<String>,
+}
+
+// PayPal (wallet) payment body. Mollie collects the PayPal account details on
+// its hosted checkout page, so the request only forwards the optional
+// billing/shipping addresses for risk assessment.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaypalMethodData {
+    pub billing_address: Option<MollieAddress>,
+    pub shipping_address: Option<MollieAddress>,
 }
 
 // Klarna (PayLater) Method Data
@@ -214,6 +232,51 @@ pub enum SequenceType {
 pub enum MollieCaptureMode {
     Manual,
     Automatic,
+}
+
+// Build a Mollie address object from a Hyperswitch address wrapper, matching the
+// existing card-payment formatting (comma-joined street/line, no region field).
+// Returns `None` when the address or any required postal field is absent so the
+// caller can simply omit the address block.
+fn build_mollie_address(
+    address: Option<&domain_types::payment_address::Address>,
+) -> Option<MollieAddress> {
+    let address = address?.address.as_ref()?;
+    let line1 = address.line1.as_ref()?.peek().to_string();
+    let street_and_number = match address.line2.as_ref() {
+        Some(line2) => format!("{},{}", line1, line2.peek().as_str()),
+        None => line1,
+    };
+    Some(MollieAddress {
+        street_and_number: Secret::new(street_and_number),
+        postal_code: Secret::new(address.zip.as_ref()?.peek().to_string()),
+        city: address.city.as_ref()?.peek().to_string(),
+        region: None,
+        country: address.country?,
+    })
+}
+
+// Map a wallet payment method to the corresponding Mollie payment body. Only
+// PayPal (redirect) is supported; every other wallet returns NotImplemented so
+// the caller surfaces a precise, method-named error.
+fn mollie_wallet_payment_method(
+    wallet_data: &WalletData,
+    billing_address: Option<&domain_types::payment_address::Address>,
+    shipping_address: Option<&domain_types::payment_address::Address>,
+) -> Result<MolliePaymentMethodData, error_stack::Report<IntegrationError>> {
+    match wallet_data {
+        WalletData::PaypalRedirect(_) => {
+            Ok(MolliePaymentMethodData::Paypal(Box::new(PaypalMethodData {
+                billing_address: build_mollie_address(billing_address),
+                shipping_address: build_mollie_address(shipping_address),
+            })))
+        }
+        _ => Err(IntegrationError::NotImplemented(
+            "Selected wallet payment method is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -466,6 +529,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     billing_address,
                     lines: vec![line],
                 }))
+            }
+            PaymentMethodData::Wallet(wallet_data) => {
+                // PayPal (redirect) wallet. Mollie returns a 201 with a checkout
+                // URL for the customer to approve the payment; forward the
+                // optional billing/shipping addresses for risk assessment.
+                let billing_address = item.resource_common_data.address.get_payment_method_billing();
+                let shipping_address = item.resource_common_data.address.get_shipping();
+                mollie_wallet_payment_method(wallet_data, billing_address, shipping_address)?
             }
             PaymentMethodData::MandatePayment => {
                 // MIT / recurring charge referencing a stored mandate.
