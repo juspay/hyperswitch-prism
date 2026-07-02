@@ -231,8 +231,6 @@ struct AuthorizeCompositeState {
     authn_response_opt: Option<PaymentMethodAuthenticationServiceAuthenticateResponse>,
     post_authn_response_opt: Option<PaymentMethodAuthenticationServicePostAuthenticateResponse>,
     authorize_response_opt: Option<PaymentServiceAuthorizeResponse>,
-    verify_redirect_response_opt:
-        Option<grpc_api_types::payments::PaymentServiceVerifyRedirectResponseResponse>,
     completed_step: Option<AuthenticationStep>,
 }
 
@@ -646,20 +644,6 @@ where
             let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
             let redirect_state = self.get_redirect_state(&payload);
 
-            // Call VerifyRedirectResponse when coming back from a redirect, if the connector requires it.
-            // NOTE: `source_verified` here is advisory, not gating — it is surfaced on the response
-            // but does not block the flow. The authoritative check is the connector's server-to-server
-            // Authorize/confirm step, which re-validates the payment against the connector directly;
-            // forged redirect params cannot make that call succeed.
-            if redirect_state != interfaces::connector_types::RedirectState::InitialRequest
-                && connector_data.connector.requires_verify_redirect_response()
-            {
-                state.verify_redirect_response_opt = Some(
-                    self.verify_redirect_response_from_authorize(&payload, &metadata, &extensions)
-                        .await?,
-                );
-            }
-
             // Authentication loop - connector controls flow via next_authentication_step
             loop {
                 let next_step = connector_data.connector.next_authentication_step(
@@ -779,7 +763,6 @@ where
             authenticate_response: state.authn_response_opt,
             post_authenticate_response: state.post_authn_response_opt,
             authorize_response: state.authorize_response_opt,
-            verify_redirect_response: state.verify_redirect_response_opt,
             composite_status: composite_status.into(),
         }))
     }
@@ -1109,44 +1092,6 @@ where
             .into_inner();
 
         Ok(verify_response)
-    }
-
-    /// Calls VerifyRedirectResponse using fields from a CompositeAuthorizeRequest.
-    /// Used when `requires_verify_redirect_response` is true and we're back from a redirect.
-    async fn verify_redirect_response_from_authorize(
-        &self,
-        payload: &CompositeAuthorizeRequest,
-        metadata: &tonic::metadata::MetadataMap,
-        extensions: &tonic::Extensions,
-    ) -> Result<grpc_api_types::payments::PaymentServiceVerifyRedirectResponseResponse, tonic::Status>
-    {
-        let query_params = payload
-            .redirection_response
-            .as_ref()
-            .and_then(|r| r.params.clone());
-
-        let verify_payload =
-            grpc_api_types::payments::PaymentServiceVerifyRedirectResponseRequest {
-                merchant_order_id: payload.merchant_order_id.clone(),
-                request_details: Some(grpc_api_types::payments::RequestDetails {
-                    method: grpc_api_types::payments::HttpMethod::Get.into(),
-                    uri: None,
-                    headers: Default::default(),
-                    body: Default::default(),
-                    query_params,
-                }),
-                redirect_response_secrets: None,
-            };
-
-        let mut verify_request = tonic::Request::new(verify_payload);
-        *verify_request.metadata_mut() = metadata.clone();
-        *verify_request.extensions_mut() = extensions.clone();
-
-        Ok(self
-            .payment_service
-            .verify_redirect_response(verify_request)
-            .await?
-            .into_inner())
     }
 
     /// Main composite flow: verify redirect response, then conditionally authorize
