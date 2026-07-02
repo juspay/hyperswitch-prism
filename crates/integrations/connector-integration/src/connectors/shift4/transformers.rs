@@ -1683,6 +1683,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<Shift4SetupMandateRes
                         connector_mandate_id: Some(card.id.clone()),
                         payment_method_id: Some(card.id.clone()),
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     })
                 });
 

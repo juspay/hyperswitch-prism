@@ -793,6 +793,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproPaymentsResponse, Self>>
                 connector_mandate_id: Some(instr_id.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
 
@@ -1423,6 +1424,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PproAgreementResponse, Self>>
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         }));
 
         let response = if let Some(err) = error_response {

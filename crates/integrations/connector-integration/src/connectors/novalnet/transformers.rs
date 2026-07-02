@@ -796,6 +796,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                             .map(Box::new),
                         connector_metadata: None,
@@ -902,6 +903,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                             .map(Box::new),
                         connector_metadata: None,
@@ -1004,6 +1006,7 @@ impl<
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                             .map(Box::new),
                         connector_metadata: None,
@@ -1523,6 +1526,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                             .map(Box::new),
                         connector_metadata: None,
@@ -2509,6 +2513,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                                     connector_mandate_id: Some(id.clone()),
                                     payment_method_id: None,
                                     connector_mandate_request_reference_id: None,
+                                    mandate_metadata: None,
                                 })
                                 .map(Box::new),
                             status_code: 200,

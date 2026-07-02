@@ -1165,6 +1165,7 @@ fn get_setup_mandate_response(
             connector_mandate_id: Some(transaction_id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         })),
         connector_metadata: None,
         network_txn_id: Some(transaction_id.clone()),

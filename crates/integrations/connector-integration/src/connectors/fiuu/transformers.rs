@@ -1439,6 +1439,7 @@ where
                                     connector_mandate_id: Some(token.clone().expose()),
                                     payment_method_id: None,
                                     connector_mandate_request_reference_id: None,
+                                    mandate_metadata: None,
                                 })
                             });
                     let status = match non_threeds_data.status.as_str() {
@@ -2005,6 +2006,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                             connector_mandate_id: Some(token.clone().expose()),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         }),
                         Err(_err) => None,
                     }

@@ -2171,6 +2171,7 @@ impl<
                             )),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         });
 
                 // Build connector_metadata from account_number
@@ -2698,6 +2699,7 @@ pub fn convert_to_payments_response_data_or_error(
                                 }),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         }
                     });
 
@@ -3144,6 +3146,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(connector_mandate_id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })),
                 network_txn_id: None,
                 network_txn_link_id: None,
