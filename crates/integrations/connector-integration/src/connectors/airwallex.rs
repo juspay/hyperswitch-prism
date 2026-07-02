@@ -139,7 +139,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         true
     }
 
-    fn should_do_order_create(&self, _connector_order_id: Option<&str>) -> bool {
+    fn should_do_order_create(&self) -> bool {
         true // Enable 2-step flow: ServerAuthenticationToken → CreateOrder → Authorize
     }
 }

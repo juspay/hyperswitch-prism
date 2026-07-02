@@ -410,16 +410,13 @@ where
         payload: &CompositeAuthorizeRequest,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
-    ) -> Result<(Option<PaymentServiceCreateOrderResponse>, bool), tonic::Status> {
+    ) -> Result<Option<PaymentServiceCreateOrderResponse>, tonic::Status> {
         let connector_data =
             ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(
                 connector,
             );
-        let connector_order_id = payload.connector_order_id.as_deref();
 
-        let should_execute_create_order = connector_data
-            .connector
-            .should_do_order_create(connector_order_id);
+        let should_execute_create_order = connector_data.connector.should_do_order_create();
 
         let create_order_response = match should_execute_create_order {
             true => {
@@ -440,9 +437,7 @@ where
             false => None,
         };
 
-        let can_continue = true;
-
-        Ok((create_order_response, can_continue))
+        Ok(create_order_response)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -630,108 +625,105 @@ where
         let create_customer_response = self
             .create_connector_customer(&connector, &payload, &metadata, &extensions)
             .await?;
-        let (create_order_response, can_continue_after_create_order) = self
+        let create_order_response = self
             .create_order(&connector, &payload, &metadata, &extensions)
             .await?;
 
         let mut state = AuthorizeCompositeState::default();
 
-        // Only enter authentication loop if create_order didn't demand a redirect
-        if can_continue_after_create_order {
-            // Extract flow parameters from payload
-            let auth_type = self.get_auth_type(&payload)?;
-            let payment_method = self.get_payment_method(&payload)?;
-            let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
-            let redirect_state = self.get_redirect_state(&payload);
+        // Extract flow parameters from payload
+        let auth_type = self.get_auth_type(&payload)?;
+        let payment_method = self.get_payment_method(&payload)?;
+        let connector_data = ConnectorData::<domain_types::payment_method_data::DefaultPCIHolder>::get_connector_by_name(&connector);
+        let redirect_state = self.get_redirect_state(&payload);
 
-            // Authentication loop - connector controls flow via next_authentication_step
-            loop {
-                let next_step = connector_data.connector.next_authentication_step(
-                    auth_type,
-                    payment_method,
-                    redirect_state,
-                    state.completed_step,
-                );
+        // Authentication loop - connector controls flow via next_authentication_step
+        loop {
+            let next_step = connector_data.connector.next_authentication_step(
+                auth_type,
+                payment_method,
+                redirect_state,
+                state.completed_step,
+            );
 
-                match next_step {
-                    AuthenticationStep::PreAuthenticate => {
-                        state.pre_auth_response_opt = Some(
-                            self.pre_authenticate(
-                                &payload,
-                                access_token_response.as_ref(),
-                                &metadata,
-                                &extensions,
-                            )
-                            .await?,
-                        );
-                        state.completed_step = Some(AuthenticationStep::PreAuthenticate);
+            match next_step {
+                AuthenticationStep::PreAuthenticate => {
+                    state.pre_auth_response_opt = Some(
+                        self.pre_authenticate(
+                            &payload,
+                            access_token_response.as_ref(),
+                            &metadata,
+                            &extensions,
+                        )
+                        .await?,
+                    );
+                    state.completed_step = Some(AuthenticationStep::PreAuthenticate);
 
-                        if state
-                            .pre_auth_response_opt
-                            .as_ref()
-                            .map(|r| {
-                                r.redirection_data.is_some() || is_failure_payment_status(r.status)
-                            })
-                            .unwrap_or(false)
-                        {
-                            break;
-                        }
-                    }
-
-                    AuthenticationStep::Authenticate => {
-                        state.authn_response_opt = Some(
-                            self.authenticate(
-                                &payload,
-                                state.pre_auth_response_opt.as_ref(),
-                                &metadata,
-                                &extensions,
-                            )
-                            .await?,
-                        );
-                        state.completed_step = Some(AuthenticationStep::Authenticate);
-
-                        if state
-                            .authn_response_opt
-                            .as_ref()
-                            .map(|r| {
-                                r.redirection_data.is_some() || is_terminal_payment_status(r.status)
-                            })
-                            .unwrap_or(false)
-                        {
-                            break;
-                        }
-                    }
-
-                    AuthenticationStep::PostAuthenticate => {
-                        state.post_authn_response_opt = Some(
-                            self.post_authenticate(
-                                &payload,
-                                state.authn_response_opt.as_ref(),
-                                &metadata,
-                                &extensions,
-                            )
-                            .await?,
-                        );
-                        state.completed_step = Some(AuthenticationStep::PostAuthenticate);
-                    }
-
-                    AuthenticationStep::Authorize => {
-                        state.authorize_response_opt = Some(
-                            self.authorize(
-                                &payload,
-                                access_token_response.as_ref(),
-                                session_token_response.as_ref(),
-                                create_customer_response.as_ref(),
-                                create_order_response.as_ref(),
-                                state.authn_response_opt.as_ref(),
-                                state.post_authn_response_opt.as_ref(),
-                                &metadata,
-                                &extensions,
-                            )
-                            .await?,
-                        );
+                    if state
+                        .pre_auth_response_opt
+                        .as_ref()
+                        .map(|r| {
+                            r.redirection_data.is_some() || is_failure_payment_status(r.status)
+                        })
+                        .unwrap_or(false)
+                    {
                         break;
                     }
+                }
+
+                AuthenticationStep::Authenticate => {
+                    state.authn_response_opt = Some(
+                        self.authenticate(
+                            &payload,
+                            state.pre_auth_response_opt.as_ref(),
+                            &metadata,
+                            &extensions,
+                        )
+                        .await?,
+                    );
+                    state.completed_step = Some(AuthenticationStep::Authenticate);
+
+                    if state
+                        .authn_response_opt
+                        .as_ref()
+                        .map(|r| {
+                            r.redirection_data.is_some() || is_terminal_payment_status(r.status)
+                        })
+                        .unwrap_or(false)
+                    {
+                        break;
+                    }
+                }
+
+                AuthenticationStep::PostAuthenticate => {
+                    state.post_authn_response_opt = Some(
+                        self.post_authenticate(
+                            &payload,
+                            state.authn_response_opt.as_ref(),
+                            &metadata,
+                            &extensions,
+                        )
+                        .await?,
+                    );
+                    state.completed_step = Some(AuthenticationStep::PostAuthenticate);
+                }
+
+                AuthenticationStep::Authorize => {
+                    state.authorize_response_opt = Some(
+                        self.authorize(
+                            &payload,
+                            access_token_response.as_ref(),
+                            session_token_response.as_ref(),
+                            create_customer_response.as_ref(),
+                            create_order_response.as_ref(),
+                            state.authn_response_opt.as_ref(),
+                            state.post_authn_response_opt.as_ref(),
+                            &metadata,
+                            &extensions,
+                        )
+                        .await?,
+                    );
+                    break;
                 }
             }
         }

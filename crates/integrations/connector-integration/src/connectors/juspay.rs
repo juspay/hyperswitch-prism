@@ -486,7 +486,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Juspay<T>
 {
-    fn should_do_order_create(&self, _connector_order_id: Option<&str>) -> bool {
+    fn should_do_order_create(&self) -> bool {
         true
     }
 }

@@ -199,7 +199,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         true // Enable ServerSessionAuthenticationToken flow for Paytm's initiate step
     }
 
-    fn should_do_order_create(&self, _connector_order_id: Option<&str>) -> bool {
+    fn should_do_order_create(&self) -> bool {
         false // Paytm doesn't require separate order creation
     }
 }
