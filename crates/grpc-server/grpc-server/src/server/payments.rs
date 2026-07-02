@@ -3181,12 +3181,12 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         response_type: PaymentMethodAuthenticationServicePreAuthenticateResponse,
         flow_marker: PreAuthenticate,
         resource_common_data_type: PaymentFlowData,
-        request_data_base: PaymentsPreAuthenticateData,
+        request_data_type: PaymentsPreAuthenticateData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: PaymentsPreAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_pre_authenticate_response,
-        connector_data_base: ConnectorData,
+        connector_data: ConnectorData,
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3198,12 +3198,12 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         response_type: PaymentMethodAuthenticationServiceAuthenticateResponse,
         flow_marker: Authenticate,
         resource_common_data_type: PaymentFlowData,
-        request_data_base: PaymentsAuthenticateData,
+        request_data_type: PaymentsAuthenticateData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: PaymentsAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_authenticate_response,
-        connector_data_base: ConnectorData,
+        connector_data: ConnectorData,
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3215,12 +3215,12 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         response_type: PaymentMethodAuthenticationServicePostAuthenticateResponse,
         flow_marker: PostAuthenticate,
         resource_common_data_type: PaymentFlowData,
-        request_data_base: PaymentsPostAuthenticateData,
+        request_data_type: PaymentsPostAuthenticateData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: PaymentsPostAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_post_authenticate_response,
-        connector_data_base: ConnectorData,
+        connector_data: ConnectorData,
         all_keys_required: None,
         has_payment_method_data: option
     );

@@ -667,12 +667,12 @@ macro_rules! implement_connector_operation {
         // Base type constructors (macro applies `<T>`); a single flow has exactly one
         // payment-method-data holder (`DefaultPCIHolder` or `VaultTokenHolder`) at runtime,
         // so the proxy and non-proxy paths differ only in that generic `T`.
-        request_data_base: $request_data_base:ident,
+        request_data_type: $request_data_type:ident,
         response_data_type: $response_data_type:ty,
         request_data_constructor: $request_data_constructor:path,
         common_flow_data_constructor: $common_flow_data_constructor:path,
         generate_response_fn: $generate_response_fn:path,
-        connector_data_base: $connector_data_base:ident,
+        connector_data: $connector_data:ident,
         all_keys_required: $all_keys_required:expr,
         has_payment_method_data: option
     ) => {
@@ -766,7 +766,7 @@ macro_rules! implement_connector_operation {
                     + serde::Serialize,
             >(
                 connector: &domain_types::connector_types::ConnectorVariant,
-                request: $request_data_base<T>,
+                request: $request_data_type<T>,
                 common_flow_data: $resource_common_data_type,
                 connector_config: domain_types::router_data::ConnectorSpecificConfig,
                 token_data: Option<injector::TokenData>,
@@ -777,9 +777,9 @@ macro_rules! implement_connector_operation {
                 api_tag: Option<String>,
             ) -> Result<$response_type, tonic::Status>
             where
-                $connector_data_base<T>: connector_integration::types::ConnectorDataProvider,
+                $connector_data<T>: connector_integration::types::ConnectorDataProvider,
             {
-                let connector_data: $connector_data_base<T> =
+                let connector_data: $connector_data<T> =
                     connector_integration::types::ConnectorDataProvider::from_connector_variant(connector)
                         .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
 
@@ -787,14 +787,14 @@ macro_rules! implement_connector_operation {
                     '_,
                     $flow_marker,
                     $resource_common_data_type,
-                    $request_data_base<T>,
+                    $request_data_type<T>,
                     $response_data_type,
                 > = connector_data.connector.get_connector_integration_v2();
 
                 let router_data = domain_types::router_data_v2::RouterDataV2::<
                     $flow_marker,
                     $resource_common_data_type,
-                    $request_data_base<T>,
+                    $request_data_type<T>,
                     $response_data_type,
                 > {
                     flow: std::marker::PhantomData,
