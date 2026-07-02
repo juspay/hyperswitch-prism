@@ -183,9 +183,9 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Payment Method | Supported |
 |----------------|:---------:|
 | Card | ✓ |
-| Bancontact | ⚠ |
-| Apple Pay | ⚠ |
-| Apple Pay Dec | ⚠ |
+| Bancontact | ✓ |
+| Apple Pay | ✓ |
+| Apple Pay Dec | ? |
 | Apple Pay SDK | ⚠ |
 | Google Pay | ⚠ |
 | Google Pay Dec | ⚠ |
@@ -229,11 +229,11 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | PIS | x |
 | Generic | ⚠ |
 | Local | ⚠ |
-| iDEAL | ⚠ |
-| Sofort | ⚠ |
+| iDEAL | ✓ |
+| Sofort | ✓ |
 | Trustly | ⚠ |
 | Giropay | ⚠ |
-| EPS | ⚠ |
+| EPS | ✓ |
 | Przelewy24 | ⚠ |
 | PSE | ⚠ |
 | BLIK | ⚠ |
@@ -296,6 +296,32 @@ Authorize a payment amount on a payment method. This reserves funds without capt
     "card_cvc": "737",
     "card_holder_name": "John Doe"
   }
+}
+```
+
+##### Apple Pay
+
+```python
+"payment_method": {
+  "apple_pay_sdk": {
+    "payment_data": {
+      "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+    },
+    "payment_method": {
+      "display_name": "Visa 1111",
+      "network": "Visa",
+      "type": "debit"
+    },
+    "transaction_identifier": "probe_txn_id"
+  }
+}
+```
+
+##### iDEAL
+
+```python
+"payment_method": {
+  "ideal": {}
 }
 ```
 

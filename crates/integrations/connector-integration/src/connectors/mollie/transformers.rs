@@ -368,9 +368,11 @@ fn mollie_bank_redirect_payment_method(
         // sourced from the request, so it is omitted (`issuer: None`) and Mollie
         // shows its own bank picker — matches the reference hyperswitch connector.
         // Fields are intentionally ignored (`{ .. }`) because no issuer is sourced.
-        BankRedirectData::Ideal { .. } => Ok(MolliePaymentMethodData::Ideal(Box::new(
-            IdealMethodData { issuer: None },
-        ))),
+        BankRedirectData::Ideal { .. } => {
+            Ok(MolliePaymentMethodData::Ideal(Box::new(IdealMethodData {
+                issuer: None,
+            })))
+        }
         // Sofort redirect flow. Sofort carries no extra request fields — Mollie
         // collects the bank details on its hosted checkout page and returns a
         // redirect URL — so it emits only `"method": "sofort"` (unit variant,

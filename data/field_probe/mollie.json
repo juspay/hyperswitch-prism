@@ -37,12 +37,48 @@
         "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_txn_001\"},\"method\":\"applepay\",\"applePayPaymentToken\":\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\",\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null}"
+        }
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
+        "status": "error",
+        "error": "Stuck on field: apple_pay_payment_token. Mollie Apple Pay requires the encrypted Apple Pay payment token — Missing required field: apple_pay_payment_token. Mollie Apple Pay requires the encrypted Apple Pay payment token (applePayPaymentToken)."
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
@@ -57,8 +93,39 @@
         "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bancontact_card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_txn_001\"},\"method\":\"bancontact\",\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null}"
+        }
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
@@ -74,11 +141,11 @@
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "Bluecode": {
         "status": "not_implemented",
@@ -178,11 +245,37 @@
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_txn_001\"},\"method\":\"eps\",\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null}"
+        }
       },
       "FamilyMart": {
         "status": "not_implemented",
@@ -194,7 +287,7 @@
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: giropay bank redirect is not yet implemented for Mollie"
       },
       "Givex": {
         "status": "not_supported",
@@ -217,8 +310,34 @@
         "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ideal": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_txn_001\"},\"method\":\"ideal\",\"issuer\":null,\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null}"
+        }
       },
       "Indomaret": {
         "status": "not_implemented",
@@ -242,7 +361,7 @@
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "KakaoPay": {
         "status": "not_implemented",
@@ -262,7 +381,7 @@
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
@@ -298,35 +417,35 @@
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -334,7 +453,7 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "Oxxo": {
         "status": "not_implemented",
@@ -414,7 +533,7 @@
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: przelewy24 bank redirect is not yet implemented for Mollie"
       },
       "Pse": {
         "status": "not_implemented",
@@ -465,8 +584,34 @@
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sofort": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://api.mollie.com/v2/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"value\":\"10.00\"},\"description\":\"Probe payment\",\"redirectUrl\":\"https://example.com/return\",\"webhookUrl\":\"\",\"metadata\":{\"orderId\":\"probe_txn_001\"},\"method\":\"sofort\",\"sequenceType\":\"oneoff\",\"captureMode\":\"automatic\",\"locale\":null,\"cancelUrl\":null}"
+        }
       },
       "Swish": {
         "status": "not_implemented",
@@ -478,7 +623,7 @@
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected bank redirect payment method is not implemented for Mollie"
       },
       "Twint": {
         "status": "not_implemented",
