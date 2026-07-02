@@ -97,6 +97,71 @@ pub enum AirwallexPaymentMethod {
     Card(AirwallexCardData),
     Wallets(AirwallexWalletData),
     BankRedirect(AirwallexBankRedirectData),
+    PayLater(AirwallexPayLaterData),
+}
+
+// Shared Airwallex PayLater enum. Each PayLater payment method gets its own variant so
+// the connector serializes the correct nested object + `type` discriminator, mirroring the
+// reference upstream `AirwallexPayLaterData::{Klarna(Box<KlarnaData>), Atome(AtomeData)}`.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum AirwallexPayLaterData {
+    Klarna(Box<AirwallexKlarnaData>),
+    Atome(AirwallexAtomeData),
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexKlarnaData {
+    pub klarna: AirwallexKlarnaDetails,
+    #[serde(rename = "type")]
+    pub payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexKlarnaDetails {
+    pub country_code: common_enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing: Option<AirwallexKlarnaBilling>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexKlarnaBilling {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date_of_birth: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone_number: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub address: Option<AirwallexPayLaterAddress>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexPayLaterAddress {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<common_enums::CountryAlpha2>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub street: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postcode: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexAtomeData {
+    pub atome: AirwallexAtomeDetails,
+    #[serde(rename = "type")]
+    pub payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexAtomeDetails {
+    pub shopper_phone: Secret<String>,
 }
 
 // Shared Airwallex wallet enum. Each wallet payment method gets its own variant so
@@ -256,11 +321,21 @@ pub struct AirwallexMobile {
 
 #[derive(Debug, Serialize)]
 pub struct AirwallexPaymentOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<AirwallexCardOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub klarna: Option<AirwallexPayLaterOptions>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub atome: Option<AirwallexPayLaterOptions>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct AirwallexCardOptions {
+    pub auto_capture: Option<bool>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexPayLaterOptions {
     pub auto_capture: Option<bool>,
 }
 
@@ -383,6 +458,108 @@ fn get_wallet_details(
     }
 }
 
+// Shared PayLater conversion used by both the intent (AirwallexPaymentRequest) and
+// confirm (AirwallexConfirmRequest) builders so the two paths cannot drift. Mirrors the
+// reference upstream `get_paylater_details`: Klarna carries billing details + country code,
+// Atome carries the shopper phone with country code.
+fn get_paylater_details(
+    paylater_data: &domain_types::payment_method_data::PayLaterData,
+    resource_common_data: &PaymentFlowData,
+) -> Result<AirwallexPaymentMethod, error_stack::Report<IntegrationError>> {
+    match paylater_data {
+        domain_types::payment_method_data::PayLaterData::KlarnaRedirect {} => {
+            let country_code = resource_common_data.get_billing_country().map_err(|_| {
+                IntegrationError::MissingRequiredField {
+                    field_name: "country_code",
+                    context: Default::default(),
+                }
+            })?;
+            Ok(AirwallexPaymentMethod::PayLater(
+                AirwallexPayLaterData::Klarna(Box::new(AirwallexKlarnaData {
+                    klarna: AirwallexKlarnaDetails {
+                        country_code,
+                        billing: Some(AirwallexKlarnaBilling {
+                            date_of_birth: None,
+                            email: resource_common_data.get_optional_billing_email(),
+                            first_name: resource_common_data.get_optional_billing_first_name(),
+                            last_name: resource_common_data.get_optional_billing_last_name(),
+                            phone_number: resource_common_data
+                                .get_optional_billing_phone_number(),
+                            address: Some(AirwallexPayLaterAddress {
+                                country_code: resource_common_data.get_optional_billing_country(),
+                                city: resource_common_data.get_optional_billing_city(),
+                                street: resource_common_data.get_optional_billing_line1(),
+                                postcode: resource_common_data.get_optional_billing_zip(),
+                            }),
+                        }),
+                    },
+                    payment_method_type: AirwallexPaymentType::Klarna,
+                })),
+            ))
+        }
+        domain_types::payment_method_data::PayLaterData::AtomeRedirect {} => {
+            let shopper_phone = resource_common_data
+                .get_billing_phone()
+                .map_err(|_| IntegrationError::MissingRequiredField {
+                    field_name: "shopper_phone",
+                    context: Default::default(),
+                })?
+                .get_number_with_country_code()
+                .map_err(|_| IntegrationError::MissingRequiredField {
+                    field_name: "country_code",
+                    context: Default::default(),
+                })?;
+            Ok(AirwallexPaymentMethod::PayLater(
+                AirwallexPayLaterData::Atome(AirwallexAtomeData {
+                    atome: AirwallexAtomeDetails { shopper_phone },
+                    payment_method_type: AirwallexPaymentType::Atome,
+                }),
+            ))
+        }
+        _ => Err(error_stack::report!(IntegrationError::NotImplemented(
+            crate::utils::get_unimplemented_payment_method_error_message("airwallex"),
+            Default::default()
+        ))),
+    }
+}
+
+// Build the correct `payment_method_options` object for the selected payment method.
+// Card/Wallet/BankRedirect keep the historical card options; PayLater emits its own
+// klarna/atome options block with `auto_capture`, mirroring the reference upstream.
+fn build_payment_method_options(
+    payment_method: &AirwallexPaymentMethod,
+    auto_capture: bool,
+) -> Option<AirwallexPaymentOptions> {
+    match payment_method {
+        AirwallexPaymentMethod::PayLater(paylater) => {
+            let pay_later_options = AirwallexPayLaterOptions {
+                auto_capture: Some(auto_capture),
+            };
+            Some(match paylater {
+                AirwallexPayLaterData::Klarna(_) => AirwallexPaymentOptions {
+                    card: None,
+                    klarna: Some(pay_later_options),
+                    atome: None,
+                },
+                AirwallexPayLaterData::Atome(_) => AirwallexPaymentOptions {
+                    card: None,
+                    klarna: None,
+                    atome: Some(pay_later_options),
+                },
+            })
+        }
+        AirwallexPaymentMethod::Card(_)
+        | AirwallexPaymentMethod::Wallets(_)
+        | AirwallexPaymentMethod::BankRedirect(_) => Some(AirwallexPaymentOptions {
+            card: Some(AirwallexCardOptions {
+                auto_capture: Some(auto_capture),
+            }),
+            klarna: None,
+            atome: None,
+        }),
+    }
+}
+
 // Implementation for new unified request type
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
@@ -494,6 +671,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     item.router_data.request.customer_name.clone().map(Secret::new),
                 )?
             }
+            domain_types::payment_method_data::PaymentMethodData::PayLater(paylater_data) => {
+                get_paylater_details(&paylater_data, &item.router_data.resource_common_data)?
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Payment Method".to_string(),
@@ -507,11 +687,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(common_enums::CaptureMethod::Automatic)
         );
 
-        let payment_method_options = Some(AirwallexPaymentOptions {
-            card: Some(AirwallexCardOptions {
-                auto_capture: Some(auto_capture),
-            }),
-        });
+        let payment_method_options = build_payment_method_options(&payment_method, auto_capture);
 
         let device_data = get_device_data(&item.router_data.request)?;
 
@@ -1263,6 +1439,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     item.router_data.request.customer_name.clone().map(Secret::new),
                 )?
             }
+            domain_types::payment_method_data::PaymentMethodData::PayLater(paylater_data) => {
+                get_paylater_details(&paylater_data, &item.router_data.resource_common_data)?
+            }
             _ => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Payment Method".to_string(),
@@ -1276,11 +1455,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             Some(common_enums::CaptureMethod::Automatic)
         );
 
-        let payment_method_options = Some(AirwallexPaymentOptions {
-            card: Some(AirwallexCardOptions {
-                auto_capture: Some(auto_capture),
-            }),
-        });
+        let payment_method_options = build_payment_method_options(&payment_method, auto_capture);
 
         let device_data = get_device_data(&item.router_data.request)?;
 
@@ -1641,6 +1816,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             card: Some(AirwallexCardOptions {
                 auto_capture: Some(false),
             }),
+            klarna: None,
+            atome: None,
         });
 
         // Airwallex requires a connector-level customer_id (`cus_*`) at PaymentConsent
