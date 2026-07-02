@@ -296,6 +296,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         Ok(RefundWebhookDetailsResponse {
             connector_refund_id: Some(transaction_id.clone()),
+            merchant_transaction_id: None,
             status: common_enums::RefundStatus::Success, // Authorize.Net only sends successful refund webhooks
             status_code: 200,
             connector_response_reference_id: Some(transaction_id),

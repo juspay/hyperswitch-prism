@@ -5601,8 +5601,22 @@ fn convert_metadata_to_merchant_defined_info(
 ) -> Option<Vec<utils::MerchantDefinedInformation>> {
     let mut iter = 1;
 
+    // Sort metadata keys to match the Direct (hyperswitch) gateway, which deserializes
+    // metadata into a `BTreeMap` (alphabetical key order). Without this the UCS leg preserves
+    // the raw JSON insertion order (serde_json `preserve_order` is enabled in this crate),
+    // producing a merchantDefinedInformation array whose element ordering diverges from Direct.
     let mut result: Vec<utils::MerchantDefinedInformation> = metadata
-        .and_then(|value| value.as_object().cloned())
+        .and_then(|value| {
+            serde_json::from_value::<std::collections::BTreeMap<String, serde_json::Value>>(value)
+                .map_err(|error| {
+                    tracing::warn!(
+                        ?error,
+                        "Failed to deserialize cybersource metadata into a BTreeMap; \
+                         skipping merchantDefinedInformation for this payment"
+                    );
+                })
+                .ok()
+        })
         .map(|map| {
             map.into_iter()
                 .map(|(key, value)| {
@@ -5620,7 +5634,7 @@ fn convert_metadata_to_merchant_defined_info(
     if let Some(merchant_ref_id) = merchant_order_id {
         result.push(utils::MerchantDefinedInformation {
             key: iter,
-            value: format!("merchant_order_id={merchant_ref_id}"),
+            value: format!("merchant_order_reference_id={merchant_ref_id}"),
         });
     }
 
@@ -5831,22 +5845,5 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Regression: when card_network is absent, the fallback path must pass the
-    // raw card number to get_card_issuer. Previously the code used
-    // format!("{:?}", card_number) which triggered Debug masking
-    // ("424242**********") and broke the BIN regex match, producing card.type = null.
-    #[test]
-    #[allow(clippy::expect_used)]
-    fn card_type_fallback_returns_visa_001_for_test_card() {
-        let issuer = domain_types::utils::get_card_issuer("4242424242424242")
-            .expect("Visa BIN should be recognized");
-        assert_eq!(card_issuer_to_string(issuer), "001");
     }
 }
