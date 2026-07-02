@@ -1,0 +1,714 @@
+{
+  "connector": "affirm",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "authenticate flow not supported by affirm connector"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Affirm": {
+        "status": "error",
+        "error": "Stuck on field: complete_authorize_url. Affirm INITIATE needs complete_authorize_url to build the hosted-checkout user_confirmation_url. — Missing required field: complete_authorize_url. Affirm INITIATE needs complete_authorize_url to build the hosted-checkout user_confirmation_url."
+      },
+      "Afterpay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "ApplePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "ApplePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Blik": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Card": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "GooglePayDecrypted": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Ideal": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "SamsungPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "UpiCollect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.affirm.com/api/v1/transactions/probe_connector_txn_001/capture",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"order_id\":\"probe_capture_001\"}"
+        }
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by affirm connector"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for affirm"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by affirm connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by affirm connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for affirm"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by affirm connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by affirm connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by affirm connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by affirm connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://sandbox.affirm.com/api/v1/transactions/probe_connector_txn_001?expand=events",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by affirm connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by affirm connector"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by affirm connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for affirm"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for affirm"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for affirm"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://sandbox.affirm.com/api/v1/transactions/probe_connector_txn_001/refund",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"reference_id\":\"probe_refund_001\"}"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://sandbox.affirm.com/api/v1/transactions/probe_connector_txn_001?expand=events",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by affirm connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for affirm"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Affirm only supports the PayLater (Affirm) payment method. Only PayLater(AffirmRedirect) is supported by the Affirm connector."
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for affirm"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for affirm"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_void_id": "probe_void_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://sandbox.affirm.com/api/v1/transactions/probe_connector_txn_001/void",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{}"
+        }
+      }
+    }
+  }
+}

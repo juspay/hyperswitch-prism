@@ -152,6 +152,7 @@ pub enum ConnectorEnum {
     Tamara,
     Hyperswitch,
     Qwikcilver,
+    Affirm,
     Kount,
 }
 
@@ -5200,6 +5201,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Placetopay(_) => Ok(Self::Payment(ConnectorEnum::Placetopay)),
             AuthType::Finix(_) => Ok(Self::Payment(ConnectorEnum::Finix)),
             AuthType::Tamara(_) => Ok(Self::Payment(ConnectorEnum::Tamara)),
+            AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
         }
     }
 }

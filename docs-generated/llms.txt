@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 95
+# Connectors: 96
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 95
+  total_connectors: 96
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -45,6 +45,14 @@ scenarios: checkout_autocapture, checkout_card, refund, void_payment
 payment_methods: Ach, Affirm, Afterpay, Alfamart, AliPayRedirect, ApplePay, ApplePayDecrypted, Bacs, BancontactCard, BcaBankTransfer, Bizum, Blik, BniVaBankTransfer, Boleto, BriVaBankTransfer, Card, CimbVaBankTransfer, Dana, DanamonVaBankTransfer, Eps, FamilyMart, GCash, GoPay, GooglePay, GooglePayDecrypted, Ideal, Indomaret, KakaoPay, Klarna, Lawson, MandiriVaBankTransfer, MiniStop, Momo, OnlineBankingCzechRepublic, OnlineBankingFinland, OnlineBankingFpx, OnlineBankingSlovakia, OnlineBankingThailand, OpenBankingUk, Oxxo, PayEasy, PaypalRedirect, PermataBankTransfer, Pix, Seicomart, Sepa, SevenEleven, Swish, TouchNGo, Trustly, Twint, Vipps
 flows: authorize, capture, create_client_authentication_token, create_order, dispute_accept, dispute_defend, dispute_submit_evidence, handle_event, incremental_authorization, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, reverse, setup_recurring, token_authorize, void
 examples_python: examples/adyen/adyen.py
+
+## Affirm
+connector_id: affirm
+doc: docs/connectors/affirm.md
+scenarios: none
+payment_methods: none
+flows: capture, get, refund, refund_get, void
+examples_python: none
 
 ## Airwallex
 connector_id: airwallex

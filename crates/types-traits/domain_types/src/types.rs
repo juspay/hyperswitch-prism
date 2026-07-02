@@ -413,6 +413,7 @@ pub struct Connectors {
     pub tamara: ConnectorParams,
     pub hyperswitch: ConnectorParams,
     pub qwikcilver: ConnectorParams,
+    pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
 }
 
@@ -724,6 +725,9 @@ impl Connectors {
             }
             ConnectorEnum::TwocTwopPaco => {
                 patched.twoc_twop_paco.apply(params_patch);
+            }
+            ConnectorEnum::Affirm => {
+                patched.affirm.apply(params_patch);
             }
             _ => {
                 // Connector not supported for URL patching - return error
@@ -2469,6 +2473,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)
             }
+            grpc_api_types::payments::PaymentMethodType::Affirm => Ok(PaymentMethodType::Affirm),
             _ => Err(IntegrationError::InvalidDataFormat {
                 field_name: "payment_method_type",
                 context: IntegrationErrorContext {

@@ -4926,6 +4926,14 @@ message TsysTransitConfig {
   optional string base_url = 50;
 }
 
+message AffirmConfig {
+  // Affirm public API key — used as the HTTP Basic auth username.
+  SecretString public_key = 1;
+  // Affirm private API key — used as the HTTP Basic auth password.
+  SecretString private_key = 2;
+  optional string base_url = 50;
+}
+
 message TwocTwopPacoConfig {
   // Company access token, used as both the `token`/`apikey` HTTP header and
   // as the `iss` / `CompanyApiKey` JWT claim.
@@ -5287,6 +5295,8 @@ message ConnectorSpecificConfig {
     TsysTransitConfig tsys_transit = 133;
     // KOUNT = 128
     KountConfig kount = 134;
+    // AFFIRM = 135
+    AffirmConfig affirm = 135;
   }
 }
 

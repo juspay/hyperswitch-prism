@@ -792,6 +792,13 @@ pub enum ConnectorSpecificConfig {
         password: Secret<String>,
         base_url: Option<String>,
     },
+    Affirm {
+        // Affirm public API key — HTTP Basic auth username.
+        public_key: Secret<String>,
+        // Affirm private API key — HTTP Basic auth password.
+        private_key: Secret<String>,
+        base_url: Option<String>,
+    },
     Kount {
         api_key: Secret<String>,
         /// Kount OAuth authorization-server id; account/environment specific.
@@ -1140,6 +1147,10 @@ impl ConnectorSpecificConfig {
                 terminal_id,
                 username,
                 password
+            },
+            Affirm {
+                public_key,
+                private_key
             },
         )
     }
@@ -1574,6 +1585,10 @@ impl ConnectorSpecificConfig {
                     terminal_id,
                     username,
                     password
+                },
+                Affirm {
+                    public_key,
+                    private_key
                 },
             ),
             serde_json::Value::Object(connector_patch),
@@ -2193,6 +2208,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 username: qwikcilver.username.ok_or_else(err)?,
                 password: qwikcilver.password.ok_or_else(err)?,
                 base_url: qwikcilver.base_url,
+            }),
+            AuthType::Affirm(affirm) => Ok(Self::Affirm {
+                public_key: affirm.public_key.ok_or_else(err)?,
+                private_key: affirm.private_key.ok_or_else(err)?,
+                base_url: affirm.base_url,
             }),
         }
     }
@@ -3310,6 +3330,14 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 ConnectorEnum::Tamara => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Tamara {
                         api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Affirm => match auth {
+                    ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Affirm {
+                        public_key: api_key.clone(),
+                        private_key: key1.clone(),
                         base_url: None,
                     }),
                     _ => Err(err().into()),
