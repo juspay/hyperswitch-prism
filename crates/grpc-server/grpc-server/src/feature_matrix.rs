@@ -244,7 +244,7 @@ fn non_empty_strings<T: ToString>(items: &[T]) -> Option<Vec<String>> {
 impl From<FeatureMatrixResponse> for grpc_api_types::payments::FeatureMatrixResponse {
     fn from(response: FeatureMatrixResponse) -> Self {
         Self {
-            connector_count: response.connector_count as u32,
+            connector_count: u32::try_from(response.connector_count).unwrap_or(u32::MAX),
             connectors: response.connectors.into_iter().map(Into::into).collect(),
         }
     }
