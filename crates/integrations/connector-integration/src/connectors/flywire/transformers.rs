@@ -70,6 +70,15 @@ impl TryFrom<&ConnectorSpecificConfig> for FlywireAuthType {
 const CHECKOUT_SESSION_TYPE: &str = "one_off";
 const CHECKOUT_SESSION_SCHEMA: &str = "cards";
 const CHECKOUT_SESSION_ITEM_ID: &str = "default";
+const FLYWIRE_EVENT_LISTENER_TEMPLATE: &str = r#"window.addEventListener("message", function (e) {
+  if (!e.origin || !e.origin.endsWith(".flywire.com")) return;
+  var d = e.data;
+  if (!d || typeof d !== 'object') return;
+  if (d.source !== 'checkout_session') return;
+  if (d.success === true && d.confirm_url) {
+    window.location.href = "__RETURN_URL__";
+  }
+});"#;
 
 #[derive(Debug, Serialize)]
 pub struct FlywireCheckoutSessionRequest {
@@ -286,11 +295,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let raw_response = serde_json::to_string(&response).ok().map(Secret::new);
         let session_id = response.id.clone();
 
-        // Send only the raw fields the client needs; the hosted-checkout iframe
-        // and its completion-postMessage script are constructed upstream.
-        // `return_url` is where the payer is navigated once payment completes —
-        // without it there is no way back to the merchant, so a missing value is
-        // a hard error rather than an empty redirect target.
+        // `return_url` is where the payer is navigated once the checkout form is
+        // submitted — without it there is no way back to the merchant, so a
+        // missing value is a hard error rather than an empty redirect target.
         let return_url = item
             .router_data
             .resource_common_data
@@ -308,9 +315,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 })
             })?;
+        let iframe_src = response.hosted_form.url.clone();
+        // postMessage listener the client attaches; it navigates to `return_url`
+        // once Flywire signals a successful checkout-session submission.
+        let event_listener = FLYWIRE_EVENT_LISTENER_TEMPLATE.replace("__RETURN_URL__", &return_url);
         let redirection_data = Some(Box::new(RedirectForm::Flywire {
-            iframe_src: response.hosted_form.url.clone(),
+            iframe_src,
             return_url,
+            event_listener,
         }));
 
         Ok(Self {

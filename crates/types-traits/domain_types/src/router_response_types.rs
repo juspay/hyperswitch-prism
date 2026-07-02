@@ -49,6 +49,7 @@ pub enum RedirectForm {
     Flywire {
         iframe_src: String,
         return_url: String,
+        event_listener: String,
     },
     WorldpayDDCForm {
         endpoint: url::Url,

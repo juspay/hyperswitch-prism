@@ -1480,16 +1480,15 @@ message MifinityData {
 }
 
 // Represents Flywire-specific redirection data.
-//
-// The connector returns only the raw fields; the client (upstream) renders the
-// hosted-checkout iframe and listens for Flywire's completion postMessage, then
-// navigates to `return_url`.
 message FlywireData {
   // Flywire hosted-checkout form URL to load inside the iframe.
   string iframe_src = 1;
 
-  // URL to navigate the payer to once the payment completes.
+  // URL to navigate the payer to once the checkout form is submitted.
   string return_url = 2;
+
+  // postMessage listener script built by the connector. 
+  string event_listener = 3;
 }
 
 // Represents NMI-specific redirection data for 3DS flows

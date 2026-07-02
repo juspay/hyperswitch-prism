@@ -7831,11 +7831,13 @@ impl ForeignTryFrom<router_response_types::RedirectForm>
             router_response_types::RedirectForm::Flywire {
                 iframe_src,
                 return_url,
+                event_listener,
             } => Ok(Self {
                 form_type: Some(grpc_api_types::payments::redirect_form::FormType::Flywire(
                     grpc_api_types::payments::FlywireData {
                         iframe_src,
                         return_url,
+                        event_listener,
                     },
                 )),
             }),
@@ -15037,12 +15039,14 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                         router_response_types::RedirectForm::Flywire {
                             iframe_src,
                             return_url,
+                            event_listener,
                         } => Ok(grpc_api_types::payments::RedirectForm {
                             form_type: Some(
                                 grpc_api_types::payments::redirect_form::FormType::Flywire(
                                     grpc_api_types::payments::FlywireData {
                                         iframe_src,
                                         return_url,
+                                        event_listener,
                                     },
                                 ),
                             ),
@@ -15255,12 +15259,14 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                         router_response_types::RedirectForm::Flywire {
                             iframe_src,
                             return_url,
+                            event_listener,
                         } => Ok(grpc_api_types::payments::RedirectForm {
                             form_type: Some(
                                 grpc_api_types::payments::redirect_form::FormType::Flywire(
                                     grpc_api_types::payments::FlywireData {
                                         iframe_src,
                                         return_url,
+                                        event_listener,
                                     },
                                 ),
                             ),
