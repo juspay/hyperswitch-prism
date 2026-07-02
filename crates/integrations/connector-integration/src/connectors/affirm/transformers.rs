@@ -61,7 +61,6 @@ impl TryFrom<&ConnectorSpecificConfig> for AffirmAuthType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AffirmErrorResponse {
-    pub status_code: Option<serde_json::Value>,
     pub message: Option<String>,
     pub code: Option<String>,
     #[serde(rename = "type")]
@@ -571,7 +570,11 @@ impl TryFrom<ResponseRouterData<AffirmSyncResponse, Self>>
 
 // ===== CAPTURE =====
 // POST /api/v1/transactions/{id}/capture  -> returns capture event { id, type, amount }
-// `amount` is sent so partial captures are honoured; omit-for-full is not assumed.
+// Affirm is full-capture-only: the capture amount must equal the authorization hold,
+// and a partial amount is rejected by Affirm with `409` ("cannot be captured for an
+// amount unequal to authorization hold amount"). We send the full `amount` (matching
+// hyperswitch's Affirm capture); we cannot pre-empt the 409 locally because the
+// authorized total is not available on the capture request.
 
 #[derive(Debug, Serialize)]
 pub struct AffirmCaptureRequest {
@@ -783,11 +786,18 @@ impl TryFrom<ResponseRouterData<AffirmRefundResponse, Self>>
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: ResponseRouterData<AffirmRefundResponse, Self>) -> Result<Self, Self::Error> {
-        // A successful (HTTP 2xx) refund event indicates the refund was accepted.
+        // Affirm processes refunds synchronously and returns the created event on 2xx.
+        // Confirm it is actually a `refund` event before reporting success; anything
+        // else is left Pending for RSync to resolve rather than assuming any 2xx means
+        // the money moved.
+        let refund_status = match item.response.event_type.as_str() {
+            "refund" => RefundStatus::Success,
+            _ => RefundStatus::Pending,
+        };
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.id.clone(),
-                refund_status: RefundStatus::Success,
+                refund_status,
                 status_code: item.http_code,
             }),
             ..item.router_data.clone()
@@ -797,7 +807,8 @@ impl TryFrom<ResponseRouterData<AffirmRefundResponse, Self>>
 
 // ===== RSYNC =====
 // GET /api/v1/transactions/{id}?expand=events
-// Inspect amount_refunded / events[type=refund] to derive refund completion.
+// Match THIS refund by its own event id (Affirm allows multiple partial refunds, each
+// its own `refund` event) and resolve terminal states so a refund never polls forever.
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AffirmRSyncResponse {
@@ -815,21 +826,25 @@ impl TryFrom<ResponseRouterData<AffirmRSyncResponse, Self>>
     fn try_from(item: ResponseRouterData<AffirmRSyncResponse, Self>) -> Result<Self, Self::Error> {
         let connector_refund_id = item.router_data.request.connector_refund_id.clone();
 
-        // The refund is complete when a matching refund event is present in the
-        // transaction's events array, or the transaction is marked refunded.
-        let refund_event_present = item
-            .response
-            .events
-            .as_ref()
-            .map(|events| events.iter().any(|event| event.event_type == "refund"))
-            .unwrap_or(false);
+        // Match THIS refund by its own event id — not just "any refund event" — so a
+        // second partial refund isn't reported complete off the first refund's event.
+        let this_refund_settled = item.response.events.as_ref().is_some_and(|events| {
+            events
+                .iter()
+                .any(|event| event.event_type == "refund" && event.id == connector_refund_id)
+        });
 
-        let refund_status =
-            if refund_event_present || item.response.status == AffirmTransactionStatus::Refunded {
-                RefundStatus::Success
-            } else {
-                RefundStatus::Pending
-            };
+        let refund_status = match (this_refund_settled, &item.response.status) {
+            // This refund's own event is present, or the whole transaction is refunded.
+            (true, _) | (_, AffirmTransactionStatus::Refunded) => RefundStatus::Success,
+            // Terminal states in which this refund can never settle (a voided loan was
+            // never captured; a declined transaction never funded) — resolve as Failure
+            // instead of polling Pending indefinitely.
+            (_, AffirmTransactionStatus::Declined | AffirmTransactionStatus::Voided) => {
+                RefundStatus::Failure
+            }
+            _ => RefundStatus::Pending,
+        };
 
         Ok(Self {
             response: Ok(RefundsResponseData {

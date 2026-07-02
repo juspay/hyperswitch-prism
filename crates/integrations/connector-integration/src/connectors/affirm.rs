@@ -304,10 +304,9 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             // INITIATE (no checkout_token yet) hits the checkout-create endpoint to
             // mint the redirect URL; COMPLETE (token present) charges the transaction.
-            let path = if affirm_checkout_token(req).is_some() {
-                TRANSACTIONS_PATH
-            } else {
-                CHECKOUT_DIRECT_PATH
+            let path = match affirm_checkout_token(req) {
+                Some(_) => TRANSACTIONS_PATH,
+                None => CHECKOUT_DIRECT_PATH,
             };
             Ok(format!("{}{path}", self.connector_base_url_payments(req)))
         }

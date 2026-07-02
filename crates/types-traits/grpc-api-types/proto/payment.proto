@@ -5268,7 +5268,7 @@ message ConnectorSpecificConfig {
     TsysTransitConfig tsys_transit = 133;
     // KOUNT = 128
     KountConfig kount = 134;
-    // AFFIRM = 129
+    // AFFIRM = 135
     AffirmConfig affirm = 135;
   }
 }
