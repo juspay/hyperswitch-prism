@@ -8424,7 +8424,10 @@ impl ForeignTryFrom<PaymentServiceVoidRequest> for PaymentVoidData {
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "connector metadata")))
                 .transpose()?,
             merchant_order_id: value.merchant_order_id,
-            split_payments: None,
+            split_payments: value
+                .split_payments
+                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -9784,7 +9787,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentServiceCaptureRequest>
             order_tax_amount: value
                 .order_tax_amount
                 .map(|amount| common_utils::types::MinorUnit::new(amount.minor_amount)),
-            split_payments: None,
+            split_payments: value
+                .split_payments
+                .map(connector_types::SplitPaymentsDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -13120,6 +13126,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                 mandate_reference,
                 status_code,
                 incremental_authorization_allowed,
+                splits,
                 ..
             } => Ok(
                 grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
@@ -13151,6 +13158,11 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     connector_response,
                     captured_amount: router_data_v2.resource_common_data.amount_captured,
                     incremental_authorization_allowed,
+                    splits: splits.map(|split_response| {
+                        grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(
+                            split_response,
+                        )
+                    }),
                 },
             ),
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -13207,6 +13219,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     connector_response,
                     captured_amount: None,
                     incremental_authorization_allowed: None,
+                    splits: None,
                 },
             )
         }
