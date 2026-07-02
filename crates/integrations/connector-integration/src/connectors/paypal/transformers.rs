@@ -1125,10 +1125,93 @@ impl<
                     http_code: item.http_code,
                 })
             }
-            PaypalAuthResponse::PaypalRedirectResponse(_)
-            | PaypalAuthResponse::PaypalThreeDsResponse(_) => Err(
-                crate::utils::response_handling_fail_for_connector(item.http_code, "paypal"),
-            )?,
+            // A PayPal wallet MIT (payment_source.paypal.vault_id) may require buyer
+            // re-approval, in which case PayPal returns a redirect response instead of a
+            // direct capture. Mirror the Authorize redirect handler so we surface an
+            // AuthenticationPending redirect instead of hard-failing (parity with the
+            // reference, where MIT flows through the Authorize response handler).
+            PaypalAuthResponse::PaypalRedirectResponse(redirect_response) => {
+                let status = get_order_status(
+                    redirect_response.status.clone(),
+                    redirect_response.intent.clone(),
+                );
+                let link = get_redirect_url(redirect_response.links.clone())?;
+                let connector_meta = serde_json::json!(PaypalMeta {
+                    authorize_id: None,
+                    capture_id: None,
+                    incremental_authorization_id: None,
+                    psync_flow: redirect_response.intent.clone(),
+                    next_action: None,
+                    order_id: None
+                });
+                let purchase_units = redirect_response.purchase_units.first();
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(
+                            redirect_response.id.clone(),
+                        ),
+                        redirection_data: link
+                            .map(|url| Box::new(RedirectForm::from((url, Method::Get)))),
+                        mandate_reference: None,
+                        connector_metadata: Some(connector_meta),
+                        network_txn_id: None,
+                        network_txn_link_id: None,
+                        connector_response_reference_id: Some(
+                            purchase_units
+                                .map_or(redirect_response.id, |item| item.invoice_id.clone()),
+                        ),
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                        splits: None,
+                    }),
+                    ..item.router_data
+                })
+            }
+            // A card MIT can surface a 3DS challenge; mirror the Authorize 3DS handler so the
+            // buyer can complete authentication instead of hard-failing. RepeatPaymentData has
+            // no `complete_authorize_url`, so the merchant `router_return_url` is used as the
+            // post-challenge return target.
+            PaypalAuthResponse::PaypalThreeDsResponse(threeds_response) => {
+                let connector_meta = serde_json::json!(PaypalMeta {
+                    authorize_id: None,
+                    capture_id: None,
+                    incremental_authorization_id: None,
+                    psync_flow: PaypalPaymentIntent::Authenticate,
+                    next_action: None,
+                    order_id: None
+                });
+                let status = get_order_status(
+                    threeds_response.status.clone(),
+                    PaypalPaymentIntent::Authenticate,
+                );
+                let link = get_redirect_url(threeds_response.links.clone())?;
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(PaymentsResponseData::TransactionResponse {
+                        resource_id: ResponseId::ConnectorTransactionId(threeds_response.id),
+                        redirection_data: Some(Box::new(paypal_threeds_link(
+                            (link, item.router_data.request.router_return_url.clone()),
+                            item.http_code,
+                        )?)),
+                        mandate_reference: None,
+                        connector_metadata: Some(connector_meta),
+                        network_txn_id: None,
+                        network_txn_link_id: None,
+                        connector_response_reference_id: None,
+                        incremental_authorization_allowed: None,
+                        status_code: item.http_code,
+                        splits: None,
+                    }),
+                    ..item.router_data
+                })
+            }
         }
     }
 }
@@ -3174,7 +3257,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .router_data
                     .resource_common_data
                     .get_optional_billing_full_name(),
-                number: ccard.card_number.peek().parse().ok(),
+                // Parse the raw PAN into a concrete `cards::CardNumber` (the mandate request
+                // is not generic over `PaymentMethodDataTypes`). Propagate a real error on an
+                // unparseable PAN instead of silently dropping it with `.ok()`, matching the
+                // reference which never discards the card number.
+                number: Some(
+                    ccard
+                        .card_number
+                        .peek()
+                        .parse::<cards::CardNumber>()
+                        .map_err(|_| {
+                            error_stack::report!(IntegrationError::InvalidDataFormat {
+                                field_name: "payment_method_data.card.card_number",
+                                context: Default::default(),
+                            })
+                        })?,
+                ),
             }),
 
             PaymentMethodData::Wallet(_)
