@@ -3298,15 +3298,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 // is not used for Qwikcilver — configure via the proto
                 // QwikcilverConfig path instead.
                 ConnectorEnum::Qwikcilver => Err(err().into()),
-                // Netcetera is an authentication-only (3DS) connector. In the
-                // external-3DS-over-VGS path its auth is effectively no-auth: the
-                // mTLS client cert is handled on the VGS outbound route, not here,
-                // and merchant fields ride `connector_feature_data`. A `no-key`
-                // auth maps to `NoKey`; any other auth type is unsupported.
-                ConnectorEnum::Netcetera => match auth {
-                    ConnectorAuthType::NoKey => Ok(Self::NoKey),
-                    _ => Err(err().into()),
-                },
+                // Netcetera is an authentication-only (3DS) no-key connector (mTLS is
+                // handled on the VGS outbound route, merchant fields ride
+                // `connector_feature_data`). Its `connector_config` is set to
+                // `ConnectorSpecificConfig::NoKey` via the `X_AUTH = "NoKey"` shortcut in
+                // `request.rs`, so it never flows through this deprecated auth-credentials
+                // -> config conversion (same opt-out as Qwikcilver above).
+                ConnectorEnum::Netcetera => Err(err().into()),
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {
