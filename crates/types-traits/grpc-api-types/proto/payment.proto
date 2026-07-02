@@ -463,6 +463,7 @@ enum WebhookEventType {
   // Refund events
   WEBHOOK_REFUND_FAILURE = 15; // Refund failure
   WEBHOOK_REFUND_SUCCESS = 16; // Refund success
+  WEBHOOK_REFUND_PROCESSING = 42; // Refund processing
 
   // Dispute events
   WEBHOOK_DISPUTE_OPENED = 17;     // Dispute opened
@@ -3014,6 +3015,10 @@ message RefundResponse {
   // For refund-reverse, carries the underlying TSYS void status while the
   // user-facing `status` field remains `RefundSuccess`.
   optional SecretString state_metadata = 23;
+
+  // Merchant's reference for the original payment/transaction the refund
+  // belongs to
+  optional string merchant_transaction_id = 24;
 }
 
 // Request message for voiding/reversing a refund before settlement.

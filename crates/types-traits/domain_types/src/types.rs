@@ -8148,6 +8148,9 @@ pub fn generate_refund_sync_response(
                 connector_refund_id: response.connector_refund_id.clone(),
                 status: grpc_status as i32,
                 merchant_refund_id: Some(response.connector_refund_id.clone()),
+                // Not returned by connectors on the direct Refund/RSync response;
+                // only populated on the webhook path.
+                merchant_transaction_id: None,
                 error: None,
                 refund_amount: None,
                 payment_amount: None,
@@ -8183,6 +8186,7 @@ pub fn generate_refund_sync_response(
                 connector_refund_id: String::new(),
                 status: status as i32,
                 merchant_refund_id: e.connector_transaction_id.clone(),
+                merchant_transaction_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
@@ -8571,6 +8575,7 @@ pub fn generate_void_post_refund_response(
                 raw_connector_request,
                 acquirer_reference_number: None,
                 state_metadata: Some(Secret::new(state_metadata)),
+                merchant_transaction_id: None,
             })
         }
         Err(e) => Ok(RefundResponse {
@@ -8628,6 +8633,7 @@ pub fn generate_void_post_refund_response(
                     },
                 })?,
             )),
+            merchant_transaction_id: None,
         }),
     }
 }
@@ -8870,6 +8876,7 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
             connector_refund_id: value.connector_refund_id.unwrap_or_default(),
             status: status.into(),
             merchant_refund_id: value.connector_response_reference_id,
+            merchant_transaction_id: value.merchant_transaction_id,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
@@ -9558,6 +9565,9 @@ pub fn generate_refund_response(
                 connector_refund_id: response.connector_refund_id,
                 status: grpc_status as i32,
                 merchant_refund_id: None,
+                // Not returned by connectors on the direct Refund/RSync response;
+                // only populated on the webhook path.
+                merchant_transaction_id: None,
                 error: None,
                 refund_amount: None,
                 payment_amount: None,
@@ -9592,6 +9602,7 @@ pub fn generate_refund_response(
                 connector_refund_id: String::new(),
                 status: status as i32,
                 merchant_refund_id: None,
+                merchant_transaction_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
