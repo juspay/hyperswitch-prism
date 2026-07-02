@@ -217,8 +217,7 @@ async fn test_repeat_everything() {
         let mut register_grpc_request = Request::new(register_request);
         add_authorizenet_metadata(&mut register_grpc_request);
 
-        let register_response = client
-            .setup_recurring(register_grpc_request)
+        let register_response = Box::pin(client.setup_recurring(register_grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();
@@ -997,8 +996,7 @@ async fn test_register() {
         add_authorizenet_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .setup_recurring(grpc_request)
+        let response = Box::pin(client.setup_recurring(grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();

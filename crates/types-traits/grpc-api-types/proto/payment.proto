@@ -1135,7 +1135,11 @@ message OnlineMandate {
   string user_agent = 2;
 }
 
-// Amount data for mandate
+// Amount data for mandate.
+//
+// Also carries subscription / recurring-order context consumed by FRM risk
+// scoring (e.g. Kount's `recurring` block). In that FRM usage `amount` is the
+// per-period billing amount and `frequency` is the billing period.
 message MandateAmountData {
   int64 amount = 1 [deprecated = true]; // Use amount_money instead (will be removed in a future release)
   Currency currency = 2 [deprecated = true]; // Use amount_money.currency instead (will be removed in a future release)
@@ -1146,6 +1150,23 @@ message MandateAmountData {
   optional string frequency =
       6; // Frequency for recurring mandates ("daily", "weekly", "monthly")
   optional Money amount_money = 7; // Amount in Money type
+
+  // Initial / First billing amount.
+  optional Money initial_billing_amount = 8;
+  // Merchant's external subscription identifier.
+  optional string external_subscription_id = 9;
+  // Subscription status (e.g. "ACTIVE"). Kept as a string for backward
+  // compatibility; prefer `mandate_status` going forward.
+  optional string status = 10;
+  // Unix timestamp for the next billing date.
+  optional int64 next_billing_date = 11;
+  // Number of billing cycles elapsed / scheduled.
+  optional int32 billing_cycle = 12;
+  // Free-form description of the subscription.
+  optional string description = 13;
+  // Enum-typed subscription status. Additive/new; NOT yet consumed — the string
+  // `status` (field 10) is used for now (backward compatibility).
+  MandateStatus mandate_status = 14;
 }
 
 // Mandate type with amount details
@@ -1613,6 +1634,15 @@ enum FrmDecision {
   ERROR = 4;                    // The FRM check itself failed (network, timeout, misconfiguration).
 }
 
+// Merchant details used for FRM risk scoring.
+message MerchantDetails {
+  // Merchant identifier.
+  optional string merchant_id = 1;
+
+  // Merchant Category Code (ISO 18245).
+  optional uint32 merchant_category_code = 2;
+}
+
 // Unified FRM notification content.
 // Used for all FRM lifecycle events (payment success, refund, chargeback).
 message FrmNotificationContent {
@@ -1632,6 +1662,9 @@ message FrmNotificationContent {
 
   // Risk assessment outcome
   optional FrmDecision frm_decision = 7;
+
+  // Merchant details for risk scoring.
+  optional MerchantDetails merchant_details = 8;
 }
 
 // FRM payment success details
@@ -3438,6 +3471,9 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Description
   optional string description = 14;
+
+  // Merchant transaction identifier.
+  optional string merchant_transaction_id = 15;
 }
 
 // Response message for pre-authentication step
