@@ -96,6 +96,11 @@ fn create_paysafe_billing_details(
     resource_common_data: &PaymentFlowData,
 ) -> Result<Option<PaysafeBillingDetails>, error_stack::Report<IntegrationError>> {
     let billing_address = resource_common_data.get_billing_address()?;
+    // Paysafe rejects optional strings that are present but empty (error 5068:
+    // "size must be between 1 and 50 where leading and trailing spaces are
+    // omitted"), so blank values must be omitted rather than sent as "".
+    let non_empty =
+        |value: Option<Secret<String>>| value.filter(|v| !v.peek().trim().is_empty());
     // Only send billing details if billing mandatory fields are available
     if let (Some(zip), Some(country), Some(state)) = (
         resource_common_data.get_optional_billing_zip(),
@@ -103,10 +108,10 @@ fn create_paysafe_billing_details(
         billing_address.to_state_code_as_optional()?,
     ) {
         Ok(Some(PaysafeBillingDetails {
-            nick_name: resource_common_data.get_optional_billing_first_name(),
-            street: resource_common_data.get_optional_billing_line1(),
-            street2: resource_common_data.get_optional_billing_line2(),
-            city: resource_common_data.get_optional_billing_city(),
+            nick_name: non_empty(resource_common_data.get_optional_billing_first_name()),
+            street: non_empty(resource_common_data.get_optional_billing_line1()),
+            street2: non_empty(resource_common_data.get_optional_billing_line2()),
+            city: non_empty(resource_common_data.get_optional_billing_city()),
             zip,
             country,
             state,
@@ -205,8 +210,11 @@ fn build_paysafe_redirect_handle_request<
         .payment_method_data
     {
         PaymentMethodData::Wallet(WalletData::Skrill(_)) => {
-            // Skrill consumer id is the billing email (mandatory). Skrill omits
-            // accountId entirely (sending the card accountId returns error 5068).
+            // Skrill consumer id is the billing email (mandatory). The FMA carries a
+            // dedicated SKRILL processing account per currency; Paysafe requires its
+            // accountId on the payment handle when the FMA has multiple accounts
+            // (sending the card accountId instead returns error 5068). Mirror
+            // hyperswitch: resolve from the skrill metadata slot.
             let consumer_id = router_data
                 .resource_common_data
                 .get_optional_billing_email()
@@ -214,12 +222,17 @@ fn build_paysafe_redirect_handle_request<
                     field_name: "email",
                     context: Default::default(),
                 })?;
+            let skrill_account_id = account_id.get_skrill_account_id(currency)?;
+            let country_code = router_data.resource_common_data.get_optional_billing_country();
             (
                 PaysafePaymentMethod::Skrill {
-                    skrill: PaysafeSkrill { consumer_id },
+                    skrill: PaysafeSkrill {
+                        consumer_id,
+                        country_code,
+                    },
                 },
                 PaysafePaymentType::Skrill,
-                None,
+                Some(skrill_account_id),
                 None,
             )
         }
@@ -826,13 +839,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             field_name: "email",
                             context: Default::default(),
                         })?;
-                    let skrill = PaysafeSkrill { consumer_id };
-                    // Skrill must omit accountId entirely (sending the card accountId
-                    // returns Paysafe error 5068 "AccountId doesn't exist or not configured").
+                    let skrill = PaysafeSkrill {
+                        consumer_id,
+                        country_code: router_data
+                            .resource_common_data
+                            .get_optional_billing_country(),
+                    };
+                    // The FMA carries a dedicated SKRILL processing account per currency;
+                    // Paysafe requires its accountId on the payment handle when the FMA
+                    // has multiple accounts (sending the card accountId instead returns
+                    // error 5068). Mirror hyperswitch: resolve from the skrill slot.
+                    let skrill_account_id = account_id.get_skrill_account_id(currency)?;
                     (
                         PaysafePaymentMethod::Skrill { skrill },
                         PaysafePaymentType::Skrill,
-                        None,
+                        Some(skrill_account_id),
                     )
                 }
                 PaymentMethodData::BankRedirect(BankRedirectData::Interac { email, .. }) => {

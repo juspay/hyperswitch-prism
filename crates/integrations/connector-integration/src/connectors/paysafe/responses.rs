@@ -168,11 +168,14 @@ pub enum PaysafeRefundStatus {
 pub type PaysafeRSyncResponse = PaysafeRefundResponse;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Error {
     pub code: String,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<Vec<String>>,
+    /// Paysafe serializes this as `fieldErrors`; without the camelCase rename
+    /// the per-field diagnostics were silently dropped on deserialization.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub field_errors: Option<Vec<FieldError>>,
 }

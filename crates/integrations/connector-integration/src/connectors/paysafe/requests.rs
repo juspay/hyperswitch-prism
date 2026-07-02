@@ -147,6 +147,10 @@ pub enum PaysafePaymentMethod<T: PaymentMethodDataTypes> {
 pub struct PaysafeSkrill {
     /// Skrill consumer email address.
     pub consumer_id: common_utils::pii::Email,
+    /// Consumer billing country (hyperswitch parity: sent when billing
+    /// country is available).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<common_enums::CountryAlpha2>,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]

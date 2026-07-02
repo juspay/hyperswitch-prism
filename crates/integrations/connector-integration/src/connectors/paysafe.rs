@@ -448,14 +448,21 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
 
+            // Always sync by merchantRefNum, never by connector id path. For redirect
+            // APMs (Skrill/Interac/paysafecard) the `connector_transaction_id` recorded at
+            // authorize is a payment-HANDLE id, and `GET /v1/payments/{handleId}` returns
+            // 404 (error 5269) because no settled Payment exists under that id yet. Querying
+            // `?merchantRefNum=` resolves the stable reference and returns 200 (empty list
+            // until the handle is settled via CompleteAuthorize). Mirrors the hyperswitch
+            // Paysafe connector's PSync.
+            let connector_payment_id = req.resource_common_data.get_reference_id()?;
             let url = match req.request.connector_transaction_id.get_connector_transaction_id() {
-                Ok(connector_txn_id) => {
-                    // After authorization, sync using the payment ID directly
-                    format!("{base_url}v1/payments/{connector_txn_id}")
+                Ok(_) => {
+                    // Payment progressed past the handle: query the settled payment.
+                    format!("{base_url}v1/payments?merchantRefNum={connector_payment_id}")
                 }
                 Err(_) => {
-                    // For paymenthandle sync (before authorization), use merchantRefNum
-                    let connector_payment_id = req.resource_common_data.get_reference_id()?;
+                    // Before authorization completes there is no payment yet: sync the handle.
                     format!("{base_url}v1/paymenthandles?merchantRefNum={connector_payment_id}")
                 }
             };
