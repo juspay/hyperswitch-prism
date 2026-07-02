@@ -537,10 +537,12 @@ impl TryFrom<&MandateAmountData> for KountRecurring {
     type Error = Error;
 
     fn try_from(mandate: &MandateAmountData) -> Result<Self, Self::Error> {
-        // `amount` is the per-period billing amount; omit it when unset (0) so we
-        // don't emit a bogus "0" to Kount.
-        let period_billing_amount = {
-            let amount = mandate.amount.amount.get_amount_as_i64();
+        // Kount's RecurringDetails amounts are smallest-currency-unit strings
+        // (`string <uint64>`) — i.e. raw minor units, per the recurring schema and
+        // independent of the connector's main amount converter. Omit a 0 value so
+        // we never emit a bogus "0" to Kount.
+        let minor_unit_amount = |money: &common_utils::types::Money| {
+            let amount = money.amount.get_amount_as_i64();
             (amount != 0).then(|| amount.to_string())
         };
         // Shared MandateAmountData carries dates as PrimitiveDateTime; Kount's
@@ -551,8 +553,8 @@ impl TryFrom<&MandateAmountData> for KountRecurring {
             initial_billing_amount: mandate
                 .initial_billing_amount
                 .as_ref()
-                .map(|money| money.amount.get_amount_as_i64().to_string()),
-            period_billing_amount,
+                .and_then(&minor_unit_amount),
+            period_billing_amount: minor_unit_amount(&mandate.amount),
             period: mandate.frequency.clone(),
             external_subscription_id: mandate.external_subscription_id.clone(),
             status: mandate.status.clone(),
