@@ -709,9 +709,9 @@ pub struct PaypalVault {
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PaypalVaultResponse {
-    id: String,
+    id: Option<String>,
     status: String,
-    customer: CustomerId,
+    customer: Option<CustomerId>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CustomerId {
@@ -2575,10 +2575,10 @@ where
                         connector_mandate_id: match item.response.payment_source.clone() {
                             Some(paypal_source) => match paypal_source {
                                 PaymentSourceItemResponse::Paypal(paypal_source) => {
-                                    paypal_source.attributes.map(|attr| attr.vault.id)
+                                    paypal_source.attributes.and_then(|attr| attr.vault.id)
                                 }
                                 PaymentSourceItemResponse::Card(card) => {
-                                    card.attributes.map(|attr| attr.vault.id)
+                                    card.attributes.and_then(|attr| attr.vault.id)
                                 }
                                 PaymentSourceItemResponse::Eps(_)
                                 | PaymentSourceItemResponse::Ideal(_)
@@ -2588,7 +2588,24 @@ where
                             None => None,
                         },
                         payment_method_id: None,
-                        connector_mandate_request_reference_id: None,
+                        // Surface the PayPal vault customer id (returning-customer flow),
+                        // mirroring the reference. Only PayPal sources carry a vault customer;
+                        // card/eps/ideal/wallet sources have none here.
+                        connector_mandate_request_reference_id: match item
+                            .response
+                            .payment_source
+                            .clone()
+                        {
+                            Some(PaymentSourceItemResponse::Paypal(paypal_source)) => paypal_source
+                                .attributes
+                                .and_then(|attr| attr.vault.customer.map(|cus| cus.id)),
+                            Some(PaymentSourceItemResponse::Card(_))
+                            | Some(PaymentSourceItemResponse::Eps(_))
+                            | Some(PaymentSourceItemResponse::Ideal(_))
+                            | Some(PaymentSourceItemResponse::GooglePay(_))
+                            | Some(PaymentSourceItemResponse::ApplePay(_))
+                            | None => None,
+                        },
                     })),
                     status_code: item.http_code,
                     connector_metadata: Some(connector_meta),
