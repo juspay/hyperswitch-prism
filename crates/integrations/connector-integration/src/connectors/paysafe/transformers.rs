@@ -133,6 +133,47 @@ pub(crate) fn is_paysafe_redirect_apm<T: PaymentMethodDataTypes>(
     }
 }
 
+/// Extract the Paysafe payment-handle token echoed back by the caller via
+/// `connector_feature_data` (serialized [`PaysafeMeta`]). The Authorize leg-1
+/// response returns this token in `connectorFeatureData`; the caller passes it
+/// back on the settle leg. Shared by the settle request builder and the
+/// second-leg detector so both read the token identically.
+pub(crate) fn paysafe_feature_data_handle_token(
+    resource_common_data: &PaymentFlowData,
+) -> Option<Secret<String>> {
+    resource_common_data
+        .connector_feature_data
+        .as_ref()
+        .and_then(|metadata_value| {
+            metadata_value
+                .clone()
+                .parse_value::<PaysafeMeta>("PaysafeMeta")
+                .ok()
+        })
+        .map(|meta| meta.payment_handle_token)
+}
+
+/// Whether this Authorize invocation is the SECOND leg of a redirect-APM payment:
+/// the shopper has returned from the Paysafe hosted redirect (`redirect_response`
+/// present) and/or the caller echoed back the leg-1 payment-handle token via
+/// `connector_feature_data`. The settle leg POSTs `v1/payments` with the payable
+/// handle token — mirrors hyperswitch's CompleteAuthorize flow. Shared by the
+/// Authorize URL selector and the Authorize request builder so both agree.
+pub(crate) fn is_paysafe_apm_settle_leg<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    router_data: &RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+) -> bool {
+    is_paysafe_redirect_apm(&router_data.request.payment_method_data)
+        && (router_data.request.redirect_response.is_some()
+            || paysafe_feature_data_handle_token(&router_data.resource_common_data).is_some())
+}
+
 /// Build a Paysafe payment-handle body for a redirect APM (Skrill, Interac
 /// e-Transfer, paysafecard) directly from the Authorize request. Mirrors the
 /// payment-handle body created by the PaymentMethodToken flow, but sourced from
@@ -985,17 +1026,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payment_handle_token: Secret<String> = match &router_data.request.payment_method_data {
             PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
-            _ => router_data
-                .resource_common_data
-                .connector_feature_data
-                .as_ref()
-                .and_then(|metadata_value| {
-                    metadata_value
-                        .clone()
-                        .parse_value::<PaysafeMeta>("PaysafeMeta")
-                        .ok()
-                        .map(|meta| meta.payment_handle_token)
-                })
+            _ => paysafe_feature_data_handle_token(&router_data.resource_common_data)
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "payment_method_token",
                     context: IntegrationErrorContext {
@@ -1031,22 +1062,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // For ACH, use the ach account_id; for wallets (GooglePay), always use no_three_ds
         // because the PaymentMethodToken (payment handle) was created under the no_three_ds
-        // account. For cards, branch on is_three_ds().
+        // account. For cards, branch on is_three_ds(). Redirect-APM settles (the second
+        // Authorize leg, mirroring hyperswitch's CompleteAuthorize) send NO accountId:
+        // the payment handle already carries its account binding, and re-specifying a
+        // card/ach account for e.g. an INTERAC_ETRANSFER handle is rejected by Paysafe
+        // with error 5068.
         let is_wallet = matches!(
             router_data.resource_common_data.payment_method,
             enums::PaymentMethod::Wallet
         );
 
-        let account_id = Some(if is_ach {
-            account_id.get_ach_account_id(router_data.request.currency)?
-        } else if is_wallet || !router_data.resource_common_data.is_three_ds() {
-            // Wallets (GooglePay) always use no_three_ds account because the payment handle
-            // (created in PaymentMethodToken flow) uses no_three_ds account.
-            // Non-3DS card payments also use no_three_ds.
-            account_id.get_no_three_ds_account_id(router_data.request.currency)?
-        } else {
-            account_id.get_three_ds_account_id(router_data.request.currency)?
-        });
+        let account_id = match (
+            is_paysafe_redirect_apm(&router_data.request.payment_method_data),
+            is_ach,
+            is_wallet || !router_data.resource_common_data.is_three_ds(),
+        ) {
+            (true, _, _) => None,
+            (false, true, _) => Some(account_id.get_ach_account_id(router_data.request.currency)?),
+            (false, false, true) => {
+                // Wallets (GooglePay) always use no_three_ds account because the payment
+                // handle (created in PaymentMethodToken flow) uses no_three_ds account.
+                // Non-3DS card payments also use no_three_ds.
+                Some(account_id.get_no_three_ds_account_id(router_data.request.currency)?)
+            }
+            (false, false, false) => {
+                Some(account_id.get_three_ds_account_id(router_data.request.currency)?)
+            }
+        };
 
         Ok(Self {
             merchant_ref_num: router_data
@@ -1106,15 +1148,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         // Redirect APMs (Skrill, Interac e-Transfer, paysafecard) create a payment
-        // handle directly in the Authorize flow (mirrors hyperswitch): they carry no
-        // pre-created token and must surface a customer redirect. Every other payment
-        // method settles a previously created handle token via v1/payments.
-        if is_paysafe_redirect_apm(&item.router_data.request.payment_method_data) {
-            let handle_request = build_paysafe_redirect_handle_request(&item.router_data)?;
-            Ok(Self::PaymentHandle(Box::new(handle_request)))
-        } else {
-            let payments_request = PaysafePaymentsRequest::try_from(item)?;
-            Ok(Self::Payment(Box::new(payments_request)))
+        // handle on the FIRST Authorize leg (mirrors hyperswitch): they carry no
+        // pre-created token and must surface a customer redirect. On the SECOND leg
+        // (shopper returned from the redirect / handle token echoed back) and for
+        // every other payment method, settle the handle token via v1/payments —
+        // mirrors hyperswitch's CompleteAuthorize.
+        match (
+            is_paysafe_redirect_apm(&item.router_data.request.payment_method_data),
+            is_paysafe_apm_settle_leg(&item.router_data),
+        ) {
+            (true, false) => {
+                let handle_request = build_paysafe_redirect_handle_request(&item.router_data)?;
+                Ok(Self::PaymentHandle(Box::new(handle_request)))
+            }
+            _ => {
+                let payments_request = PaysafePaymentsRequest::try_from(item)?;
+                Ok(Self::Payment(Box::new(payments_request)))
+            }
         }
     }
 }

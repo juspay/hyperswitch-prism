@@ -408,12 +408,16 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             // Redirect APMs (Skrill, Interac e-Transfer, paysafecard) create a payment
-            // handle so Paysafe returns the customer redirect link; everything else
-            // settles a pre-created handle token via v1/payments. Mirrors hyperswitch.
-            let endpoint = if paysafe::is_paysafe_redirect_apm(&req.request.payment_method_data) {
-                "v1/paymenthandles"
-            } else {
-                "v1/payments"
+            // handle on the FIRST leg so Paysafe returns the customer redirect link. On
+            // the SECOND leg (shopper returned / handle token echoed back) and for every
+            // other payment method, settle the handle token via v1/payments — mirrors
+            // hyperswitch's Authorize + CompleteAuthorize split.
+            let endpoint = match (
+                paysafe::is_paysafe_redirect_apm(&req.request.payment_method_data),
+                paysafe::is_paysafe_apm_settle_leg(req),
+            ) {
+                (true, false) => "v1/paymenthandles",
+                _ => "v1/payments",
             };
             Ok(format!("{}{}", self.connector_base_url_payments(req), endpoint))
         }
