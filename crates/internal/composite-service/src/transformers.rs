@@ -469,6 +469,7 @@ impl
             test_mode: item.test_mode,
             merchant_order_id: item.merchant_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
+            split_payments: item.split_payments.clone(),
         }
     }
 }
@@ -664,6 +665,7 @@ impl
             merchant_order_id: item.merchant_order_id.clone(),
             merchant_request_id: item.merchant_request_id.clone(),
             order_tax_amount: item.order_tax_amount,
+            split_payments: item.split_payments.clone(),
         }
     }
 }

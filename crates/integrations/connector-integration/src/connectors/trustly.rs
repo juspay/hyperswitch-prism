@@ -280,8 +280,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .body
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+        let message_id = webhook_body.params.data.messageid.clone();
 
-        Ok(trustly::get_webhook_event(webhook_body.method))
+        Ok(trustly::get_webhook_event(
+            webhook_body.method,
+            message_id.expose(),
+        ))
     }
 
     fn get_webhook_event_reference(

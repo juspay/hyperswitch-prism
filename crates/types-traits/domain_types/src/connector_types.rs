@@ -641,6 +641,19 @@ impl PaymentsSyncData {
         )
     }
 }
+/// Settlement phase reported by the connector on PSync. Mirrors the proto enum
+/// `SettlementStatus`. Distinct from `AttemptStatus` which collapses
+/// Authorized + Settled into `Charged`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SettlementStatus {
+    /// Connector emits the field but the txn is in neither Settled nor
+    /// Not-Settled phase (e.g. PACO Voided / Refunded / Failed / Pending).
+    Unspecified,
+    /// Funds finalised — Refund is the valid reversal.
+    Settled,
+    /// Authorised only, settlement pending — Void is the valid reversal.
+    NotSettled,
+}
 
 #[derive(Debug, Clone)]
 pub struct PaymentFlowData {
@@ -690,6 +703,10 @@ pub struct PaymentFlowData {
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    /// Settlement phase reported by the connector.
+    /// Lives on PaymentFlowData (not PaymentsSyncData) so other flows can
+    /// populate it in the future if a connector starts reporting settlement state on authorize, capture, etc.
+    pub settlement_status: Option<SettlementStatus>,
 }
 
 impl PaymentFlowData {
@@ -3734,6 +3751,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                payment_method_data::PayLaterData::TamaraRedirect {} => Self::TamaraRedirect,
                 payment_method_data::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
@@ -4136,7 +4154,7 @@ pub struct AirlineData {
 #[derive(Debug, Clone, Default)]
 pub struct AirlineSegment {
     pub sequence_no: Option<u32>,
-    pub carrier_code: Option<String>,
+    pub marketing_carrier_code: Option<String>,
     pub flight_number: Option<String>,
     pub flight_type: Option<String>,
     pub class_of_service: Option<String>,
@@ -4153,6 +4171,8 @@ pub struct AirlineSegment {
     pub conjunction_ticket: Option<String>,
     pub coupon_number: Option<String>,
     pub endorsements_restrictions: Option<String>,
+    pub operating_carrier_code: Option<String>,
+    pub operating_flight_number: Option<String>,
 }
 
 /// A flight endpoint, reused for both departure and arrival.
