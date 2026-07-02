@@ -160,6 +160,13 @@ pub enum MolliePaymentMethodData {
     /// collects the bank details on its hosted page), so this is a plain unit
     /// variant.
     Giropay,
+    /// Przelewy24 bank redirect via Mollie. Emitted as `"method": "przelewy24"`
+    /// (from the container `rename_all = "lowercase"`, no magic string). Unlike the
+    /// other bank redirects this is not a bare unit variant — it carries a boxed
+    /// `Przelewy24MethodData` with a single optional `billingEmail`. Przelewy24 is a
+    /// redirect flow — Mollie returns a checkout URL for the customer to authenticate
+    /// at their bank. Mirrors the reference hyperswitch connector.
+    Przelewy24(Box<Przelewy24MethodData>),
     // Recurring / Merchant-Initiated charge that references an existing mandate.
     // Serialized untagged so it emits only `mandateId` (no `method`
     // discriminator) — Mollie infers the method from the mandate.
@@ -202,6 +209,17 @@ pub struct ApplePayMethodData {
 #[serde(rename_all = "camelCase")]
 pub struct IdealMethodData {
     pub issuer: Option<Secret<String>>,
+}
+
+// Przelewy24 (bank redirect) payment body. Przelewy24 carries a single optional
+// method-specific field, `billingEmail` (from the container `rename_all =
+// "camelCase"`), which Mollie prefills on the P24 flow. It is sourced from the
+// request billing email when present; when `None` the field is omitted and only
+// `"method": "przelewy24"` is emitted. Mirrors the reference hyperswitch connector.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Przelewy24MethodData {
+    pub billing_email: Option<Email>,
 }
 
 // Klarna (PayLater) Method Data
@@ -369,6 +387,7 @@ fn mollie_wallet_payment_method(
 // point for the later Sofort/Bancontact/EPS/Giropay/Przelewy24 tasks.
 fn mollie_bank_redirect_payment_method(
     bank_redirect_data: &BankRedirectData,
+    billing_email: Option<Email>,
 ) -> Result<MolliePaymentMethodData, error_stack::Report<IntegrationError>> {
     match bank_redirect_data {
         // iDeal redirect flow. The issuer bank is optional and not currently
@@ -405,13 +424,15 @@ fn mollie_bank_redirect_payment_method(
         // method name from the container `rename_all`). Fields are intentionally
         // ignored (`{ .. }`) because nothing is sourced from the request.
         BankRedirectData::Giropay { .. } => Ok(MolliePaymentMethodData::Giropay),
-        // Bank redirects Mollie supports but which are not built yet — name the
-        // attempted method so the error is precise and actionable.
-        BankRedirectData::Przelewy24 { .. } => Err(IntegrationError::NotImplemented(
-            "przelewy24 bank redirect is not yet implemented for Mollie".to_string(),
-            Default::default(),
-        )
-        .into()),
+        // Przelewy24 redirect flow. Unlike the other bank redirects, Przelewy24
+        // carries one optional method-specific field, `billingEmail`, sourced from
+        // the request billing email (omitted when absent). Mollie collects the bank
+        // selection on its hosted checkout page and returns a redirect URL. Fields on
+        // the request variant are intentionally ignored (`{ .. }`) because only the
+        // billing email (passed in) is forwarded — matches the reference connector.
+        BankRedirectData::Przelewy24 { .. } => Ok(MolliePaymentMethodData::Przelewy24(Box::new(
+            Przelewy24MethodData { billing_email },
+        ))),
         // Any other bank redirect is not implemented for Mollie.
         _ => Err(IntegrationError::NotImplemented(
             "Selected bank redirect payment method is not implemented for Mollie".to_string(),
@@ -684,9 +705,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mollie_wallet_payment_method(wallet_data, billing_address, shipping_address)?
             }
             PaymentMethodData::BankRedirect(bank_redirect_data) => {
-                // iDeal (redirect) bank redirect. Mollie returns a 201 with a
-                // checkout URL for the customer to authenticate at their bank.
-                mollie_bank_redirect_payment_method(bank_redirect_data)?
+                // Bank redirect (iDeal / Sofort / Bancontact / EPS / Giropay /
+                // Przelewy24). Mollie returns a 201 with a checkout URL for the
+                // customer to authenticate at their bank. Przelewy24 additionally
+                // forwards the optional billing email; the other methods ignore it.
+                let billing_email = item.resource_common_data.get_optional_billing_email();
+                mollie_bank_redirect_payment_method(bank_redirect_data, billing_email)?
             }
             PaymentMethodData::MandatePayment => {
                 // MIT / recurring charge referencing a stored mandate.
