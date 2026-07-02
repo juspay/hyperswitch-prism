@@ -2471,7 +2471,7 @@ message PaymentServiceAuthorizeResponse {
   optional Money authorized_money = 20; // populated from AuthoriseIntegrityObject for integrity check
 
   // Mandate and Connector Response
-  optional MandateReference mandate_reference = 16 [deprecated = true]; // use authorized_money instead (will be removed in a future release)
+  optional MandateReference mandate_reference = 16 [deprecated = true]; // use mandate_reference_response instead (will be removed in a future release)
   optional ConnectorResponseData connector_response = 17;
   optional SecretString connector_feature_data =
       18; // Connector-specific metadata for the transaction
@@ -2562,7 +2562,7 @@ message PaymentServiceGetResponse {
   map<string, string> response_headers = 5;
 
   // Transaction Details
-  optional MandateReference mandate_reference = 6 [deprecated = true]; // use authorized_money instead (will be removed in a future release)
+  optional MandateReference mandate_reference = 6 [deprecated = true]; // use mandate_reference_response instead (will be removed in a future release)
   optional string network_transaction_id = 7;
   // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
   // Distinct from network_transaction_id.
@@ -2673,7 +2673,7 @@ message PaymentServiceVoidResponse {
   optional SecretString raw_connector_request = 8;
 
   // Mandate Details
-  optional MandateReference mandate_reference = 9 [deprecated = true]; // use authorized_money instead (will be removed in a future release)
+  optional MandateReference mandate_reference = 9 [deprecated = true]; // use mandate_reference_response instead (will be removed in a future release)
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 10;
@@ -2900,7 +2900,7 @@ message PaymentServiceCaptureResponse {
   optional int64 captured_amount = 9; // Captured amount in minor currency units
 
   // Mandate Details
-  MandateReference mandate_reference = 10 [deprecated = true]; // use authorized_money instead (will be removed in a future release)
+  MandateReference mandate_reference = 10 [deprecated = true]; // use mandate_reference_response instead (will be removed in a future release)
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 11;
@@ -3260,7 +3260,7 @@ message PaymentServiceSetupRecurringResponse {
       5; // Optional HTTP response headers from the connector
 
   // Mandate Details
-  MandateReference mandate_reference = 6 [deprecated = true]; // use authorized_money instead (will be removed in a future release)
+  MandateReference mandate_reference = 6 [deprecated = true]; // use mandate_reference_response instead (will be removed in a future release)
 
   // Redirection and Transaction Details
   optional RedirectForm redirection_data =
