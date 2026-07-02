@@ -20,8 +20,8 @@ use domain_types::{
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        BankRedirectData, PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
-        WalletData,
+        BankDebitData, BankRedirectData, PayLaterData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -167,6 +167,13 @@ pub enum MolliePaymentMethodData {
     /// redirect flow — Mollie returns a checkout URL for the customer to authenticate
     /// at their bank. Mirrors the reference hyperswitch connector.
     Przelewy24(Box<Przelewy24MethodData>),
+    /// SEPA Direct Debit via Mollie. Emitted as `"method": "directdebit"` (from
+    /// the container `rename_all = "lowercase"`, no magic string). Unlike the
+    /// bank-redirect methods this is not a redirect flow — Mollie debits the
+    /// supplied IBAN directly, so the request carries the consumer's IBAN
+    /// (`consumerAccount`) and optional name (`consumerName`). Mirrors the
+    /// reference hyperswitch connector.
+    DirectDebit(Box<DirectDebitMethodData>),
     // Recurring / Merchant-Initiated charge that references an existing mandate.
     // Serialized untagged so it emits only `mandateId` (no `method`
     // discriminator) — Mollie infers the method from the mandate.
@@ -220,6 +227,18 @@ pub struct IdealMethodData {
 #[serde(rename_all = "camelCase")]
 pub struct Przelewy24MethodData {
     pub billing_email: Option<Email>,
+}
+
+// SEPA Direct Debit payment body. Mollie debits the supplied IBAN
+// (`consumerAccount`, from the container `rename_all = "camelCase"`) directly.
+// The consumer's name (`consumerName`) is optional and sourced from the request
+// billing full name; when `None` the field is omitted. Mirrors the reference
+// hyperswitch connector.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectDebitMethodData {
+    consumer_name: Option<Secret<String>>,
+    consumer_account: Secret<String>,
 }
 
 // Klarna (PayLater) Method Data
@@ -436,6 +455,56 @@ fn mollie_bank_redirect_payment_method(
         // Any other bank redirect is not implemented for Mollie.
         _ => Err(IntegrationError::NotImplemented(
             "Selected bank redirect payment method is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+    }
+}
+
+// Map a bank-debit payment method to the corresponding Mollie payment body.
+// SEPA Direct Debit is supported; every other bank debit returns a method-named
+// NotImplemented (segregated from NotSupported) so the caller surfaces a precise
+// error. This helper mirrors `mollie_wallet_payment_method` /
+// `mollie_bank_redirect_payment_method`.
+fn mollie_bank_debit_payment_method(
+    bank_debit_data: &BankDebitData,
+    consumer_name: Option<Secret<String>>,
+) -> Result<MolliePaymentMethodData, error_stack::Report<IntegrationError>> {
+    match bank_debit_data {
+        // SEPA Direct Debit. Mollie debits the supplied IBAN directly (no
+        // redirect); forward the IBAN as `consumerAccount` and the optional
+        // billing full name as `consumerName`.
+        BankDebitData::SepaBankDebit { iban, .. } => Ok(MolliePaymentMethodData::DirectDebit(
+            Box::new(DirectDebitMethodData {
+                consumer_name,
+                consumer_account: iban.clone(),
+            }),
+        )),
+        // ACH / EFT / SEPA-Guaranteed / BECS / BACS direct debits are not
+        // implemented for Mollie. Each is enumerated explicitly (no `_` catch-all)
+        // and names the attempted method so the caller surfaces a precise error.
+        BankDebitData::AchBankDebit { .. } => Err(IntegrationError::NotImplemented(
+            "ACH bank debit is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        BankDebitData::EftBankDebit { .. } => Err(IntegrationError::NotImplemented(
+            "EFT bank debit is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        BankDebitData::SepaGuaranteedBankDebit { .. } => Err(IntegrationError::NotImplemented(
+            "SEPA guaranteed bank debit is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        BankDebitData::BecsBankDebit { .. } => Err(IntegrationError::NotImplemented(
+            "BECS bank debit is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        BankDebitData::BacsBankDebit { .. } => Err(IntegrationError::NotImplemented(
+            "BACS bank debit is not implemented for Mollie".to_string(),
             Default::default(),
         )
         .into()),
@@ -711,6 +780,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // forwards the optional billing email; the other methods ignore it.
                 let billing_email = item.resource_common_data.get_optional_billing_email();
                 mollie_bank_redirect_payment_method(bank_redirect_data, billing_email)?
+            }
+            PaymentMethodData::BankDebit(ref bank_debit_data) => {
+                // SEPA Direct Debit. Not a redirect — Mollie debits the supplied
+                // IBAN directly (expect a 201 with status pending/paid). Forward
+                // the optional billing full name as the consumer name.
+                let consumer_name = item.resource_common_data.get_optional_billing_full_name();
+                mollie_bank_debit_payment_method(bank_debit_data, consumer_name)?
             }
             PaymentMethodData::MandatePayment => {
                 // MIT / recurring charge referencing a stored mandate.
