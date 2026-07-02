@@ -173,7 +173,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Vipps | x |
 | Swish | x |
 | Affirm | x |
-| Afterpay | ✓ |
+| Afterpay | ? |
 | Klarna | x |
 | UPI Collect | x |
 | UPI Intent | ✓ |
@@ -259,14 +259,6 @@ Authorize a payment amount on a payment method. This reserves funds without capt
   "blik": {
     "blik_code": "777124"
   }
-}
-```
-
-##### Afterpay / Clearpay
-
-```python
-"payment_method": {
-  "afterpay_clearpay": {}
 }
 ```
 

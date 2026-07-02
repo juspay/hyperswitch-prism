@@ -21,41 +21,8 @@
         "error": "payment method affirm is not supported by PPRO is not supported by ppro"
       },
       "Afterpay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "afterpay_clearpay": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "customer": {
-            "email": "test@example.com"
-          },
-          "address": {
-            "billing_address": {
-              "country_alpha2_code": "US"
-            }
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "webhook_url": "https://example.com/webhook"
-        },
-        "sample": {
-          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_key",
-            "content-type": "application/json",
-            "merchant-id": "probe_merchant",
-            "request-idempotency-key": "probe_txn_001",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"paymentMethod\":\"AFTERPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: email. Afterpay requires consumer email — Missing required field: email. Afterpay requires consumer email"
       },
       "Alfamart": {
         "status": "not_supported",
