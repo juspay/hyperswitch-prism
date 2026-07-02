@@ -150,7 +150,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentServiceGetRequest: ["metadata", "connectorFeatureData"],
   PaymentServiceGetResponse: ["metadata", "rawConnectorResponse", "rawConnectorRequest", "connectorFeatureData"],
   PaymentServiceVoidRequest: ["metadata", "connectorFeatureData"],
-  PaymentServiceVoidResponse: ["rawConnectorRequest", "connectorFeatureData"],
+  PaymentServiceVoidResponse: ["rawConnectorRequest", "connectorFeatureData", "rawConnectorResponse"],
   PaymentServiceReverseRequest: ["metadata", "connectorFeatureData"],
   MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest: ["metadata", "connectorFeatureData"],
   MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse: ["accessToken"],

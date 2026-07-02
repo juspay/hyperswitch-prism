@@ -2492,6 +2492,17 @@ message PaymentServiceGetRequest {
   optional ConnectorMandateReferenceId mandate_reference = 18;
 }
 
+// Settlement phase reported by the connector on PaymentServiceGetResponse.
+enum SettlementStatus {
+  // Connector emitted the field but the txn is in neither Settled nor
+  // Not-Settled phase (terminal or in-flight states).
+  SETTLEMENT_STATUS_UNSPECIFIED = 0;
+  // Funds finalised — Refund is the valid reversal.
+  SETTLEMENT_STATUS_SETTLED = 1;
+  // Authorised only, settlement pending — Void is the valid reversal.
+  SETTLEMENT_STATUS_NOT_SETTLED = 2;
+}
+
 // Response message for a payment status synchronization
 message PaymentServiceGetResponse {
   // Identification
@@ -2552,6 +2563,10 @@ message PaymentServiceGetResponse {
   optional ConnectorSplitResponseData splits = 32;
 
   optional SecretString connector_feature_data = 33;
+  // Settlement phase reported by the connector. See SettlementStatus for the
+  // per-value semantics. Absent when the connector doesn't distinguish phases.
+  optional SettlementStatus settlement_status = 34;
+  
 }
 
 // Request message for voiding a payment
@@ -2616,6 +2631,9 @@ message PaymentServiceVoidResponse {
 
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 12;
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 13;
 }
 
 // Request message for reversing a captured payment if not yet settled (similar

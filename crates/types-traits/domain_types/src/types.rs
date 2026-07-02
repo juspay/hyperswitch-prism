@@ -1163,6 +1163,17 @@ impl ForeignTryFrom<grpc_api_types::payments::UpiSource> for payment_method_data
     }
 }
 
+impl From<crate::connector_types::SettlementStatus> for grpc_api_types::payments::SettlementStatus {
+    fn from(status: crate::connector_types::SettlementStatus) -> Self {
+        use crate::connector_types::SettlementStatus;
+        match status {
+            SettlementStatus::Unspecified => Self::Unspecified,
+            SettlementStatus::Settled => Self::Settled,
+            SettlementStatus::NotSettled => Self::NotSettled,
+        }
+    }
+}
+
 impl ForeignFrom<payment_method_data::UpiSource> for grpc_api_types::payments::UpiSource {
     fn foreign_from(value: payment_method_data::UpiSource) -> Self {
         match value {
@@ -4751,6 +4762,7 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             minor_amount_authorized: None,
             merchant_request_id: value.merchant_request_id.clone(),
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -4837,6 +4849,7 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -4923,6 +4936,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             merchant_request_id: None,
             sender_payment_instrument_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
+            settlement_status: None,
         })
     }
 }
@@ -5036,6 +5050,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -5128,6 +5143,7 @@ impl
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -5201,6 +5217,7 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -5285,6 +5302,7 @@ impl
             minor_amount_authorized: None,
             merchant_request_id: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -6783,6 +6801,9 @@ pub fn generate_payment_void_response(
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
                     raw_connector_request,
+                    raw_connector_response: router_data_v2
+                        .resource_common_data
+                        .get_raw_connector_response(),
                     state,
                     mandate_reference: mandate_reference_grpc,
                     incremental_authorization_allowed,
@@ -6821,6 +6842,9 @@ pub fn generate_payment_void_response(
                 ),
                 merchant_void_id: e.connector_transaction_id.clone(),
                 status: status as i32,
+                raw_connector_response: router_data_v2
+                    .resource_common_data
+                    .get_raw_connector_response(),
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
@@ -7216,6 +7240,9 @@ pub fn generate_payment_sync_response(
                             split_response,
                         )
                     }),
+                    settlement_status: router_data_v2.resource_common_data.settlement_status.map(
+                        |status| grpc_api_types::payments::SettlementStatus::from(status) as i32,
+                    ),
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
@@ -7316,6 +7343,9 @@ pub fn generate_payment_sync_response(
                         .sender_payment_instrument_id
                         .clone(),
                     splits: None,
+                    settlement_status: router_data_v2.resource_common_data.settlement_status.map(
+                        |status| grpc_api_types::payments::SettlementStatus::from(status) as i32,
+                    ),
                     connector_feature_data: None,
                 })
             }
@@ -7411,6 +7441,7 @@ pub fn generate_payment_sync_response(
                 payment_method_update: None,
                 sender_payment_instrument_id: None,
                 splits: None,
+                settlement_status: None,
                 connector_feature_data: None,
             })
         }
@@ -8288,6 +8319,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             payment_method_update: payment_method_update_grpc,
             sender_payment_instrument_id: value.sender_payment_instrument_id,
             splits: None,
+            settlement_status: None,
             connector_feature_data: None,
         })
     }
@@ -8687,6 +8719,7 @@ impl
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -8797,6 +8830,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -9821,6 +9855,7 @@ impl
             merchant_request_id: value.merchant_request_id.clone(),
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -10238,6 +10273,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -10334,6 +10370,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -11501,6 +11538,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -12262,6 +12300,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -12437,6 +12476,7 @@ impl
             merchant_request_id: value.merchant_request_id,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -12547,6 +12587,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -12652,6 +12693,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -12753,6 +12795,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -14594,6 +14637,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -14694,6 +14738,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -14794,6 +14839,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
@@ -14872,6 +14918,7 @@ impl
             merchant_request_id: None,
             l2_l3_data: None,
             sender_payment_instrument_id: None,
+            settlement_status: None,
         })
     }
 }
