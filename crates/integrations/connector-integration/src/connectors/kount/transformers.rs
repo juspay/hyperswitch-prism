@@ -1,4 +1,4 @@
-use common_enums::{AttemptStatus, FrmDecision};
+use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::StringMinorUnit;
 use domain_types::{
     connector_flow::{
@@ -16,10 +16,7 @@ use domain_types::{
     mandates::MandateAmountData,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_address::Address,
-    payment_method_data::{
-        BankDebitData, BankRedirectData, Card, PayLaterData, PaymentMethodData,
-        PaymentMethodDataTypes, WalletData,
-    },
+    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
 };
@@ -799,15 +796,42 @@ impl KountInstrument {
     }
 }
 
-/// Maps a non-card UCS payment method to a Kount payment instrument (type +
-/// optional token source). Returns `None` for methods with no Kount equivalent,
-/// in which case the `payment` block is omitted from the Evaluate Order. Cards
-/// are handled separately (they carry BIN/last4 + a PAN-derived token).
+/// Maps a `PaymentMethodType` to the corresponding Kount payment type for
+/// processor-token instruments (e.g. saved ApplePay → APAY). Returns `None`
+/// when there is no direct Kount equivalent, causing the caller to fall back to
+/// `TOKEN`.
+fn pmt_to_kount_payment_type(pmt: PaymentMethodType) -> Option<KountPaymentType> {
+    use KountPaymentType as K;
+    match pmt {
+        PaymentMethodType::ApplePay => Some(K::ApplePay),
+        PaymentMethodType::GooglePay => Some(K::GooglePay),
+        PaymentMethodType::Paypal => Some(K::Paypal),
+        PaymentMethodType::AmazonPay => Some(K::AmazonPay),
+        PaymentMethodType::SamsungPay => Some(K::SamsungPay),
+        PaymentMethodType::AliPay | PaymentMethodType::AliPayHk => Some(K::AliPay),
+        PaymentMethodType::WeChatPay => Some(K::WeChatPay),
+        PaymentMethodType::Giropay => Some(K::Giropay),
+        PaymentMethodType::Sofort => Some(K::Sofort),
+        PaymentMethodType::Interac => Some(K::Interac),
+        PaymentMethodType::Sepa | PaymentMethodType::SepaBankTransfer => Some(K::Sepa),
+        PaymentMethodType::Klarna => Some(K::Klarna),
+        PaymentMethodType::Affirm => Some(K::Affirm),
+        PaymentMethodType::AfterpayClearpay => Some(K::Afterpay),
+        _ => None,
+    }
+}
+
+/// Maps a UCS payment method to a Kount payment instrument (type + optional
+/// token source). Returns `None` for methods with no Kount equivalent, in which
+/// case the `payment` block is omitted from the Evaluate Order.
 fn kount_instrument<T: PaymentMethodDataTypes>(
     pm: &PaymentMethodData<T>,
+    pmt: Option<PaymentMethodType>,
 ) -> Option<KountInstrument> {
     use KountPaymentType as K;
     Some(match pm {
+        // Cards carry BIN/last4 + PAN-derived token; type reflects credit/debit.
+        PaymentMethodData::Card(card) => KountInstrument::typed(card_payment_type(card)),
         PaymentMethodData::CardRedirect(_) => KountInstrument::typed(K::Card),
         // Processor / network tokens: send the token itself as the (salted-hashed)
         // paymentToken, matching Kount's post-auth `paymentType=TOKEN` guidance.
@@ -819,84 +843,13 @@ fn kount_instrument<T: PaymentMethodDataTypes>(
         }
         PaymentMethodData::Crypto(_) => KountInstrument::typed(K::Crypto),
         PaymentMethodData::GiftCard(_) => KountInstrument::typed(K::GiftCard),
-        PaymentMethodData::Wallet(wallet) => return kount_wallet_instrument(wallet),
-        PaymentMethodData::PayLater(pay_later) => return kount_pay_later_instrument(pay_later),
-        PaymentMethodData::BankRedirect(bank) => return kount_bank_redirect_instrument(bank),
-        PaymentMethodData::BankDebit(bank) => return kount_bank_debit_instrument(bank),
-        _ => return None,
-    })
-}
-
-fn kount_wallet_instrument(wallet: &WalletData) -> Option<KountInstrument> {
-    use KountPaymentType as K;
-    Some(match wallet {
-        WalletData::ApplePay(_)
-        | WalletData::ApplePayRedirect(_)
-        | WalletData::ApplePayThirdPartySdk(_) => KountInstrument::typed(K::ApplePay),
-        WalletData::GooglePay(_)
-        | WalletData::GooglePayRedirect(_)
-        | WalletData::GooglePayThirdPartySdk(_) => KountInstrument::typed(K::GooglePay),
-        // PayPal identifies the payer by email (redirect) or a processor token (SDK).
-        WalletData::PaypalRedirect(paypal) => KountInstrument::with_token(
-            K::Paypal,
-            paypal.email.as_ref().map(|email| email.peek().to_string()),
-        ),
-        WalletData::PaypalSdk(paypal) => {
-            KountInstrument::with_token(K::Paypal, Some(paypal.token.clone()))
+        // For all other payment methods (wallets, pay-later, bank redirect/debit, …)
+        // derive the Kount type from PMT; return None when there is no mapping.
+        _ => {
+            return pmt
+                .and_then(pmt_to_kount_payment_type)
+                .map(KountInstrument::typed)
         }
-        WalletData::AmazonPayRedirect(_) => KountInstrument::typed(K::AmazonPay),
-        WalletData::SamsungPay(_) => KountInstrument::typed(K::SamsungPay),
-        WalletData::AliPayQr(_)
-        | WalletData::AliPayRedirect(_)
-        | WalletData::AliPayHkRedirect(_) => KountInstrument::typed(K::AliPay),
-        WalletData::WeChatPayRedirect(_) | WalletData::WeChatPayQr(_) => {
-            KountInstrument::typed(K::WeChatPay)
-        }
-        _ => return None,
-    })
-}
-
-fn kount_pay_later_instrument(pay_later: &PayLaterData) -> Option<KountInstrument> {
-    use KountPaymentType as K;
-    Some(match pay_later {
-        PayLaterData::KlarnaRedirect {} | PayLaterData::KlarnaSdk { .. } => {
-            KountInstrument::typed(K::Klarna)
-        }
-        PayLaterData::AffirmRedirect {} => KountInstrument::typed(K::Affirm),
-        PayLaterData::AfterpayClearpayRedirect {} => KountInstrument::typed(K::Afterpay),
-        _ => return None,
-    })
-}
-
-fn kount_bank_redirect_instrument(bank: &BankRedirectData) -> Option<KountInstrument> {
-    use KountPaymentType as K;
-    Some(match bank {
-        BankRedirectData::Giropay {
-            bank_account_iban, ..
-        } => KountInstrument::with_token(
-            K::Giropay,
-            bank_account_iban
-                .as_ref()
-                .map(|iban| iban.peek().to_string()),
-        ),
-        BankRedirectData::Interac { email, .. } => KountInstrument::with_token(
-            K::Interac,
-            email.as_ref().map(|email| email.peek().to_string()),
-        ),
-        BankRedirectData::Sofort { .. } => KountInstrument::typed(K::Sofort),
-        _ => return None,
-    })
-}
-
-fn kount_bank_debit_instrument(bank: &BankDebitData) -> Option<KountInstrument> {
-    use KountPaymentType as K;
-    // The account identifier (IBAN / account number) is the instrument token.
-    Some(match bank {
-        BankDebitData::SepaBankDebit { iban, .. }
-        | BankDebitData::SepaGuaranteedBankDebit { iban, .. } => {
-            KountInstrument::with_token(K::Sepa, Some(iban.peek().to_string()))
-        }
-        _ => return None,
     })
 }
 
@@ -1051,29 +1004,31 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // a missing/invalid Kount config is surfaced rather than silently dropped.
         let api_key = KountAuthType::try_from(&item.router_data.connector_config)?.api_key;
         let salted_token = |source: &str| payment_token_hash(&api_key, source);
-        let payment = match req.payment_method.as_ref() {
-            // Cards carry BIN/last4 + a PAN-derived token; the type reflects credit/debit.
-            Some(PaymentMethodData::Card(card)) => {
-                let pan = card.card_number.peek();
-                let (bin, last4) = card_bin_last4(pan);
-                Some(KountPayment {
-                    payment_type: card_payment_type(card),
+        let payment = req.payment_method.as_ref().and_then(|pm| {
+            kount_instrument(pm, req.payment_method_type).map(|instrument| {
+                // Cards carry BIN/last4 + a PAN-derived token; the type reflects credit/debit.
+                let (bin, last4, payment_token) = match pm {
+                    PaymentMethodData::Card(card) => {
+                        let pan = card.card_number.peek();
+                        let (bin, last4) = card_bin_last4(pan);
+                        (bin, last4, salted_token(pan))
+                    }
+                    // Non-card methods: salted token of the instrument identifier
+                    // (payer email, IBAN, account number, …) when one is available.
+                    _ => (
+                        None,
+                        None,
+                        instrument.token_source.as_deref().and_then(salted_token),
+                    ),
+                };
+                KountPayment {
+                    payment_type: instrument.payment_type,
                     bin,
                     last4,
-                    payment_token: salted_token(pan),
-                })
-            }
-            // Non-card methods: mapped Kount type + a salted token of the
-            // instrument identifier (payer email, IBAN, account number, …) when
-            // one is available. Methods with no Kount equivalent omit the block.
-            Some(other) => kount_instrument(other).map(|instrument| KountPayment {
-                payment_type: instrument.payment_type,
-                bin: None,
-                last4: None,
-                payment_token: instrument.token_source.as_deref().and_then(salted_token),
-            }),
-            None => None,
-        };
+                    payment_token,
+                }
+            })
+        });
 
         let amount = super::KountAmountConvertor::convert(req.amount.amount, currency)?;
         let transactions = vec![KountTransaction {

@@ -9,7 +9,7 @@ use crate::{
     router_request_types::BrowserInformation,
     types::Connectors,
 };
-use common_enums::{AttemptStatus, FrmDecision};
+use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::Money;
 use hyperswitch_masking::Secret;
 
@@ -76,6 +76,8 @@ pub struct PreRiskCheckRequest {
     pub mandate_info: Option<MandateAmountData>,
     /// Merchant details (id + MCC) for risk scoring.
     pub merchant_details: Option<MerchantDetails>,
+    /// Payment method sub-type (e.g. `Card`, `GooglePay`, `UpiCollect`) for risk scoring.
+    pub payment_method_type: Option<PaymentMethodType>,
 }
 
 /// Response data for pre-risk check
