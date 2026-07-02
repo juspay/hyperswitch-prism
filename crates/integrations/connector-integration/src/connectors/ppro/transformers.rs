@@ -1039,18 +1039,18 @@ pub(crate) fn build_auth_redirect(
     auth_methods: &[PproAuthenticationResponse],
     payment_method_type: Option<common_enums::PaymentMethodType>,
 ) -> Option<RedirectForm> {
-    let wanted_type = match payment_method_type {
+    let matched_type = match payment_method_type {
         Some(common_enums::PaymentMethodType::UpiIntent) => PproAuthenticationType::AppIntent,
         Some(common_enums::PaymentMethodType::UpiQr) => PproAuthenticationType::ScanCode,
         _ => PproAuthenticationType::Redirect,
     };
 
     auth_methods.iter().find_map(|method| {
-        if method.r#type != wanted_type {
+        if method.r#type != matched_type {
             return None;
         }
         let details = method.details.as_ref()?;
-        let uri = match wanted_type {
+        let uri = match matched_type {
             PproAuthenticationType::AppIntent => details.mobile_intent_uri.clone(),
             PproAuthenticationType::ScanCode => details.code_payload.clone(),
             PproAuthenticationType::Redirect => details.request_url.clone(),
