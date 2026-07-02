@@ -621,18 +621,18 @@ fn build_payment_method_options(
                 },
             })
         }
-        AirwallexPaymentMethod::Card(_)
-        | AirwallexPaymentMethod::Wallets(_)
-        | AirwallexPaymentMethod::BankRedirect(_) => Some(AirwallexPaymentOptions {
+        AirwallexPaymentMethod::Card(_) => Some(AirwallexPaymentOptions {
             card: Some(AirwallexCardOptions {
                 auto_capture: Some(auto_capture),
             }),
             klarna: None,
             atome: None,
         }),
-        // BankTransfer has no payment_method_options block (mirrors the reference upstream,
-        // which only emits options for Card/Klarna/Atome).
-        AirwallexPaymentMethod::BankTransfer(_) => None,
+        // Wallets, BankRedirect and BankTransfer have no payment_method_options block
+        // (mirrors the reference upstream, which only emits options for Card/Klarna/Atome).
+        AirwallexPaymentMethod::Wallets(_)
+        | AirwallexPaymentMethod::BankRedirect(_)
+        | AirwallexPaymentMethod::BankTransfer(_) => None,
     }
 }
 
@@ -767,6 +767,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auto_capture = matches!(
             item.router_data.request.capture_method,
             Some(common_enums::CaptureMethod::Automatic)
+                | Some(common_enums::CaptureMethod::SequentialAutomatic)
+                | None
         );
 
         let payment_method_options = build_payment_method_options(&payment_method, auto_capture);
@@ -858,6 +860,7 @@ pub enum AirwallexPaymentStatus {
     Settled, // Payment fully settled - indicates successful completion
     Cancelled,
     Failed,
+    Pending,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -941,6 +944,7 @@ fn get_payment_status(
         AirwallexPaymentStatus::Cancelled => AttemptStatus::Voided,
         AirwallexPaymentStatus::CaptureRequested => AttemptStatus::Charged,
         AirwallexPaymentStatus::Settled => AttemptStatus::Charged,
+        AirwallexPaymentStatus::Pending => AttemptStatus::Pending,
     }
 }
 
@@ -1541,6 +1545,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auto_capture = matches!(
             item.router_data.request.capture_method,
             Some(common_enums::CaptureMethod::Automatic)
+                | Some(common_enums::CaptureMethod::SequentialAutomatic)
+                | None
         );
 
         let payment_method_options = build_payment_method_options(&payment_method, auto_capture);
@@ -1732,6 +1738,7 @@ impl TryFrom<ResponseRouterData<AirwallexIntentResponse, Self>>
             AirwallexPaymentStatus::Authorized => AttemptStatus::Authorized,
             AirwallexPaymentStatus::Paid => AttemptStatus::Charged,
             AirwallexPaymentStatus::CaptureRequested => AttemptStatus::Charged,
+            AirwallexPaymentStatus::Pending => AttemptStatus::Pending,
         };
 
         router_data.response = Ok(domain_types::connector_types::PaymentCreateOrderResponse {
