@@ -396,7 +396,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         })?
                         .peek()
                         .to_string(),
-                    region: None,
+                    // Klarna risk assessment uses the billing state/region when
+                    // available; mirror the reference connector which forwards
+                    // the optional state rather than always sending null.
+                    region: address.state.clone(),
                     country: address
                         .country
                         .ok_or(IntegrationError::MissingRequiredField {
