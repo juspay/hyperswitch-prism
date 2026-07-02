@@ -5509,7 +5509,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     None,
                     None,
                     Some(CybersourceAuthorizationOptions {
-                        initiator: None,
+                        // Match the Direct (hyperswitch) gateway, which sets the initiator
+                        // block for the ConnectorMandateId (stored-credential MIT) flow.
+                        // Without this UCS emits authorizationOptions.initiator = null while
+                        // Direct emits the merchant-initiated stored-credential object.
+                        initiator: Some(CybersourcePaymentInitiator {
+                            initiator_type: Some(CybersourcePaymentInitiatorTypes::Merchant),
+                            credential_stored_on_file: None,
+                            stored_credential_used: Some(true),
+                        }),
                         merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                             reason: None,
                             original_authorized_amount,
