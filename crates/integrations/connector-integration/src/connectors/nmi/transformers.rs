@@ -883,20 +883,24 @@ impl TryFrom<ResponseRouterData<SyncResponse, Self>>
             });
 
         // Handle empty response (means AuthenticationPending) or transaction data
+        // On the empty-response branch, keep resource_id anchored to the transaction_id
+        // that was actually requested (Hyperswitch's PSync leaves the prior resource_id
+        // untouched via `..item.data` in this case, so it never regresses to NoResponseId).
         let (status, transaction_id) = if let Some(transaction) = transaction {
             // Map condition field from XML to AttemptStatus using NmiStatus enum
             let status = AttemptStatus::from(NmiStatus::from(transaction.condition.clone()));
-            (status, Some(transaction.transaction_id.clone()))
+            (status, transaction.transaction_id.clone())
         } else {
             // Empty XML response = AuthenticationPending (during 3DS flow)
-            (AttemptStatus::AuthenticationPending, None)
+            (
+                AttemptStatus::AuthenticationPending,
+                requested_transaction_id,
+            )
         };
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: transaction_id
-                    .map(ResponseId::ConnectorTransactionId)
-                    .unwrap_or(ResponseId::NoResponseId),
+                resource_id: ResponseId::ConnectorTransactionId(transaction_id),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
