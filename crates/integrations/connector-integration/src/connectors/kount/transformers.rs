@@ -519,36 +519,53 @@ pub struct KountRecurring {
     pub description: Option<String>,
 }
 
-impl From<&MandateAmountData> for KountRecurring {
-    fn from(m: &MandateAmountData) -> Self {
-        // Shared MandateAmountData carries dates as PrimitiveDateTime; Kount's
-        // recurring block wants strings, so format each as RFC 3339 (UTC).
-        let format_date = |d: time::PrimitiveDateTime| {
-            d.assume_utc()
-                .format(&time::format_description::well_known::Rfc3339)
-                .ok()
-        };
+/// Format a domain date as an RFC 3339 (UTC) string for Kount's recurring block.
+fn format_kount_date(date: time::PrimitiveDateTime) -> Result<String, Error> {
+    date.assume_utc()
+        .format(&time::format_description::well_known::Rfc3339)
+        .map_err(|_| {
+            error_stack::report!(errors::IntegrationError::InvalidDataFormat {
+                field_name: "mandate_info.date",
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to format a recurring date as RFC 3339".to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })
+        })
+}
+
+impl TryFrom<&MandateAmountData> for KountRecurring {
+    type Error = Error;
+
+    fn try_from(mandate: &MandateAmountData) -> Result<Self, Self::Error> {
         // `amount` is the per-period billing amount; omit it when unset (0) so we
         // don't emit a bogus "0" to Kount.
         let period_billing_amount = {
-            let amount = m.amount.amount.get_amount_as_i64();
+            let amount = mandate.amount.amount.get_amount_as_i64();
             (amount != 0).then(|| amount.to_string())
         };
-        Self {
-            start_date: m.start_date.and_then(format_date),
-            end_date: m.end_date.and_then(format_date),
-            initial_billing_amount: m
+        // Shared MandateAmountData carries dates as PrimitiveDateTime; Kount's
+        // recurring block wants RFC 3339 (UTC) strings.
+        Ok(Self {
+            start_date: mandate.start_date.map(format_kount_date).transpose()?,
+            end_date: mandate.end_date.map(format_kount_date).transpose()?,
+            initial_billing_amount: mandate
                 .initial_billing_amount
                 .as_ref()
                 .map(|money| money.amount.get_amount_as_i64().to_string()),
             period_billing_amount,
-            period: m.frequency.clone(),
-            external_subscription_id: m.external_subscription_id.clone(),
-            status: m.status.clone(),
-            next_billing_date: m.next_billing_date.and_then(format_date),
-            billing_cycle: m.billing_cycle,
-            description: m.description.clone(),
-        }
+            period: mandate.frequency.clone(),
+            external_subscription_id: mandate.external_subscription_id.clone(),
+            status: mandate.status.clone(),
+            next_billing_date: mandate
+                .next_billing_date
+                .map(format_kount_date)
+                .transpose()?,
+            billing_cycle: mandate.billing_cycle,
+            description: mandate.description.clone(),
+        })
     }
 }
 
@@ -633,83 +650,77 @@ pub struct KountAddress {
     pub postal_code: Option<String>,
 }
 
-/// Marker error for person conversions that yield no usable fields. Callers use
-/// `.ok()` to treat "no person data" as an absent (skipped) block.
-pub struct NoPersonData;
-
 /// Build a Kount person block (name / email / phone / address) from a domain
-/// address. `Err(NoPersonData)` when the address carries no usable person fields.
-impl TryFrom<&Address> for KountPerson {
-    type Error = NoPersonData;
-
-    fn try_from(addr: &Address) -> Result<Self, Self::Error> {
-        let details = addr.address.as_ref();
-        let name = details.and_then(|d| {
-            let first = d.first_name.as_ref().map(|name| name.peek().to_string());
-            let last = d.last_name.as_ref().map(|name| name.peek().to_string());
-            KountName::from_parts(first, last)
-        });
-        let kount_address = details.map(|d| KountAddress {
-            line1: d.line1.as_ref().map(|line| line.peek().to_string()),
-            line2: d.line2.as_ref().map(|line| line.peek().to_string()),
-            city: d.city.as_ref().map(|city| city.peek().to_string()),
-            region: d.state.as_ref().map(|state| state.peek().to_string()),
-            country_code: d.country.map(|country| country.to_string()),
-            postal_code: d.zip.as_ref().map(|zip| zip.peek().to_string()),
-        });
-        let email_address = addr.email.as_ref().map(|email| email.peek().to_string());
-        let phone_number = addr
-            .phone
-            .as_ref()
-            .and_then(|phone| phone.number.as_ref().map(|num| num.peek().to_string()));
-        if name.is_none()
-            && kount_address.is_none()
-            && email_address.is_none()
-            && phone_number.is_none()
-        {
-            return Err(NoPersonData);
-        }
-        Ok(Self {
-            name,
-            email_address,
-            phone_number,
-            address: kount_address,
-        })
-    }
-}
-
-/// Fallback person block from customer info (name / email / phone, no address).
-/// `Err(NoPersonData)` when the customer carries no usable fields.
-impl TryFrom<&CustomerInfo> for KountPerson {
-    type Error = NoPersonData;
-
-    fn try_from(customer: &CustomerInfo) -> Result<Self, Self::Error> {
-        let first = customer
+/// address. `None` when the address carries no usable person fields.
+fn kount_person_from_address(addr: &Address) -> Option<KountPerson> {
+    let details = addr.address.as_ref();
+    let name = details.and_then(|details| {
+        let first = details
             .first_name
             .as_ref()
             .map(|name| name.peek().to_string());
-        let last = customer
+        let last = details
             .last_name
             .as_ref()
             .map(|name| name.peek().to_string());
-        let email_address = customer
-            .customer_email
-            .as_ref()
-            .map(|email| email.peek().to_string());
-        let phone_number = customer
-            .customer_phone_number
-            .as_ref()
-            .map(|phone| phone.peek().to_string());
-        if first.is_none() && last.is_none() && email_address.is_none() && phone_number.is_none() {
-            return Err(NoPersonData);
-        }
-        Ok(Self {
-            name: KountName::from_parts(first, last),
-            email_address,
-            phone_number,
-            address: None,
-        })
+        KountName::from_parts(first, last)
+    });
+    let kount_address = details.map(|details| KountAddress {
+        line1: details.line1.as_ref().map(|line| line.peek().to_string()),
+        line2: details.line2.as_ref().map(|line| line.peek().to_string()),
+        city: details.city.as_ref().map(|city| city.peek().to_string()),
+        region: details.state.as_ref().map(|state| state.peek().to_string()),
+        country_code: details.country.map(|country| country.to_string()),
+        postal_code: details.zip.as_ref().map(|zip| zip.peek().to_string()),
+    });
+    let email_address = addr.email.as_ref().map(|email| email.peek().to_string());
+    let phone_number = addr
+        .phone
+        .as_ref()
+        .and_then(|phone| phone.number.as_ref().map(|num| num.peek().to_string()));
+    if name.is_none()
+        && kount_address.is_none()
+        && email_address.is_none()
+        && phone_number.is_none()
+    {
+        return None;
     }
+    Some(KountPerson {
+        name,
+        email_address,
+        phone_number,
+        address: kount_address,
+    })
+}
+
+/// Fallback person block from customer info (name / email / phone, no address).
+/// `None` when the customer carries no usable fields.
+fn kount_person_from_customer(customer: &CustomerInfo) -> Option<KountPerson> {
+    let first = customer
+        .first_name
+        .as_ref()
+        .map(|name| name.peek().to_string());
+    let last = customer
+        .last_name
+        .as_ref()
+        .map(|name| name.peek().to_string());
+    let email_address = customer
+        .customer_email
+        .as_ref()
+        .map(|email| email.peek().to_string());
+    let phone_number = customer
+        .customer_phone_number
+        .as_ref()
+        .map(|phone| phone.peek().to_string());
+    if first.is_none() && last.is_none() && email_address.is_none() && phone_number.is_none() {
+        return None;
+    }
+    Some(KountPerson {
+        name: KountName::from_parts(first, last),
+        email_address,
+        phone_number,
+        address: None,
+    })
 }
 
 /// Stable payment-instrument token for Kount: `hex(HMAC-SHA256(key = api_key,
@@ -959,7 +970,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Subscription / recurring context, applied to every line item when the
         // order carries mandate info.
-        let recurring = req.mandate_info.as_ref().map(KountRecurring::from);
+        let recurring = req
+            .mandate_info
+            .as_ref()
+            .map(KountRecurring::try_from)
+            .transpose()?;
 
         // Line items from order details.
         let items = match req.order_details.as_ref() {
@@ -1004,24 +1019,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 addr.get_payment_billing()
                     .or_else(|| addr.get_payment_method_billing())
             })
-            .and_then(|addr| KountPerson::try_from(addr).ok())
+            .and_then(kount_person_from_address)
             .or_else(|| {
                 req.customer_info
                     .as_ref()
-                    .and_then(|customer| KountPerson::try_from(customer).ok())
+                    .and_then(kount_person_from_customer)
             });
         // Fulfillment recipient: identity (name / email / phone) from customer
-        // info, with the shipping address attached (customer info has no address).
-        let shipping_address = address
-            .and_then(|addr| addr.get_shipping())
-            .and_then(|addr| KountPerson::try_from(addr).ok())
+        // info, with the order address attached (customer info has no address).
+        // Prefer the shipping address; fall back to billing, since the FRM request
+        // carries a single address that maps to billing (shipping is unset).
+        let recipient_address = address
+            .and_then(|addr| addr.get_shipping().or_else(|| addr.get_payment_billing()))
+            .and_then(kount_person_from_address)
             .and_then(|person| person.address);
         let fulfillment = req
             .customer_info
             .as_ref()
-            .and_then(|customer| KountPerson::try_from(customer).ok())
+            .and_then(kount_person_from_customer)
             .map(|mut recipient| {
-                recipient.address = shipping_address;
+                recipient.address = recipient_address;
                 vec![KountFulfillment {
                     fulfillment_type,
                     recipient_person: Some(recipient),
@@ -1029,18 +1046,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             })
             .unwrap_or_default();
 
-        // Payment instrument from the payment method. The api_key is reused as
-        // the salt for `paymentToken` (a salted hash of the instrument
-        // identifier); if auth can't be resolved we still send type + BIN/last4
-        // and simply omit the token.
-        let api_key = KountAuthType::try_from(&item.router_data.connector_config)
-            .ok()
-            .map(|auth| auth.api_key);
-        let salted_token = |source: &str| {
-            api_key
-                .as_ref()
-                .and_then(|api_key| payment_token_hash(api_key, source))
-        };
+        // Payment instrument from the payment method. The Kount api_key is the
+        // salt for `paymentToken` (a salted hash of the instrument identifier), so
+        // a missing/invalid Kount config is surfaced rather than silently dropped.
+        let api_key = KountAuthType::try_from(&item.router_data.connector_config)?.api_key;
+        let salted_token = |source: &str| payment_token_hash(&api_key, source);
         let payment = match req.payment_method.as_ref() {
             // Cards carry BIN/last4 + a PAN-derived token; the type reflects credit/debit.
             Some(PaymentMethodData::Card(card)) => {
@@ -1107,7 +1117,7 @@ impl TryFrom<ResponseRouterData<KountOrderResponse, Self>>
         // `return_raw_connector_data` flag), mirroring twoc_twop_paco / ppro.
         let raw_connector_response = serde_json::to_string(&item.response).ok().map(Secret::new);
         let order = item.response.order.as_ref();
-        let risk = order.and_then(|o| o.risk_inquiry.as_ref());
+        let risk = order.and_then(|order| order.risk_inquiry.as_ref());
         Ok(Self {
             response: Ok(PreRiskCheckResponse {
                 frm_decision: risk
