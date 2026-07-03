@@ -587,6 +587,7 @@ impl
             state: item.state.clone(),
             redirection_response: item.redirection_response.clone(),
             capture_method: item.capture_method,
+            webhook_url: item.webhook_url.clone(),
         }
     }
 }

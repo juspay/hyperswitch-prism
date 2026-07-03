@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.03.1
+
+### Features
+
+- **pma:** Thread webhook_url through PaymentMethodAuthenticationService ([#1809](https://github.com/juspay/connector-service/pull/1809)) ([`4d6b5b7`](https://github.com/juspay/connector-service/commit/4d6b5b7609f9be2ec92f7275cd1fe9d4cfc439b7))
+
+### Bug Fixes
+
+- **cybersource:** Parse 5xx server-error body on UCS authorize ([#17186](https://github.com/juspay/connector-service/pull/17186)) ([#1736](https://github.com/juspay/connector-service/pull/1736)) ([`fd5ce4e`](https://github.com/juspay/connector-service/commit/fd5ce4ed0976ceac551c473dace6b21a317b3434))
+
+**Full Changelog:** [`2026.07.03.0...2026.07.03.1`](https://github.com/juspay/connector-service/compare/2026.07.03.0...2026.07.03.1)
+
+- - -
+
 ## 2026.07.03.0
 
 ### Features
