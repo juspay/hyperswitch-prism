@@ -2443,7 +2443,7 @@ pub fn execute_tonic_request_from_payload(
                     &connector_request_reference_id,
                 );
                 let mut client = grpc_api_types::payments::payment_service_client::PaymentServiceClient::new(channel.clone());
-                let response = client.setup_recurring(request).await.map_err(|error| {
+                let response = Box::pin(client.setup_recurring(request)).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
@@ -4948,14 +4948,12 @@ mod tests {
             "PaymentService/Reverse" => validate_tonic_payload_shape::<
                 payments::PaymentServiceReverseRequest,
             >(connector, suite, scenario, grpc_req),
-            "PaymentService/VerifyRedirectResponse" => validate_tonic_payload_shape::<
-                payments::PaymentServiceVerifyRedirectResponseRequest,
-            >(connector, suite, scenario, grpc_req),
-            "EventService/HandleEvent" => {
-                // Webhook requests use base64 for the proto `bytes body` field,
-                // which grpcurl interprets correctly but tonic serde expects a
-                // byte array.  Skip tonic-level shape validation; the runtime
-                // grpcurl path is the authoritative check.
+            "PaymentService/VerifyRedirectResponse" | "EventService/HandleEvent" => {
+                // Both carry a `RequestDetails` with a proto `bytes body` field.
+                // grpcurl interprets the base64 string body correctly, but tonic
+                // serde expects a byte array, so the two representations conflict.
+                // Skip tonic-level shape validation; the runtime grpcurl path is
+                // the authoritative check.
                 Ok(())
             }
             "PaymentService/TokenAuthorize" => validate_tonic_payload_shape::<

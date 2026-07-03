@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use common_utils::{consts, metadata::MaskedMetadata};
+use common_utils::{consts, metadata::MaskedMetadata, request_metrics::ConnectorLatencyTracker};
 use domain_types::{errors::IntegrationError, router_data::ConnectorSpecificConfig};
 use error_stack::Report;
 use tonic::metadata;
@@ -137,5 +137,6 @@ fn extract_routing_metadata_only(
         resource_id,
         environment,
         proxy_name,
+        connector_latency: ConnectorLatencyTracker::default(),
     })
 }

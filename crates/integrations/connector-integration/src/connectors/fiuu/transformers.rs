@@ -2865,6 +2865,7 @@ impl TryFrom<FiuuRefundSyncResponse> for RefundWebhookDetailsResponse {
         match notif {
             FiuuRefundSyncResponse::Webhook(fiuu_webhooks_refund_response) => Ok(Self {
                 connector_refund_id: Some(fiuu_webhooks_refund_response.refund_id),
+                merchant_transaction_id: None,
                 status: common_enums::RefundStatus::from(
                     fiuu_webhooks_refund_response.status.clone(),
                 ),

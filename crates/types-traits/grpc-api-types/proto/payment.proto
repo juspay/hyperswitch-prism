@@ -463,6 +463,7 @@ enum WebhookEventType {
   // Refund events
   WEBHOOK_REFUND_FAILURE = 15; // Refund failure
   WEBHOOK_REFUND_SUCCESS = 16; // Refund success
+  WEBHOOK_REFUND_PROCESSING = 42; // Refund processing
 
   // Dispute events
   WEBHOOK_DISPUTE_OPENED = 17;     // Dispute opened
@@ -812,6 +813,7 @@ enum Connector {
   HYPERSWITCH = 126;
   TSYS_TRANSIT = 127;
   KOUNT = 128;
+  FLYWIRE = 129;
 }
 
 // Payment method types
@@ -1134,7 +1136,11 @@ message OnlineMandate {
   string user_agent = 2;
 }
 
-// Amount data for mandate
+// Amount data for mandate.
+//
+// Also carries subscription / recurring-order context consumed by FRM risk
+// scoring (e.g. Kount's `recurring` block). In that FRM usage `amount` is the
+// per-period billing amount and `frequency` is the billing period.
 message MandateAmountData {
   int64 amount = 1 [deprecated = true]; // Use amount_money instead (will be removed in a future release)
   Currency currency = 2 [deprecated = true]; // Use amount_money.currency instead (will be removed in a future release)
@@ -1145,6 +1151,23 @@ message MandateAmountData {
   optional string frequency =
       6; // Frequency for recurring mandates ("daily", "weekly", "monthly")
   optional Money amount_money = 7; // Amount in Money type
+
+  // Initial / First billing amount.
+  optional Money initial_billing_amount = 8;
+  // Merchant's external subscription identifier.
+  optional string external_subscription_id = 9;
+  // Subscription status (e.g. "ACTIVE"). Kept as a string for backward
+  // compatibility; prefer `mandate_status` going forward.
+  optional string status = 10;
+  // Unix timestamp for the next billing date.
+  optional int64 next_billing_date = 11;
+  // Number of billing cycles elapsed / scheduled.
+  optional int32 billing_cycle = 12;
+  // Free-form description of the subscription.
+  optional string description = 13;
+  // Enum-typed subscription status. Additive/new; NOT yet consumed — the string
+  // `status` (field 10) is used for now (backward compatibility).
+  MandateStatus mandate_status = 14;
 }
 
 // Mandate type with amount details
@@ -1458,6 +1481,10 @@ message RedirectForm {
 
     // NMI-specific redirection data for 3DS flows.
     NmiData nmi = 6;
+
+    // Generic hosted-iframe redirection: load `endpoint` in an iframe and
+    // attach the connector-built `events` postMessage listener.
+    HostedIframeData hosted_iframe = 7;
   }
 }
 
@@ -1504,6 +1531,21 @@ message BraintreeData {
 message MifinityData {
   // Initialization token for Mifinity SDK initialization
   string initialization_token = 1;
+}
+
+// Generic hosted-iframe redirection data. The connector supplies a URL to
+// load into an iframe and a self-contained postMessage listener script that
+// navigates the payer to the (pre-substituted) return URL on completion.
+message HostedIframeData {
+  // URL to load inside the iframe.
+  string endpoint = 1;
+
+  // HTTP method the client should use to fetch `endpoint`.
+  HttpMethod method = 2;
+
+  // postMessage listener script; `return_url` is already substituted by the
+  // connector so the client just inlines this verbatim in a <script> tag.
+  string events = 3;
 }
 
 // Represents NMI-specific redirection data for 3DS flows
@@ -1640,6 +1682,15 @@ enum FrmDecision {
   ERROR = 4;                    // The FRM check itself failed (network, timeout, misconfiguration).
 }
 
+// Merchant details used for FRM risk scoring.
+message MerchantDetails {
+  // Merchant identifier.
+  optional string merchant_id = 1;
+
+  // Merchant Category Code (ISO 18245).
+  optional uint32 merchant_category_code = 2;
+}
+
 // Unified FRM notification content.
 // Used for all FRM lifecycle events (payment success, refund, chargeback).
 message FrmNotificationContent {
@@ -1659,6 +1710,9 @@ message FrmNotificationContent {
 
   // Risk assessment outcome
   optional FrmDecision frm_decision = 7;
+
+  // Merchant details for risk scoring.
+  optional MerchantDetails merchant_details = 8;
 }
 
 // FRM payment success details
@@ -3054,6 +3108,10 @@ message RefundResponse {
   // For refund-reverse, carries the underlying TSYS void status while the
   // user-facing `status` field remains `RefundSuccess`.
   optional SecretString state_metadata = 23;
+
+  // Merchant's reference for the original payment/transaction the refund
+  // belongs to
+  optional string merchant_transaction_id = 24;
 }
 
 // Request message for voiding/reversing a refund before settlement.
@@ -3479,6 +3537,9 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Description
   optional string description = 14;
+
+  // Merchant transaction identifier.
+  optional string merchant_transaction_id = 15;
 }
 
 // Response message for pre-authentication step
@@ -4972,6 +5033,26 @@ message TsysTransitConfig {
   optional string base_url = 50;
 }
 
+message FlywireConfig {
+  // Flywire Payments Platform API key (X-Authentication-Key header).
+  SecretString api_key = 1;
+  // HMAC SHA-256 shared secret for inbound webhook signature verification.
+  // Optional in sandbox; required for production.
+  optional SecretString shared_secret = 2;
+  // Flywire recipient code (3-letter or 5-alphanumeric, e.g. "ZENDD").
+  // Drives currency, payout target, required institutional fields.
+  string recipient_id = 3;
+  optional string base_url = 50;
+}
+
+message AffirmConfig {
+  // Affirm public API key — used as the HTTP Basic auth username.
+  SecretString public_key = 1;
+  // Affirm private API key — used as the HTTP Basic auth password.
+  SecretString private_key = 2;
+  optional string base_url = 50;
+}
+
 message TwocTwopPacoConfig {
   // Company access token, used as both the `token`/`apikey` HTTP header and
   // as the `iss` / `CompanyApiKey` JWT claim.
@@ -5333,6 +5414,10 @@ message ConnectorSpecificConfig {
     TsysTransitConfig tsys_transit = 133;
     // KOUNT = 128
     KountConfig kount = 134;
+    // AFFIRM = 135
+    AffirmConfig affirm = 135;
+    // FLYWIRE = 129
+    FlywireConfig flywire = 136;
   }
 }
 

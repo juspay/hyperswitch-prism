@@ -152,6 +152,8 @@ pub enum ConnectorEnum {
     Tamara,
     Hyperswitch,
     Qwikcilver,
+    Flywire,
+    Affirm,
     Kount,
 }
 
@@ -449,6 +451,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
             grpc_api_types::payments::Connector::Hyperswitch => Ok(Self::Hyperswitch),
             grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
+            grpc_api_types::payments::Connector::Flywire => Ok(Self::Flywire),
             grpc_api_types::payments::Connector::Kount => Ok(Self::Kount),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -2083,6 +2086,8 @@ pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     pub redirect_response: Option<ContinueRedirectionResponse>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub mandate_reference: Option<MandateReferenceId>,
+    /// Merchant transaction id, used to derive the FRM DDC sessionId (e.g. Kount).
+    pub merchant_transaction_id: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
@@ -2685,6 +2690,7 @@ pub struct PayoutWebhookReference {
 #[derive(Debug, Clone)]
 pub struct RefundWebhookDetailsResponse {
     pub connector_refund_id: Option<String>,
+    pub merchant_transaction_id: Option<String>,
     pub status: common_enums::RefundStatus,
     pub connector_response_reference_id: Option<String>,
     pub error_code: Option<String>,
@@ -2772,6 +2778,7 @@ pub enum EventType {
     // Refund events
     RefundFailure,
     RefundSuccess,
+    RefundProcessing,
 
     // Dispute events
     DisputeOpened,
@@ -2842,7 +2849,7 @@ impl EventType {
     pub fn is_refund_event(&self) -> bool {
         matches!(
             self,
-            Self::RefundFailure | Self::RefundSuccess | Self::Refund
+            Self::RefundFailure | Self::RefundSuccess | Self::RefundProcessing | Self::Refund
         )
     }
 
@@ -2962,6 +2969,9 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookEventType> for EventType {
             grpc_api_types::payments::WebhookEventType::WebhookRefundSuccess => {
                 Ok(Self::RefundSuccess)
             }
+            grpc_api_types::payments::WebhookEventType::WebhookRefundProcessing => {
+                Ok(Self::RefundProcessing)
+            }
             grpc_api_types::payments::WebhookEventType::WebhookDisputeOpened => {
                 Ok(Self::DisputeOpened)
             }
@@ -3045,6 +3055,7 @@ impl ForeignTryFrom<EventType> for grpc_api_types::payments::WebhookEventType {
             EventType::SourceTransactionCreated => Ok(Self::SourceTransactionCreated),
             EventType::RefundFailure => Ok(Self::WebhookRefundFailure),
             EventType::RefundSuccess => Ok(Self::WebhookRefundSuccess),
+            EventType::RefundProcessing => Ok(Self::WebhookRefundProcessing),
             EventType::DisputeOpened => Ok(Self::WebhookDisputeOpened),
             EventType::DisputeExpired => Ok(Self::WebhookDisputeExpired),
             EventType::DisputeAccepted => Ok(Self::WebhookDisputeAccepted),
@@ -5250,6 +5261,8 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Placetopay(_) => Ok(Self::Payment(ConnectorEnum::Placetopay)),
             AuthType::Finix(_) => Ok(Self::Payment(ConnectorEnum::Finix)),
             AuthType::Tamara(_) => Ok(Self::Payment(ConnectorEnum::Tamara)),
+            AuthType::Flywire(_) => Ok(Self::Payment(ConnectorEnum::Flywire)),
+            AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
         }
     }
 }
