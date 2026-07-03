@@ -678,7 +678,7 @@ fn wallet_to_juspay(
         | WalletData::Satispay(_)
         | WalletData::Wero(_)
         | WalletData::Paze(_)
-        | WalletData::QwikcilverWalletDirect(_) => Err(error_stack::report!(
+        | WalletData::Skrill(_) | WalletData::QwikcilverWalletDirect(_) => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!("Juspay wallet variant not supported: {wallet:?}"),
                 Default::default(),

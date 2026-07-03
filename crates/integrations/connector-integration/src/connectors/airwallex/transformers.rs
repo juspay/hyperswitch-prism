@@ -191,14 +191,12 @@ pub struct AirwallexAtomeDetails {
 
 // Shared Airwallex wallet enum. Each wallet payment method gets its own variant so
 // the connector serializes the correct nested object + `type` discriminator.
-// Note: Skrill (present in the reference upstream) is intentionally omitted here — the
-// UCS `domain_types::payment_method_data::WalletData` enum has no `Skrill` variant, so it
-// cannot be reached from the Authorize match arm below without a cross-cutting domain change.
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum AirwallexWalletData {
     GooglePay(AirwallexGooglePayData),
     Paypal(AirwallexPaypalData),
+    Skrill(AirwallexSkrillData),
 }
 
 #[derive(Debug, Serialize)]
@@ -230,6 +228,20 @@ pub struct AirwallexPaypalData {
 #[derive(Debug, Serialize)]
 pub struct AirwallexPaypalDetails {
     pub shopper_name: Secret<String>,
+    pub country_code: common_enums::CountryAlpha2,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexSkrillData {
+    pub skrill: AirwallexSkrillDetails,
+    #[serde(rename = "type")]
+    pub payment_method_type: AirwallexPaymentType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexSkrillDetails {
+    pub shopper_name: Secret<String>,
+    pub shopper_email: Email,
     pub country_code: common_enums::CountryAlpha2,
 }
 
@@ -473,6 +485,38 @@ fn get_wallet_details(
                         country_code,
                     },
                     payment_method_type: AirwallexPaymentType::Paypal,
+                },
+            )))
+        }
+        domain_types::payment_method_data::WalletData::Skrill(_) => {
+            // Prefer the explicit customer_name; fall back to the billing full name, mirroring
+            // the reference connector's shopper_name sourcing.
+            let shopper_name = customer_name
+                .or_else(|| resource_common_data.get_billing_full_name().ok())
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "shopper_name",
+                    context: Default::default(),
+                })?;
+            let shopper_email = resource_common_data.get_billing_email().map_err(|_| {
+                IntegrationError::MissingRequiredField {
+                    field_name: "shopper_email",
+                    context: Default::default(),
+                }
+            })?;
+            let country_code = resource_common_data.get_billing_country().map_err(|_| {
+                IntegrationError::MissingRequiredField {
+                    field_name: "country_code",
+                    context: Default::default(),
+                }
+            })?;
+            Ok(AirwallexPaymentMethod::Wallets(AirwallexWalletData::Skrill(
+                AirwallexSkrillData {
+                    skrill: AirwallexSkrillDetails {
+                        shopper_name,
+                        shopper_email,
+                        country_code,
+                    },
+                    payment_method_type: AirwallexPaymentType::Skrill,
                 },
             )))
         }
