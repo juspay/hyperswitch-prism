@@ -2,7 +2,9 @@ use crate::types::ResponseRouterData;
 use common_utils::types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector};
 use domain_types::{
     connector_flow::{PayoutGet, PayoutTransfer, ServerAuthenticationToken},
-    connector_types::{ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData},
+    connector_types::{
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+    },
     errors::{ConnectorError, IntegrationError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::{
