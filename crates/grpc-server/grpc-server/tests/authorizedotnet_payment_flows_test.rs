@@ -225,12 +225,12 @@ async fn test_repeat_everything() {
 
         // Verify we got a mandate reference
         assert!(
-            register_response.mandate_reference_response.is_some(),
+            register_response.mandate_reference_details.is_some(),
             "Mandate reference should be present"
         );
 
         let mandate_id = register_response
-            .mandate_reference_response
+            .mandate_reference_details
             .as_ref()
             .unwrap()
             .connector_mandate_id
@@ -1002,12 +1002,12 @@ async fn test_register() {
 
         // Check if we have a mandate reference
         assert!(
-            response.mandate_reference_response.is_some(),
+            response.mandate_reference_details.is_some(),
             "Mandate reference should be present"
         );
 
         // Verify the mandate reference has the expected structure
-        if let Some(mandate_ref) = &response.mandate_reference_response {
+        if let Some(mandate_ref) = &response.mandate_reference_details {
             // Verify the composite ID format (profile_id-payment_profile_id)
             assert!(
                 mandate_ref.connector_mandate_id.is_some(),

@@ -588,11 +588,11 @@ async fn test_setup_mandate() {
 
         // Verify we got a mandate reference
         assert!(
-            response.mandate_reference_response.is_some(),
+            response.mandate_reference_details.is_some(),
             "Mandate reference should be present"
         );
 
-        if let Some(mandate_ref) = &response.mandate_reference_response {
+        if let Some(mandate_ref) = &response.mandate_reference_details {
             assert!(
                 mandate_ref.connector_mandate_id.is_some()
                     || mandate_ref.payment_method_id.is_some(),
@@ -635,7 +635,7 @@ async fn test_repeat_payment() {
             .expect("gRPC setup_recurring call failed")
             .into_inner();
 
-        if register_response.mandate_reference_response.is_none() {
+        if register_response.mandate_reference_details.is_none() {
             panic!(
                 "Mandate reference should be present. Status: {}, Error: {:?}",
                 register_response.status,
@@ -647,7 +647,7 @@ async fn test_repeat_payment() {
         }
 
         let mandate_ref = register_response
-            .mandate_reference_response
+            .mandate_reference_details
             .as_ref()
             .expect("Mandate reference should be present");
 
