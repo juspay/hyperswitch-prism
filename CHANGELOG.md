@@ -19,6 +19,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.03.0
+
+### Features
+
+- **KOUNT:** Enrich Evaluate/Update Order (merchant, recurring, paymentToken, device-session) ([#1789](https://github.com/juspay/connector-service/pull/1789)) ([`b4feaef`](https://github.com/juspay/connector-service/commit/b4feaef134c54ab8c9e71025121dc06662458fc8))
+- **connector:**
+  - Implement Authorize for affirm ([#1604](https://github.com/juspay/connector-service/pull/1604)) ([`71fe5bf`](https://github.com/juspay/connector-service/commit/71fe5bf1389ca0cbb16d4abc53e7f2b5031b1156))
+  - [PPRO] add Afterpay and UPI Intent/QR support ([#1602](https://github.com/juspay/connector-service/pull/1602)) ([`a87df02`](https://github.com/juspay/connector-service/commit/a87df02cd5872c9109a1d3614305ce6ce89fd523))
+  - Adds new connector integration Flywire ([#1486](https://github.com/juspay/connector-service/pull/1486)) ([`d0efc5e`](https://github.com/juspay/connector-service/commit/d0efc5e90c7aa267de44c36b53d9210c6462dc31))
+- **observability:** UCS-internal processing latency metric (total − connector RTT) ([#1687](https://github.com/juspay/connector-service/pull/1687)) ([`a59e37b`](https://github.com/juspay/connector-service/commit/a59e37befde477261ddfaea0e16ded995938a095))
+
+### Bug Fixes
+
+- **connector:**
+  - [absa_sanlam] Pass raw metadata in connector request ([#1794](https://github.com/juspay/connector-service/pull/1794)) ([`bf22314`](https://github.com/juspay/connector-service/commit/bf223146bf39ee374bb12a6ee47198a3a21127f7))
+  - [Paypal] make order status optional in PSync to handle declined captures ([#1792](https://github.com/juspay/connector-service/pull/1792)) ([`f9de7e6`](https://github.com/juspay/connector-service/commit/f9de7e6faf667f05ef6e1d64dedea4d8ac25e3e6))
+
+**Full Changelog:** [`2026.07.02.2...2026.07.03.0`](https://github.com/juspay/connector-service/compare/2026.07.02.2...2026.07.03.0)
+
+- - -
+
 ## 2026.07.02.2
 
 ### Features
