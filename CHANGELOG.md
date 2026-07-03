@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.06.09.0-hotfix2
+
+### Bug Fixes
+
+- **connector:** [absa_sanlam] Pass raw metadata in connector request ([#1798](https://github.com/juspay/connector-service/pull/1798)) ([`41b18f1`](https://github.com/juspay/connector-service/commit/41b18f1114166997c0dd77f539195fb987c7a793))
+
+**Full Changelog:** [`2026.06.09.0-hotfix1...2026.06.09.0-hotfix2`](https://github.com/juspay/connector-service/compare/2026.06.09.0-hotfix1...2026.06.09.0-hotfix2)
+
+- - -
+
 ## 2026.06.09.0-hotfix1
 
 ### Miscellaneous Tasks
