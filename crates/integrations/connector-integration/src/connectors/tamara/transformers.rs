@@ -241,7 +241,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             },
         )?;
         let shipping_amount = converter
-            .convert(router_data.request.shipping_cost.unwrap_or(MinorUnit(0)), currency)
+            .convert(
+                router_data.request.shipping_cost.unwrap_or(MinorUnit(0)),
+                currency,
+            )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -251,7 +254,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             })?;
         let tax_amount = converter
-            .convert(router_data.request.order_tax_amount.unwrap_or(MinorUnit(0)), currency)
+            .convert(
+                router_data.request.order_tax_amount.unwrap_or(MinorUnit(0)),
+                currency,
+            )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -259,8 +265,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ),
                     ..Default::default()
                 },
-            },
-        )?;
+            })?;
         let country_code = router_data
             .resource_common_data
             .get_shipping_or_billing_country()?
