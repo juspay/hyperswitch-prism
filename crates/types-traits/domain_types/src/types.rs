@@ -5729,16 +5729,6 @@ fn convert_connector_metadata_to_secret_string(
     connector_metadata.and_then(|value| serde_json::to_string(&value).ok().map(Secret::new))
 }
 
-impl ForeignFrom<Option<SecretSerdeValue>> for Option<Secret<String>> {
-    fn foreign_from(metadata: Option<SecretSerdeValue>) -> Self {
-        metadata.and_then(|metadata| {
-            serde_json::to_string(&metadata.expose())
-                .ok()
-                .map(Secret::new)
-        })
-    }
-}
-
 impl ForeignTryFrom<connector_types::MandateReference>
     for grpc_payment_types::MandateReferenceResponse
 {
@@ -5752,9 +5742,9 @@ impl ForeignTryFrom<connector_types::MandateReference>
             payment_method_id: mandate_reference.payment_method_id,
             connector_mandate_request_reference_id: mandate_reference
                 .connector_mandate_request_reference_id,
-            mandate_metadata: Option::<Secret<String>>::foreign_from(
-                mandate_reference.mandate_metadata,
-            ),
+            mandate_metadata: mandate_reference
+                .mandate_metadata
+                .map(|metadata| Secret::new(metadata.expose().to_string())),
         })
     }
 }
@@ -5777,108 +5767,6 @@ impl ForeignFrom<CardNetwork> for grpc_payment_types::CardNetwork {
             CardNetwork::Pulse => Self::Pulse,
             CardNetwork::Accel => Self::Accel,
             CardNetwork::Nyce => Self::Nyce,
-        }
-    }
-}
-
-impl ForeignTryFrom<(Option<i32>, &'static str)> for Option<CardNetwork> {
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        (card_network, field_name): (Option<i32>, &'static str),
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        let grpc_card_network = card_network
-            .map(grpc_payment_types::CardNetwork::try_from)
-            .transpose()
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name,
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Invalid card network in mandate reference".to_string(),
-                    ),
-                    ..Default::default()
-                },
-            })?;
-
-        match grpc_card_network {
-            Some(grpc_payment_types::CardNetwork::Unspecified) | None => Ok(None),
-            Some(network) => CardNetwork::foreign_try_from(network).map(Some),
-        }
-    }
-}
-
-impl ForeignFrom<ConnectorMandateReferenceId> for grpc_payment_types::ConnectorMandateReferenceId {
-    fn foreign_from(mandate_reference: ConnectorMandateReferenceId) -> Self {
-        Self {
-            connector_mandate_id: mandate_reference.get_connector_mandate_id(),
-            payment_method_id: mandate_reference.get_payment_method_id().cloned(),
-            connector_mandate_request_reference_id: mandate_reference
-                .get_connector_mandate_request_reference_id(),
-            mandate_metadata: Option::<Secret<String>>::foreign_from(
-                mandate_reference.get_mandate_metadata(),
-            ),
-        }
-    }
-}
-
-impl ForeignFrom<NetworkMandateIdRef> for grpc_payment_types::NetworkMandateId {
-    fn foreign_from(network_mandate_id: NetworkMandateIdRef) -> Self {
-        Self {
-            network_transaction_id: network_mandate_id.network_transaction_id,
-            transaction_link_id: network_mandate_id.transaction_link_id,
-        }
-    }
-}
-
-impl ForeignFrom<NetworkTokenWithNTIRef> for grpc_payment_types::NetworkTokenWithNti {
-    fn foreign_from(network_token_with_nti: NetworkTokenWithNTIRef) -> Self {
-        Self {
-            network_transaction_id: network_token_with_nti.network_transaction_id,
-            token_exp_month: network_token_with_nti.token_exp_month,
-            token_exp_year: network_token_with_nti.token_exp_year,
-            transaction_link_id: network_token_with_nti.transaction_link_id,
-        }
-    }
-}
-
-impl ForeignFrom<CardWithLimitedDataRef> for grpc_payment_types::CardWithLimitedData {
-    fn foreign_from(card_with_limited_data: CardWithLimitedDataRef) -> Self {
-        Self {
-            network_transaction_id: card_with_limited_data.network_transaction_id,
-            transaction_link_id: card_with_limited_data.transaction_link_id,
-        }
-    }
-}
-
-impl ForeignFrom<MandateReferenceId> for grpc_payment_types::MandateReference {
-    fn foreign_from(value: MandateReferenceId) -> Self {
-        let mandate_id_type = match value {
-            MandateReferenceId::ConnectorMandateId(connector_mandate_id) => {
-                grpc_payment_types::mandate_reference::MandateIdType::ConnectorMandateId(
-                    grpc_payment_types::ConnectorMandateReferenceId::foreign_from(
-                        connector_mandate_id,
-                    ),
-                )
-            }
-            MandateReferenceId::NetworkMandateId(network_mandate_id) => {
-                grpc_payment_types::mandate_reference::MandateIdType::NetworkMandateId(
-                    grpc_payment_types::NetworkMandateId::foreign_from(network_mandate_id),
-                )
-            }
-            MandateReferenceId::NetworkTokenWithNTI(network_token_with_nti) => {
-                grpc_payment_types::mandate_reference::MandateIdType::NetworkTokenWithNti(
-                    grpc_payment_types::NetworkTokenWithNti::foreign_from(network_token_with_nti),
-                )
-            }
-            MandateReferenceId::CardWithLimitedData(card_with_limited_data) => {
-                grpc_payment_types::mandate_reference::MandateIdType::CardWithLimitedData(
-                    grpc_payment_types::CardWithLimitedData::foreign_from(card_with_limited_data),
-                )
-            }
-        };
-
-        Self {
-            mandate_id_type: Some(mandate_id_type),
         }
     }
 }
@@ -16634,46 +16522,5 @@ impl From<connector_types::WebhookResourceReference> for grpc_api_types::payment
                 })),
             },
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::utils::{ForeignFrom, ForeignTryFrom};
-
-    use super::*;
-
-    #[test]
-    fn card_with_limited_data_mandate_reference_round_trips_through_grpc() {
-        let mandate_reference = MandateReferenceId::CardWithLimitedData(CardWithLimitedDataRef {
-            network_transaction_id: Some("nti_123".to_string()),
-            transaction_link_id: Some("tlid_123".to_string()),
-        });
-
-        let grpc_reference =
-            grpc_api_types::payments::MandateReference::foreign_from(mandate_reference.clone());
-
-        match grpc_reference.mandate_id_type.as_ref() {
-            Some(
-                grpc_api_types::payments::mandate_reference::MandateIdType::CardWithLimitedData(
-                    card_with_limited_data,
-                ),
-            ) => {
-                assert_eq!(
-                    card_with_limited_data.network_transaction_id.as_deref(),
-                    Some("nti_123")
-                );
-                assert_eq!(
-                    card_with_limited_data.transaction_link_id.as_deref(),
-                    Some("tlid_123")
-                );
-            }
-            mandate_id_type => panic!("unexpected mandate id type: {mandate_id_type:?}"),
-        }
-
-        let round_tripped = MandateReferenceId::foreign_try_from(grpc_reference)
-            .expect("card limited data reference should convert from grpc");
-
-        assert_eq!(round_tripped, mandate_reference);
     }
 }
