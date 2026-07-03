@@ -1223,22 +1223,7 @@ message ConnectorMandateReferenceId {
   optional string connector_mandate_id = 1;
   optional string payment_method_id = 2;
   optional string connector_mandate_request_reference_id = 3;
-  repeated MandateUpdateHistory update_history = 4;
-  optional SecretString mandate_metadata = 5;
-  optional UpdatedMandateDetails updated_mandate_details = 6;
-}
-
-message MandateUpdateHistory {
-  optional string connector_mandate_id = 1;
-  string payment_method_id = 2;
-  optional string original_payment_id = 3;
-}
-
-message UpdatedMandateDetails {
-  optional CardNetwork card_network = 1;
-  optional SecretString card_exp_month = 2;
-  optional SecretString card_exp_year = 3;
-  optional string card_isin = 4;
+  optional SecretString mandate_metadata = 4;
 }
 
 message NetworkMandateId {

@@ -282,8 +282,7 @@ use crate::{
         RefundWebhookDetailsResponse, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData, TaxInfo, UpdateHistory, UpdatedMandateDetails,
-        WebhookDetailsResponse,
+        SetupMandateRequestData, SubmitEvidenceData, TaxInfo, WebhookDetailsResponse,
     },
     errors::{
         ConnectorError, IntegrationError, IntegrationErrorContext,
@@ -5799,72 +5798,16 @@ impl ForeignTryFrom<(Option<i32>, &'static str)> for Option<CardNetwork> {
     }
 }
 
-impl ForeignFrom<UpdatedMandateDetails> for grpc_payment_types::UpdatedMandateDetails {
-    fn foreign_from(value: UpdatedMandateDetails) -> Self {
-        Self {
-            card_network: value.card_network.map(|card_network| {
-                grpc_payment_types::CardNetwork::foreign_from(card_network) as i32
-            }),
-            card_exp_month: value.card_exp_month,
-            card_exp_year: value.card_exp_year,
-            card_isin: value.card_isin,
-        }
-    }
-}
-
-impl ForeignFrom<UpdateHistory> for grpc_payment_types::MandateUpdateHistory {
-    fn foreign_from(history: UpdateHistory) -> Self {
-        Self {
-            connector_mandate_id: history.connector_mandate_id,
-            payment_method_id: history.payment_method_id,
-            original_payment_id: history.original_payment_id.map(|payment_id| payment_id.0),
-        }
-    }
-}
-
-impl ForeignFrom<grpc_payment_types::MandateUpdateHistory> for UpdateHistory {
-    fn foreign_from(history: grpc_payment_types::MandateUpdateHistory) -> Self {
-        Self {
-            connector_mandate_id: history.connector_mandate_id,
-            payment_method_id: history.payment_method_id,
-            original_payment_id: history.original_payment_id.map(connector_types::PaymentId),
-        }
-    }
-}
-
-impl ForeignFrom<Vec<grpc_payment_types::MandateUpdateHistory>> for Option<Vec<UpdateHistory>> {
-    fn foreign_from(update_history: Vec<grpc_payment_types::MandateUpdateHistory>) -> Self {
-        (!update_history.is_empty()).then(|| {
-            update_history
-                .into_iter()
-                .map(UpdateHistory::foreign_from)
-                .collect()
-        })
-    }
-}
-
 impl ForeignFrom<ConnectorMandateReferenceId> for grpc_payment_types::ConnectorMandateReferenceId {
     fn foreign_from(mandate_reference: ConnectorMandateReferenceId) -> Self {
-        let update_history = mandate_reference
-            .get_update_history()
-            .cloned()
-            .unwrap_or_default();
-
         Self {
             connector_mandate_id: mandate_reference.get_connector_mandate_id(),
             payment_method_id: mandate_reference.get_payment_method_id().cloned(),
             connector_mandate_request_reference_id: mandate_reference
                 .get_connector_mandate_request_reference_id(),
-            update_history: update_history
-                .into_iter()
-                .map(grpc_payment_types::MandateUpdateHistory::foreign_from)
-                .collect(),
             mandate_metadata: Option::<Secret<String>>::foreign_from(
                 mandate_reference.get_mandate_metadata(),
             ),
-            updated_mandate_details: mandate_reference
-                .get_updated_mandate_details()
-                .map(grpc_payment_types::UpdatedMandateDetails::foreign_from),
         }
     }
 }
@@ -5941,41 +5884,11 @@ impl ForeignFrom<connector_types::MandateReference> for grpc_payment_types::Mand
                         payment_method_id: mandate_reference.payment_method_id,
                         connector_mandate_request_reference_id: mandate_reference
                             .connector_mandate_request_reference_id,
-                        update_history: Vec::new(),
                         mandate_metadata: None,
-                        updated_mandate_details: None,
                     },
                 ),
             ),
         }
-    }
-}
-
-impl ForeignTryFrom<UpdatedMandateDetails> for grpc_api_types::payments::UpdatedMandateDetails {
-    type Error = ConnectorError;
-
-    fn foreign_try_from(
-        value: UpdatedMandateDetails,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        Ok(Self::foreign_from(value))
-    }
-}
-
-impl ForeignTryFrom<grpc_api_types::payments::UpdatedMandateDetails> for UpdatedMandateDetails {
-    type Error = IntegrationError;
-
-    fn foreign_try_from(
-        value: grpc_api_types::payments::UpdatedMandateDetails,
-    ) -> Result<Self, error_stack::Report<Self::Error>> {
-        Ok(Self {
-            card_network: Option::<CardNetwork>::foreign_try_from((
-                value.card_network,
-                "connector_recurring_payment_id.connector_mandate_id.updated_mandate_details.card_network",
-            ))?,
-            card_exp_month: value.card_exp_month,
-            card_exp_year: value.card_exp_year,
-            card_isin: value.card_isin,
-        })
     }
 }
 
@@ -5993,7 +5906,7 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateReference> for MandateRefer
             ) => Ok(Self::ConnectorMandateId(ConnectorMandateReferenceId::new(
                 connector_mandate_id.connector_mandate_id,
                 connector_mandate_id.payment_method_id,
-                Option::<Vec<UpdateHistory>>::foreign_from(connector_mandate_id.update_history),
+                None,
                 connector_mandate_id
                     .mandate_metadata
                     .map(|metadata| {
@@ -6004,10 +5917,6 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateReference> for MandateRefer
                     })
                     .transpose()?,
                 connector_mandate_id.connector_mandate_request_reference_id,
-                connector_mandate_id
-                    .updated_mandate_details
-                    .map(UpdatedMandateDetails::foreign_try_from)
-                    .transpose()?,
             ))),
             Some(grpc_api_types::payments::mandate_reference::MandateIdType::NetworkMandateId(
                 network_mandate_id,
