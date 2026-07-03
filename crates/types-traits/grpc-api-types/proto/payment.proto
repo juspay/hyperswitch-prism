@@ -3446,7 +3446,7 @@ message RecurringPaymentServiceChargeResponse {
   // Transaction Details
   optional string network_transaction_id = 7;
   optional string merchant_charge_id = 8;
-  optional MandateReference mandate_reference = 9 [deprecated = true]; // use authorized_money instead (will be removed in a future release)
+  optional MandateReference mandate_reference = 9 [deprecated = true]; // use mandate_reference_response instead (will be removed in a future release)
 
   // State Information
   optional ConnectorState state = 10;
