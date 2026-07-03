@@ -772,10 +772,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     )
                 }
                 PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay_data)) => {
-                    // Paysafe expects the full (encrypted) Apple Pay PKPaymentToken
-                    // forwarded under `applePay.applePayPaymentToken.token`. The decoded
-                    // payment_data is the {data, signature, header, version} object.
-                    let payment_data: serde_json::Value = match &apple_pay_data.payment_data {
+                let payment_data = match &apple_pay_data.payment_data {
                         ApplePayPaymentData::Encrypted(_) => {
                             let decoded_token = apple_pay_data
                                 .get_applepay_decoded_payment_data()
@@ -783,19 +780,56 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     field_name: "apple_pay.payment_data",
                                     context: Default::default(),
                                 })?;
-                            serde_json::from_str(decoded_token.peek()).change_context(
-                                IntegrationError::InvalidDataFormat {
-                                    field_name: "apple_pay.payment_data",
-                                    context: Default::default(),
-                                },
-                            )?
-                        }
-                        ApplePayPaymentData::Decrypted(_) => {
-                            return Err(IntegrationError::NotImplemented(
-                                "Decrypted Apple Pay data is not supported for Paysafe; an encrypted Apple Pay token is required".to_string(),
-                                Default::default(),
+                            PaysafeApplePayPaymentData::Encrypted(
+                                serde_json::from_str(decoded_token.peek()).change_context(
+                                    IntegrationError::InvalidDataFormat {
+                                        field_name: "apple_pay.payment_data",
+                                        context: Default::default(),
+                                    },
+                                )?,
                             )
-                            .into())
+                        }
+                        ApplePayPaymentData::Decrypted(decrypted) => {
+                            let expiry_year = decrypted
+                                .get_two_digit_expiry_year()
+                                .change_context(IntegrationError::InvalidDataFormat {
+                                    field_name: "apple_pay.application_expiration_year",
+                                    context: Default::default(),
+                                })?;
+                            let application_expiration_date = Secret::new(format!(
+                                "{}{:0>2}",
+                                expiry_year.peek(),
+                                decrypted.get_expiry_month().peek()
+                            ));
+                            PaysafeApplePayPaymentData::Decrypted(
+                                PaysafeApplePayDecryptedDataWrapper {
+                                    decrypted_data: PaysafeApplePayDecryptedData {
+                                        application_primary_account_number: Secret::new(
+                                            decrypted
+                                                .application_primary_account_number
+                                                .get_card_no(),
+                                        ),
+                                        application_expiration_date,
+                                        currency_code: currency.to_string(),
+                                        transaction_amount: Some(amount),
+                                        cardholder_name: None,
+                                        device_manufacturer_identifier: Some(
+                                            "Apple".to_string(),
+                                        ),
+                                        payment_data_type: Some("3DSecure".to_string()),
+                                        payment_data: PaysafeApplePayDecryptedPaymentData {
+                                            online_payment_cryptogram: decrypted
+                                                .payment_data
+                                                .online_payment_cryptogram
+                                                .clone(),
+                                            eci_indicator: decrypted
+                                                .payment_data
+                                                .eci_indicator
+                                                .clone(),
+                                        },
+                                    },
+                                },
+                            )
                         }
                     };
 
@@ -821,19 +855,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                     // Apple Pay uses a DEDICATED Paysafe processing account,
                     // distinct from the card account. Mirror hyperswitch by
-                    // selecting the apple_pay `encrypt` account (this arm only
-                    // handles the encrypted PKPaymentToken flow; the decrypted
-                    // flow returns NotImplemented above).
+                    // selecting the apple_pay slot for the active flow: `encrypt`
+                    // for the encrypted PKPaymentToken flow, `decrypt` for the
+                    // pre-decrypted flow.
                     //
                     // Fallback: hyperswitch hard-requires the apple_pay account,
-                    // but the current sandbox has no apple_pay slot provisioned
-                    // and works using the card `no_three_ds` account. To avoid a
-                    // regression while enabling parity once provisioned, prefer
-                    // the apple_pay encrypt account and gracefully fall back to
-                    // the card no_three_ds account when the apple_pay slot is
-                    // absent.
+                    // but sandboxes without an apple_pay slot provisioned work
+                    // using the card `no_three_ds` account. To avoid a regression
+                    // while enabling parity once provisioned, prefer the apple_pay
+                    // account and gracefully fall back to the card no_three_ds
+                    // account when the apple_pay slot is absent.
+                    let is_encrypted = matches!(
+                        &apple_pay_data.payment_data,
+                        ApplePayPaymentData::Encrypted(_)
+                    );
                     let account_id = account_id
-                        .get_apple_pay_account_id(currency, true)
+                        .get_apple_pay_account_id(currency, is_encrypted)
                         .or_else(|_| account_id.get_no_three_ds_account_id(currency))?;
                     (
                         PaysafePaymentMethod::ApplePay { apple_pay },

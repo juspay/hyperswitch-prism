@@ -197,11 +197,49 @@ pub struct PaysafeApplePayPaymentToken {
 #[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeApplePayToken {
-    /// The encrypted Apple Pay payment data object
-    /// (`{data, signature, header, version}`), forwarded verbatim.
-    pub payment_data: serde_json::Value,
+    pub payment_data: PaysafeApplePayPaymentData,
     pub payment_method: PaysafeApplePayPaymentMethod,
     pub transaction_identifier: String,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(untagged)]
+pub enum PaysafeApplePayPaymentData {
+    Encrypted(serde_json::Value),
+    Decrypted(PaysafeApplePayDecryptedDataWrapper),
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayDecryptedDataWrapper {
+    pub decrypted_data: PaysafeApplePayDecryptedData,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayDecryptedData {
+    pub application_primary_account_number: Secret<String>,
+    /// PAN expiry in YYMM format (Apple's native representation).
+    pub application_expiration_date: Secret<String>,
+    /// ISO 4217 alphabetic currency code.
+    pub currency_code: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_amount: Option<MinorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cardholder_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_manufacturer_identifier: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_data_type: Option<String>,
+    pub payment_data: PaysafeApplePayDecryptedPaymentData,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayDecryptedPaymentData {
+    pub online_payment_cryptogram: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci_indicator: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
