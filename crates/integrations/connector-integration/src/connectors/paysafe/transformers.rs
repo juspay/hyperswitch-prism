@@ -1287,7 +1287,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
                 router_data.resource_common_data.status = status;
 
                 PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(response.id.clone()),
+                    resource_id: ResponseId::NoResponseId,
                     redirection_data,
                     mandate_reference: None,
                     connector_metadata,
