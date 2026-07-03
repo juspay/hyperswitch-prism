@@ -232,21 +232,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let shipping_amount = router_data.request.shipping_cost.unwrap_or(MinorUnit(0));
         let tax_amount = router_data.request.order_tax_amount.unwrap_or(MinorUnit(0));
         let converter = FloatMajorUnitForConnector;
-        let amount = converter
-            .convert(amount, currency)
-            .change_context(errors::IntegrationError::RequestEncodingFailed {
+        let amount = converter.convert(amount, currency).change_context(
+            errors::IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
-            })?;
+            },
+        )?;
         let shipping_amount = converter
             .convert(shipping_amount, currency)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
             })?;
-        let tax_amount = converter
-            .convert(tax_amount, currency)
-            .change_context(errors::IntegrationError::RequestEncodingFailed {
+        let tax_amount = converter.convert(tax_amount, currency).change_context(
+            errors::IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
-            })?;
+            },
+        )?;
         let country_code = router_data
             .resource_common_data
             .get_shipping_or_billing_country()?
@@ -284,11 +284,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 od.iter()
                     .enumerate()
                     .map(|(i, data)| {
-                        let item_amount = converter
-                            .convert(data.amount, currency)
-                            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                        let item_amount = converter.convert(data.amount, currency).change_context(
+                            errors::IntegrationError::RequestEncodingFailed {
                                 context: Default::default(),
-                            })?;
+                            },
+                        )?;
                         Ok(TamaraLineItem {
                             name: data.product_name.clone(),
                             quantity: data.quantity,
@@ -609,11 +609,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         ))?;
         let converter = FloatMajorUnitForConnector;
-        let amount = converter
-            .convert(amount, currency)
-            .change_context(errors::IntegrationError::RequestEncodingFailed {
+        let amount = converter.convert(amount, currency).change_context(
+            errors::IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
-            })?;
+            },
+        )?;
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
         })
