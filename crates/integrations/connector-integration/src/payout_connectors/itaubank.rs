@@ -12,7 +12,7 @@ use domain_types::{
     connector_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    errors::{ConnectorError, IntegrationError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
@@ -40,7 +40,8 @@ use interfaces::{
 
 use crate::types::ResponseRouterData;
 use transformers::{
-    ItaubankAuthType, ItaubankErrorResponse, ItaubankPayoutGetResponse, ItaubankTransferRequest,
+    ItaubankAccessTokenRequest, ItaubankAccessTokenResponse, ItaubankAuthType,
+    ItaubankErrorResponse, ItaubankPayoutGetResponse, ItaubankTransferRequest,
     ItaubankTransferResponse,
 };
 
@@ -163,7 +164,7 @@ impl ConnectorCommon for ItaubankPayouts {
     }
 }
 
-// ===== SERVER AUTHENTICATION (not implemented) =====
+// ===== SERVER AUTHENTICATION (merchant-auth / access token) =====
 
 impl ServerAuthentication for ItaubankPayouts {}
 
@@ -175,7 +176,65 @@ impl
         ServerAuthenticationTokenResponseData,
     > for ItaubankPayouts
 {
+    fn get_http_method(&self) -> common_utils::request::Method {
+        common_utils::request::Method::Post
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        "application/x-www-form-urlencoded"
+    }
+
+    fn get_certificate(
+        &self,
+        req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
+        Ok(auth.certificates)
+    }
+
+    fn get_certificate_key(
+        &self,
+        req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<Option<hyperswitch_masking::Secret<String>>, IntegrationError> {
+        let auth = ItaubankAuthType::try_from(&req.connector_config)?;
+        Ok(auth.private_key)
+    }
+
     fn get_url(
+        &self,
+        req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        // if secondary_base_url is present, use it, else use base_url
+        if let Some(secondary_base_url) = req
+            .resource_common_data
+            .connectors
+            .itaubank
+            .secondary_base_url
+            .as_deref()
+        {
+            Ok(format!("{}/api/oauth/token", secondary_base_url))
+        } else {
+            let base_url = self.base_url(&req.resource_common_data.connectors);
+            Ok(format!("{}/api/oauth/jwt", base_url))
+        }
+    }
+
+    fn get_headers(
         &self,
         _req: &RouterDataV2<
             ServerAuthenticationToken,
@@ -183,13 +242,92 @@ impl
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
         >,
-    ) -> CustomResult<String, IntegrationError> {
-        Err(IntegrationError::connector_flow_not_implemented(
-            ConnectorCommon::id(self),
-            "server_authentication_token",
-            IntegrationErrorContext::default(),
-        )
-        .into())
+    ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+        Ok(vec![
+            (
+                headers::CONTENT_TYPE.to_string(),
+                "application/x-www-form-urlencoded".to_string().into(),
+            ),
+            (headers::ACCEPT.to_string(), "*/*".to_string().into()),
+            (
+                headers::USER_AGENT.to_string(),
+                "Hyperswitch".to_string().into(),
+            ),
+        ])
+    }
+
+    fn get_request_body(
+        &self,
+        req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<Option<RequestContent>, IntegrationError> {
+        let connector_req = ItaubankAccessTokenRequest::try_from(req)?;
+        Ok(Some(RequestContent::FormUrlEncoded(Box::new(
+            connector_req,
+        ))))
+    }
+
+    fn handle_response_v2(
+        &self,
+        data: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+        event_builder: Option<&mut events::Event>,
+        res: Response,
+    ) -> CustomResult<
+        RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+        ConnectorError,
+    > {
+        let response: Result<ItaubankAccessTokenResponse, _> =
+            res.response.parse_struct("ItaubankAccessTokenResponse");
+
+        match response {
+            Ok(token_res) => {
+                event_builder.map(|i| i.set_connector_response(&token_res));
+                let access_token_data = ServerAuthenticationTokenResponseData {
+                    access_token: token_res.access_token.into(),
+                    token_type: token_res.token_type,
+                    expires_in: token_res.expires_in,
+                };
+
+                Ok(RouterDataV2 {
+                    response: Ok(access_token_data),
+                    ..data.clone()
+                })
+            }
+            Err(_) => {
+                tracing::error!(
+                    "Failed to parse access token response from Itaubank. Status: {}, Raw: {:?}",
+                    res.status_code,
+                    res.response
+                );
+                Err(ConnectorError::ResponseDeserializationFailed {
+                    context: Default::default(),
+                }
+                .into())
+            }
+        }
+    }
+
+    fn get_error_response_v2(
+        &self,
+        res: Response,
+        event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder, _connector_config)
     }
 }
 
