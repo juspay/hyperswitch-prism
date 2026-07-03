@@ -4,7 +4,7 @@ use josekit::jwt;
 use common_utils::{
     consts,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    ext_traits::{OptionExt, ValueExt},
+    ext_traits::{BytesExt, OptionExt, ValueExt},
     pii,
     types::{SemanticVersion, StringMajorUnit},
 };
@@ -41,7 +41,7 @@ use domain_types::{
     },
     router_data_v2::RouterDataV2,
     router_request_types,
-    router_response_types::RedirectForm,
+    router_response_types::{RedirectForm, Response},
     utils::{to_currency_base_unit, CardIssuer},
 };
 use error_stack::ResultExt;
@@ -4704,6 +4704,52 @@ pub enum Reason {
     SystemError,
     ServerTimeout,
     ServiceTimeout,
+}
+
+/// std `TryFrom<&Response>` can't be implemented for the foreign `ErrorResponse`
+/// (orphan rule), so this crate-local trait carries the whole HTTP `Response`,
+/// giving the conversion both the parsed body and the status code.
+pub trait ForeignTryFrom<T>: Sized {
+    type Error;
+    fn foreign_try_from(value: T) -> Result<Self, Self::Error>;
+}
+
+impl ForeignTryFrom<&Response> for ErrorResponse {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn foreign_try_from(res: &Response) -> Result<Self, Self::Error> {
+        // Cybersource returns a structured body on 5xx (e.g. HTTP 502
+        // `{"status":"SERVER_ERROR","reason":"SYSTEM_ERROR","message":"..."}`).
+        // Map `status` -> code/reason and `message` -> message, mirroring the Direct
+        // gateway so the shadow UCS `response.Err.*` match instead of the generic
+        // `bad_gateway` / HTTP-status discriminator.
+        let response: CybersourceServerErrorResponse = res
+            .response
+            .parse_struct("CybersourceServerErrorResponse")
+            .change_context(utils::response_deserialization_fail(
+                res.status_code,
+                "cybersource: 5xx response body did not match the expected server-error format.",
+            ))?;
+        let attempt_status = match response.reason {
+            Some(Reason::SystemError) => {
+                Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure))
+            }
+            Some(Reason::ServerTimeout) | Some(Reason::ServiceTimeout) | None => None,
+        };
+        Ok(Self {
+            status_code: res.status_code,
+            reason: response.status.clone(),
+            code: response.status.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .message
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            attempt_status,
+            connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+        })
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
