@@ -235,17 +235,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = converter
             .convert(amount, currency)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert authorize amount from minor to major units".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
         let shipping_amount = converter
             .convert(shipping_amount, currency)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert shipping amount from minor to major units".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
         let tax_amount = converter
             .convert(tax_amount, currency)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert tax amount from minor to major units".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
         let country_code = router_data
             .resource_common_data
@@ -287,7 +302,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         let item_amount = converter
                             .convert(data.amount, currency)
                             .change_context(errors::IntegrationError::RequestEncodingFailed {
-                                context: Default::default(),
+                                context: errors::IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "Failed to convert line item amount from minor to major units"
+                                            .to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
                             })?;
                         Ok(TamaraLineItem {
                             name: data.product_name.clone(),
@@ -509,7 +530,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 item.router_data.request.currency,
             )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert capture amount from minor to major units".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
         Ok(Self {
             order_id,
@@ -612,7 +638,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = converter
             .convert(amount, currency)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert void amount from minor to major units".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
@@ -699,7 +730,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 item.router_data.request.currency,
             )
             .change_context(errors::IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert refund amount from minor to major units".to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
         Ok(Self {
             total_amount: TamaraAmount {
@@ -882,7 +918,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = converter
             .convert(data.amount.amount, data.amount.currency)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
-                context: Default::default(),
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(
+                        "Failed to convert eligibility amount from minor to major units"
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
         Ok(Self {
             order: TamaraEligibilityOrder {
