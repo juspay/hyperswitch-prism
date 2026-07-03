@@ -10,6 +10,7 @@ package examples.paysafe
 import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.CustomerClient
 import payments.RefundClient
 import payments.PaymentMethodClient
 import payments.CaptureMethod
@@ -21,7 +22,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.PaysafeConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("capture", "get", "refund", "refund_get", "token_authorize", "tokenize", "void")
+val SUPPORTED_FLOWS = listOf<String>("capture", "customer_create", "get", "refund", "refund_get", "token_authorize", "tokenize", "void")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -57,6 +58,7 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
             minorAmount = 1000L  // Amount in minor units (e.g., 1000 = $10.00).
             currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
         }
+        connectorOrderReferenceId = "probe_order_ref_001"  // Connector Reference Id.
     }.build()
 }
 
@@ -92,6 +94,19 @@ fun capture(txnId: String, config: ConnectorConfig = _defaultConfig) {
     if (response.status.name == "FAILED")
         throw RuntimeException("Capture failed: ${response.error.unifiedDetails.message}")
     println("Done: ${response.status.name}")
+}
+
+// Flow: CustomerService.Create
+fun customerCreate(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = CustomerClient(config)
+    val request = CustomerServiceCreateRequest.newBuilder().apply {
+        merchantCustomerId = "cust_probe_123"  // Identification.
+        customerName = "John Doe"  // Name of the customer.
+        emailBuilder.value = "test@example.com"  // Email address of the customer.
+        phoneNumberBuilder.value = "4155552671"  // Phone number of the customer.
+    }.build()
+    val response = client.customer_create(request)
+    println("Customer: ${response.connectorCustomerId}")
 }
 
 // Flow: PaymentService.Get
@@ -188,12 +203,13 @@ fun main(args: Array<String>) {
     val flow = args.firstOrNull() ?: "capture"
     when (flow) {
         "capture" -> capture(txnId)
+        "customerCreate" -> customerCreate(txnId)
         "get" -> get(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
         "tokenAuthorize" -> tokenAuthorize(txnId)
         "tokenize" -> tokenize(txnId)
         "void" -> void(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: capture, get, refund, refundGet, tokenAuthorize, tokenize, void")
+        else -> System.err.println("Unknown flow: $flow. Available: capture, customerCreate, get, refund, refundGet, tokenAuthorize, tokenize, void")
     }
 }
