@@ -14470,6 +14470,7 @@ impl<
                 .authentication_data
                 .map(router_request_types::AuthenticationData::try_from)
                 .transpose()?,
+            webhook_url: value.webhook_url,
         })
     }
 }

@@ -3563,6 +3563,9 @@ message PaymentMethodAuthenticationServiceAuthenticateRequest {
 
   // Capture Settings
   optional CaptureMethod capture_method = 14;
+
+  // URL for webhook notifications
+  optional string webhook_url = 15;
 }
 
 // Response message for authentication step

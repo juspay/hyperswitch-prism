@@ -235,7 +235,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }],
             payor_id,
             external_reference: payment_ref,
-            notifications_url: None,
+            notifications_url: router_data.request.webhook_url.clone(),
             payor,
             enable_email_notifications: false,
         })
