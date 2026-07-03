@@ -4476,10 +4476,14 @@ message PaysafeApplePayAccountId {
   optional SecretString decrypt = 2;
 }
 
-message PaysafeInteracAccountId { optional SecretString account_id = 1; }
+// Interac e-Transfer processing account. Native metadata key `three_ds`
+// (mirrors hyperswitch `RedirectAccountId`) so the same MCA metadata is portable
+// between the native and UCS paths.
+message PaysafeInteracAccountId { optional SecretString three_ds = 1; }
 
-// Redirect-APM processing account (Skrill, paysafecard).
-message PaysafeRedirectAccountId { optional SecretString account_id = 1; }
+// Redirect-APM processing account (Skrill, paysafecard). Native metadata key
+// `three_ds` (mirrors hyperswitch `RedirectAccountId`).
+message PaysafeRedirectAccountId { optional SecretString three_ds = 1; }
 
 message PaysafePaymentMethodDetails {
   map<string, PaysafeCardAccountId> card = 1;

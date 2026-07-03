@@ -211,7 +211,7 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
                 interac: Some(HashMap::from([(
                     common_enums::enums::Currency::CAD,
                     PaysafeInteracAccountId {
-                        account_id: Some(Secret::new("probe_interac_acct".to_string())),
+                        three_ds: Some(Secret::new("probe_interac_acct".to_string())),
                     },
                 )])),
                 apple_pay: Some(HashMap::from([(
@@ -224,13 +224,13 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
                 skrill: Some(HashMap::from([(
                     common_enums::enums::Currency::EUR,
                     PaysafeRedirectAccountId {
-                        account_id: Some(Secret::new("probe_skrill_acct".to_string())),
+                        three_ds: Some(Secret::new("probe_skrill_acct".to_string())),
                     },
                 )])),
                 pay_safe_card: Some(HashMap::from([(
                     common_enums::enums::Currency::EUR,
                     PaysafeRedirectAccountId {
-                        account_id: Some(Secret::new("probe_paysafecard_acct".to_string())),
+                        three_ds: Some(Secret::new("probe_paysafecard_acct".to_string())),
                     },
                 )])),
             }),

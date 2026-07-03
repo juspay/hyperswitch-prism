@@ -319,6 +319,17 @@ fn build_paysafe_redirect_handle_request<
         },
     )?;
 
+    // On successful redirect completion Paysafe must send the customer to the
+    // complete_authorize_url so hyperswitch runs CompleteAuthorize (settling the
+    // payment handle into a payment). Routing on_completed to the plain return_url
+    // only triggers a PSync, which finds no settled payment yet and fails. Falls
+    // back to the return_url when complete_authorize_url is absent.
+    let complete_authorize_url = router_data
+        .request
+        .complete_authorize_url
+        .clone()
+        .unwrap_or_else(|| redirect_url.clone());
+
     let return_links = Some(vec![
         ReturnLink {
             rel: LinkType::Default,
@@ -327,7 +338,7 @@ fn build_paysafe_redirect_handle_request<
         },
         ReturnLink {
             rel: LinkType::OnCompleted,
-            href: redirect_url.clone(),
+            href: complete_authorize_url,
             method: Method::Get.to_string(),
         },
         ReturnLink {

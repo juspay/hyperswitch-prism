@@ -169,7 +169,8 @@ pub struct PaysafeAchAccountId {
 
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaysafeInteracAccountId {
-    pub account_id: Option<Secret<String>>,
+    // Native metadata key `three_ds` (mirrors hyperswitch `RedirectAccountId`).
+    pub three_ds: Option<Secret<String>>,
 }
 
 /// Dedicated Apple Pay processing account, split by token flow. Mirrors
@@ -181,10 +182,11 @@ pub struct PaysafeApplePayAccountId {
     pub decrypt: Option<Secret<String>>,
 }
 
-/// Redirect-APM processing account (Skrill, paysafecard).
+/// Redirect-APM processing account (Skrill, paysafecard). Native metadata key
+/// `three_ds` (mirrors hyperswitch `RedirectAccountId`).
 #[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaysafeRedirectAccountId {
-    pub account_id: Option<Secret<String>>,
+    pub three_ds: Option<Secret<String>>,
 }
 
 impl PaysafePaymentMethodDetails {
@@ -237,7 +239,7 @@ impl PaysafePaymentMethodDetails {
         self.interac
             .as_ref()
             .and_then(|interac| interac.get(&currency))
-            .and_then(|interac| interac.account_id.clone())
+            .and_then(|interac| interac.three_ds.clone())
             .ok_or(errors::IntegrationError::InvalidConnectorConfig {
                 config: "Missing interac account_id",
                 context: Default::default(),
@@ -280,7 +282,7 @@ impl PaysafePaymentMethodDetails {
         self.skrill
             .as_ref()
             .and_then(|skrill| skrill.get(&currency))
-            .and_then(|skrill| skrill.account_id.clone())
+            .and_then(|skrill| skrill.three_ds.clone())
             .ok_or(errors::IntegrationError::InvalidConnectorConfig {
                 config: "Missing skrill account_id",
                 context: Default::default(),
@@ -294,7 +296,7 @@ impl PaysafePaymentMethodDetails {
         self.pay_safe_card
             .as_ref()
             .and_then(|pay_safe_card| pay_safe_card.get(&currency))
-            .and_then(|pay_safe_card| pay_safe_card.account_id.clone())
+            .and_then(|pay_safe_card| pay_safe_card.three_ds.clone())
             .ok_or(errors::IntegrationError::InvalidConnectorConfig {
                 config: "Missing paysafe gift card account_id",
                 context: Default::default(),
