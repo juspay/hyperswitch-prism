@@ -2461,6 +2461,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
                 Ok(PaymentMethodType::QwikcilverWallet)
             }
             grpc_api_types::payments::PaymentMethodType::Skrill => Ok(PaymentMethodType::Skrill),
+            grpc_api_types::payments::PaymentMethodType::Interac => Ok(PaymentMethodType::Interac),
             grpc_api_types::payments::PaymentMethodType::Netbanking => {
                 Ok(PaymentMethodType::Netbanking)
             }
@@ -7689,6 +7690,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Atome => Ok(Self::PayLater),
 
             grpc_api_types::payments::PaymentMethodType::BancontactCard => Ok(Self::BankRedirect),
+            grpc_api_types::payments::PaymentMethodType::Interac => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::Ideal => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::Sofort => Ok(Self::BankRedirect),
             grpc_api_types::payments::PaymentMethodType::TrustlyBankRedirect => {
