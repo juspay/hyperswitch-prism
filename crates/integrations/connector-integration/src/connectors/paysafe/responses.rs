@@ -218,7 +218,6 @@ pub struct PaysafeCustomerResponse {
 /// `PaysafePaymentsResponse` has the required `amount` + `currencyCode` fields, so
 /// a payment-handle body (which lacks them) cannot match `Payment` and falls
 /// through to `PaymentHandle`. `Payment` is listed first so a genuine payments
-/// response is never mis-parsed as a handle.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum PaysafeAuthorizeResponse {
