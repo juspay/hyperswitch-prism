@@ -810,7 +810,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                                 .get_card_no(),
                                         ),
                                         application_expiration_date,
-                                        currency_code: currency.to_string(),
+                                        // Numeric ISO 4217 code (e.g. "840"), per Paysafe's
+                                        // decryptedData contract — NOT the alphabetic code.
+                                        currency_code: currency.iso_4217().to_string(),
                                         transaction_amount: Some(amount),
                                         cardholder_name: None,
                                         device_manufacturer_identifier: Some(
