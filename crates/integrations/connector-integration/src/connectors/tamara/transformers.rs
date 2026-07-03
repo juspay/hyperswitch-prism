@@ -5,7 +5,10 @@ use crate::types::ResponseRouterData;
 use crate::utils;
 use common_enums::EligibilityStatus;
 use common_enums::{AttemptStatus, Currency, RefundStatus};
-use common_utils::{types::MinorUnit, Email};
+use common_utils::{
+    types::{AmountConvertor, FloatMajorUnit, FloatMajorUnitForConnector, MinorUnit},
+    Email,
+};
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
@@ -228,6 +231,22 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .unwrap_or_default();
         let shipping_amount = router_data.request.shipping_cost.unwrap_or(MinorUnit(0));
         let tax_amount = router_data.request.order_tax_amount.unwrap_or(MinorUnit(0));
+        let converter = FloatMajorUnitForConnector;
+        let amount = converter
+            .convert(amount, currency)
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+        let shipping_amount = converter
+            .convert(shipping_amount, currency)
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
+        let tax_amount = converter
+            .convert(tax_amount, currency)
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
         let country_code = router_data
             .resource_common_data
             .get_shipping_or_billing_country()?
@@ -257,32 +276,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .resource_common_data
             .get_optional_shipping_or_billing_country_string();
 
-        let items = router_data
+        let items: Vec<TamaraLineItem> = router_data
             .resource_common_data
             .order_details
             .clone()
             .map(|od| {
                 od.iter()
                     .enumerate()
-                    .map(|(i, data)| TamaraLineItem {
-                        name: data.product_name.clone(),
-                        quantity: data.quantity,
-                        reference_id: data
-                            .product_id
-                            .clone()
-                            .unwrap_or_else(|| format!("item_{i}")),
-                        sku: data
-                            .product_id
-                            .clone()
-                            .unwrap_or_else(|| format!("item_{i}")),
-                        total_amount: TamaraAmount {
-                            amount: data.amount,
-                            currency,
-                        },
+                    .map(|(i, data)| {
+                        let item_amount = converter
+                            .convert(data.amount, currency)
+                            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                                context: Default::default(),
+                            })?;
+                        Ok(TamaraLineItem {
+                            name: data.product_name.clone(),
+                            quantity: data.quantity,
+                            reference_id: data
+                                .product_id
+                                .clone()
+                                .unwrap_or_else(|| format!("item_{i}")),
+                            sku: data
+                                .product_id
+                                .clone()
+                                .unwrap_or_else(|| format!("item_{i}")),
+                            total_amount: TamaraAmount {
+                                amount: item_amount,
+                                currency,
+                            },
+                        })
                     })
-                    .collect()
+                    .collect::<Result<Vec<_>, error_stack::Report<errors::IntegrationError>>>()
             })
-            .unwrap_or_default();
+            .unwrap_or(Ok(Vec::new()))?;
 
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
@@ -476,10 +502,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ..Default::default()
                 },
             })?;
+        let converter = FloatMajorUnitForConnector;
+        let amount = converter
+            .convert(
+                item.router_data.request.minor_amount_to_capture,
+                item.router_data.request.currency,
+            )
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             order_id,
             total_amount: TamaraAmount {
-                amount: item.router_data.request.minor_amount_to_capture,
+                amount,
                 currency: item.router_data.request.currency,
             },
         })
@@ -488,7 +523,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TamaraAmount {
-    pub amount: MinorUnit,
+    pub amount: FloatMajorUnit,
     pub currency: Currency,
 }
 
@@ -573,6 +608,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }
             }
         ))?;
+        let converter = FloatMajorUnitForConnector;
+        let amount = converter
+            .convert(amount, currency)
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
         })
@@ -651,9 +692,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     }
                 }
             ))?;
+        let converter = FloatMajorUnitForConnector;
+        let amount = converter
+            .convert(
+                item.router_data.request.minor_refund_amount,
+                item.router_data.request.currency,
+            )
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             total_amount: TamaraAmount {
-                amount: item.router_data.request.minor_refund_amount,
+                amount,
                 currency: item.router_data.request.currency,
             },
             merchant_refund_id: item.router_data.request.refund_id.clone(),
@@ -778,8 +828,8 @@ pub struct TamaraEligibilityRequest {
 
 #[derive(Debug, Serialize)]
 pub struct TamaraEligibilityOrder {
-    pub total_amount: TamaraAmount,
-    pub country_code: Option<String>,
+    pub amount: FloatMajorUnit,
+    pub currency: Currency,
 }
 
 #[derive(Debug, Serialize)]
@@ -828,25 +878,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         ))?;
         let email = customer.get_email()?;
         let phone_number = customer.get_phone_number()?;
-        // Prefer the explicit country on the request, otherwise derive it from
-        // the billing/shipping address carried on the flow data.
-        let country_code = data
-            .country_code
-            .map(|country| country.to_string())
-            .or_else(|| {
-                let from_address = item
-                    .router_data
-                    .resource_common_data
-                    .get_optional_shipping_or_billing_country_string();
-                (!from_address.is_empty()).then_some(from_address)
-            });
+        let converter = FloatMajorUnitForConnector;
+        let amount = converter
+            .convert(data.amount.amount, data.amount.currency)
+            .change_context(errors::IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })?;
         Ok(Self {
             order: TamaraEligibilityOrder {
-                total_amount: TamaraAmount {
-                    amount: data.amount.amount,
-                    currency: data.amount.currency,
-                },
-                country_code,
+                amount,
+                currency: data.amount.currency,
             },
             customer: TamaraEligibilityCustomer {
                 phone_number,
