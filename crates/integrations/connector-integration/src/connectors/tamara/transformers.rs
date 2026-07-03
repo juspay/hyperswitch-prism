@@ -229,8 +229,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .router_return_url
             .clone()
             .unwrap_or_default();
-        let shipping_amount = router_data.request.shipping_cost.unwrap_or(MinorUnit(0));
-        let tax_amount = router_data.request.order_tax_amount.unwrap_or(MinorUnit(0));
         let converter = FloatMajorUnitForConnector;
         let amount = converter
             .convert(amount, currency)
@@ -243,7 +241,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             })?;
         let shipping_amount = converter
-            .convert(shipping_amount, currency)
+            .convert(router_data.request.shipping_cost.unwrap_or(MinorUnit(0)), currency)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
@@ -253,7 +251,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             })?;
         let tax_amount = converter
-            .convert(tax_amount, currency)
+            .convert(router_data.request.order_tax_amount.unwrap_or(MinorUnit(0)), currency)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
