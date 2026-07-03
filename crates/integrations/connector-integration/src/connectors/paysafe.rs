@@ -457,11 +457,11 @@ macros::macro_connector_implementation!(
             // Paysafe connector's PSync.
             let connector_payment_id = req.resource_common_data.get_reference_id()?;
             let url = match req.request.connector_transaction_id.get_connector_transaction_id() {
-                Ok(_) => {
+                Ok(txn_id) if !txn_id.is_empty() => {
                     // Payment progressed past the handle: query the settled payment.
                     format!("{base_url}v1/payments?merchantRefNum={connector_payment_id}")
                 }
-                Err(_) => {
+                _ => {
                     // Before authorization completes there is no payment yet: sync the handle.
                     format!("{base_url}v1/paymenthandles?merchantRefNum={connector_payment_id}")
                 }
