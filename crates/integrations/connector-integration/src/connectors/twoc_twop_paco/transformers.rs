@@ -945,7 +945,12 @@ where
                             .to_string(),
                     ),
                     doc_url: Some(PACO_INTEGRATION_DOC_URL.to_string()),
-                    additional_context: None,
+                    additional_context: Some(
+                        "airlineData was supplied without a billing address. PACO's airline \
+                         authorization requires the cardholder billing address, so the request \
+                         is rejected here rather than forwarded and failed by PACO."
+                            .to_string(),
+                    ),
                 },
             },
         ));
