@@ -5736,6 +5736,14 @@ fn get_additional_data_for_repeat_payment<
         Some("false".to_string())
     };
 
+    let transaction_link_id = match &item.request.mandate_reference {
+        MandateReferenceId::NetworkMandateId(ref_data) => ref_data.transaction_link_id.clone(),
+        MandateReferenceId::NetworkTokenWithNTI(ref_data) => ref_data.transaction_link_id.clone(),
+        MandateReferenceId::ConnectorMandateId(_) | MandateReferenceId::CardWithLimitedData(_) => {
+            None
+        }
+    };
+
     Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -5750,6 +5758,7 @@ fn get_additional_data_for_repeat_payment<
                 .as_ref()
                 .and_then(to_adyen_exemption)
         }),
+        transaction_link_id,
         ..AdditionalData::default()
     })
 }
@@ -5954,22 +5963,6 @@ fn get_additional_data<
         }
     };
 
-    let transaction_link_id = item.request.mandate_id.as_ref().and_then(|mandate_ids| {
-        mandate_ids
-            .mandate_reference_id
-            .as_ref()
-            .and_then(|mandate_ref_id| match mandate_ref_id {
-                MandateReferenceId::NetworkMandateId(ref_data) => {
-                    ref_data.transaction_link_id.clone()
-                }
-                MandateReferenceId::NetworkTokenWithNTI(ref_data) => {
-                    ref_data.transaction_link_id.clone()
-                }
-                MandateReferenceId::ConnectorMandateId(_)
-                | MandateReferenceId::CardWithLimitedData(_) => None,
-            })
-    });
-
     Ok(Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -5985,7 +5978,6 @@ fn get_additional_data<
                 .as_ref()
                 .and_then(to_adyen_exemption)
         }),
-        transaction_link_id,
         ..AdditionalData::default()
     }))
 }
