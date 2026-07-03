@@ -230,16 +230,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone()
             .unwrap_or_default();
         let converter = FloatMajorUnitForConnector;
-        let amount = converter
-            .convert(amount, currency)
-            .change_context(errors::IntegrationError::RequestEncodingFailed {
+        let amount = converter.convert(amount, currency).change_context(
+            errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
                         "Failed to convert authorize amount from minor to major units".to_string(),
                     ),
                     ..Default::default()
                 },
-            })?;
+            },
+        )?;
         let shipping_amount = converter
             .convert(router_data.request.shipping_cost.unwrap_or(MinorUnit(0)), currency)
             .change_context(errors::IntegrationError::RequestEncodingFailed {
@@ -259,7 +259,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ),
                     ..Default::default()
                 },
-            })?;
+            },
+        )?;
         let country_code = router_data
             .resource_common_data
             .get_shipping_or_billing_country()?
@@ -633,16 +634,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         ))?;
         let converter = FloatMajorUnitForConnector;
-        let amount = converter
-            .convert(amount, currency)
-            .change_context(errors::IntegrationError::RequestEncodingFailed {
+        let amount = converter.convert(amount, currency).change_context(
+            errors::IntegrationError::RequestEncodingFailed {
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
                         "Failed to convert void amount from minor to major units".to_string(),
                     ),
                     ..Default::default()
                 },
-            })?;
+            },
+        )?;
         Ok(Self {
             total_amount: TamaraAmount { amount, currency },
         })
