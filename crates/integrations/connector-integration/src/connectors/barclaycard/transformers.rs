@@ -1710,15 +1710,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     ..Default::default()
                 },
             ))?,
-            MandateReferenceId::CardWithLimitedData(_) => Err(IntegrationError::NotImplemented(
-                "Card with limited data based MIT is not supported for Barclaycard".to_string(),
-                IntegrationErrorContext {
-                    additional_context: Some(
-                        "Barclaycard MIT requests require either a stored connector mandate/payment instrument or a network transaction id for raw-card MITs; CardWithLimitedData provides neither reference".to_string(),
-                    ),
-                    ..Default::default()
-                },
-            ))?,
         };
 
         let processing_information = requests::RepeatPaymentProcessingInformation {

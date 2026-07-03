@@ -1482,8 +1482,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })
                 })?,
             MandateReferenceId::NetworkMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_)
-            | MandateReferenceId::CardWithLimitedData(_) => {
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "Network mandate id not supported for GlobalPay RepeatPayment".to_string(),
                     Default::default()

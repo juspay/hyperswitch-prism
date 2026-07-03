@@ -5739,9 +5739,7 @@ fn get_additional_data_for_repeat_payment<
     let transaction_link_id = match &item.request.mandate_reference {
         MandateReferenceId::NetworkMandateId(ref_data) => ref_data.transaction_link_id.clone(),
         MandateReferenceId::NetworkTokenWithNTI(ref_data) => ref_data.transaction_link_id.clone(),
-        MandateReferenceId::ConnectorMandateId(_) | MandateReferenceId::CardWithLimitedData(_) => {
-            None
-        }
+        MandateReferenceId::ConnectorMandateId(_) => None,
     };
 
     Some(AdditionalData {
@@ -6912,18 +6910,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         }))
                     }
                 }
-            }
-            MandateReferenceId::CardWithLimitedData(_) => {
-                return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: "CardWithLimitedData for mandate payment method".to_string(),
-                    connector: "Adyen",
-                    context: IntegrationErrorContext {
-                        additional_context: Some(
-                            "Adyen repeat payments require a stored connector mandate/payment method token or network token data; CardWithLimitedData does not carry a connector or network reference that can be sent to Adyen".to_string(),
-                        ),
-                        ..Default::default()
-                    }
-                }))
             }
         };
 

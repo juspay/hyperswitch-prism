@@ -149,8 +149,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     context: Default::default(),
                 })?,
             MandateReferenceId::NetworkMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_)
-            | MandateReferenceId::CardWithLimitedData(_) => {
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotImplemented(
                     "hyperswitch repeat payment only supports connector mandate id references"
                         .to_string(),

@@ -293,18 +293,6 @@ macros::create_all_prerequisites!(
                         },
                     }))
                 }
-                MandateReferenceId::CardWithLimitedData(_) => {
-                    Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: "Card with limited data not supported for aci".to_string(),
-                        connector: "Aci",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "ACI repeat payments use the registration id stored as connector_mandate_id; CardWithLimitedData does not include that ACI registration reference".to_string(),
-                            ),
-                            ..Default::default()
-                        },
-                    }))
-                }
             }
         }
     }

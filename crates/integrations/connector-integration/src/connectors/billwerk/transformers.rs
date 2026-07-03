@@ -681,8 +681,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 Secret::new(connector_mandate_id)
             }
             MandateReferenceId::NetworkMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_)
-            | MandateReferenceId::CardWithLimitedData(_) => {
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotImplemented(
                     ("Network mandate ID is not supported for Billwerk").into(),
                     Default::default(),

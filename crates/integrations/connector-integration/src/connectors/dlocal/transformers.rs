@@ -617,8 +617,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     context: Default::default(),
                 })?,
             MandateReferenceId::NetworkMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_)
-            | MandateReferenceId::CardWithLimitedData(_) => {
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: "Network mandate ID not supported for repeat payments in dlocal"
                         .to_string(),

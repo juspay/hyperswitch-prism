@@ -5563,18 +5563,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }),
                 )
             }
-            MandateReferenceId::CardWithLimitedData(_) => {
-                return Err(IntegrationError::NotImplemented(
-                    "CardWithLimitedData not supported in Cybersource RepeatPayment".to_string(),
-                    IntegrationErrorContext {
-                        additional_context: Some(
-                            "Cybersource repeat MIT construction needs a connector token or a network transaction id to populate the stored credential / merchant initiated transaction fields; CardWithLimitedData does not include that reference".to_string(),
-                        ),
-                        ..Default::default()
-                    },
-                )
-                .into());
-            }
         };
 
         // this logic is for external authenticated card

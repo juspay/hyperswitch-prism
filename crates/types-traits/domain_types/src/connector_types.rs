@@ -564,19 +564,10 @@ pub struct NetworkTokenWithNTIRef {
 }
 
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
-pub struct CardWithLimitedDataRef {
-    pub network_transaction_id: Option<String>,
-    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
-    /// when `setup_future_usage` is set to `off_session`.
-    pub transaction_link_id: Option<String>,
-}
-
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id sent by connector
     NetworkMandateId(NetworkMandateIdRef), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with card data
     NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with network token data
-    CardWithLimitedData(CardWithLimitedDataRef), // indicates the recurring transaction is done by card data only
 }
 
 /// Scheme-level identifiers for PSP-agnostic MIT flows (raw card path).
@@ -614,7 +605,6 @@ impl MandateIds {
             Some(MandateReferenceId::ConnectorMandateId(data)) => data.connector_mandate_id.clone(),
             Some(MandateReferenceId::NetworkMandateId(_))
             | Some(MandateReferenceId::NetworkTokenWithNTI(_))
-            | Some(MandateReferenceId::CardWithLimitedData(_))
             | None => None,
         }
     }
@@ -624,7 +614,6 @@ impl MandateIds {
             Some(MandateReferenceId::ConnectorMandateId(data)) => data.mandate_metadata.clone(),
             Some(MandateReferenceId::NetworkMandateId(_))
             | Some(MandateReferenceId::NetworkTokenWithNTI(_))
-            | Some(MandateReferenceId::CardWithLimitedData(_))
             | None => None,
         }
     }
@@ -1685,8 +1674,7 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
                 }
                 Some(MandateReferenceId::NetworkMandateId(_))
                 | None
-                | Some(MandateReferenceId::NetworkTokenWithNTI(_))
-                | Some(MandateReferenceId::CardWithLimitedData(_)) => None,
+                | Some(MandateReferenceId::NetworkTokenWithNTI(_)) => None,
             })
     }
 
@@ -1700,9 +1688,6 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
                 Some(MandateReferenceId::ConnectorMandateId(_))
                 | Some(MandateReferenceId::NetworkTokenWithNTI(_))
                 | None => None,
-                Some(MandateReferenceId::CardWithLimitedData(card_with_limited_data)) => {
-                    card_with_limited_data.network_transaction_id.clone()
-                }
             })
     }
 
@@ -3513,8 +3498,7 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
                 connector_mandate_ids.get_connector_mandate_id()
             }
             MandateReferenceId::NetworkMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_)
-            | MandateReferenceId::CardWithLimitedData(_) => None,
+            | MandateReferenceId::NetworkTokenWithNTI(_) => None,
         }
     }
     pub fn get_optional_email(&self) -> Option<Email> {
@@ -3528,9 +3512,6 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
             }
             MandateReferenceId::ConnectorMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => None,
-            MandateReferenceId::CardWithLimitedData(card_with_limited_data) => {
-                card_with_limited_data.network_transaction_id.clone()
-            }
         }
     }
 }

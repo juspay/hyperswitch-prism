@@ -947,10 +947,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ),
 
             // Case 3: Network token with NTI - NOT SUPPORTED (same as Hyperswitch)
-            MandateReferenceId::NetworkTokenWithNTI(_)
-            | MandateReferenceId::CardWithLimitedData(_) => {
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: "Network token with NTI / card with limited data not supported for authorizedotnet".to_string(),
+                    message: "Network token with NTI not supported for authorizedotnet".to_string(),
                     connector: "authorizedotnet",
                     context: Default::default(),
                 }))

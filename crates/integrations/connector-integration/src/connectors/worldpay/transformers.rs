@@ -600,18 +600,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
                 .into());
             }
-            MandateReferenceId::CardWithLimitedData(_) => {
-                return Err(IntegrationError::NotImplemented(
-                    "CardWithLimitedData not supported in RepeatPayment yet".to_string(),
-                    IntegrationErrorContext {
-                        additional_context: Some(
-                            "Worldpay repeat payments require a connector token href from connector_mandate_id; CardWithLimitedData does not include that token reference".to_string(),
-                        ),
-                        ..Default::default()
-                    },
-                )
-                .into());
-            }
         };
 
         // Determine settlement from capture_method

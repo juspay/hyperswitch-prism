@@ -1236,9 +1236,6 @@ message MandateReference {
     // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate
     // txns along with network token data
     NetworkTokenWithNTI network_token_with_nti = 3;
-
-    // Indicates the recurring transaction is done by card data only.
-    CardWithLimitedData card_with_limited_data = 4;
   }
 }
 
@@ -1263,13 +1260,6 @@ message NetworkTokenWithNTI {
   // Mastercard Transaction Link Identifier (TLID) provided by the card network
   // during a CIT when setup_future_usage is off_session.
   optional string transaction_link_id = 4;
-}
-
-message CardWithLimitedData {
-  optional string network_transaction_id = 1;
-  // Mastercard Transaction Link Identifier (TLID) provided by the card network
-  // during a CIT when setup_future_usage is off_session.
-  optional string transaction_link_id = 2;
 }
 
 // Container for various address types related to a payment

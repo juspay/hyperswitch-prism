@@ -701,8 +701,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 (token, mandate_data)
             }
             MandateReferenceId::NetworkMandateId(_)
-            | MandateReferenceId::NetworkTokenWithNTI(_)
-            | MandateReferenceId::CardWithLimitedData(_) => {
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::MissingRequiredField {
                     field_name: "connector_mandate_id",
                     context: Default::default(),

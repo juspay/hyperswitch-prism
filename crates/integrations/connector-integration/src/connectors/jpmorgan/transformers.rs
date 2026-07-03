@@ -1419,11 +1419,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_reference: None,
                 }
             }
-            MandateReferenceId::NetworkTokenWithNTI(_)
-            | MandateReferenceId::CardWithLimitedData(_) => {
+            MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotImplemented(
-                    "NetworkTokenWithNTI / CardWithLimitedData mandate reference is not implemented for \
-                     JPMorgan RepeatPayment"
+                    "NetworkTokenWithNTI mandate reference is not implemented for JPMorgan RepeatPayment"
                         .to_string(),
                     Default::default(),
                 )

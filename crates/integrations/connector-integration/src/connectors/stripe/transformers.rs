@@ -5114,8 +5114,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         None,
                     )
                 }
-                MandateReferenceId::NetworkTokenWithNTI(_)
-                | MandateReferenceId::CardWithLimitedData(_) => {
+                MandateReferenceId::NetworkTokenWithNTI(_) => {
                     let (payment_method_data, payment_method_type, billing_address) =
                         create_stripe_payment_method(
                             &item.request.payment_method_data,
