@@ -931,6 +931,26 @@ where
         .map(PacoAirlineData::try_from)
         .transpose()?;
 
+    // PACO requires a billing address alongside airlineData; a request carrying
+    // airline data but no billing address would be rejected downstream, so fail
+    // fast with a clear message instead of forwarding an incomplete payload.
+    if airline_data.is_some() && paco_billing_address.is_none() {
+        return Err(error_stack::Report::new(
+            errors::IntegrationError::MissingRequiredField {
+                field_name: "billing_address",
+                context: errors::IntegrationErrorContext {
+                    suggested_action: Some(
+                        "PACO requires a billing address when airlineData is supplied; \
+                         provide the customer billing address."
+                            .to_string(),
+                    ),
+                    doc_url: Some(PACO_INTEGRATION_DOC_URL.to_string()),
+                    additional_context: None,
+                },
+            },
+        ));
+    }
+
     match &item.request.payment_method_data {
         PaymentMethodData::Card(card) => {
             let card_type = match card.card_type.as_deref() {
