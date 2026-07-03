@@ -3122,11 +3122,6 @@ fn normalize_mandate_reference_oneofs(map: &mut serde_json::Map<String, Value>) 
         return;
     };
 
-    if let Some(Value::Object(mandate_type)) = mandate_reference_obj.get_mut("mandate_id_type") {
-        add_connector_mandate_reference_defaults(mandate_type);
-        return;
-    }
-
     if mandate_reference_obj.contains_key("mandate_id_type") {
         return;
     }
@@ -3142,23 +3137,11 @@ fn normalize_mandate_reference_oneofs(map: &mut serde_json::Map<String, Value>) 
 
     let mut wrapped_variant = serde_json::Map::new();
     wrapped_variant.insert(to_pascal_case(&variant), payload);
-    add_connector_mandate_reference_defaults(&mut wrapped_variant);
 
     mandate_reference_obj.insert(
         "mandate_id_type".to_string(),
         Value::Object(wrapped_variant),
     );
-}
-
-fn add_connector_mandate_reference_defaults(mandate_type: &mut serde_json::Map<String, Value>) {
-    let Some(Value::Object(connector_mandate_id)) = mandate_type.get_mut("ConnectorMandateId")
-    else {
-        return;
-    };
-
-    connector_mandate_id
-        .entry("update_history".to_string())
-        .or_insert_with(|| Value::Array(Vec::new()));
 }
 
 /// Normalizes the `google_pay.tokenization_data` oneof so that the flat
@@ -5792,10 +5775,10 @@ grpc-status: 0
                 ["connector_mandate_id"],
             json!("mandate_123")
         );
-        assert_eq!(
+        assert!(
             normalized["connector_recurring_payment_id"]["mandate_id_type"]["ConnectorMandateId"]
-                ["update_history"],
-            json!([])
+                .get("update_history")
+                .is_none()
         );
     }
 
