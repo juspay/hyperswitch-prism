@@ -584,41 +584,63 @@ pub struct CybersourceConsumerAuthInformation {
     cavv_algorithm: Option<String>,
 }
 
-impl From<router_request_types::AuthenticationData> for CybersourceConsumerAuthInformation {
-    fn from(value: router_request_types::AuthenticationData) -> Self {
+impl From<(router_request_types::AuthenticationData, Option<common_enums::CardNetwork>)>
+    for CybersourceConsumerAuthInformation
+{
+    fn from(
+        (value, card_network): (
+            router_request_types::AuthenticationData,
+            Option<common_enums::CardNetwork>,
+        ),
+    ) -> Self {
         let router_request_types::AuthenticationData {
-            eci: _,
+            eci,
             cavv,
             threeds_server_transaction_id: _,
             message_version,
             ds_trans_id,
             trans_status: _,
-            acs_transaction_id: _,
-            transaction_id,
-            ucaf_collection_indicator,
+            acs_transaction_id,
+            transaction_id: _,
+            ucaf_collection_indicator: _,
             exemption_indicator: _,
             network_params: _,
         } = value;
 
+        // Mirror the hyperswitch Direct cybersource mapping: for Mastercard the CAVV is carried in
+        // `ucafAuthenticationData` (with `ucafCollectionIndicator = 2`), otherwise it is sent in `cavv`.
+        let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
+            if card_network == Some(common_enums::CardNetwork::Mastercard) {
+                (cavv, None, Some("2".to_string()))
+            } else {
+                (None, cavv, None)
+            };
+
         Self {
-            pares_status: None,
+            // For all card payments hyperswitch explicitly sends `AuthenticationSuccessful`,
+            // regardless of the actual ACS response.
+            pares_status: Some(CybersourceParesStatus::AuthenticationSuccessful),
             ucaf_collection_indicator,
-            ucaf_authentication_data: cavv.clone(),
-            xid: transaction_id,
+            ucaf_authentication_data,
+            // hyperswitch Direct always sends `xid: None`.
+            xid: None,
             cavv,
             directory_server_transaction_id: ds_trans_id.map(Secret::new),
-            specification_version: None,
+            specification_version: message_version.clone(),
             pa_specification_version: message_version,
-            veres_enrolled: None,
-            eci_raw: None,
+            veres_enrolled: Some("Y".to_string()),
+            eci_raw: eci,
+            // The following fields have no source in the proto `AuthenticationData` message
+            // (authenticationDate/created_at, challengeCode, effectiveAuthenticationType,
+            // signedParesStatusReason, challengeCancelCode, networkScore) and remain a proto gap.
             authentication_date: None,
             effective_authentication_type: None,
             challenge_code: None,
             signed_pares_status_reason: None,
             challenge_cancel_code: None,
             network_score: None,
-            acs_transaction_id: None,
-            cavv_algorithm: None,
+            acs_transaction_id,
+            cavv_algorithm: Some("2".to_string()),
         }
     }
 }
@@ -1424,7 +1446,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let processing_information = ProcessingInformation::try_from((
             item,
             None,
-            raw_card_type.map(|network| network.to_string()),
+            raw_card_type.clone().map(|network| network.to_string()),
         ))?;
         let client_reference_information = ClientReferenceInformation::from(item);
         let merchant_defined_information = convert_metadata_to_merchant_defined_info(
@@ -1441,7 +1463,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .authentication_data
             .clone()
-            .map(From::from);
+            .map(|authn_data| From::from((authn_data, raw_card_type.clone())));
         Ok(Self {
             processing_information,
             payment_information,
@@ -5177,7 +5199,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .authentication_data
             .clone()
-            .map(From::from);
+            .map(|authn_data| From::from((authn_data, ccard.card_network.clone())));
 
         Ok(Self {
             processing_information,
@@ -5265,7 +5287,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .request
             .authentication_data
             .clone()
-            .map(From::from);
+            .map(|authn_data| From::from((authn_data, token_data.card_network.clone())));
 
         Ok(Self {
             processing_information,
