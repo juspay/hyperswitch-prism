@@ -32,10 +32,10 @@ impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetails> for InjectorTok
         proxy_card_details: &grpc_api_types::payments::ProxyCardDetails,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let card_data = ProxyCardTokenData {
-            // Netcetera requires the PAN / VGS card alias for PreAuthenticate and
-            // Authenticate; the injector template does not treat an empty value
-            // specially, so a missing (or empty) card number must fail conversion
-            // rather than silently becoming "".
+            // Netcetera requires the full card payload (PAN / VGS alias, CVC, and
+            // expiry) for PreAuthenticate and Authenticate; the injector template
+            // does not treat an empty value specially, so a missing (or empty)
+            // field must fail conversion rather than silently becoming "".
             card_number: Secret::new(
                 proxy_card_details
                     .card_number
@@ -54,21 +54,39 @@ impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetails> for InjectorTok
                     .card_cvc
                     .as_ref()
                     .map(|cvc| cvc.clone().expose().to_string())
-                    .unwrap_or_default(),
+                    .filter(|cvc| !cvc.is_empty())
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "card_cvc",
+                            context: Default::default(),
+                        })
+                    })?,
             ),
             card_exp_month: Secret::new(
                 proxy_card_details
                     .card_exp_month
                     .as_ref()
                     .map(|em| em.clone().expose().to_string())
-                    .unwrap_or_default(),
+                    .filter(|em| !em.is_empty())
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "card_exp_month",
+                            context: Default::default(),
+                        })
+                    })?,
             ),
             card_exp_year: Secret::new(
                 proxy_card_details
                     .card_exp_year
                     .as_ref()
                     .map(|ey| ey.clone().expose().to_string())
-                    .unwrap_or_default(),
+                    .filter(|ey| !ey.is_empty())
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "card_exp_year",
+                            context: Default::default(),
+                        })
+                    })?,
             ),
         };
 
