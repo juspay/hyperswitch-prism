@@ -7,9 +7,10 @@ use domain_types::{
     },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, MandateReference, MandateReferenceId,
-        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId,
     },
     payment_method_data::{
         ApplePayPaymentData, BankDebitData, BankRedirectData, GiftCardData, GpayTokenizationData,
@@ -99,8 +100,7 @@ fn create_paysafe_billing_details(
     // Paysafe rejects optional strings that are present but empty (error 5068:
     // "size must be between 1 and 50 where leading and trailing spaces are
     // omitted"), so blank values must be omitted rather than sent as "".
-    let non_empty =
-        |value: Option<Secret<String>>| value.filter(|v| !v.peek().trim().is_empty());
+    let non_empty = |value: Option<Secret<String>>| value.filter(|v| !v.peek().trim().is_empty());
     // Only send billing details if billing mandatory fields are available
     if let (Some(zip), Some(country), Some(state)) = (
         resource_common_data.get_optional_billing_zip(),

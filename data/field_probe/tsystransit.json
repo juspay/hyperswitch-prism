@@ -318,7 +318,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Selected payment method is not supported by tsysTransit"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -402,7 +402,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Selected payment method is not supported by tsysTransit"
       },
       "Sofort": {
         "status": "not_supported",

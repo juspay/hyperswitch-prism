@@ -8,11 +8,12 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import CustomerClient
 from payments import RefundClient
 from payments import PaymentMethodClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["capture", "get", "refund", "refund_get", "token_authorize", "tokenize", "void"]
+SUPPORTED_FLOWS = ["capture", "customer_create", "get", "refund", "refund_get", "token_authorize", "tokenize", "void"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -38,6 +39,14 @@ def _build_capture_request(connector_transaction_id: str):
         ),
     )
 
+def _build_customer_create_request():
+    return payment_pb2.CustomerServiceCreateRequest(
+        merchant_customer_id="cust_probe_123",  # Identification.
+        customer_name="John Doe",  # Name of the customer.
+        email=payment_methods_pb2.SecretString(value="test@example.com"),  # Email address of the customer.
+        phone_number=payment_methods_pb2.SecretString(value="4155552671"),  # Phone number of the customer.
+    )
+
 def _build_get_request(connector_transaction_id: str):
     return payment_pb2.PaymentServiceGetRequest(
         merchant_transaction_id="probe_merchant_txn_001",  # Identification.
@@ -46,6 +55,7 @@ def _build_get_request(connector_transaction_id: str):
             minor_amount=1000,  # Amount in minor units (e.g., 1000 = $10.00).
             currency=payment_pb2.Currency.Value("USD"),  # ISO 4217 currency code (e.g., "USD", "EUR").
         ),
+        connector_order_reference_id="probe_order_ref_001",  # Connector Reference Id.
     )
 
 def _build_refund_request(connector_transaction_id: str):
@@ -119,6 +129,15 @@ async def process_capture(merchant_transaction_id: str, config: sdk_config_pb2.C
     capture_response = await payment_client.capture(_build_capture_request("probe_connector_txn_001"))
 
     return {"status": capture_response.status}
+
+
+async def process_customer_create(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: CustomerService.Create"""
+    customer_client = CustomerClient(config)
+
+    customer_response = await customer_client.customer_create(_build_customer_create_request())
+
+    return {"customer_id": customer_response.connector_customer_id}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

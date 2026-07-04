@@ -16,6 +16,7 @@ use std::str::FromStr;
 #[allow(dead_code)]
 pub const SUPPORTED_FLOWS: &[&str] = &[
     "capture",
+    "customer_create",
     "get",
     "refund",
     "refund_get",
@@ -60,6 +61,16 @@ pub fn build_capture_request(connector_transaction_id: &str) -> PaymentServiceCa
     }
 }
 
+pub fn build_customer_create_request() -> CustomerServiceCreateRequest {
+    CustomerServiceCreateRequest {
+        merchant_customer_id: Some("cust_probe_123".to_string()), // Identification.
+        customer_name: Some("John Doe".to_string()),              // Name of the customer.
+        email: Some(Secret::new("test@example.com".to_string())), // Email address of the customer.
+        phone_number: Some(Secret::new("4155552671".to_string())), // Phone number of the customer.
+        ..Default::default()
+    }
+}
+
 pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetRequest {
     PaymentServiceGetRequest {
         merchant_transaction_id: Some("probe_merchant_txn_001".to_string()), // Identification.
@@ -69,6 +80,7 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
             minor_amount: 1000, // Amount in minor units (e.g., 1000 = $10.00).
             currency: Currency::Usd.into(), // ISO 4217 currency code (e.g., "USD", "EUR").
         }),
+        connector_order_reference_id: Some("probe_order_ref_001".to_string()), // Connector Reference Id.
         ..Default::default()
     }
 }
@@ -175,6 +187,18 @@ pub async fn process_capture(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: CustomerService.Create
+#[allow(dead_code)]
+pub async fn process_customer_create(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .create_customer(build_customer_create_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("customer_id: {}", response.connector_customer_id))
+}
+
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn process_get(
@@ -268,6 +292,7 @@ async fn main() {
         .unwrap_or_else(|| "process_capture".to_string());
     let result: Result<String, Box<dyn std::error::Error>> = match flow.as_str() {
         "process_capture" => process_capture(&client, "txn_001").await,
+        "process_customer_create" => process_customer_create(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_refund" => process_refund(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
@@ -275,7 +300,7 @@ async fn main() {
         "process_tokenize" => process_tokenize(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_capture, process_get, process_refund, process_refund_get, process_token_authorize, process_tokenize, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_capture, process_customer_create, process_get, process_refund, process_refund_get, process_token_authorize, process_tokenize, process_void", flow);
             return;
         }
     };

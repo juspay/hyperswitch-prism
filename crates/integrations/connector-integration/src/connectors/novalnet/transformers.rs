@@ -488,13 +488,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
-            | WalletDataPaymentMethod::Skrill(_) => {
-                    Err(IntegrationError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("novalnet"),
-                        Default::default(),
-                    )
-                    .into())
-                }
+                | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                    Default::default(),
+                )
+                .into()),
             },
             PaymentMethodData::BankDebit(ref bank_debit_data) => {
                 let payment_type = NovalNetPaymentTypes::try_from(
@@ -2232,12 +2230,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
                 | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
-            | WalletDataPaymentMethod::Skrill(_) => {
-                    Err(IntegrationError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("novalnet"),
-                        Default::default(),
-                    ))?
-                }
+                | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                    Default::default(),
+                ))?,
             },
             _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("novalnet"),
