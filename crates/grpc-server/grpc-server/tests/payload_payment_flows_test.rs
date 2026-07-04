@@ -375,6 +375,13 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
                     end_date: None,
                     amount_type: Some("max".to_string()),
                     frequency: Some("monthly".to_string()),
+                    initial_billing_amount: None,
+                    external_subscription_id: None,
+                    status: None,
+                    next_billing_date: None,
+                    billing_cycle: None,
+                    description: None,
+                    mandate_status: 0, // MANDATE_STATUS_UNSPECIFIED
                 })),
             }),
         }),
@@ -573,8 +580,7 @@ async fn test_setup_mandate() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let response = client
-            .setup_recurring(grpc_request)
+        let response = Box::pin(client.setup_recurring(grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();
@@ -625,8 +631,7 @@ async fn test_repeat_payment() {
         let mut register_grpc_request = Request::new(register_request);
         add_payload_metadata(&mut register_grpc_request);
 
-        let register_response = client
-            .setup_recurring(register_grpc_request)
+        let register_response = Box::pin(client.setup_recurring(register_grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();

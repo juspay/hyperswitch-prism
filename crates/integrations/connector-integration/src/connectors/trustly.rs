@@ -389,6 +389,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
                 connector_refund_id: Some(details.params.data.orderid.clone()),
+                merchant_transaction_id: None,
                 status,
                 connector_response_reference_id: Some(details.params.uuid.clone()),
                 error_code: details.params.data.errorcode,

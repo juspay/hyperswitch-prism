@@ -472,7 +472,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_amount_data.map(|amount_data| {
                         data.connector
                             .amount_converter
-                            .convert(amount_data.amount, amount_data.currency)
+                            .convert(amount_data.amount.amount, amount_data.amount.currency)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),
@@ -1359,7 +1359,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_amount_data.map(|amount_data| {
                         data.connector
                             .amount_converter
-                            .convert(amount_data.amount, amount_data.currency)
+                            .convert(amount_data.amount.amount, amount_data.amount.currency)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),

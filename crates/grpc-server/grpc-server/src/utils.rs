@@ -351,6 +351,13 @@ where
     }
     .await;
 
+    #[cfg(feature = "otel")]
+    observe_internal_latency(
+        start_time,
+        flow_name,
+        service_name,
+        event_metadata_payload.as_ref(),
+    );
     create_and_emit_grpc_event(
         masked_request_data,
         &grpc_response,
@@ -406,6 +413,13 @@ where
     }
     .await;
 
+    #[cfg(feature = "otel")]
+    observe_internal_latency(
+        start_time,
+        flow_name,
+        service_name,
+        event_metadata_payload.as_ref(),
+    );
     create_and_emit_grpc_event(
         masked_request_data,
         &grpc_response,
@@ -418,6 +432,31 @@ where
     );
 
     grpc_response
+}
+
+#[cfg(feature = "otel")]
+fn observe_internal_latency(
+    start_time: tokio::time::Instant,
+    flow_name: FlowName,
+    service_name: &str,
+    metadata_payload: Option<&MetadataPayload>,
+) {
+    let connector_time = metadata_payload
+        .map(|metadata| metadata.connector_latency.connector_time())
+        .unwrap_or_default();
+    let internal = start_time.elapsed().saturating_sub(connector_time);
+    let connector = metadata_payload
+        .map(|md| md.connector.get_connector_name())
+        .unwrap_or_else(|| "unknown".to_string());
+    let mode =
+        ExecutionMode::from_shadow_flag(metadata_payload.map(|md| md.shadow_mode).unwrap_or(false));
+    external_services::otel_metrics::record_internal_latency(
+        &flow_name.to_string(),
+        service_name,
+        &connector,
+        mode.as_str(),
+        internal.as_secs_f64(),
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -436,6 +475,7 @@ fn create_and_emit_grpc_event<R>(
     let connector = metadata_payload
         .map(|md| md.connector.get_connector_name())
         .unwrap_or_else(|| "unknown".to_string());
+
     let mut grpc_event = Event {
         request_id: metadata_payload.map_or("unknown".to_string(), |md| md.request_id.clone()),
         timestamp: chrono::Utc::now().timestamp_millis().into(),
@@ -673,6 +713,7 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
             };
             let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
@@ -794,6 +835,7 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
             };
 
             // The connector round-trip is identical for both holders → written once,
@@ -1081,6 +1123,7 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
             };
             let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(

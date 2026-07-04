@@ -16,9 +16,10 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
     PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceCreateRequest,
     PaymentMethodServiceGetRequest, PaymentMethodServiceRechargeRequest,
-    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceGetRequest,
-    PaymentServiceRefundRequest, PaymentServiceVerifyRedirectResponseResponse,
-    PaymentServiceVoidRequest, RefundServiceGetRequest,
+    PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
+    PaymentServiceCreateOrderResponse, PaymentServiceGetRequest, PaymentServiceRefundRequest,
+    PaymentServiceVerifyRedirectResponseResponse, PaymentServiceVoidRequest,
+    RefundServiceGetRequest,
 };
 
 use crate::utils::{
@@ -70,6 +71,21 @@ impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorEnum)>
     }
 }
 
+impl ForeignFrom<&CompositeAuthorizeRequest> for PaymentServiceCreateOrderRequest {
+    fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
+        Self {
+            merchant_order_id: item.merchant_order_id.clone(),
+            amount: item.amount,
+            webhook_url: item.webhook_url.clone(),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            state: item.state.clone(),
+            test_mode: item.test_mode,
+            payment_method_type: None,
+        }
+    }
+}
+
 impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
     fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
         let customer = item.customer.as_ref();
@@ -105,6 +121,7 @@ impl
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
         Option<&CustomerServiceCreateResponse>,
+        Option<&PaymentServiceCreateOrderResponse>,
         Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
         Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
     )> for PaymentServiceAuthorizeRequest
@@ -115,6 +132,7 @@ impl
             access_token_response,
             session_token_response,
             create_customer_response,
+            create_order_response,
             authenticate_response,
             post_authenticate_response,
         ): (
@@ -122,6 +140,7 @@ impl
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
             Option<&MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
             Option<&CustomerServiceCreateResponse>,
+            Option<&PaymentServiceCreateOrderResponse>,
             Option<&PaymentMethodAuthenticationServiceAuthenticateResponse>,
             Option<&PaymentMethodAuthenticationServicePostAuthenticateResponse>,
         ),
@@ -157,6 +176,11 @@ impl
             .and_then(|r| r.connector_feature_data.clone())
             .or_else(|| authenticate_response.and_then(|r| r.connector_feature_data.clone()))
             .or_else(|| item.connector_feature_data.clone());
+
+        // Prefer connector_order_id from create_order_response, then from request
+        let connector_order_id = create_order_response
+            .and_then(|r| r.connector_order_id.clone())
+            .or_else(|| item.connector_order_id.clone());
 
         Self {
             merchant_transaction_id: item.merchant_transaction_id.clone(),
@@ -202,7 +226,7 @@ impl
             redirection_response: item.redirection_response.clone(),
             continue_redirection_url: item.continue_redirection_url.clone(),
             l2_l3_data: item.l2_l3_data.clone(),
-            connector_order_id: item.connector_order_id.clone(),
+            connector_order_id,
             mit_category: item.mit_category,
             merchant_request_id: item.merchant_request_id.clone(),
             domain_data: item.domain_data.clone(),
@@ -523,6 +547,7 @@ impl
             state: resolved_state,
             capture_method: item.capture_method,
             description: item.description.clone(),
+            merchant_transaction_id: item.merchant_transaction_id.clone(),
         }
     }
 }
@@ -562,6 +587,7 @@ impl
             state: item.state.clone(),
             redirection_response: item.redirection_response.clone(),
             capture_method: item.capture_method,
+            webhook_url: item.webhook_url.clone(),
         }
     }
 }
@@ -1070,6 +1096,10 @@ impl
                 access_token,
                 connector_customer_id,
             }),
+            mandate_info: item.mandate_info.clone(),
+            merchant_details: item.merchant_details.clone(),
+            // Forwarded for parity; not yet consumed by connectors (mandate_info used).
+            mandate_details: item.mandate_details.clone(),
         }
     }
 }

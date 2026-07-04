@@ -468,7 +468,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"order_id\":\"probe_connector_txn_001\",\"total_amount\":{\"amount\":1000,\"currency\":\"USD\"}}"
+          "body": "{\"order_id\":\"probe_connector_txn_001\",\"total_amount\":{\"amount\":10.0,\"currency\":\"USD\"}}"
         }
       }
     },
@@ -661,7 +661,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"total_amount\":{\"amount\":1000,\"currency\":\"USD\"},\"comment\":\"customer_request\",\"merchant_refund_id\":\"probe_refund_001\"}"
+          "body": "{\"total_amount\":{\"amount\":10.0,\"currency\":\"USD\"},\"comment\":\"customer_request\",\"merchant_refund_id\":\"probe_refund_001\"}"
         }
       }
     },

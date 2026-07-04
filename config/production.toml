@@ -27,6 +27,7 @@ kount.base_url = "https://api.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
 hyperswitch.base_url = "https://api.hyperswitch.io"
 payconex.base_url = "https://secure.payconex.net"
+affirm.base_url = "https://api.affirm.com"
 tamara.base_url = "https://api.tamara.co"
 juspay.base_url = "https://api.juspay.in/"
 qwikcilver.base_url = "https://api.qwikcilver.com/"
@@ -137,6 +138,7 @@ tsys_transit.base_url = "https://gwapi.transit-pass.com/"
 # {{merchant_endpoint_prefix}} is a per-merchant Netcetera endpoint prefix; see
 # the TODO(netcetera) in connectors/netcetera.rs base_url for prefix resolution.
 netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prod.netcetera-cloud-payment.ch"
+flywire.base_url = "https://api-platform.flywire.com"
 
 # Generic Events Configuration
 [events]
