@@ -3,12 +3,13 @@ use crate::{
         ConnectorResponseHeaders, CustomerInfo, RawConnectorRequestResponse,
         ServerAuthenticationTokenResponseData,
     },
+    mandates::MandateAmountData,
     payment_address::{OrderDetailsWithAmount, PaymentAddress},
     payment_method_data::{DefaultPCIHolder, PaymentMethodData},
     router_request_types::BrowserInformation,
     types::Connectors,
 };
-use common_enums::{AttemptStatus, FrmDecision};
+use common_enums::{AttemptStatus, FrmDecision, PaymentMethodType};
 use common_utils::types::Money;
 use hyperswitch_masking::Secret;
 
@@ -50,6 +51,13 @@ impl ConnectorResponseHeaders for FrmFlowData {
     }
 }
 
+/// Merchant details used for FRM risk scoring.
+#[derive(Debug, Clone, Default)]
+pub struct MerchantDetails {
+    pub merchant_id: Option<String>,
+    pub merchant_category_code: Option<u32>,
+}
+
 /// Request data for pre-risk check
 #[derive(Debug, Clone)]
 pub struct PreRiskCheckRequest {
@@ -63,6 +71,13 @@ pub struct PreRiskCheckRequest {
     pub metadata: Option<Secret<String>>,
     pub connector_feature_data: Option<Secret<String>>,
     pub test_mode: Option<bool>,
+    /// Recurring / subscription details for risk scoring (shared MandateAmountData;
+    /// `amount` is the per-period billing amount, `frequency` the billing period).
+    pub mandate_info: Option<MandateAmountData>,
+    /// Merchant details (id + MCC) for risk scoring.
+    pub merchant_details: Option<MerchantDetails>,
+    /// Payment method sub-type (e.g. `Card`, `GooglePay`, `UpiCollect`) for risk scoring.
+    pub payment_method_type: Option<PaymentMethodType>,
 }
 
 /// Response data for pre-risk check
@@ -111,6 +126,8 @@ pub struct FrmPaymentOutcomeRequest {
     pub payment_status: Option<AttemptStatus>,
     pub merchant_transaction_id: Option<String>,
     pub frm_decision: Option<FrmDecision>,
+    /// Merchant details (id + MCC) for the Update Order call.
+    pub merchant_details: Option<MerchantDetails>,
 }
 
 #[derive(Debug, Clone)]
@@ -122,6 +139,8 @@ pub struct FrmRefundProcessedRequest {
     pub merchant_refund_id: Option<String>,
     pub refund_reason: Option<String>,
     pub frm_decision: Option<FrmDecision>,
+    /// Merchant details (id + MCC) for the Update Order call.
+    pub merchant_details: Option<MerchantDetails>,
 }
 
 #[derive(Debug, Clone)]

@@ -4,7 +4,7 @@ use josekit::jwt;
 use common_utils::{
     consts,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
-    ext_traits::{OptionExt, ValueExt},
+    ext_traits::{BytesExt, OptionExt, ValueExt},
     pii,
     types::{SemanticVersion, StringMajorUnit},
 };
@@ -41,7 +41,7 @@ use domain_types::{
     },
     router_data_v2::RouterDataV2,
     router_request_types,
-    router_response_types::RedirectForm,
+    router_response_types::{RedirectForm, Response},
     utils::{to_currency_base_unit, CardIssuer},
 };
 use error_stack::ResultExt;
@@ -4706,6 +4706,52 @@ pub enum Reason {
     ServiceTimeout,
 }
 
+/// std `TryFrom<&Response>` can't be implemented for the foreign `ErrorResponse`
+/// (orphan rule), so this crate-local trait carries the whole HTTP `Response`,
+/// giving the conversion both the parsed body and the status code.
+pub trait ForeignTryFrom<T>: Sized {
+    type Error;
+    fn foreign_try_from(value: T) -> Result<Self, Self::Error>;
+}
+
+impl ForeignTryFrom<&Response> for ErrorResponse {
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn foreign_try_from(res: &Response) -> Result<Self, Self::Error> {
+        // Cybersource returns a structured body on 5xx (e.g. HTTP 502
+        // `{"status":"SERVER_ERROR","reason":"SYSTEM_ERROR","message":"..."}`).
+        // Map `status` -> code/reason and `message` -> message, mirroring the Direct
+        // gateway so the shadow UCS `response.Err.*` match instead of the generic
+        // `bad_gateway` / HTTP-status discriminator.
+        let response: CybersourceServerErrorResponse = res
+            .response
+            .parse_struct("CybersourceServerErrorResponse")
+            .change_context(utils::response_deserialization_fail(
+                res.status_code,
+                "cybersource: 5xx response body did not match the expected server-error format.",
+            ))?;
+        let attempt_status = match response.reason {
+            Some(Reason::SystemError) => {
+                Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure))
+            }
+            Some(Reason::ServerTimeout) | Some(Reason::ServiceTimeout) | None => None,
+        };
+        Ok(Self {
+            status_code: res.status_code,
+            reason: response.status.clone(),
+            code: response.status.unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+            message: response
+                .message
+                .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+            attempt_status,
+            connector_transaction_id: None,
+            network_advice_code: None,
+            network_decline_code: None,
+            network_error_message: None,
+        })
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 pub struct CybersourceAuthenticationErrorResponse {
     pub response: AuthenticationErrorInformation,
@@ -5603,8 +5649,22 @@ fn convert_metadata_to_merchant_defined_info(
 ) -> Option<Vec<utils::MerchantDefinedInformation>> {
     let mut iter = 1;
 
+    // Sort metadata keys to match the Direct (hyperswitch) gateway, which deserializes
+    // metadata into a `BTreeMap` (alphabetical key order). Without this the UCS leg preserves
+    // the raw JSON insertion order (serde_json `preserve_order` is enabled in this crate),
+    // producing a merchantDefinedInformation array whose element ordering diverges from Direct.
     let mut result: Vec<utils::MerchantDefinedInformation> = metadata
-        .and_then(|value| value.as_object().cloned())
+        .and_then(|value| {
+            serde_json::from_value::<std::collections::BTreeMap<String, serde_json::Value>>(value)
+                .map_err(|error| {
+                    tracing::warn!(
+                        ?error,
+                        "Failed to deserialize cybersource metadata into a BTreeMap; \
+                         skipping merchantDefinedInformation for this payment"
+                    );
+                })
+                .ok()
+        })
         .map(|map| {
             map.into_iter()
                 .map(|(key, value)| {
@@ -5622,7 +5682,7 @@ fn convert_metadata_to_merchant_defined_info(
     if let Some(merchant_ref_id) = merchant_order_id {
         result.push(utils::MerchantDefinedInformation {
             key: iter,
-            value: format!("merchant_order_id={merchant_ref_id}"),
+            value: format!("merchant_order_reference_id={merchant_ref_id}"),
         });
     }
 
@@ -5833,22 +5893,5 @@ impl TryFrom<ResponseRouterData<CybersourceClientAuthResponse, Self>>
             }),
             ..item.router_data
         })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Regression: when card_network is absent, the fallback path must pass the
-    // raw card number to get_card_issuer. Previously the code used
-    // format!("{:?}", card_number) which triggered Debug masking
-    // ("424242**********") and broke the BIN regex match, producing card.type = null.
-    #[test]
-    #[allow(clippy::expect_used)]
-    fn card_type_fallback_returns_visa_001_for_test_card() {
-        let issuer = domain_types::utils::get_card_issuer("4242424242424242")
-            .expect("Visa BIN should be recognized");
-        assert_eq!(card_issuer_to_string(issuer), "001");
     }
 }
