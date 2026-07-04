@@ -842,6 +842,7 @@ macro_rules! implement_connector_operation {
             // generic over `T`. Each match arm only builds the holder-specific request
             // (+ optional injector token) and picks the monomorphisation; the two
             // `RouterDataV2` types never need to share a binding.
+            #[allow(clippy::too_many_arguments)]
             async fn run_holder_flow<
                 T: domain_types::payment_method_data::PaymentMethodDataTypes
                     + std::fmt::Debug
