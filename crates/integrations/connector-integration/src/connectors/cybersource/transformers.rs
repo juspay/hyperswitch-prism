@@ -584,8 +584,11 @@ pub struct CybersourceConsumerAuthInformation {
     cavv_algorithm: Option<String>,
 }
 
-impl From<(router_request_types::AuthenticationData, Option<common_enums::CardNetwork>)>
-    for CybersourceConsumerAuthInformation
+impl
+    From<(
+        router_request_types::AuthenticationData,
+        Option<common_enums::CardNetwork>,
+    )> for CybersourceConsumerAuthInformation
 {
     fn from(
         (value, card_network): (
