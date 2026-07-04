@@ -32,12 +32,22 @@ impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetails> for InjectorTok
         proxy_card_details: &grpc_api_types::payments::ProxyCardDetails,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let card_data = ProxyCardTokenData {
+            // Netcetera requires the PAN / VGS card alias for PreAuthenticate and
+            // Authenticate; the injector template does not treat an empty value
+            // specially, so a missing (or empty) card number must fail conversion
+            // rather than silently becoming "".
             card_number: Secret::new(
                 proxy_card_details
                     .card_number
                     .as_ref()
                     .map(|cn| cn.peek().to_owned())
-                    .unwrap_or_default(),
+                    .filter(|cn| !cn.is_empty())
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "card_number",
+                            context: Default::default(),
+                        })
+                    })?,
             ),
             card_cvc: Secret::new(
                 proxy_card_details
