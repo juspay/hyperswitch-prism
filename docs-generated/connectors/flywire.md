@@ -131,19 +131,19 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/flywire/flywire.py#L135) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L98) · [Rust](../../examples/flywire/flywire.rs#L194)
+**Examples:** [Python](../../examples/flywire/flywire.py#L135) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L98) · [Rust](../../examples/flywire/flywire.rs#L196)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/flywire/flywire.py#L154) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L114) · [Rust](../../examples/flywire/flywire.rs#L210)
+**Examples:** [Python](../../examples/flywire/flywire.py#L154) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L114) · [Rust](../../examples/flywire/flywire.rs#L212)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/flywire/flywire.py#L179) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L136) · [Rust](../../examples/flywire/flywire.rs#L233)
+**Examples:** [Python](../../examples/flywire/flywire.py#L179) · [JavaScript](../../examples/flywire/flywire.js) · [Kotlin](../../examples/flywire/flywire.kt#L136) · [Rust](../../examples/flywire/flywire.rs#L235)
 
 ## API Reference
 
