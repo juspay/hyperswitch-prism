@@ -839,7 +839,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"source\":{\"type\":\"id\",\"id\":\"probe-mandate-123\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/recurring-return?status=success\",\"failure_url\":\"https://example.com/recurring-return?status=failure\",\"capture\":true,\"reference\":\"\",\"payment_type\":\"Unscheduled\",\"merchant_initiated\":true}"
+          "body": "{\"source\":{\"type\":\"id\",\"id\":\"probe-mandate-123\",\"billing_address\":{}},\"amount\":1000,\"currency\":\"USD\",\"processing_channel_id\":\"probe_id\",\"3ds\":{\"enabled\":false,\"force_3ds\":false,\"eci\":null,\"cryptogram\":null,\"xid\":null,\"version\":null,\"challenge_indicator\":\"no_preference\"},\"success_url\":\"https://example.com/recurring-return?status=success\",\"failure_url\":\"https://example.com/recurring-return?status=failure\",\"capture\":true,\"reference\":\"\",\"metadata\":{},\"payment_type\":\"Unscheduled\",\"merchant_initiated\":true}"
         }
       }
     },
