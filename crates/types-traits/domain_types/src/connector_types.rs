@@ -2077,6 +2077,8 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub authentication_data: Option<router_request_types::AuthenticationData>,
     pub webhook_url: Option<String>,
+    /// Domain-specific data (e.g. student fields) for connectors that need it.
+    pub domain_data: Option<DomainData>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
@@ -4124,6 +4126,22 @@ pub struct PartnerMerchantIdentifierDetails {
 #[derive(Debug, Clone, Default)]
 pub struct DomainData {
     pub airline_data: Option<AirlineData>,
+    pub education_data: Option<EducationData>,
+}
+
+/// Connector-agnostic education data (e.g. Flywire tuition payments).
+#[derive(Debug, Clone, Default)]
+pub struct EducationData {
+    pub student_details: Option<StudentDetails>,
+}
+
+/// Student details for education payments (e.g. Flywire recipient fields).
+#[derive(Debug, Clone, Default)]
+pub struct StudentDetails {
+    pub student_id: String,
+    pub student_first_name: String,
+    pub student_last_name: String,
+    pub student_email: String,
 }
 
 /// Connector-agnostic airline / travel itinerary data — the union of fields

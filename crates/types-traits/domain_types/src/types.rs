@@ -3569,6 +3569,16 @@ impl ForeignTryFrom<grpc_payment_types::DomainData> for connector_types::DomainD
                 .airline_data
                 .map(connector_types::AirlineData::foreign_try_from)
                 .transpose()?,
+            education_data: domain_data
+                .education_data
+                .map(|ed| connector_types::EducationData {
+                    student_details: ed.student_details.map(|s| connector_types::StudentDetails {
+                        student_id: s.student_id,
+                        student_first_name: s.student_first_name,
+                        student_last_name: s.student_last_name,
+                        student_email: s.student_email,
+                    }),
+                }),
         })
     }
 }
@@ -14471,6 +14481,10 @@ impl<
                 .map(router_request_types::AuthenticationData::try_from)
                 .transpose()?,
             webhook_url: value.webhook_url,
+            domain_data: value
+                .domain_data
+                .map(connector_types::DomainData::foreign_try_from)
+                .transpose()?,
         })
     }
 }

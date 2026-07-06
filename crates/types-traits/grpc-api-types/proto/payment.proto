@@ -1308,6 +1308,20 @@ message L2L3Data {
 // Domain-specific data supplied by the merchant.
 message DomainData {
   optional AirlineData airline_data = 1; // Airline / travel itinerary data
+  optional EducationData education_data = 2; // Education / student data
+}
+
+// Connector-agnostic education data (e.g. Flywire tuition payments).
+message EducationData {
+  optional StudentDetails student_details = 1;
+}
+
+// Student details for education payments (e.g. Flywire recipient fields).
+message StudentDetails {
+  string student_id = 1;
+  string student_first_name = 2;
+  string student_last_name = 3;
+  string student_email = 4;
 }
 
 // Whether the ticket can be refunded 
@@ -3566,6 +3580,9 @@ message PaymentMethodAuthenticationServiceAuthenticateRequest {
 
   // URL for webhook notifications
   optional string webhook_url = 15;
+
+  // Domain-specific data (e.g. student fields for tuition payments)
+  optional DomainData domain_data = 16;
 }
 
 // Response message for authentication step
