@@ -134,6 +134,15 @@ _UNSUPPORTED_FLOWS: frozenset[str] = frozenset({
     "verify_redirect",
 })
 
+# Flows whose Python SDK client method calls _execute_direct() and returns the
+# response synchronously (not a coroutine) — must NOT be awaited, unlike the
+# _execute_flow()-backed methods for every other flow.
+_PYTHON_SYNC_FLOWS: frozenset[str] = frozenset({
+    "handle_event",
+    "parse_event",
+    "verify_redirect",
+})
+
 
 def _generate_connector_config_rust(connector_name: str) -> str:
     """Generate accurate Rust config code using parsed proto metadata.
@@ -1147,7 +1156,8 @@ def _scenario_step_python(
     
     lines: list[str] = []
     lines.append(f"    # Step {step_num}: {desc}")
-    lines.append(f"    {var_name} = await {client_var}.{method}({type_path}(")
+    awaitkw = "" if flow_key in _PYTHON_SYNC_FLOWS else "await "
+    lines.append(f"    {var_name} = {awaitkw}{client_var}.{method}({type_path}(")
 
     drop_fields = _SCENARIO_DROP_FIELDS.get((scenario_key, flow_key), frozenset())
     # Build a filtered payload, substituting dynamic fields as raw expressions
@@ -1930,7 +1940,8 @@ def render_consolidated_python(
         else:
             call_arg = "authorize_response.connector_transaction_id"
 
-        slines.append(f"{pad}{var_name} = await {client_var}.{method}(_build_{flow_key}_request({call_arg}))")
+        awaitkw = "" if flow_key in _PYTHON_SYNC_FLOWS else "await "
+        slines.append(f"{pad}{var_name} = {awaitkw}{client_var}.{method}(_build_{flow_key}_request({call_arg}))")
         slines.append("")
 
         if flow_key == "authorize":
@@ -2027,13 +2038,14 @@ def render_consolidated_python(
         pm_part    = f" ({pm_label})" if pm_label else ""
 
         body_lines: list[str] = [f"    {client_var} = {client_cls}(config)", ""]
+        awaitkw = "" if flow_key in _PYTHON_SYNC_FLOWS else "await "
         if flow_key in has_builder:
             if flow_key in _FLOW_BUILDER_EXTRA_PARAM:
                 param_name  = _FLOW_BUILDER_EXTRA_PARAM[flow_key][0]
                 default_val = proto_req.get(param_name, "AUTOMATIC" if param_name == "capture_method" else "probe_connector_txn_001")
-                body_lines.append(f'    {resp_var} = await {client_var}.{method}(_build_{flow_key}_request("{default_val}"))')
+                body_lines.append(f'    {resp_var} = {awaitkw}{client_var}.{method}(_build_{flow_key}_request("{default_val}"))')
             else:
-                body_lines.append(f'    {resp_var} = await {client_var}.{method}(_build_{flow_key}_request())')
+                body_lines.append(f'    {resp_var} = {awaitkw}{client_var}.{method}(_build_{flow_key}_request())')
             body_lines.append("")
         else:
             body_lines.extend(_scenario_step_python("_standalone_", flow_key, 1, proto_req, grpc_req, client_var, db))
