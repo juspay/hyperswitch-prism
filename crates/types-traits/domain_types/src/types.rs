@@ -2413,6 +2413,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Evoucher => {
                 Ok(PaymentMethodType::Evoucher)
             }
+            grpc_api_types::payments::PaymentMethodType::DuitNow => Ok(PaymentMethodType::DuitNow),
             grpc_api_types::payments::PaymentMethodType::ApplePay => {
                 Ok(PaymentMethodType::ApplePay)
             }
