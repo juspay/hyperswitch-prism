@@ -779,46 +779,82 @@ fn build_connector_response(
     }
 }
 
-fn build_payment_error_response(
+fn build_payment_response(
     status: AttemptStatus,
     status_code: u16,
+    resource_id: ResponseId,
     connector_transaction_id: Option<String>,
+    connector_response_reference_id: Option<String>,
+    payment_tokens: Option<&FiservcommercehubPaymentTokens>,
     payment_receipt: Option<&FiservcommercehubPaymentReceipt>,
-) -> Option<ErrorResponse> {
-    if status != AttemptStatus::Failure {
-        return None;
+) -> Result<PaymentsResponseData, ErrorResponse> {
+    match status {
+        AttemptStatus::Failure => {
+            let processor_response_details =
+                payment_receipt.and_then(|receipt| receipt.processor_response_details.as_ref());
+
+            let response_code =
+                processor_response_details.and_then(|details| details.response_code.clone());
+            let response_message =
+                processor_response_details.and_then(|details| details.response_message.clone());
+            let host_response_code =
+                processor_response_details.and_then(|details| details.host_response_code.clone());
+            let host_response_message = processor_response_details
+                .and_then(|details| details.host_response_message.clone());
+
+            Err(ErrorResponse {
+                code: response_code
+                    .clone()
+                    .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
+                message: response_message
+                    .clone()
+                    .or_else(|| host_response_message.clone())
+                    .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
+                reason: host_response_message
+                    .clone()
+                    .or_else(|| response_message.clone()),
+                status_code,
+                attempt_status: Some(FlowStatus::Payment(status)),
+                connector_transaction_id,
+                network_decline_code: response_code,
+                network_advice_code: host_response_code,
+                network_error_message: host_response_message,
+            })
+        }
+        _ => Ok(PaymentsResponseData::TransactionResponse {
+            resource_id,
+            redirection_data: None,
+            mandate_reference: payment_tokens
+                .and_then(|token| token.get_mandate_reference(connector_transaction_id)),
+            connector_metadata: None,
+            network_txn_id: None,
+            network_txn_link_id: None,
+            connector_response_reference_id,
+            incremental_authorization_allowed: None,
+            status_code,
+            splits: None,
+        }),
     }
+}
 
-    let processor_response_details =
-        payment_receipt.and_then(|receipt| receipt.processor_response_details.as_ref());
+fn build_transaction_payment_response(
+    status: AttemptStatus,
+    status_code: u16,
+    txn: &FiservcommercehubTxnDetails,
+    payment_tokens: Option<&FiservcommercehubPaymentTokens>,
+    payment_receipt: Option<&FiservcommercehubPaymentReceipt>,
+) -> Result<PaymentsResponseData, ErrorResponse> {
+    let connector_transaction_id = txn.transaction_id.clone();
 
-    let response_code =
-        processor_response_details.and_then(|details| details.response_code.clone());
-    let response_message =
-        processor_response_details.and_then(|details| details.response_message.clone());
-    let host_response_code =
-        processor_response_details.and_then(|details| details.host_response_code.clone());
-    let host_response_message =
-        processor_response_details.and_then(|details| details.host_response_message.clone());
-
-    Some(ErrorResponse {
-        code: response_code
-            .clone()
-            .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
-        message: response_message
-            .clone()
-            .or_else(|| host_response_message.clone())
-            .unwrap_or_else(|| NO_ERROR_MESSAGE.to_string()),
-        reason: host_response_message
-            .clone()
-            .or_else(|| response_message.clone()),
+    build_payment_response(
+        status,
         status_code,
-        attempt_status: Some(FlowStatus::Payment(status)),
-        connector_transaction_id,
-        network_decline_code: response_code,
-        network_advice_code: host_response_code,
-        network_error_message: host_response_message,
-    })
+        ResponseId::ConnectorTransactionId(connector_transaction_id.clone()),
+        Some(connector_transaction_id),
+        txn.order_id.clone(),
+        payment_tokens,
+        payment_receipt,
+    )
 }
 
 impl<T: PaymentMethodDataTypes>
@@ -840,31 +876,16 @@ impl<T: PaymentMethodDataTypes>
             item.response.additional_data_3ds.as_ref(),
             item.response.approval_code(),
         );
-        let error_response = build_payment_error_response(
+        let response = build_transaction_payment_response(
             status,
             item.http_code,
-            Some(txn.transaction_id.clone()),
+            txn,
+            item.response.payment_tokens.as_ref(),
             item.response.payment_receipt.as_ref(),
         );
 
-        let payments_response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
-            redirection_data: None,
-            mandate_reference: item
-                .response
-                .payment_tokens
-                .and_then(|token| token.get_mandate_reference(Some(txn.transaction_id.clone()))),
-            connector_metadata: None,
-            network_txn_id: None,
-            network_txn_link_id: None,
-            connector_response_reference_id: txn.order_id.clone(),
-            incremental_authorization_allowed: None,
-            status_code: item.http_code,
-            splits: None,
-        };
-
         Ok(Self {
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response,
@@ -982,32 +1003,23 @@ impl TryFrom<ResponseRouterData<FiservcommercehubPSyncResponse, Self>>
         })?;
         let status = AttemptStatus::from(&psync_item.gateway_response.transaction_state);
         let connector_response = build_connector_response(None, psync_item.approval_code());
-        let error_response = build_payment_error_response(
+        let connector_transaction_id = psync_item
+            .gateway_response
+            .transaction_processing_details
+            .as_ref()
+            .map(|txn| txn.transaction_id.clone());
+        let response = build_payment_response(
             status,
             item.http_code,
-            psync_item
-                .gateway_response
-                .transaction_processing_details
-                .as_ref()
-                .map(|txn| txn.transaction_id.clone()),
+            ResponseId::NoResponseId,
+            connector_transaction_id,
+            None,
+            None,
             psync_item.payment_receipt.as_ref(),
         );
 
-        let payments_response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::NoResponseId,
-            redirection_data: None,
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            network_txn_link_id: None,
-            connector_response_reference_id: None,
-            incremental_authorization_allowed: None,
-            status_code: item.http_code,
-            splits: None,
-        };
-
         Ok(Self {
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response,
@@ -1537,31 +1549,16 @@ impl TryFrom<ResponseRouterData<FiservcommercehubCaptureResponse, Self>>
             item.response.0.additional_data_3ds.as_ref(),
             item.response.0.approval_code(),
         );
-        let error_response = build_payment_error_response(
+        let response = build_transaction_payment_response(
             status,
             item.http_code,
-            Some(txn.transaction_id.clone()),
+            txn,
+            item.response.0.payment_tokens.as_ref(),
             item.response.0.payment_receipt.as_ref(),
         );
 
-        let payments_response_data =
-            PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
-                redirection_data: None,
-                mandate_reference: item.response.0.payment_tokens.and_then(|token| {
-                    token.get_mandate_reference(Some(txn.transaction_id.clone()))
-                }),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: txn.order_id.clone(),
-                incremental_authorization_allowed: None,
-                status_code: item.http_code,
-                network_txn_link_id: None,
-                splits: None,
-            };
-
         Ok(Self {
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response,
@@ -1743,31 +1740,16 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservcommercehubRepe
             item.response.0.additional_data_3ds.as_ref(),
             item.response.0.approval_code(),
         );
-        let error_response = build_payment_error_response(
+        let response = build_transaction_payment_response(
             status,
             item.http_code,
-            Some(txn.transaction_id.clone()),
+            txn,
+            item.response.0.payment_tokens.as_ref(),
             item.response.0.payment_receipt.as_ref(),
         );
 
-        let payments_response_data =
-            PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
-                redirection_data: None,
-                mandate_reference: item.response.0.payment_tokens.and_then(|token| {
-                    token.get_mandate_reference(Some(txn.transaction_id.clone()))
-                }),
-                connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: txn.order_id.clone(),
-                incremental_authorization_allowed: None,
-                status_code: item.http_code,
-                network_txn_link_id: None,
-                splits: None,
-            };
-
         Ok(Self {
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response,
@@ -1974,31 +1956,16 @@ where
             item.response.additional_data_3ds.as_ref(),
             item.response.approval_code(),
         );
-        let error_response = build_payment_error_response(
+        let response = build_transaction_payment_response(
             status,
             item.http_code,
-            Some(txn.transaction_id.clone()),
+            txn,
+            item.response.payment_tokens.as_ref(),
             item.response.payment_receipt.as_ref(),
         );
 
-        let payments_response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(txn.transaction_id.clone()),
-            redirection_data: None,
-            mandate_reference: item
-                .response
-                .payment_tokens
-                .and_then(|token| token.get_mandate_reference(Some(txn.transaction_id.clone()))),
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: txn.order_id.clone(),
-            incremental_authorization_allowed: None,
-            status_code: item.http_code,
-            network_txn_link_id: None,
-            splits: None,
-        };
-
         Ok(Self {
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 connector_response,
