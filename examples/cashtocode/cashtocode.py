@@ -29,7 +29,7 @@ def _build_parse_event_request():
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
-            headers={},  # Headers of the HTTP request.
+            headers=payment_pb2.HeadersEntry(),  # Headers of the HTTP request.
             body="{\"amount\":10.0,\"currency\":\"EUR\",\"foreignTransactionId\":\"probe_foreign_001\",\"type\":\"payment\",\"transactionId\":\"probe_txn_001\"}",  # Body of the HTTP request.
         ),
     )

@@ -57,7 +57,9 @@ def _build_authenticate_request():
         continue_redirection_url="https://example.com/3ds-continue",
         redirection_response=payment_pb2.RedirectionResponse(  # Redirection Information after DDC step.
             params="probe_redirect_params",
-            payload={"transaction_id": "probe_txn_123"},
+            payload=payment_pb2.PayloadEntry(
+                transaction_id="probe_txn_123",
+            ),
         ),
     )
 
@@ -139,7 +141,9 @@ def _build_post_authenticate_request():
         ),
         redirection_response=payment_pb2.RedirectionResponse(  # Redirection Information after DDC step.
             params="probe_redirect_params",
-            payload={"transaction_id": "probe_txn_123"},
+            payload=payment_pb2.PayloadEntry(
+                transaction_id="probe_txn_123",
+            ),
         ),
     )
 
