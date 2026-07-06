@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.06.1
+
+### Features
+
+- **connector:** Implement Stripe incoming webhooks in UCS (#17452, #17453) ([#1777](https://github.com/juspay/connector-service/pull/1777)) ([`94f607a`](https://github.com/juspay/connector-service/commit/94f607add1f697f3c692fe11d65c02c3e586b57e))
+
+### Bug Fixes
+
+- **twoc_twop_paco:** Drop airline data when billing address is absent ([#1813](https://github.com/juspay/connector-service/pull/1813)) ([`253b3ed`](https://github.com/juspay/connector-service/commit/253b3ed754a06c0a3e13684ed9c3da2edf0b9931))
+
+**Full Changelog:** [`2026.07.06.0...2026.07.06.1`](https://github.com/juspay/connector-service/compare/2026.07.06.0...2026.07.06.1)
+
+- - -
+
 ## 2026.07.06.0
 
 ### Features
