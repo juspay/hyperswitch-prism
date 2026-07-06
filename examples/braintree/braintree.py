@@ -213,7 +213,7 @@ async def process_parse_event(merchant_transaction_id: str, config: sdk_config_p
 
     parse_response = event_client.parse_event(_build_parse_event_request())
 
-    return {"status": parse_response.status}
+    return {"response": str(parse_response)}
 
 
 async def process_proxy_setup_recurring(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

@@ -37,7 +37,7 @@ async def process_parse_event(merchant_transaction_id: str, config: sdk_config_p
 
     parse_response = event_client.parse_event(_build_parse_event_request())
 
-    return {"status": parse_response.status}
+    return {"response": str(parse_response)}
 
 if __name__ == "__main__":
     scenario = sys.argv[1] if len(sys.argv) > 1 else "parse_event"

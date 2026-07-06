@@ -2049,7 +2049,10 @@ def render_consolidated_python(
             body_lines.append("")
         else:
             body_lines.extend(_scenario_step_python("_standalone_", flow_key, 1, proto_req, grpc_req, client_var, db))
-        if flow_key == "authorize":
+        if svc == "EventService":
+            # EventService responses (parse/handle) carry no .status; report the response.
+            body_lines.append(f'    return {{"response": str({resp_var})}}')
+        elif flow_key == "authorize":
             body_lines.append(f'    return {{"status": {resp_var}.status, "transaction_id": {resp_var}.connector_transaction_id}}')
         elif flow_key == "setup_recurring":
             body_lines.append(f'    return {{"status": {resp_var}.status, "mandate_id": {resp_var}.connector_recurring_payment_id}}')
