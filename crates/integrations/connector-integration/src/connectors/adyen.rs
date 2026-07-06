@@ -976,6 +976,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(RefundWebhookDetailsResponse {
             connector_refund_id: Some(notif.psp_reference.clone()),
+            merchant_transaction_id: None,
             status: transformers::get_adyen_refund_webhook_event(notif.event_code, notif.success)?,
             connector_response_reference_id: Some(notif.psp_reference.clone()),
             error_code,

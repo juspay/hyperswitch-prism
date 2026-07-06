@@ -6,6 +6,7 @@ use std::{
 
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    crypto::VerifySignature,
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
@@ -18,13 +19,15 @@ use domain_types::{
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
+        ConnectorWebhookSecrets, DisputeWebhookDetailsResponse, EventContext, EventType,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        SetupMandateRequestData,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, SetupMandateRequestData,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, WebhookError},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -33,7 +36,7 @@ use domain_types::{
     types::Connectors,
 };
 
-use error_stack::ResultExt;
+use error_stack::{report, Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
@@ -126,6 +129,130 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Stripe<T>
 {
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, Report<WebhookError>> {
+        let mut security_header_kvs = stripe::get_signature_elements_from_header(&request.headers)?;
+
+        let signature = security_header_kvs
+            .remove("v1")
+            .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
+
+        hex::decode(signature).change_context(WebhookError::WebhookSignatureNotFound)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, Report<WebhookError>> {
+        let mut security_header_kvs = stripe::get_signature_elements_from_header(&request.headers)?;
+
+        let timestamp = security_header_kvs
+            .remove("t")
+            .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
+
+        // Byte-exact reproduction of HS: "{timestamp}.{raw_body}". The raw request body is used
+        // verbatim (never re-serialized) so the HMAC matches Stripe's.
+        Ok(format!(
+            "{}.{}",
+            String::from_utf8_lossy(&timestamp),
+            String::from_utf8_lossy(&request.body)
+        )
+        .into_bytes())
+    }
+
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, Report<WebhookError>> {
+        let connector_webhook_secrets = match connector_webhook_secret {
+            Some(secrets) => secrets,
+            None => return Ok(false),
+        };
+
+        let algorithm = common_utils::crypto::HmacSha256;
+
+        let signature =
+            self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
+        let message =
+            self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
+
+        algorithm
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"id":"evt_probe_001","type":"payment_intent.succeeded","data":{"object":{"id":"pi_probe_001","object":"payment_intent","amount":1000,"currency":"usd","created":1700000000,"status":"succeeded"}}}"#
+    }
+
+    fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
+        // `get_event_type` decodes the lighter `WebhookEventTypeBody` (it exposes
+        // `payment_method_details`, needed for the `charge.succeeded` sub-mapping), so it keeps
+        // its own decode/error variant rather than sharing `get_webhook_object_from_body`.
+        let details: stripe::WebhookEventTypeBody = request
+            .body
+            .parse_struct("WebhookEventTypeBody")
+            .change_context(WebhookError::WebhookEventTypeNotFound)?;
+        Ok(stripe::map_webhook_event_type(&details))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
+        let details = stripe::get_webhook_object_from_body(&request.body)
+            .change_context(WebhookError::WebhookReferenceIdNotFound)?;
+        stripe::get_webhook_reference(&details)
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
+        let details = stripe::get_webhook_object_from_body(&request.body)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        stripe::build_webhook_payment_response(&details, &request.body)
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
+        let details = stripe::get_webhook_object_from_body(&request.body)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        stripe::build_webhook_refund_response(&details, &request.body)
+    }
+
+    fn process_dispute_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
+        let details = stripe::get_webhook_object_from_body(&request.body)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        stripe::build_webhook_dispute_response(&details, &request.body)
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, Report<WebhookError>> {
+        let details = stripe::get_webhook_object_from_body(&request.body)
+            .change_context(WebhookError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(details.event_data.event_object))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -747,6 +874,16 @@ macros::macro_connector_implementation!(
                 Self::common_get_content_type(self).to_string().into(),
             )];
             let mut api_key = self.get_auth_header(&req.connector_config)?;
+            if let Some(domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(
+                stripe_split_payment,
+            )) = &req.request.split_payments
+            {
+                transformers::transform_headers_for_connect_platform(
+                    stripe_split_payment.charge_type.clone(),
+                    Secret::new(stripe_split_payment.transfer_account_id.clone()),
+                    &mut header,
+                );
+            }
             header.append(&mut api_key);
             Ok(header)
         }
@@ -788,6 +925,16 @@ macros::macro_connector_implementation!(
                 self.common_get_content_type().to_string().into(),
             )];
             let mut api_key = self.get_auth_header(&req.connector_config)?;
+            if let Some(domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(
+            stripe_split_payment,
+            )) = &req.request.split_payments
+            {
+                transformers::transform_headers_for_connect_platform(
+                    stripe_split_payment.charge_type.clone(),
+                    Secret::new(stripe_split_payment.transfer_account_id.clone()),
+                    &mut header,
+                );
+            }
             header.append(&mut api_key);
             Ok(header)
         }

@@ -217,8 +217,7 @@ async fn test_repeat_everything() {
         let mut register_grpc_request = Request::new(register_request);
         add_authorizenet_metadata(&mut register_grpc_request);
 
-        let register_response = client
-            .setup_recurring(register_grpc_request)
+        let register_response = Box::pin(client.setup_recurring(register_grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();
@@ -413,6 +412,7 @@ fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest 
         split_payments: None,
         merchant_request_id: None,
         payment_method_type: None,
+        mandate_reference: None,
     }
 }
 
@@ -436,7 +436,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
         state: None,
         test_mode: None,
         merchant_order_id: None,
-
+        split_payments: None,
         merchant_request_id: None,
     }
 }
@@ -996,8 +996,7 @@ async fn test_register() {
         add_authorizenet_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .setup_recurring(grpc_request)
+        let response = Box::pin(client.setup_recurring(grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();

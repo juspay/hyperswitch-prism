@@ -28,7 +28,7 @@ message FrmServicePreRiskCheckRequest {
   Money amount = 1;
 
   // Customer information
-  optional CustomerInfo customer_info = 2;
+  optional Customer customer_info = 2;
 
   // Payment method details
   optional PaymentMethod payment_method = 3;
@@ -56,6 +56,18 @@ message FrmServicePreRiskCheckRequest {
 
   // State Information
   optional ConnectorState state = 11;
+
+  // Recurring / mandate details for subscription risk scoring. Reuses the
+  // shared MandateAmountData (from payment.proto): `amount` is the per-period
+  // billing amount, `frequency` the billing period.
+  optional MandateAmountData mandate_info = 12;
+
+  // Merchant details (id + MCC) for risk scoring.
+  optional MerchantDetails merchant_details = 13;
+
+  // Additive/new name for `mandate_info`; NOT yet consumed — `mandate_info`
+  // (field 12) is used for now (backward compatibility).
+  optional MandateAmountData mandate_details = 14;
 }
 
 // Response for FrmService.PreRiskCheck
@@ -94,7 +106,7 @@ message FrmServicePostRiskCheckRequest {
   Money amount = 1;
 
   // Customer information
-  optional CustomerInfo customer_info = 2;
+  optional Customer customer_info = 2;
 
   // Payment method details
   optional PaymentMethod payment_method = 3;

@@ -521,6 +521,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Failure,
@@ -571,6 +572,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         connector_response_reference_id: Some(response.id.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status,
@@ -695,6 +697,7 @@ impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
                 connector_response_reference_id: Some(response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -824,6 +827,7 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
                 connector_response_reference_id: Some(response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -944,6 +948,7 @@ impl TryFrom<ResponseRouterData<FinixVoidResponse, Self>>
                 connector_response_reference_id: Some(response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1556,6 +1561,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         connector_response_reference_id: echoed,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })
@@ -1744,6 +1750,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_response_reference_id: Some(response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })

@@ -761,7 +761,8 @@ fn paylater_to_juspay(
         | PayLaterData::AfterpayClearpayRedirect {}
         | PayLaterData::PayBrightRedirect {}
         | PayLaterData::WalleyRedirect {}
-        | PayLaterData::AlmaRedirect {}) => Err(error_stack::report!(
+        | PayLaterData::AlmaRedirect {}
+        | PayLaterData::TamaraRedirect {}) => Err(error_stack::report!(
             errors::IntegrationError::NotImplemented(
                 format!(
                     "Juspay CONSUMER_FINANCE does not map cleanly from {other:?} \
@@ -867,6 +868,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_response_reference_id: Some(response.txn_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -985,6 +987,7 @@ impl TryFrom<ResponseRouterData<JuspayOrderStatusResponse, Self>>
                     .or_else(|| response.gateway_reference_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1076,6 +1079,7 @@ impl TryFrom<ResponseRouterData<JuspayCaptureResponse, Self>>
                 connector_response_reference_id: Some(response.txn_id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1323,6 +1327,7 @@ impl TryFrom<ResponseRouterData<JuspayVoidResponse, Self>>
                 connector_response_reference_id: response.txn_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

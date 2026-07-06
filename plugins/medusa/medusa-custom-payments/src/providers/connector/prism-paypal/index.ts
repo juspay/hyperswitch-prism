@@ -244,9 +244,7 @@ function toSdkCustomer(customer: any): types.ICustomer | undefined {
     customer.name ??
     [customer.first_name, customer.last_name].filter(Boolean).join(" ")
   const email = toSecret(customer.email)
-  const phoneNumber = (customer.phoneNumber ?? customer.phone) as
-    | string
-    | undefined
+  const phoneNumber = toSecret(customer.phoneNumber ?? customer.phone)
 
   if (!name && !email && !phoneNumber) return undefined
   return {

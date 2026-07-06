@@ -568,6 +568,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpayPaymentsRespo
                 connector_response_reference_id: Some(operation.order_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -616,20 +617,47 @@ impl TryFrom<ResponseRouterData<NexixpaySyncResponse, Self>>
     type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<NexixpaySyncResponse, Self>) -> Result<Self, Self::Error> {
-        // Map operation result to payment status using From trait
         let status = AttemptStatus::from(item.response.operation_result.clone());
+
+        let resource_id = ResponseId::ConnectorTransactionId(item.response.order_id.clone());
+
+        let connector_metadata = item
+            .router_data
+            .request
+            .connector_feature_data
+            .as_ref()
+            .map(|secret| secret.peek().clone());
+
+        let mandate_reference = if item.router_data.request.is_mandate_payment() {
+            item.router_data
+                .request
+                .mandate_reference
+                .as_ref()
+                .map(|m| {
+                    Box::new(MandateReference {
+                        connector_mandate_id: m.connector_mandate_id.clone(),
+                        payment_method_id: m.payment_method_id.clone(),
+                        connector_mandate_request_reference_id: m
+                            .connector_mandate_request_reference_id
+                            .clone(),
+                    })
+                })
+        } else {
+            None
+        };
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(item.response.operation_id.clone()),
+                resource_id,
                 redirection_data: None,
-                mandate_reference: None,
-                connector_metadata: None,
+                mandate_reference,
+                connector_metadata,
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.order_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -742,6 +770,7 @@ impl TryFrom<ResponseRouterData<NexixpayCaptureResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Pending, // Capture call does not return status in their response
@@ -953,6 +982,7 @@ impl TryFrom<ResponseRouterData<NexixpayVoidResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Voided, // Void succeeded
@@ -2109,6 +2139,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpaySetupMandateR
                 connector_response_reference_id: Some(operation.order_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -2324,6 +2355,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpayRepeatPayment
                 connector_response_reference_id: Some(operation.order_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

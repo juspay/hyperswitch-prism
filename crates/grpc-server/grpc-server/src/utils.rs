@@ -10,6 +10,7 @@ use common_utils::{
     events::{Event, EventStage, FlowName, MaskedSerdeValue},
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
+    types::ExecutionMode,
 };
 use domain_types::{
     connector_types, errors::IntegrationError, router_data::ConnectorSpecificConfig,
@@ -17,6 +18,7 @@ use domain_types::{
 use error_stack::Report;
 use http::request::Request;
 use hyperswitch_masking;
+use prost::Message;
 use serde_json::Value;
 use std::{collections::HashMap, sync::Arc};
 use ucs_env::{configs, error::ResultExtGrpc};
@@ -33,6 +35,7 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         version = ?request.version(),
         tenant_id = tracing::field::Empty,
         request_id = tracing::field::Empty,
+        execution_mode = tracing::field::Empty,
     );
     request
         .headers()
@@ -45,6 +48,17 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         .get(consts::X_REQUEST_ID)
         .and_then(|value| value.to_str().ok())
         .map(|request_id| span.record("request_id", request_id));
+
+    // On the request span so every log line of the request carries primary/shadow.
+    let shadow = request
+        .headers()
+        .get(consts::X_SHADOW_MODE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.eq_ignore_ascii_case("true"));
+    span.record(
+        "execution_mode",
+        ExecutionMode::from_shadow_flag(shadow).as_str(),
+    );
 
     span
 }
@@ -246,7 +260,7 @@ where
     current_span.record("merchant_id", merchant_id);
     current_span.record("tenant_id", tenant_id);
     current_span.record("request_id", request_id);
-    tracing::info!("Golden Log Line (incoming)");
+    tracing::info!("Golden Log Line (incoming - request)");
     Ok(())
 }
 
@@ -287,7 +301,7 @@ where
             current_span.record("status_code", status.code().to_string());
         }
     }
-    tracing::info!("Golden Log Line (incoming)");
+    tracing::info!("Golden Log Line (incoming - response)");
 }
 
 /// Generic gRPC logging wrapper that accepts a custom parser function.
@@ -337,6 +351,13 @@ where
     }
     .await;
 
+    #[cfg(feature = "otel")]
+    observe_internal_latency(
+        start_time,
+        flow_name,
+        service_name,
+        event_metadata_payload.as_ref(),
+    );
     create_and_emit_grpc_event(
         masked_request_data,
         &grpc_response,
@@ -392,6 +413,13 @@ where
     }
     .await;
 
+    #[cfg(feature = "otel")]
+    observe_internal_latency(
+        start_time,
+        flow_name,
+        service_name,
+        event_metadata_payload.as_ref(),
+    );
     create_and_emit_grpc_event(
         masked_request_data,
         &grpc_response,
@@ -404,6 +432,31 @@ where
     );
 
     grpc_response
+}
+
+#[cfg(feature = "otel")]
+fn observe_internal_latency(
+    start_time: tokio::time::Instant,
+    flow_name: FlowName,
+    service_name: &str,
+    metadata_payload: Option<&MetadataPayload>,
+) {
+    let connector_time = metadata_payload
+        .map(|metadata| metadata.connector_latency.connector_time())
+        .unwrap_or_default();
+    let internal = start_time.elapsed().saturating_sub(connector_time);
+    let connector = metadata_payload
+        .map(|md| md.connector.get_connector_name())
+        .unwrap_or_else(|| "unknown".to_string());
+    let mode =
+        ExecutionMode::from_shadow_flag(metadata_payload.map(|md| md.shadow_mode).unwrap_or(false));
+    external_services::otel_metrics::record_internal_latency(
+        &flow_name.to_string(),
+        service_name,
+        &connector,
+        mode.as_str(),
+        internal.as_secs_f64(),
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -422,6 +475,7 @@ fn create_and_emit_grpc_event<R>(
     let connector = metadata_payload
         .map(|md| md.connector.get_connector_name())
         .unwrap_or_else(|| "unknown".to_string());
+
     let mut grpc_event = Event {
         request_id: metadata_payload.map_or("unknown".to_string(), |md| md.request_id.clone()),
         timestamp: chrono::Utc::now().timestamp_millis().into(),
@@ -430,6 +484,9 @@ fn create_and_emit_grpc_event<R>(
         url: None,
         method: None,
         stage: EventStage::GrpcRequest,
+        execution_mode: ExecutionMode::from_shadow_flag(
+            metadata_payload.map(|md| md.shadow_mode).unwrap_or(false),
+        ),
         latency_ms: Some(u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX)),
         status_code: None,
         request_data: masked_request_data,
@@ -455,10 +512,36 @@ fn create_and_emit_grpc_event<R>(
 
     match grpc_response {
         Ok(response) => grpc_event.set_grpc_success_response(response.get_ref()),
-        Err(error) => grpc_event.set_grpc_error_response(error),
+        Err(error) => {
+            grpc_event.set_grpc_error_response(error);
+            grpc_event.set_error_response(&build_error_detail(error));
+        }
     }
 
     common_utils::emit_event_with_config(grpc_event, &config.events);
+}
+
+fn build_error_detail(status: &tonic::Status) -> Value {
+    use grpc_api_types::payments::{ConnectorError, IntegrationError};
+
+    let details = status.details();
+    let (error_code, http_status_code) = if details.is_empty() {
+        (None, None)
+    } else {
+        IntegrationError::decode(details)
+            .map(|e| (Some(e.error_code), None))
+            .or_else(|_| {
+                ConnectorError::decode(details).map(|e| (Some(e.error_code), e.http_status_code))
+            })
+            .unwrap_or((None, None))
+    };
+    serde_json::json!({
+        "grpc_code": i32::from(status.code()),
+        "grpc_code_name": format!("{:?}", status.code()),
+        "error_code": error_code,
+        "http_status_code": http_status_code,
+        "error_message": status.message(),
+    })
 }
 
 #[allow(clippy::result_large_err)]
@@ -630,7 +713,9 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
             };
+            let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -638,7 +723,7 @@ macro_rules! implement_connector_operation {
                 $all_keys_required,
                 event_params,
                 None,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             )
@@ -780,7 +865,9 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
             };
+            let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -788,7 +875,7 @@ macro_rules! implement_connector_operation {
                 $all_keys_required,
                 event_params,
                 None,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             )
@@ -911,7 +998,9 @@ macro_rules! implement_connector_operation {
                 tenant_id: &metadata_payload.tenant_id,
                 merchant_id: metadata_payload.merchant_id.as_str(),
                 return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
             };
+            let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -919,7 +1008,7 @@ macro_rules! implement_connector_operation {
                 $all_keys_required,
                 event_params,
                 None,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             )

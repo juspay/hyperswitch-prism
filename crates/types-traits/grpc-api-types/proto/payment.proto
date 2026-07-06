@@ -463,6 +463,7 @@ enum WebhookEventType {
   // Refund events
   WEBHOOK_REFUND_FAILURE = 15; // Refund failure
   WEBHOOK_REFUND_SUCCESS = 16; // Refund success
+  WEBHOOK_REFUND_PROCESSING = 42; // Refund processing
 
   // Dispute events
   WEBHOOK_DISPUTE_OPENED = 17;     // Dispute opened
@@ -811,7 +812,9 @@ enum Connector {
   QWIKCILVER = 125;
   HYPERSWITCH = 126;
   TSYS_TRANSIT = 127;
-  GLOMOPAY = 128;
+  KOUNT = 128;
+  FLYWIRE = 129;
+  GLOMOPAY = 128; --
 }
 
 // Payment method types
@@ -1134,16 +1137,38 @@ message OnlineMandate {
   string user_agent = 2;
 }
 
-// Amount data for mandate
+// Amount data for mandate.
+//
+// Also carries subscription / recurring-order context consumed by FRM risk
+// scoring (e.g. Kount's `recurring` block). In that FRM usage `amount` is the
+// per-period billing amount and `frequency` is the billing period.
 message MandateAmountData {
-  int64 amount = 1;              // Amount
-  Currency currency = 2;         // Currency code (ISO 4217)
-  optional int64 start_date = 3; // Unix timestamp for start date
-  optional int64 end_date = 4;   // Unix timestamp for end date
+  int64 amount = 1 [deprecated = true]; // Use amount_money instead (will be removed in a future release)
+  Currency currency = 2 [deprecated = true]; // Use amount_money.currency instead (will be removed in a future release)
+  optional int64 start_date = 3;        // Unix timestamp for start date
+  optional int64 end_date = 4;          // Unix timestamp for end date
   optional string amount_type =
       5; // Amount type for variable mandates ("exact", "max", "variable")
   optional string frequency =
       6; // Frequency for recurring mandates ("daily", "weekly", "monthly")
+  optional Money amount_money = 7; // Amount in Money type
+
+  // Initial / First billing amount.
+  optional Money initial_billing_amount = 8;
+  // Merchant's external subscription identifier.
+  optional string external_subscription_id = 9;
+  // Subscription status (e.g. "ACTIVE"). Kept as a string for backward
+  // compatibility; prefer `mandate_status` going forward.
+  optional string status = 10;
+  // Unix timestamp for the next billing date.
+  optional int64 next_billing_date = 11;
+  // Number of billing cycles elapsed / scheduled.
+  optional int32 billing_cycle = 12;
+  // Free-form description of the subscription.
+  optional string description = 13;
+  // Enum-typed subscription status. Additive/new; NOT yet consumed — the string
+  // `status` (field 10) is used for now (backward compatibility).
+  MandateStatus mandate_status = 14;
 }
 
 // Mandate type with amount details
@@ -1351,8 +1376,8 @@ message AirlineData {
 // how Address is reused for billing/shipping.
 message AirlineSegment {
   optional uint32 sequence_no = 1;              // 1-based leg order
-  optional string carrier_code = 2;             // Marketing carrier IATA-2
-  optional string flight_number = 3;            // Flight number
+  optional string marketing_carrier_code = 2;   // Marketing carrier IATA-2 (ticket-issuing airline)
+  optional string flight_number = 3;            // Marketing flight number
   optional string flight_type = 4;              // "Domestic" / "International"
   optional string class_of_service = 5;         // F / J / Y / W
   optional string fare_basis_code = 6;          // Fare basis code
@@ -1370,6 +1395,9 @@ message AirlineSegment {
   optional string conjunction_ticket = 14;      // Conjunction ticket for >4 legs
   optional string coupon_number = 15;           // Coupon number for this leg
   optional string endorsements_restrictions = 16; // Endorsements / restrictions
+
+  optional string operating_carrier_code = 17;  // Operating carrier IATA-2
+  optional string operating_flight_number = 18; // Operating flight number
 }
 
 // A flight endpoint, reused for both departure and arrival.
@@ -1377,7 +1405,7 @@ message AirlineLocation {
   optional string airport_code = 1;             // IATA-3 airport code
   optional string city_code = 2;                // IATA-3 city code
   optional string city_name = 3;                // City name
-  optional string country_code = 4;             // ISO 3166-1 numeric-3 country code
+  optional string country_code = 4;             // ISO 3166-1 alpha-2 country code (connectors convert to numeric/alpha-3 as needed)
   optional string country_name = 5;             // Country name
   optional string date_time = 6;                // Local scheduled time (RFC 3339)
 }
@@ -1426,6 +1454,10 @@ message RedirectForm {
 
     // NMI-specific redirection data for 3DS flows.
     NmiData nmi = 6;
+
+    // Generic hosted-iframe redirection: load `endpoint` in an iframe and
+    // attach the connector-built `events` postMessage listener.
+    HostedIframeData hosted_iframe = 7;
   }
 }
 
@@ -1472,6 +1504,21 @@ message BraintreeData {
 message MifinityData {
   // Initialization token for Mifinity SDK initialization
   string initialization_token = 1;
+}
+
+// Generic hosted-iframe redirection data. The connector supplies a URL to
+// load into an iframe and a self-contained postMessage listener script that
+// navigates the payer to the (pre-substituted) return URL on completion.
+message HostedIframeData {
+  // URL to load inside the iframe.
+  string endpoint = 1;
+
+  // HTTP method the client should use to fetch `endpoint`.
+  HttpMethod method = 2;
+
+  // postMessage listener script; `return_url` is already substituted by the
+  // connector so the client just inlines this verbatim in a <script> tag.
+  string events = 3;
 }
 
 // Represents NMI-specific redirection data for 3DS flows
@@ -1568,20 +1615,20 @@ message EventServiceHandleResponse {
 
 // Request for notifying connectors about events
 message NotifyConnectorRequest {
-  // Merchant identification
-  string merchant_id = 1;
-
   // Unique event identifier
-  string event_id = 2;
+  string event_id = 1;
 
   // Event type
-  NotifyEventType event_type = 3;
+  NotifyEventType event_type = 2;
 
-  // Event content with notify connector content 
-  NotifyConnectorContent content = 4;
+  // Event content with notify connector content
+  NotifyConnectorContent content = 3;
 
   // Timestamp when the event occurred (Unix timestamp in seconds)
-  int64 timestamp = 5;
+  int64 timestamp = 4;
+
+  // Connector state for access token management (optional)
+  optional ConnectorState state = 5;
 }
 
 
@@ -1612,6 +1659,15 @@ enum FrmDecision {
   ERROR = 4;                    // The FRM check itself failed (network, timeout, misconfiguration).
 }
 
+// Merchant details used for FRM risk scoring.
+message MerchantDetails {
+  // Merchant identifier.
+  optional string merchant_id = 1;
+
+  // Merchant Category Code (ISO 18245).
+  optional uint32 merchant_category_code = 2;
+}
+
 // Unified FRM notification content.
 // Used for all FRM lifecycle events (payment success, refund, chargeback).
 message FrmNotificationContent {
@@ -1624,17 +1680,20 @@ message FrmNotificationContent {
 
   // The specific notification type — exactly one must be set
   oneof notification_type {
-    FrmPaymentSuccessDetails payment_success = 4;
+    FrmPaymentDetails payment_details = 4;
     FrmRefundDetails refund = 5;
     FrmChargebackDetails chargeback = 6;
   }
 
   // Risk assessment outcome
   optional FrmDecision frm_decision = 7;
+
+  // Merchant details for risk scoring.
+  optional MerchantDetails merchant_details = 8;
 }
 
 // FRM payment success details
-message FrmPaymentSuccessDetails {
+message FrmPaymentDetails {
   optional string connector_transaction_id = 1;
   optional string merchant_transaction_id = 2;
   PaymentStatus payment_status = 3;
@@ -2435,6 +2494,9 @@ message PaymentServiceAuthorizeResponse {
   // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
   // Distinct from network_transaction_id.
   optional string network_txn_link_id = 19;
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 21;
 }
 
 // Request message for synchronizing payment status
@@ -2485,6 +2547,19 @@ message PaymentServiceGetRequest {
 
   // Split payment configuration (platform fees, transfers, etc.)
   optional SplitPaymentsDetails split_payments = 17;
+
+  optional ConnectorMandateReferenceId mandate_reference = 18;
+}
+
+// Settlement phase reported by the connector on PaymentServiceGetResponse.
+enum SettlementStatus {
+  // Connector emitted the field but the txn is in neither Settled nor
+  // Not-Settled phase (terminal or in-flight states).
+  SETTLEMENT_STATUS_UNSPECIFIED = 0;
+  // Funds finalised — Refund is the valid reversal.
+  SETTLEMENT_STATUS_SETTLED = 1;
+  // Authorised only, settlement pending — Void is the valid reversal.
+  SETTLEMENT_STATUS_NOT_SETTLED = 2;
 }
 
 // Response message for a payment status synchronization
@@ -2542,6 +2617,15 @@ message PaymentServiceGetResponse {
   optional PaymentMethodUpdate payment_method_update = 29; // Updated payment method details, if present
 
   optional string sender_payment_instrument_id = 30;
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 32;
+
+  optional SecretString connector_feature_data = 33;
+  // Settlement phase reported by the connector. See SettlementStatus for the
+  // per-value semantics. Absent when the connector doesn't distinguish phases.
+  optional SettlementStatus settlement_status = 34;
+  
 }
 
 // Request message for voiding a payment
@@ -2574,6 +2658,9 @@ message PaymentServiceVoidRequest {
   // Request ID generated by the caller system for payment gateway requests.
   // Required by some connectors that demand a per-request idempotency token.
   optional string merchant_request_id = 12;
+
+  // Split payment configuration (platform fees, transfers, etc.)
+  optional SplitPaymentsDetails split_payments = 13;
 }
 
 // Response message for a payment void operation
@@ -2603,6 +2690,12 @@ message PaymentServiceVoidResponse {
 
   optional SecretString connector_feature_data =
       11; // Connector-specific metadata for the transaction
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 12;
+
+  // Raw Response/Request for debugging
+  optional SecretString raw_connector_response = 13;
 }
 
 // Request message for reversing a captured payment if not yet settled (similar
@@ -2785,6 +2878,9 @@ message PaymentServiceCaptureRequest {
   // Order-level tax amount. Some processors require this again on capture so
   // settlement receives the Level II sales tax value.
   optional Money order_tax_amount = 13;
+
+  // Split payment configuration (platform fees, transfers, etc.)
+  optional SplitPaymentsDetails split_payments = 14;
 }
 
 // Response message for a payment capture operation
@@ -2821,6 +2917,9 @@ message PaymentServiceCaptureResponse {
 
   // Additional connector response details (e.g. AVS / CVV checks, auth code)
   optional ConnectorResponseData connector_response = 13;
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 14;
 }
 
 // Request message for creating an order
@@ -2974,6 +3073,10 @@ message RefundResponse {
   // For refund-reverse, carries the underlying TSYS void status while the
   // user-facing `status` field remains `RefundSuccess`.
   optional SecretString state_metadata = 23;
+
+  // Merchant's reference for the original payment/transaction the refund
+  // belongs to
+  optional string merchant_transaction_id = 24;
 }
 
 // Request message for voiding/reversing a refund before settlement.
@@ -3193,6 +3296,9 @@ message PaymentServiceSetupRecurringResponse {
       14; // Raw request to the connector for debugging
   optional SecretString connector_feature_data =
       15; // Connector-specific metadata for the transaction
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 16;
 }
 
 // Request message for repeat payment (MIT - Merchant Initiated Transaction)
@@ -3318,6 +3424,9 @@ message RecurringPaymentServiceChargeResponse {
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 15;
+
+  // Split payment response data from connector
+  optional ConnectorSplitResponseData splits = 16;
 }
 
 // Request message for a mandate revoke operation
@@ -3387,6 +3496,9 @@ message PaymentMethodAuthenticationServicePreAuthenticateRequest {
 
   // Description
   optional string description = 14;
+
+  // Merchant transaction identifier.
+  optional string merchant_transaction_id = 15;
 }
 
 // Response message for pre-authentication step
@@ -3456,6 +3568,9 @@ message PaymentMethodAuthenticationServiceAuthenticateRequest {
 
   // Capture Settings
   optional CaptureMethod capture_method = 14;
+
+  // URL for webhook notifications
+  optional string webhook_url = 15;
 }
 
 // Response message for authentication step
@@ -4880,6 +4995,26 @@ message TsysTransitConfig {
   optional string base_url = 50;
 }
 
+message FlywireConfig {
+  // Flywire Payments Platform API key (X-Authentication-Key header).
+  SecretString api_key = 1;
+  // HMAC SHA-256 shared secret for inbound webhook signature verification.
+  // Optional in sandbox; required for production.
+  optional SecretString shared_secret = 2;
+  // Flywire recipient code (3-letter or 5-alphanumeric, e.g. "ZENDD").
+  // Drives currency, payout target, required institutional fields.
+  string recipient_id = 3;
+  optional string base_url = 50;
+}
+
+message AffirmConfig {
+  // Affirm public API key — used as the HTTP Basic auth username.
+  SecretString public_key = 1;
+  // Affirm private API key — used as the HTTP Basic auth password.
+  SecretString private_key = 2;
+  optional string base_url = 50;
+}
+
 message TwocTwopPacoConfig {
   // Company access token, used as both the `token`/`apikey` HTTP header and
   // as the `iss` / `CompanyApiKey` JWT claim.
@@ -4932,6 +5067,15 @@ message QwikcilverConfig {
 message PayconexConfig {
   SecretString api_key = 1;
   SecretString account_id = 2;
+  optional string base_url = 50;
+}
+
+message KountConfig {
+  SecretString api_key = 1;
+  // Kount OAuth authorization-server id for the token endpoint
+  // (`login.kount.com/oauth2/{auth_server_id}/v1/token`). Account/environment
+  // specific; falls back to the sandbox auth server when unset.
+  optional string auth_server_id = 2;
   optional string base_url = 50;
 }
 
@@ -5235,6 +5379,12 @@ message ConnectorSpecificConfig {
     HyperswitchConfig hyperswitch = 132;
     // TSYS_TRANSIT = 127
     TsysTransitConfig tsys_transit = 133;
+    // KOUNT = 128
+    KountConfig kount = 134;
+    // AFFIRM = 135
+    AffirmConfig affirm = 135;
+    // FLYWIRE = 129
+    FlywireConfig flywire = 136;
     // GLOMOPAY = 128
     GlomopayConfig glomopay = 134;
   }
@@ -5527,4 +5677,25 @@ message PaymentMethodServiceEligibilityResponse {
 
   // Response headers from the connector.
   map<string, string> response_headers = 6;
+}
+
+// ============================================================================
+// SPLIT RESPONSE TYPES
+// ============================================================================
+
+// Stripe-specific split response data (includes charge_id)
+message StripeSplitResponseData {
+  optional string charge_id = 1;
+  PaymentChargeType charge_type = 2;
+  optional int64 application_fees = 3;
+  string transfer_account_id = 4;
+  optional string on_behalf_of = 5;
+}
+
+// Response data for connector split payments
+message ConnectorSplitResponseData {
+  oneof split_response_type {
+    StripeSplitResponseData stripe_split_response = 1;
+    AdyenSplitData adyen_split_response = 2;
+  }
 }

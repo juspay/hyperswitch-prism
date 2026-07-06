@@ -385,6 +385,7 @@ impl<F, T> TryFrom<ResponseRouterData<PlacetopayPaymentsResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })

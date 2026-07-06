@@ -712,5 +712,21 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             password: k(),
             base_url: None,
         },
+        ConnectorEnum::Flywire => ConnectorSpecificConfig::Flywire {
+            api_key: s(),
+            shared_secret: None,
+            recipient_id: "ZENDD".to_string(),
+            base_url: None,
+        },
+        ConnectorEnum::Affirm => ConnectorSpecificConfig::Affirm {
+            public_key: u(),
+            private_key: p(),
+            base_url: None,
+        },
+        ConnectorEnum::Kount => ConnectorSpecificConfig::Kount {
+            api_key: k(),
+            auth_server_id: None,
+            base_url: None,
+        },
     }
 }

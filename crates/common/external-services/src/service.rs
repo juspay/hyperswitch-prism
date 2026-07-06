@@ -12,6 +12,7 @@ use common_utils::{
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
+    request_metrics::ConnectorLatencyTracker,
 };
 use domain_types::{
     connector_types::{ConnectorResponseHeaders, RawConnectorRequestResponse},
@@ -198,7 +199,21 @@ impl AdditionalHeaders
         None
     }
 }
+// `ConnectorRequestReference` is a compile-time bound on `execute_connector_processing_step` but `get_connector_request_reference_id`
+// is never called at runtime for FRM flows — the empty string satisfies the trait without affecting behaviour.
+impl ConnectorRequestReference for domain_types::frm::frm_types::FrmFlowData {
+    fn get_connector_request_reference_id(&self) -> &str {
+        ""
+    }
+}
+impl AdditionalHeaders for domain_types::frm::frm_types::FrmFlowData {
+    fn get_vault_headers(&self) -> Option<&HashMap<String, Secret<String>>> {
+        None
+    }
+}
 use common_utils::events::{Event, EventConfig, FlowName};
+#[cfg(feature = "injector-client")]
+use common_utils::types::ExecutionMode;
 #[cfg(feature = "injector-client")]
 // TokenData is now imported from hyperswitch_injector
 use common_utils::{consts, emit_event_with_config};
@@ -273,6 +288,12 @@ impl GetFlowStatus for domain_types::surcharge::surcharge_types::SurchargeFlowDa
 impl GetFlowStatus
     for domain_types::merchant_authentication_flow_data::MerchantAuthenticationFlowData
 {
+    fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
+        None
+    }
+}
+
+impl GetFlowStatus for domain_types::frm::frm_types::FrmFlowData {
     fn flow_status(&self) -> Option<domain_types::router_data::FlowStatus> {
         None
     }
@@ -493,6 +514,7 @@ pub struct EventProcessingParams<'a> {
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
+    pub connector_latency: ConnectorLatencyTracker,
 }
 
 #[cfg(feature = "injector-client")]
@@ -541,6 +563,16 @@ where
     let proxy_name = event_params.proxy_name.unwrap_or("primary");
     let transport_type = connector.get_transport_type();
     let result = match (call_connector_action, transport_type) {
+        (common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest, _) => {
+            let response = Response {
+                headers: None,
+                response: bytes::Bytes::new(),
+                status_code: 200,
+            };
+            connector
+                .handle_response_v2(&router_data, None, response)
+                .map_err(report_connector_response_to_flow)
+        }
         // handle_response removed from proto (PaymentServiceGetRequest field 5 reserved)
         (common_enums::CallConnectorAction::HandleResponse(_), _) => {
             return Err(error_stack::report!(ConnectorFlowError::from(
@@ -787,6 +819,9 @@ where
                         })
                     };
                     let external_service_elapsed = external_service_start_latency.elapsed();
+                    event_params
+                        .connector_latency
+                        .add_connector_time(external_service_elapsed);
                     metrics::EXTERNAL_SERVICE_API_CALLS_LATENCY
                         .with_label_values(&[
                             &method.to_string(),
@@ -899,6 +934,9 @@ where
                         });
 
                     let external_service_elapsed = external_service_start_latency.elapsed();
+                    event_params
+                        .connector_latency
+                        .add_connector_time(external_service_elapsed);
                     metrics::EXTERNAL_SERVICE_API_CALLS_LATENCY
                         .with_label_values(&[
                             "PUBLISH",
@@ -1028,6 +1066,7 @@ fn create_event(
         url,
         method,
         stage: EventStage::ConnectorCall,
+        execution_mode: ExecutionMode::from_shadow_flag(event_params.shadow_mode),
         latency_ms,
         status_code,
         request_data: MaskedSerdeValue::from_masked_optional(masked_request, "connector_request"),
@@ -1261,6 +1300,9 @@ pub fn create_client(
     }
 }
 
+/// Default total timeout (seconds) for a single connector API call.
+const DEFAULT_CONNECTOR_REQUEST_TIMEOUT_SECS: u64 = 30;
+
 static DEFAULT_CLIENT: OnceCell<Client> = OnceCell::new();
 static PROXY_CLIENT_CACHE: OnceCell<RwLock<HashMap<(Proxy, String), Client>>> = OnceCell::new();
 
@@ -1383,6 +1425,11 @@ fn get_client_builder(
             proxy_config
                 .idle_pool_connection_timeout
                 .unwrap_or_default(),
+        ))
+        .timeout(Duration::from_secs(
+            proxy_config
+                .connector_request_timeout
+                .unwrap_or(DEFAULT_CONNECTOR_REQUEST_TIMEOUT_SECS),
         ));
 
     // Disable automatic gzip decompression in test mode

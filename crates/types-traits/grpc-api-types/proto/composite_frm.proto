@@ -1,0 +1,152 @@
+// Copyright (c) Juspay Technologies. All rights reserved.
+//
+// Package: ucs.v2
+// File: composite_frm.proto
+//
+// Overview:
+//   This file defines the composite request/response messages for the
+//   FraudAndRiskManagementService API. Composite messages flatten the underlying
+//   FRM request fields with optional access token bootstrapping support.
+//
+// Related Files:
+//   - services.proto              — gRPC service definitions
+//   - composite_services.proto    — Composite service definitions
+//   - frm.proto                   — Base FRM types
+//   - payment.proto               — Shared types (Money, ErrorInfo, etc.)
+
+syntax = "proto3";
+
+package types;
+
+import "frm.proto";
+import "payment.proto";
+import "payment_methods.proto";
+
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
+
+// ============================================================================
+// COMPOSITE FRAUD AND RISK MANAGEMENT REQUESTS
+// ============================================================================
+
+// Composite request for PreRiskCheck that includes all fields from
+// FrmServicePreRiskCheckRequest with access token bootstrapping support.
+message CompositeFrmPreRiskCheckRequest {
+  // Transaction details
+  Money amount = 1;
+
+  // Customer information
+  optional Customer customer_info = 2;
+
+  // Payment method details
+  optional PaymentMethod payment_method = 3;
+
+  // Browser/device information for risk scoring
+  optional BrowserInformation browser_info = 4;
+
+  // Merchant transaction identifier
+  optional string merchant_transaction_id = 5;
+
+  // Order details
+  repeated OrderDetailsWithAmount order_details = 6;
+
+  // Address information
+  optional Address address = 7;
+
+  // Additional metadata for the connector
+  optional SecretString metadata = 8;
+
+  // Connector-specific feature data for the transaction
+  optional SecretString connector_feature_data = 9;
+
+  // Sandbox/test mode flag
+  optional bool test_mode = 10;
+
+  // State information (includes access token for bootstrapping)
+  optional ConnectorState state = 11;
+
+  // Reference ID for access token tracking
+  optional string merchant_access_token_id = 12;
+
+  // Per-request idempotency / correlation token propagated from the parent composite request
+  optional string merchant_request_id = 13;
+
+  // Recurring / mandate details for subscription risk scoring (shared
+  // MandateAmountData from payment.proto).
+  optional MandateAmountData mandate_info = 14;
+
+  // Merchant details (id + MCC) for risk scoring.
+  optional MerchantDetails merchant_details = 15;
+
+  // Additive/new name for `mandate_info`; NOT yet consumed — `mandate_info`
+  // (field 14) is used for now (backward compatibility).
+  optional MandateAmountData mandate_details = 16;
+}
+
+// Composite request for PostRiskCheck that includes all fields from
+// FrmServicePostRiskCheckRequest with access token bootstrapping support.
+message CompositeFrmPostRiskCheckRequest {
+  // Transaction details
+  Money amount = 1;
+
+  // Customer information
+  optional Customer customer_info = 2;
+
+  // Payment method details
+  optional PaymentMethod payment_method = 3;
+
+  // Merchant transaction identifier
+  optional string merchant_transaction_id = 4;
+
+  // Order details
+  repeated OrderDetailsWithAmount order_details = 5;
+
+  // Additional metadata for the connector
+  optional SecretString metadata = 6;
+
+  // Connector-specific feature data for the transaction
+  optional SecretString connector_feature_data = 7;
+
+  // Sandbox/test mode flag
+  optional bool test_mode = 8;
+
+  // Payment status after processing
+  optional PaymentStatus payment_status = 9;
+
+  // Connector transaction identifier from the payment
+  optional string connector_transaction_id = 10;
+
+  // Payment connector that processed the transaction
+  optional Connector payment_connector = 11;
+
+  // State information (includes access token for bootstrapping)
+  optional ConnectorState state = 12;
+
+  // Reference ID for access token tracking
+  optional string merchant_access_token_id = 13;
+
+  // Per-request idempotency / correlation token propagated from the parent composite request
+  optional string merchant_request_id = 14;
+}
+
+// ============================================================================
+// COMPOSITE FRAUD AND RISK MANAGEMENT RESPONSES
+// ============================================================================
+
+// Composite response for PreRiskCheck that includes access token response.
+message CompositeFrmPreRiskCheckResponse {
+  // The underlying pre-risk check response (always populated)
+  FrmServicePreRiskCheckResponse pre_risk_check_response = 1;
+
+  // Access token generation result (populated only when the composite service
+  // bootstrapped the connector's session token)
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 2;
+}
+
+// Composite response for PostRiskCheck that includes access token response.
+message CompositeFrmPostRiskCheckResponse {
+  // The underlying post-risk check response (always populated)
+  FrmServicePostRiskCheckResponse post_risk_check_response = 1;
+
+  // Access token generation result (populated only when bootstrapped)
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 2;
+}

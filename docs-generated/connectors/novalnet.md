@@ -131,7 +131,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L250) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L124) · [Rust](../../examples/novalnet/novalnet.rs#L319)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L250) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L124) · [Rust](../../examples/novalnet/novalnet.rs#L320)
 
 ### Card Payment (Authorize + Capture)
 
@@ -145,25 +145,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L269) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L140) · [Rust](../../examples/novalnet/novalnet.rs#L335)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L269) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L140) · [Rust](../../examples/novalnet/novalnet.rs#L336)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L294) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L162) · [Rust](../../examples/novalnet/novalnet.rs#L358)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L294) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L162) · [Rust](../../examples/novalnet/novalnet.rs#L359)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L319) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L184) · [Rust](../../examples/novalnet/novalnet.rs#L381)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L319) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L184) · [Rust](../../examples/novalnet/novalnet.rs#L382)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/novalnet/novalnet.py#L341) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L203) · [Rust](../../examples/novalnet/novalnet.rs#L400)
+**Examples:** [Python](../../examples/novalnet/novalnet.py#L341) · [JavaScript](../../examples/novalnet/novalnet.js) · [Kotlin](../../examples/novalnet/novalnet.kt#L203) · [Rust](../../examples/novalnet/novalnet.rs#L401)
 
 ## API Reference
 

@@ -312,6 +312,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -346,6 +347,7 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                         incremental_authorization_allowed: None,
                         mandate_reference: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status,
@@ -449,6 +451,7 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -524,6 +527,7 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -691,6 +695,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 mandate_reference: Some(Box::new(mandate_reference)),
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

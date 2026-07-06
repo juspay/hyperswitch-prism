@@ -119,6 +119,21 @@ pub struct CreatePaymentMethod;
 pub struct GetPaymentMethod;
 
 #[derive(Debug, Clone)]
+pub struct PreRiskCheck;
+
+#[derive(Debug, Clone)]
+pub struct PostRiskCheck;
+
+#[derive(Debug, Clone)]
+pub struct FrmPaymentOutcome;
+
+#[derive(Debug, Clone)]
+pub struct FrmRefundProcessed;
+
+#[derive(Debug, Clone)]
+pub struct FrmChargebackReceived;
+
+#[derive(Debug, Clone)]
 pub struct PaymentMethodEligibility;
 
 #[derive(strum::Display)]
@@ -165,5 +180,10 @@ pub enum FlowName {
     Recharge,
     CreatePaymentMethod,
     GetPaymentMethod,
+    PreRiskCheck,
+    PostRiskCheck,
+    FrmPaymentOutcome,
+    FrmRefundProcessed,
+    FrmChargebackReceived,
     PaymentMethodEligibility,
 }

@@ -46,6 +46,17 @@ static GRPC_SERVER_REQUEST_DURATION: LazyLock<Histogram<f64>> = LazyLock::new(||
         .build()
 });
 
+/// UCS-internal processing latency (total request time minus connector RTT) in seconds.
+static UCS_INTERNAL_PROCESSING_LATENCY: LazyLock<Histogram<f64>> = LazyLock::new(|| {
+    METER
+        .f64_histogram(format!(
+            "{METRIC_PREFIX}internal_processing_duration_seconds"
+        ))
+        .with_description("UCS-internal processing latency (total minus connector RTT) in seconds")
+        .with_boundaries(LATENCY_BUCKETS.to_vec())
+        .build()
+});
+
 /// Total outbound external/connector API calls, by method, service and connector.
 static EXTERNAL_SERVICE_TOTAL_API_CALLS: LazyLock<Counter<u64>> = LazyLock::new(|| {
     METER
@@ -77,6 +88,25 @@ static EXTERNAL_SERVICE_API_CALLS_ERRORS: LazyLock<Counter<u64>> = LazyLock::new
 pub fn record_external_call(method: &str, service: &str, connector: &str, mode: &str) {
     EXTERNAL_SERVICE_TOTAL_API_CALLS.add(
         1,
+        &[
+            KeyValue::new("method", method.to_string()),
+            KeyValue::new("service", service.to_string()),
+            KeyValue::new("connector", connector.to_string()),
+            KeyValue::new("mode", mode.to_string()),
+        ],
+    );
+}
+
+/// Record UCS-internal processing latency (total minus connector RTT). `mode` is "primary"/"shadow".
+pub fn record_internal_latency(
+    method: &str,
+    service: &str,
+    connector: &str,
+    mode: &str,
+    duration_secs: f64,
+) {
+    UCS_INTERNAL_PROCESSING_LATENCY.record(
+        duration_secs,
         &[
             KeyValue::new("method", method.to_string()),
             KeyValue::new("service", service.to_string()),
