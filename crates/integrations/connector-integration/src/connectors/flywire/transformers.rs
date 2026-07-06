@@ -193,13 +193,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone();
         let payor_id = payment_ref.clone();
 
-        // Recipient fields: mapped from typed `domain_data.education_data.student_details`.
+        // Domain data on the request. Extracted generically so future vertical
+        // sub-fields (beyond education / student details) can be read from here too.
+        let domain_data = router_data.request.domain_data.as_ref().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "domain_data",
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some("Pass `domain_data` on the request.".to_string()),
+                    doc_url: Some(
+                        "https://developers.flywire.com/docs/checkout-session".to_string(),
+                    ),
+                    additional_context: None,
+                },
+            })
+        })?;
+
+        // Recipient fields: mapped from typed `education_data.student_details`.
         // Institution-specific and required — cannot be defaulted.
-        let student_details = router_data
-            .request
-            .domain_data
+        let student_details = domain_data
+            .education_data
             .as_ref()
-            .and_then(|d| d.education_data.as_ref())
             .and_then(|e| e.student_details.as_ref())
             .ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
@@ -207,7 +220,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     context: domain_types::errors::IntegrationErrorContext {
                         suggested_action: Some(
                             "Pass student details in `domain_data.education_data.student_details` \
-                             (student_id, student_first_name, student_last_name, student_email)."
+                         (student_id, student_first_name, student_last_name, student_email)."
                                 .to_string(),
                         ),
                         doc_url: Some(
