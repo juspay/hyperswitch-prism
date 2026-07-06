@@ -931,30 +931,21 @@ where
         .map(PacoAirlineData::try_from)
         .transpose()?;
 
-    // PACO requires a billing address alongside airlineData; a request carrying
-    // airline data but no billing address would be rejected downstream, so fail
-    // fast with a clear message instead of forwarding an incomplete payload.
-    if airline_data.is_some() && paco_billing_address.is_none() {
-        return Err(error_stack::Report::new(
-            errors::IntegrationError::MissingRequiredField {
-                field_name: "billing_address",
-                context: errors::IntegrationErrorContext {
-                    suggested_action: Some(
-                        "PACO requires a billing address when airlineData is supplied; \
-                         provide the customer billing address."
-                            .to_string(),
-                    ),
-                    doc_url: Some(PACO_INTEGRATION_DOC_URL.to_string()),
-                    additional_context: Some(
-                        "airlineData was supplied without a billing address. PACO's airline \
-                         authorization requires the cardholder billing address, so the request \
-                         is rejected here rather than forwarded and failed by PACO."
-                            .to_string(),
-                    ),
-                },
-            },
-        ));
-    }
+    // PACO's airline authorization requires a billing address alongside
+    // airlineData; PACO rejects an airline payload that lacks one. Rather than
+    // fail the whole payment, drop the airline block when no billing address is
+    // present and proceed with the base authorization.
+    let airline_data = if airline_data.is_some() && paco_billing_address.is_none() {
+        tracing::warn!(
+            target: "twoc_twop_paco",
+            "twoc_twop_paco: airlineData supplied without a billing address — \
+             dropping airlineData and proceeding with the base authorization, \
+             since PACO requires a billing address for airline data"
+        );
+        None
+    } else {
+        airline_data
+    };
 
     match &item.request.payment_method_data {
         PaymentMethodData::Card(card) => {

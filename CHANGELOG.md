@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.06.0
+
+### Features
+
+- **twoc_twop_paco:** Require billing address when airline data is present ([#1810](https://github.com/juspay/connector-service/pull/1810)) ([`6805288`](https://github.com/juspay/connector-service/commit/6805288cff3d88ffbbbb82bf7f1773f4e45ccced))
+
+### Bug Fixes
+
+- **tamara:** Converting minor_to_major_units ([#1808](https://github.com/juspay/connector-service/pull/1808)) ([`32d9640`](https://github.com/juspay/connector-service/commit/32d9640da5e49809a6d67d76c205aa2ac4ca092b))
+
+**Full Changelog:** [`2026.07.03.1...2026.07.06.0`](https://github.com/juspay/connector-service/compare/2026.07.03.1...2026.07.06.0)
+
+- - -
+
 ## 2026.07.03.1
 
 ### Features

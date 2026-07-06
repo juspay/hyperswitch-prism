@@ -135,7 +135,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L224) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L122) · [Rust](../../examples/fiuu/fiuu.rs#L293)
+**Examples:** [Python](../../examples/fiuu/fiuu.py#L224) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L122) · [Rust](../../examples/fiuu/fiuu.rs#L294)
 
 ### Card Payment (Authorize + Capture)
 
@@ -149,25 +149,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L243) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L138) · [Rust](../../examples/fiuu/fiuu.rs#L309)
+**Examples:** [Python](../../examples/fiuu/fiuu.py#L243) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L138) · [Rust](../../examples/fiuu/fiuu.rs#L310)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L268) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L160) · [Rust](../../examples/fiuu/fiuu.rs#L332)
+**Examples:** [Python](../../examples/fiuu/fiuu.py#L268) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L160) · [Rust](../../examples/fiuu/fiuu.rs#L333)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L293) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L182) · [Rust](../../examples/fiuu/fiuu.rs#L355)
+**Examples:** [Python](../../examples/fiuu/fiuu.py#L293) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L182) · [Rust](../../examples/fiuu/fiuu.rs#L356)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/fiuu/fiuu.py#L315) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L201) · [Rust](../../examples/fiuu/fiuu.rs#L374)
+**Examples:** [Python](../../examples/fiuu/fiuu.py#L315) · [JavaScript](../../examples/fiuu/fiuu.js) · [Kotlin](../../examples/fiuu/fiuu.kt#L201) · [Rust](../../examples/fiuu/fiuu.rs#L375)
 
 ## API Reference
 

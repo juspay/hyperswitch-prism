@@ -667,7 +667,7 @@ connector_id: stripe
 doc: docs/connectors/stripe.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Ach, AchBankTransfer, Affirm, Afterpay, AliPayRedirect, AmazonPayRedirect, ApplePay, ApplePayDecrypted, Bacs, BacsBankTransfer, BancontactCard, Becs, Blik, Card, CashappQr, Eps, Giropay, GooglePay, Ideal, Klarna, MultibancoBankTransfer, Przelewy24, RevolutPay, Sepa, SepaBankTransfer, WeChatPayQr
-flows: authorize, capture, create_client_authentication_token, customer_create, get, incremental_authorization, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, tokenize, void
+flows: authorize, capture, create_client_authentication_token, customer_create, get, handle_event, incremental_authorization, parse_event, proxy_authorize, proxy_setup_recurring, recurring_charge, refund, refund_get, setup_recurring, token_authorize, tokenize, void
 examples_python: examples/stripe/stripe.py
 
 ## Tamara

@@ -169,10 +169,10 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
 pub fn build_parse_event_request() -> EventServiceParseRequest {
     EventServiceParseRequest {
         request_details: Some(RequestDetails {
-            method: HttpMethod::HttpMethodPost.into(),  // HTTP method of the request (e.g., GET, POST).
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
             headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"object\":\"transaction\",\"trigger\":\"payment\",\"webhook_id\":\"probe_wh_001\",\"triggered_at\":\"2024-01-01T00:00:00Z\",\"triggered_on\":{\"id\":\"probe_txn_001\",\"object\":\"transaction\"},\"url\":\"https://example.com/webhook\"}".to_string(),  // Body of the HTTP request.
+            body: "{\"object\":\"transaction\",\"trigger\":\"payment\",\"webhook_id\":\"probe_wh_001\",\"triggered_at\":\"2024-01-01T00:00:00Z\",\"triggered_on\":{\"id\":\"probe_txn_001\",\"object\":\"transaction\"},\"url\":\"https://example.com/webhook\"}".as_bytes().to_vec(),  // Body of the HTTP request.
             ..Default::default()
         }),
     }
@@ -734,10 +734,8 @@ pub async fn process_parse_event(
     client: &ConnectorClient,
     _merchant_transaction_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .parse_event(build_parse_event_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
 }
 
 // Flow: PaymentService.ProxyAuthorize
