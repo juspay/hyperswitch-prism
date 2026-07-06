@@ -252,27 +252,31 @@ const FIELD_STUDENT_LAST_NAME: &str = "student_last_name";
 const FIELD_STUDENT_EMAIL: &str = "student_email";
 
 /// Maps typed student_details data to Flywire's `recipient.fields` id/value pairs.
+/// Only fields the merchant actually supplied are emitted; absent fields are
+/// skipped so we never send empty recipient values.
 fn student_details_to_recipient_fields(
     student_details: &domain_types::connector_types::StudentDetails,
 ) -> Vec<FlywireRecipientField> {
-    vec![
-        FlywireRecipientField {
-            id: FIELD_STUDENT_ID.to_string(),
-            value: student_details.student_id.clone(),
-        },
-        FlywireRecipientField {
-            id: FIELD_STUDENT_FIRST_NAME.to_string(),
-            value: student_details.student_first_name.clone(),
-        },
-        FlywireRecipientField {
-            id: FIELD_STUDENT_LAST_NAME.to_string(),
-            value: student_details.student_last_name.clone(),
-        },
-        FlywireRecipientField {
-            id: FIELD_STUDENT_EMAIL.to_string(),
-            value: student_details.student_email.clone(),
-        },
+    [
+        (FIELD_STUDENT_ID, student_details.student_id.as_ref()),
+        (
+            FIELD_STUDENT_FIRST_NAME,
+            student_details.student_first_name.as_ref(),
+        ),
+        (
+            FIELD_STUDENT_LAST_NAME,
+            student_details.student_last_name.as_ref(),
+        ),
+        (FIELD_STUDENT_EMAIL, student_details.student_email.as_ref()),
     ]
+    .into_iter()
+    .filter_map(|(id, value)| {
+        value.map(|value| FlywireRecipientField {
+            id: id.to_string(),
+            value: value.clone(),
+        })
+    })
+    .collect()
 }
 
 fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {

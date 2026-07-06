@@ -1318,10 +1318,10 @@ message EducationData {
 
 // Student details for education payments (e.g. Flywire recipient fields).
 message StudentDetails {
-  string student_id = 1;
-  string student_first_name = 2;
-  string student_last_name = 3;
-  string student_email = 4;
+  optional string student_id = 1;
+  optional string student_first_name = 2;
+  optional string student_last_name = 3;
+  optional string student_email = 4;
 }
 
 // Whether the ticket can be refunded 
