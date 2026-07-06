@@ -278,7 +278,7 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Crypto | x |
 | Reward | ⚠ |
 | Givex | x |
-| PaySafeCard | ⚠ |
+| PaySafeCard | x |
 | E-Voucher | ⚠ |
 | Boleto | ⚠ |
 | Efecty | ⚠ |
