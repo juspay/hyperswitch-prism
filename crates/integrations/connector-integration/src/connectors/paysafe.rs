@@ -41,7 +41,7 @@ use transformers::{
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
@@ -241,7 +241,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
         let auth = paysafe::PaysafeAuthType::try_from(auth_type).change_context(
             IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Paysafe Basic auth needs username/password from ConnectorSpecificConfig::Paysafe."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
         let auth_key = format!("{}:{}", auth.username.peek(), auth.password.peek());
@@ -497,7 +503,15 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let connector_payment_id = req.request.connector_transaction_id
                 .get_connector_transaction_id()
-                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })?;
+                .change_context(IntegrationError::MissingConnectorTransactionID {
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Paysafe Capture targets v1/payments/{id}/settlements and needs the payment id returned by Authorize."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })?;
             Ok(format!(
                 "{}v1/payments/{}/settlements",
                 self.connector_base_url_payments(req),

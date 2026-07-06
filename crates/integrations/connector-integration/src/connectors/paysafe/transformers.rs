@@ -32,6 +32,22 @@ use domain_types::errors::{IntegrationError, IntegrationErrorContext};
 pub use super::requests::*;
 pub use super::responses::*;
 
+// Wire-protocol constants (values fixed by the Paysafe / wallet-network specs).
+
+/// `deviceManufacturerIdentifier` Paysafe expects in Apple Pay decryptedData.
+const APPLE_PAY_DEVICE_MANUFACTURER_ID: &str = "Apple";
+/// `paymentDataType` for an Apple Pay 3-D Secure cryptogram payload.
+const APPLE_PAY_PAYMENT_DATA_TYPE: &str = "3DSecure";
+/// Google Pay `paymentMethodData.type` — always CARD for gateway tokens.
+const GOOGLE_PAY_PM_TYPE: &str = "CARD";
+/// Google Pay `tokenizationData.type` for gateway (non-direct) tokenization.
+const GOOGLE_PAY_TOKEN_TYPE: &str = "PAYMENT_GATEWAY";
+/// Placeholder epoch-millis expiry for the reconstructed Google Pay decrypted
+/// token: hyperswitch drops the original message_expiration before forwarding
+/// (see issue #11684 referenced below), so we send a far-future value that
+/// Paysafe accepts instead of failing the payment.
+const GOOGLE_PAY_MESSAGE_EXPIRATION_MS: &str = "9999999999999";
+
 // Auth Type
 
 #[derive(Debug, Clone)]
@@ -56,7 +72,13 @@ impl TryFrom<&ConnectorSpecificConfig> for PaysafeAuthType {
                 account_id: account_id.clone(),
             }),
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Paysafe requires ConnectorSpecificConfig::Paysafe with username/password (Basic auth) and the per-method account_id map."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             }),
         }
     }
@@ -199,7 +221,13 @@ fn build_paysafe_redirect_handle_request<
         .account_id
         .ok_or(IntegrationError::InvalidConnectorConfig {
             config: "account_id",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Paysafe redirect APMs need the account_id map in the connector config (skrill/interac slots) to resolve the processing account."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
         })?;
 
     let currency = router_data.request.currency;
@@ -220,7 +248,13 @@ fn build_paysafe_redirect_handle_request<
                 .get_optional_billing_email()
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "email",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Skrill payment handles require the billing email as the Skrill consumerId."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 })?;
             let skrill_account_id = account_id.get_skrill_account_id(currency)?;
             let country_code = router_data.resource_common_data.get_optional_billing_country();
@@ -247,7 +281,13 @@ fn build_paysafe_redirect_handle_request<
                 })
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "email",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Interac e-Transfer requires a consumer email: pass it in the interac payment_method_data or as billing email."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 })?;
             // Interac REQUIRES an accountId for CAD (unlike Skrill).
             let account_id = account_id.get_interac_account_id(currency)?;
@@ -261,14 +301,26 @@ fn build_paysafe_redirect_handle_request<
                     .get_optional_billing_first_name()
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "billing_first_name",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Paysafe requires a consumer profile (firstName) on INTERAC_ETRANSFER payment handles."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     })?,
                 last_name: router_data
                     .resource_common_data
                     .get_optional_billing_last_name()
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "billing_last_name",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Paysafe requires a consumer profile (lastName) on INTERAC_ETRANSFER payment handles."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
                     })?,
                 email: consumer_id.clone(),
             });
@@ -315,7 +367,13 @@ fn build_paysafe_redirect_handle_request<
     let redirect_url = router_data.resource_common_data.get_return_url().ok_or(
         IntegrationError::MissingRequiredField {
             field_name: "return_url",
-            context: Default::default(),
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Paysafe redirect APMs need a return_url to build the returnLinks the shopper is sent back to."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
         },
     )?;
 
@@ -506,7 +564,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .map(|id| id.peek().to_string())
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "customer_id",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Paysafe customer profiles require merchantCustomerId; pass the merchant customer id in the CreateConnectorCustomer request."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         let email = customer_data
@@ -597,7 +661,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .account_id
             .ok_or(IntegrationError::InvalidConnectorConfig {
                 config: "account_id",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Paysafe Tokenize needs the account_id map (card no_three_ds / ach / apple_pay slots) to pick the processing account for the payment handle."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         let currency = router_data.request.currency;
@@ -646,7 +716,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         })
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "bank_account_holder_name",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Paysafe ACH requires the account holder name; provide bank_account_holder_name or a billing full name."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?;
                     let account_type = bank_type
                         .as_ref()
@@ -654,7 +730,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .transpose()?
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "bank_type (ach.accountType)",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Paysafe ACH requires accountType (CHECKING/SAVINGS) mapped from the bank_debit bank_type."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?;
                     let ach = PaysafeAch {
                         account_holder_name,
@@ -675,7 +757,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         GpayTokenizationData::Encrypted(_) => {
                             return Err(IntegrationError::MissingRequiredField {
                                 field_name: "google_pay.tokenization_data (decrypted)",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "Paysafe Google Pay expects a pre-decrypted token (GpayTokenizationData::Decrypted); encrypted Google Pay tokens are not forwarded."
+                                            .to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
                             }
                             .into())
                         }
@@ -685,14 +773,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .get_expiry_month()
                         .change_context(IntegrationError::MissingRequiredField {
                             field_name: "google_pay_decrypted_data.card_exp_month",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Paysafe Google Pay decrypted tokens must carry the PAN expiration month."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?
                         .peek()
                         .parse::<u8>()
                         .map_err(|_| {
                             IntegrationError::InvalidDataFormat {
                                 field_name: "google_pay_decrypted_data.card_exp_month",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "Google Pay PAN expiration month must be a numeric MM value."
+                                            .to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
                             }
                         })?;
 
@@ -700,14 +800,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .get_four_digit_expiry_year()
                         .change_context(IntegrationError::MissingRequiredField {
                             field_name: "google_pay_decrypted_data.card_exp_year",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Paysafe Google Pay decrypted tokens must carry the PAN expiration year."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?
                         .peek()
                         .parse::<u16>()
                         .map_err(|_| {
                             IntegrationError::InvalidDataFormat {
                                 field_name: "google_pay_decrypted_data.card_exp_year",
-                                context: Default::default(),
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "Google Pay PAN expiration year must be a numeric YYYY value."
+                                            .to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
                             }
                         })?;
 
@@ -739,7 +851,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     // placeholder for message_expiration.
                     let decrypted_token = PaysafeGooglePayDecryptedToken {
                         message_id: uuid::Uuid::new_v4().to_string(),
-                        message_expiration: "9999999999999".to_string(),
+                        message_expiration: GOOGLE_PAY_MESSAGE_EXPIRATION_MS.to_string(),
                         payment_method_details,
                     };
 
@@ -747,14 +859,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         api_version: 2,
                         api_version_minor: 0,
                         payment_method_data: PaysafeGooglePayPaymentMethodData {
-                            pm_type: "CARD".to_string(),
+                            pm_type: GOOGLE_PAY_PM_TYPE.to_string(),
                             description: google_pay_data.description.clone(),
                             info: PaysafeGooglePayCardInfo {
                                 card_network: google_pay_data.info.card_network.clone(),
                                 card_details: google_pay_data.info.card_details.clone(),
                             },
                             tokenization_data: PaysafeGooglePayTokenizationData {
-                                token_type: "PAYMENT_GATEWAY".to_string(),
+                                token_type: GOOGLE_PAY_TOKEN_TYPE.to_string(),
                                 decrypted_token,
                             },
                         },
@@ -778,13 +890,25 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 .get_applepay_decoded_payment_data()
                                 .change_context(IntegrationError::InvalidDataFormat {
                                     field_name: "apple_pay.payment_data",
-                                    context: Default::default(),
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some(
+                                            "Apple Pay payment_data must be a base64-encoded PKPaymentToken."
+                                                .to_string(),
+                                        ),
+                                        ..Default::default()
+                                    },
                                 })?;
                             PaysafeApplePayPaymentData::Encrypted(
                                 serde_json::from_str(decoded_token.peek()).change_context(
                                     IntegrationError::InvalidDataFormat {
                                         field_name: "apple_pay.payment_data",
-                                        context: Default::default(),
+                                        context: IntegrationErrorContext {
+                                            additional_context: Some(
+                                                "Decoded Apple Pay payment_data is not valid PKPaymentToken JSON."
+                                                    .to_string(),
+                                            ),
+                                            ..Default::default()
+                                        },
                                     },
                                 )?,
                             )
@@ -794,7 +918,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 .get_two_digit_expiry_year()
                                 .change_context(IntegrationError::InvalidDataFormat {
                                     field_name: "apple_pay.application_expiration_year",
-                                    context: Default::default(),
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some(
+                                            "Apple Pay decrypted expiration year must reduce to two digits (YY) for Paysafe's YYMM applicationExpirationDate."
+                                                .to_string(),
+                                        ),
+                                        ..Default::default()
+                                    },
                                 })?;
                             let application_expiration_date = Secret::new(format!(
                                 "{}{:0>2}",
@@ -816,9 +946,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                         transaction_amount: Some(amount),
                                         cardholder_name: None,
                                         device_manufacturer_identifier: Some(
-                                            "Apple".to_string(),
+                                            APPLE_PAY_DEVICE_MANUFACTURER_ID.to_string(),
                                         ),
-                                        payment_data_type: Some("3DSecure".to_string()),
+                                        payment_data_type: Some(
+                                            APPLE_PAY_PAYMENT_DATA_TYPE.to_string(),
+                                        ),
                                         payment_data: PaysafeApplePayDecryptedPaymentData {
                                             online_payment_cryptogram: decrypted
                                                 .payment_data
@@ -836,7 +968,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     };
 
                     let apple_pay = PaysafeApplePay {
-                        label: apple_pay_data.payment_method.display_name.clone(),
+                        label: None,
+                        request_billing_address: Some(false),
                         apple_pay_payment_token: PaysafeApplePayPaymentToken {
                             token: PaysafeApplePayToken {
                                 payment_data,
@@ -852,6 +985,51 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     .transaction_identifier
                                     .clone(),
                             },
+                            billing_contact: Some(PaysafeApplePayBillingContact {
+                                address_lines: vec![
+                                    router_data
+                                        .resource_common_data
+                                        .get_optional_billing_line1(),
+                                    router_data
+                                        .resource_common_data
+                                        .get_optional_billing_line2(),
+                                ],
+                                postal_code: router_data
+                                    .resource_common_data
+                                    .get_billing_zip()
+                                    .change_context(IntegrationError::MissingRequiredField {
+                                        field_name: "billing.address.zip",
+                                        context: IntegrationErrorContext {
+                                            additional_context: Some(
+                                                "Paysafe Apple Pay billingContact requires the billing zip (hyperswitch parity)."
+                                                    .to_string(),
+                                            ),
+                                            ..Default::default()
+                                        },
+                                    })?,
+                                country_code: router_data
+                                    .resource_common_data
+                                    .get_billing_country()
+                                    .change_context(IntegrationError::MissingRequiredField {
+                                        field_name: "billing.address.country",
+                                        context: IntegrationErrorContext {
+                                            additional_context: Some(
+                                                "Paysafe Apple Pay billingContact requires the billing country (hyperswitch parity)."
+                                                    .to_string(),
+                                            ),
+                                            ..Default::default()
+                                        },
+                                    })?,
+                                administrative_area: None,
+                                country: None,
+                                family_name: None,
+                                given_name: None,
+                                locality: None,
+                                phonetic_family_name: None,
+                                phonetic_given_name: None,
+                                sub_administrative_area: None,
+                                sub_locality: None,
+                            }),
                         },
                     };
 
@@ -875,7 +1053,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .get_apple_pay_account_id(currency, is_encrypted)
                         .or_else(|_| account_id.get_no_three_ds_account_id(currency))?;
                     (
-                        PaysafePaymentMethod::ApplePay { apple_pay },
+                        PaysafePaymentMethod::ApplePay {
+                            apple_pay: Box::new(apple_pay),
+                        },
                         PaysafePaymentType::Card,
                         Some(account_id),
                     )
@@ -887,7 +1067,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .get_optional_billing_email()
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "email",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Skrill payment handles require the billing email as the Skrill consumerId."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?;
                     let skrill = PaysafeSkrill {
                         consumer_id,
@@ -918,7 +1104,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         })
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "email",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Interac e-Transfer requires a consumer email: pass it in the interac payment_method_data or as billing email."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?;
                     let interac_etransfer = PaysafeInterac { consumer_id };
                     // Interac REQUIRES an accountId for CAD (unlike Skrill). Resolve from the
@@ -981,7 +1173,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let redirect_url = router_data.resource_common_data.get_return_url().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "return_url",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Paysafe payment handles need a return_url to build the returnLinks the shopper is sent back to."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -1092,7 +1290,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .account_id
             .ok_or(IntegrationError::InvalidConnectorConfig {
                 config: "account_id",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Paysafe Authorize needs the account_id map to resolve the card three_ds/no_three_ds processing account."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?;
 
         let payment_handle_token: Secret<String> = match &router_data.request.payment_method_data {
@@ -1131,34 +1335,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             )
         };
 
-        // For ACH, use the ach account_id; for wallets (GooglePay), always use no_three_ds
-        // because the PaymentMethodToken (payment handle) was created under the no_three_ds
-        // account. For cards, branch on is_three_ds(). Redirect-APM settles (the second
-        // Authorize leg, mirroring hyperswitch's CompleteAuthorize) send NO accountId:
-        // the payment handle already carries its account binding, and re-specifying a
-        // card/ach account for e.g. an INTERAC_ETRANSFER handle is rejected by Paysafe
-        // with error 5068.
-        let is_wallet = matches!(
-            router_data.resource_common_data.payment_method,
-            enums::PaymentMethod::Wallet
-        );
-
-        let account_id = match (
-            is_paysafe_redirect_apm(&router_data.request.payment_method_data),
-            is_ach,
-            is_wallet || !router_data.resource_common_data.is_three_ds(),
-        ) {
-            (true, _, _) => None,
-            (false, true, _) => Some(account_id.get_ach_account_id(router_data.request.currency)?),
-            (false, false, true) => {
-                // Wallets (GooglePay) always use no_three_ds account because the payment
-                // handle (created in PaymentMethodToken flow) uses no_three_ds account.
-                // Non-3DS card payments also use no_three_ds.
-                Some(account_id.get_no_three_ds_account_id(router_data.request.currency)?)
+        // Hyperswitch parity (verified via shadow-mode body comparison): only CARD
+        // settles carry an accountId (three_ds/no_three_ds by auth type). Every other
+        // payment method — wallets, ACH, redirect-APM settle legs — sends NO accountId:
+        // the payment handle already carries its account binding, and re-specifying an
+        // account (e.g. for an INTERAC_ETRANSFER handle) is rejected by Paysafe with
+        // error 5068.
+        // Match on the payment-method enum (not payment_method_data) because the settle
+        // leg carries PaymentMethodData::PaymentMethodToken for cards too.
+        let account_id = match router_data.resource_common_data.payment_method {
+            enums::PaymentMethod::Card => {
+                if router_data.resource_common_data.is_three_ds() {
+                    Some(account_id.get_three_ds_account_id(router_data.request.currency)?)
+                } else {
+                    Some(account_id.get_no_three_ds_account_id(router_data.request.currency)?)
+                }
             }
-            (false, false, false) => {
-                Some(account_id.get_three_ds_account_id(router_data.request.currency)?)
-            }
+            _ => None,
         };
 
         Ok(Self {
@@ -1385,7 +1578,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::MissingRequiredField {
                     field_name: "connector_mandate_id",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Paysafe MIT supports only connector mandates: pass the ConnectorMandateId issued by the CIT Authorize (network mandates are not supported)."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 }
                 .into());
             }
@@ -1394,7 +1593,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let raw_connector_mandate_id = mandate_data.get_connector_mandate_id().ok_or(
             IntegrationError::MissingRequiredField {
                 field_name: "connector_mandate_id",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Paysafe MIT requires the connector_mandate_id JSON ({payment_handle_token, initial_transaction_id}) returned by the CIT Authorize."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             },
         )?;
 
@@ -1414,11 +1619,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .get_mandate_metadata()
                         .ok_or(IntegrationError::MissingRequiredField {
                             field_name: "mandate_metadata",
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Bare (non-JSON) connector_mandate_id needs mandate_metadata carrying the initial_transaction_id for the Paysafe MIT."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?
                         .parse_value("PaysafeMandateMetadata")
                         .change_context(IntegrationError::RequestEncodingFailed {
-                            context: Default::default(),
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "mandate_metadata did not parse as PaysafeMandateMetadata ({initial_transaction_id})."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
                         })?;
                     (
                         Secret::new(raw_connector_mandate_id),
@@ -1456,7 +1673,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .account_id
             .ok_or(IntegrationError::InvalidConnectorConfig {
                 config: "account_id",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Paysafe MIT needs the account_id map to resolve the card no_three_ds account the reusable handle was vaulted under."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
             })?
             .get_no_three_ds_account_id(router_data.request.currency)?;
 
@@ -1676,7 +1899,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .amount
                 .ok_or(IntegrationError::MissingRequiredField {
                     field_name: "amount",
-                    context: Default::default(),
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Paysafe refunds require an explicit amount; partial/full refund amount cannot be defaulted."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
                 })?;
         Ok(Self {
             merchant_ref_num: item

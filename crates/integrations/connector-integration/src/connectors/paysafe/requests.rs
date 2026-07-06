@@ -11,9 +11,10 @@ pub struct PaysafePaymentsRequest {
     pub settle_with_auth: bool,
     pub payment_handle_token: Secret<String>,
     pub currency_code: common_enums::Currency,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    // customer_ip and stored_credential serialize as explicit nulls when absent,
+    // mirroring hyperswitch's PaysafePaymentsRequest wire shape byte-for-byte
+    // (verified via shadow-mode body comparison).
     pub customer_ip: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub stored_credential: Option<PaysafeStoredCredential>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub account_id: Option<Secret<String>>,
@@ -104,11 +105,10 @@ pub struct PaysafeSetupMandateRequest<T: PaymentMethodDataTypes> {
     // Skrill must omit accountId entirely (sending the card accountId returns error 5068).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub account_id: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    // threeDs/profile/billingDetails serialize as explicit nulls when absent,
+    // mirroring hyperswitch's PaysafePaymentHandleRequest wire shape.
     pub three_ds: Option<ThreeDs>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub profile: Option<PaysafeProfile>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_details: Option<PaysafeBillingDetails>,
 }
 
@@ -128,7 +128,7 @@ pub enum PaysafePaymentMethod<T: PaymentMethodDataTypes> {
     },
     ApplePay {
         #[serde(rename = "applePay")]
-        apple_pay: PaysafeApplePay,
+        apple_pay: Box<PaysafeApplePay>,
     },
     Skrill {
         skrill: PaysafeSkrill,
@@ -183,8 +183,11 @@ pub struct PaysafeGooglePay {
 #[derive(Debug, Serialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeApplePay {
-    /// User-facing label (Apple Pay payment-method display name).
-    pub label: String,
+    /// User-facing label. Hyperswitch sends an explicit null here (parity), so
+    /// this serializes even when absent.
+    pub label: Option<String>,
+    /// Hyperswitch always sends `requestBillingAddress: false`.
+    pub request_billing_address: Option<bool>,
     pub apple_pay_payment_token: PaysafeApplePayPaymentToken,
 }
 
@@ -192,6 +195,36 @@ pub struct PaysafeApplePay {
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeApplePayPaymentToken {
     pub token: PaysafeApplePayToken,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_contact: Option<PaysafeApplePayBillingContact>,
+}
+
+/// Apple Pay billing contact forwarded alongside the token, mirroring
+/// hyperswitch's `PaysafeApplePayBillingContact` field-for-field.
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayBillingContact {
+    pub address_lines: Vec<Option<Secret<String>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    pub country_code: common_enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub family_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub given_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locality: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phonetic_family_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phonetic_given_name: Option<Secret<String>>,
+    pub postal_code: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sub_administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sub_locality: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -223,13 +256,11 @@ pub struct PaysafeApplePayDecryptedData {
     pub application_expiration_date: Secret<String>,
     /// ISO 4217 alphabetic currency code.
     pub currency_code: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    // The optional fields below serialize as explicit nulls when absent,
+    // mirroring hyperswitch's decryptedData wire shape.
     pub transaction_amount: Option<MinorUnit>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub cardholder_name: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub device_manufacturer_identifier: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub payment_data_type: Option<String>,
     pub payment_data: PaysafeApplePayDecryptedPaymentData,
 }
@@ -238,7 +269,6 @@ pub struct PaysafeApplePayDecryptedData {
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeApplePayDecryptedPaymentData {
     pub online_payment_cryptogram: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub eci_indicator: Option<String>,
 }
 
