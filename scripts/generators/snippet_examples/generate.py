@@ -134,6 +134,17 @@ _UNSUPPORTED_FLOWS: frozenset[str] = frozenset({
     "verify_redirect",
 })
 
+# EventService "direct" flows whose Python SDK client method runs synchronously
+# (dispatched via `_execute_direct`, not `_execute_flow`). Their call returns the
+# response object directly — it is NOT awaitable — and the response has no
+# `.status` field, so the generated example must neither `await` the call nor
+# read `.status`.
+_DIRECT_SYNC_FLOWS: frozenset[str] = frozenset({
+    "parse_event",
+    "handle_event",
+    "verify_redirect_response",
+})
+
 
 def _generate_connector_config_rust(connector_name: str) -> str:
     """Generate accurate Rust config code using parsed proto metadata.
@@ -2030,14 +2041,16 @@ def render_consolidated_python(
         resp_var   = f"{flow_key.split('_')[0]}_response"
         pm_part    = f" ({pm_label})" if pm_label else ""
 
+        # `_execute_direct` EventService flows are synchronous — do not `await`.
+        await_kw = "" if flow_key in _DIRECT_SYNC_FLOWS else "await "
         body_lines: list[str] = [f"    {client_var} = {client_cls}(config)", ""]
         if flow_key in has_builder:
             if flow_key in _FLOW_BUILDER_EXTRA_PARAM:
                 param_name  = _FLOW_BUILDER_EXTRA_PARAM[flow_key][0]
                 default_val = proto_req.get(param_name, "AUTOMATIC" if param_name == "capture_method" else "probe_connector_txn_001")
-                body_lines.append(f'    {resp_var} = await {client_var}.{method}(_build_{flow_key}_request("{default_val}"))')
+                body_lines.append(f'    {resp_var} = {await_kw}{client_var}.{method}(_build_{flow_key}_request("{default_val}"))')
             else:
-                body_lines.append(f'    {resp_var} = await {client_var}.{method}(_build_{flow_key}_request())')
+                body_lines.append(f'    {resp_var} = {await_kw}{client_var}.{method}(_build_{flow_key}_request())')
             body_lines.append("")
         else:
             body_lines.extend(_scenario_step_python("_standalone_", flow_key, 1, proto_req, grpc_req, client_var, db))
@@ -2051,6 +2064,9 @@ def render_consolidated_python(
             body_lines.append(f'    return {{"token": {resp_var}.payment_method_token}}')
         elif flow_key == "create_client_authentication_token":
             body_lines.append(f'    return {{"session_data": {resp_var}.session_data}}')
+        elif flow_key == "parse_event":
+            # EventServiceParseResponse has no `.status`; surface the parsed event type.
+            body_lines.append(f'    return {{"event_type": {resp_var}.event_type}}')
         else:
             body_lines.append(f'    return {{"status": {resp_var}.status}}')
 

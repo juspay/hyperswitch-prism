@@ -220,9 +220,9 @@ async def process_parse_event(merchant_transaction_id: str, config: sdk_config_p
     """Flow: EventService.ParseEvent"""
     event_client = EventClient(config)
 
-    parse_response = await event_client.parse_event(_build_parse_event_request())
+    parse_response = event_client.parse_event(_build_parse_event_request())
 
-    return {"status": parse_response.status}
+    return {"event_type": parse_response.event_type}
 
 
 async def process_proxy_authorize(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
