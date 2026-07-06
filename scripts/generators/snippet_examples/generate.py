@@ -1556,6 +1556,14 @@ def _py_direct_lines(
         child_msg = db.get_type(msg_name, key)
         cmt_part  = f"  # {comment}" if comment else ""
 
+        # map<K,V> fields are constructed from a dict literal, NOT a synthetic
+        # `<Field>Entry` message — that entry type is nested under its parent
+        # (e.g. RequestDetails.HeadersEntry) and is not a module-level pb2
+        # attribute, so `payment_pb2.HeadersEntry()` raises AttributeError.
+        if key in _PROTO_MAP_FIELDS.get(msg_name, set()) and isinstance(val, dict):
+            lines.append(f"{pad}{key}={json.dumps(val)},{cmt_part}")
+            continue
+
         if key in variable_fields:
             if child_msg and _is_proto_enum(child_msg):
                 em = _py_module_for_type(child_msg)
@@ -1617,7 +1625,11 @@ def _py_direct_lines(
         elif isinstance(val, (int, float)):
             lines.append(f"{pad}{key}={val},{cmt_part}")
         elif isinstance(val, str):
-            if child_msg and _is_proto_enum(child_msg):
+            if child_msg == "bytes":
+                # proto `bytes` field — protobuf-python requires a bytes value,
+                # so encode the probe string rather than passing a raw str.
+                lines.append(f"{pad}{key}={json.dumps(val)}.encode(),{cmt_part}")
+            elif child_msg and _is_proto_enum(child_msg):
                 em = _py_module_for_type(child_msg)
                 lines.append(f"{pad}{key}={em}.{child_msg}.Value({json.dumps(val)}),{cmt_part}")
             elif child_msg and child_msg in _PYTHON_WRAPPER_TYPES:

@@ -124,8 +124,8 @@ def _build_parse_event_request():
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
-            headers=payment_pb2.HeadersEntry(),  # Headers of the HTTP request.
-            body="{\"object\":\"transaction\",\"trigger\":\"payment\",\"webhook_id\":\"probe_wh_001\",\"triggered_at\":\"2024-01-01T00:00:00Z\",\"triggered_on\":{\"id\":\"probe_txn_001\",\"object\":\"transaction\"},\"url\":\"https://example.com/webhook\"}",  # Body of the HTTP request.
+            headers={},  # Headers of the HTTP request.
+            body="{\"object\":\"transaction\",\"trigger\":\"payment\",\"webhook_id\":\"probe_wh_001\",\"triggered_at\":\"2024-01-01T00:00:00Z\",\"triggered_on\":{\"id\":\"probe_txn_001\",\"object\":\"transaction\"},\"url\":\"https://example.com/webhook\"}".encode(),  # Body of the HTTP request.
         ),
     )
 

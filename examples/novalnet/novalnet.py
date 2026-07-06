@@ -96,8 +96,8 @@ def _build_parse_event_request():
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
-            headers=payment_pb2.HeadersEntry(),  # Headers of the HTTP request.
-            body="{\"event\":{\"checksum\":\"probe_checksum\",\"tid\":12345678901234,\"type\":\"PAYMENT\"},\"result\":{\"status\":\"SUCCESS\",\"status_code\":100,\"status_text\":\"Success\"},\"transaction\":{\"tid\":12345678901234,\"payment_type\":\"CREDITCARD\",\"status\":\"CONFIRMED\",\"status_code\":100,\"order_no\":\"probe_order_001\",\"amount\":1000,\"currency\":\"EUR\"}}",  # Body of the HTTP request.
+            headers={},  # Headers of the HTTP request.
+            body="{\"event\":{\"checksum\":\"probe_checksum\",\"tid\":12345678901234,\"type\":\"PAYMENT\"},\"result\":{\"status\":\"SUCCESS\",\"status_code\":100,\"status_text\":\"Success\"},\"transaction\":{\"tid\":12345678901234,\"payment_type\":\"CREDITCARD\",\"status\":\"CONFIRMED\",\"status_code\":100,\"order_no\":\"probe_order_001\",\"amount\":1000,\"currency\":\"EUR\"}}".encode(),  # Body of the HTTP request.
         ),
     )
 
