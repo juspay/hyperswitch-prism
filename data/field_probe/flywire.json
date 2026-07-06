@@ -4,7 +4,7 @@
     "authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: domain_data.education_data.student_details — Missing required field: domain_data.education_data.student_details"
+        "error": "Stuck on field: domain_data — Missing required field: domain_data"
       }
     },
     "authorize": {
