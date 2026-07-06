@@ -1622,7 +1622,10 @@ def _py_direct_lines(
         elif isinstance(val, (int, float)):
             lines.append(f"{pad}{key}={val},{cmt_part}")
         elif isinstance(val, str):
-            if child_msg and _is_proto_enum(child_msg):
+            if child_msg == "bytes":
+                # bytes fields require a bytes object, not str, in Python protobuf.
+                lines.append(f'{pad}{key}={json.dumps(val)}.encode("utf-8"),{cmt_part}')
+            elif child_msg and _is_proto_enum(child_msg):
                 em = _py_module_for_type(child_msg)
                 lines.append(f"{pad}{key}={em}.{child_msg}.Value({json.dumps(val)}),{cmt_part}")
             elif child_msg and child_msg in _PYTHON_WRAPPER_TYPES:

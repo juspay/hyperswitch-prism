@@ -70,7 +70,7 @@ def _build_parse_event_request():
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
             headers={},  # Headers of the HTTP request.
-            body="{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}",  # Body of the HTTP request.
+            body="{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}".encode("utf-8"),  # Body of the HTTP request.
         ),
     )
 

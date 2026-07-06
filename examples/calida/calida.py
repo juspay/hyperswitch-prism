@@ -42,7 +42,7 @@ def _build_parse_event_request():
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
             headers={},  # Headers of the HTTP request.
-            body="{\"id\":1,\"order_id\":\"probe_order_001\",\"status\":\"succeeded\",\"amount\":10.0,\"currency\":\"EUR\"}",  # Body of the HTTP request.
+            body="{\"id\":1,\"order_id\":\"probe_order_001\",\"status\":\"succeeded\",\"amount\":10.0,\"currency\":\"EUR\"}".encode("utf-8"),  # Body of the HTTP request.
         ),
     )
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
