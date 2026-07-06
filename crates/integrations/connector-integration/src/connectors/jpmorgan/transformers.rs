@@ -273,15 +273,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 },
                             )?,
                         },
-                        soft_merchant: requests::JpmorganSoftMerchant {
-                            merchant_purchase_description: auth
-                                .merchant_purchase_description
-                                .clone()
-                                .ok_or(IntegrationError::MissingRequiredField {
-                                    field_name: "merchant_purchase_description",
-                                    context: Default::default(),
-                                })?,
-                        },
+                        soft_merchant: auth.merchant_purchase_description.clone().map(|d| {
+                            requests::JpmorganSoftMerchant {
+                                merchant_purchase_description: d,
+                            }
+                        }),
                     };
 
                 let exp_month_str = card_data.card_exp_month.peek().to_string();
@@ -367,15 +363,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 },
                             )?,
                         },
-                        soft_merchant: requests::JpmorganSoftMerchant {
-                            merchant_purchase_description: auth
-                                .merchant_purchase_description
-                                .clone()
-                                .ok_or(IntegrationError::MissingRequiredField {
-                                    field_name: "merchant_purchase_description",
-                                    context: Default::default(),
-                                })?,
-                        },
+                        soft_merchant: auth.merchant_purchase_description.clone().map(|d| {
+                            requests::JpmorganSoftMerchant {
+                                merchant_purchase_description: d,
+                            }
+                        }),
                     };
 
                 // Extract first name and last name from account holder name or billing info
@@ -453,17 +445,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 },
                             )?,
                         },
-                        soft_merchant: requests::JpmorganSoftMerchant {
-                            merchant_purchase_description: auth
-                                .merchant_purchase_description
-                                .clone()
-                                .ok_or(IntegrationError::MissingRequiredField {
-                                    field_name: "merchant_purchase_description",
-                                    context: jpmorgan_missing_field_context(
-                                        "merchant_purchase_description",
-                                    ),
-                                })?,
-                        },
+                        soft_merchant: auth.merchant_purchase_description.clone().map(|d| {
+                            requests::JpmorganSoftMerchant {
+                                merchant_purchase_description: d,
+                            }
+                        }),
                     };
 
                 // For CardToken, the token is passed in the payment_method_type
@@ -529,15 +515,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                         },
                                     )?,
                                 },
-                                soft_merchant: requests::JpmorganSoftMerchant {
-                                    merchant_purchase_description: auth
-                                        .merchant_purchase_description
-                                        .clone()
-                                        .ok_or(IntegrationError::MissingRequiredField {
-                                            field_name: "merchant_purchase_description",
-                                            context: Default::default(),
-                                        })?,
-                                },
+                                soft_merchant: auth.merchant_purchase_description.clone().map(
+                                    |d| requests::JpmorganSoftMerchant {
+                                        merchant_purchase_description: d,
+                                    },
+                                ),
                             };
 
                             let amount = JpmorganAmountConvertor::convert(
@@ -1172,14 +1154,11 @@ impl TryFrom<&JpmorganAuthType> for requests::JpmorganMerchant {
                     },
                 )?,
             },
-            soft_merchant: requests::JpmorganSoftMerchant {
-                merchant_purchase_description: auth.merchant_purchase_description.clone().ok_or(
-                    IntegrationError::MissingRequiredField {
-                        field_name: "merchant_purchase_description",
-                        context: Default::default(),
-                    },
-                )?,
-            },
+            soft_merchant: auth.merchant_purchase_description.clone().map(|d| {
+                requests::JpmorganSoftMerchant {
+                    merchant_purchase_description: d,
+                }
+            }),
         })
     }
 }
