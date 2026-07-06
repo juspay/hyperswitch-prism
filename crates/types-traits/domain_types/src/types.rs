@@ -4869,6 +4869,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
     fn foreign_try_from(
         (value, connectors, metadata): (SetupRecurringRequest, Connectors, &MaskedMetadata),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let auth_type = common_enums::AuthenticationType::foreign_try_from(value.auth_type)?;
         let address = match &value.address {
             Some(address_value) => PaymentAddress::foreign_try_from((*address_value).clone())?,
             None => {
@@ -4909,7 +4910,7 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card,
             address,
-            auth_type: common_enums::AuthenticationType::default(),
+            auth_type,
             connector_request_reference_id: extract_connector_request_reference_id(&Some(
                 value.merchant_recurring_payment_id.clone(),
             )),
@@ -10336,6 +10337,7 @@ impl
             &MaskedMetadata,
         ),
     ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let auth_type = common_enums::AuthenticationType::foreign_try_from(value.auth_type())?;
         let address = match value.address {
             Some(address) => PaymentAddress::foreign_try_from(address)?,
             None => {
@@ -10378,7 +10380,7 @@ impl
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card,
             address,
-            auth_type: common_enums::AuthenticationType::default(),
+            auth_type,
             connector_request_reference_id: value.merchant_recurring_payment_id,
             customer_id: Option::<CustomerId>::foreign_try_from(value.customer.clone())?,
             connector_customer: value
