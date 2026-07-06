@@ -210,7 +210,7 @@
       },
       "Interac": {
         "status": "error",
-        "error": "Stuck on field: email — Missing required field: email"
+        "error": "Stuck on field: email. Interac e-Transfer requires a consumer email: pass it in the interac payment_method_data or as billing email. — Missing required field: email. Interac e-Transfer requires a consumer email: pass it in the interac payment_method_data or as billing email."
       },
       "KakaoPay": {
         "status": "error",
@@ -345,7 +345,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"merchantRefNum\":\"probe_txn_001\",\"amount\":1000,\"paysafecard\":{\"consumerId\":\"cust_probe_123\"},\"currencyCode\":\"USD\",\"paymentType\":\"PAYSAFECARD\",\"transactionType\":\"PAYMENT\",\"returnLinks\":[{\"rel\":\"default\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_completed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_failed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_cancelled\",\"href\":\"https://example.com/return\",\"method\":\"GET\"}]}"
+          "body": "{\"merchantRefNum\":\"probe_txn_001\",\"amount\":1000,\"paysafecard\":{\"consumerId\":\"cust_probe_123\"},\"currencyCode\":\"USD\",\"paymentType\":\"PAYSAFECARD\",\"transactionType\":\"PAYMENT\",\"returnLinks\":[{\"rel\":\"default\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_completed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_failed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_cancelled\",\"href\":\"https://example.com/return\",\"method\":\"GET\"}],\"threeDs\":null,\"profile\":null,\"billingDetails\":null}"
         }
       },
       "PayURedirect": {
@@ -430,7 +430,7 @@
       },
       "Skrill": {
         "status": "error",
-        "error": "Stuck on field: email — Missing required field: email"
+        "error": "Stuck on field: email. Skrill payment handles require the billing email as the Skrill consumerId. — Missing required field: email. Skrill payment handles require the billing email as the Skrill consumerId."
       },
       "Sofort": {
         "status": "error",
@@ -646,7 +646,7 @@
     "recurring_charge": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: mandate_metadata — Missing required field: mandate_metadata"
+        "error": "Stuck on field: mandate_metadata. Bare — Missing required field: mandate_metadata. Bare (non-JSON) connector_mandate_id needs mandate_metadata carrying the initial_transaction_id for the Paysafe MIT."
       }
     },
     "recurring_revoke": {
@@ -736,7 +736,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"merchantRefNum\":\"probe_tokenized_txn_001\",\"amount\":1000,\"settleWithAuth\":true,\"paymentHandleToken\":\"pm_1AbcXyzStripeTestToken\",\"currencyCode\":\"USD\",\"accountId\":\"probe_acct_no3ds\"}"
+          "body": "{\"merchantRefNum\":\"probe_tokenized_txn_001\",\"amount\":1000,\"settleWithAuth\":true,\"paymentHandleToken\":\"pm_1AbcXyzStripeTestToken\",\"currencyCode\":\"USD\",\"customerIp\":null,\"storedCredential\":null}"
         }
       }
     },
@@ -748,36 +748,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "address": {
-            "billing_address": {}
-          },
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://api.test.paysafe.com/paymenthub/v1/paymenthandles",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"merchantRefNum\":\"\",\"amount\":1000,\"settleWithAuth\":true,\"card\":{\"cardNum\":\"4111111111111111\",\"cardExpiry\":{\"month\":\"03\",\"year\":\"2030\"},\"cvv\":\"737\",\"holderName\":\"John Doe\"},\"currencyCode\":\"USD\",\"paymentType\":\"CARD\",\"transactionType\":\"PAYMENT\",\"returnLinks\":[{\"rel\":\"default\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_completed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_failed\",\"href\":\"https://example.com/return\",\"method\":\"GET\"},{\"rel\":\"on_cancelled\",\"href\":\"https://example.com/return\",\"method\":\"GET\"}],\"accountId\":\"probe_acct_no3ds\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: return_url. Paysafe payment handles need a return_url to build the returnLinks the shopper is sent back to. — Missing required field: return_url. Paysafe payment handles need a return_url to build the returnLinks the shopper is sent back to."
       }
     },
     "verify_redirect": {
@@ -787,25 +759,8 @@
     },
     "void": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_void_id": "probe_void_001",
-          "connector_transaction_id": "probe_connector_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          }
-        },
-        "sample": {
-          "url": "https://api.test.paysafe.com/paymenthub/v1/payments/probe_connector_txn_001/voidauths",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"merchantRefNum\":\"probe_void_001\",\"amount\":1000}"
-        }
+        "status": "error",
+        "error": "Stuck on field: amount. Paysafe refunds require an explicit amount; partial/full refund amount cannot be defaulted. — Missing required field: amount. Paysafe refunds require an explicit amount; partial/full refund amount cannot be defaulted."
       }
     }
   }
