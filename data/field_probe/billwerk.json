@@ -753,7 +753,11 @@
             "mandate_type": {
               "multi_use": {
                 "amount": 0,
-                "currency": "USD"
+                "currency": "USD",
+                "amount_money": {
+                  "minor_amount": 0,
+                  "currency": "USD"
+                }
               }
             }
           },
