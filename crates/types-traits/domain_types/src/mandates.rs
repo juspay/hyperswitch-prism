@@ -62,7 +62,7 @@ pub struct MandateAmountData {
     // Kount). In that usage `amount` is the per-period billing amount.
     pub initial_billing_amount: Option<Money>,
     pub external_subscription_id: Option<String>,
-    pub status: Option<String>,
+    pub status: Option<common_enums::MandateStatus>,
     pub next_billing_date: Option<PrimitiveDateTime>,
     pub billing_cycle: Option<i32>,
     pub description: Option<String>,
