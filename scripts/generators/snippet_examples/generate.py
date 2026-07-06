@@ -1550,11 +1550,20 @@ def _py_direct_lines(
     """
     pad = "    " * indent
     lines: list[str] = []
+    msg_map_fields = _PROTO_MAP_FIELDS.get(msg_name, set())
 
     for key, val in obj.items():
         comment   = db.get_comment(msg_name, key)
         child_msg = db.get_type(msg_name, key)
         cmt_part  = f"  # {comment}" if comment else ""
+
+        # Map fields (e.g. `map<string, string> headers`) are plain Python dicts,
+        # not message constructors. The map's synthetic entry type (e.g.
+        # `HeadersEntry`) is nested under its parent message and is NOT importable
+        # as a top-level `payment_pb2.HeadersEntry`, so emit a dict literal.
+        if key in msg_map_fields:
+            lines.append(f"{pad}{key}={json.dumps(val)},{cmt_part}")
+            continue
 
         if key in variable_fields:
             if child_msg and _is_proto_enum(child_msg):
