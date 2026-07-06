@@ -17,12 +17,14 @@ use cards::CardNumber;
 use grpc_api_types::{
     health_check::{health_client::HealthClient, HealthCheckRequest},
     payments::{
-        payment_method, payment_service_client::PaymentServiceClient,
-        refund_service_client::RefundServiceClient, AuthenticationType, CaptureMethod, CardDetails,
-        Currency, PaymentMethod, PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse,
+        mandate_reference::MandateIdType, payment_method,
+        payment_service_client::PaymentServiceClient, refund_service_client::RefundServiceClient,
+        AcceptanceType, AuthenticationType, CaptureMethod, CardDetails, Currency,
+        CustomerAcceptance, FutureUsage, OnlineMandate, PaymentChargeType, PaymentMethod,
+        PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse,
         PaymentServiceCaptureRequest, PaymentServiceGetRequest, PaymentServiceRefundRequest,
         PaymentServiceVoidRequest, PaymentStatus, RefundResponse, RefundServiceGetRequest,
-        RefundStatus,
+        RefundStatus, SplitPaymentsDetails, StripeSplitPaymentData,
     },
 };
 use tonic::{transport::Channel, Request};
@@ -92,6 +94,44 @@ fn add_stripe_metadata<T>(request: &mut Request<T>) {
         "default".parse().expect("Failed to parse x-tenant-id"),
     );
 
+    request.metadata_mut().append(
+        "x-connector-request-reference-id",
+        format!("conn_ref_{}", get_timestamp())
+            .parse()
+            .expect("Failed to parse x-connector-request-reference-id"),
+    );
+}
+
+// Same as add_stripe_metadata but takes the API key directly, bypassing the
+// .github/test/creds.json loader (whose "stripe" entry doesn't match the
+// ConnectorCredentials shape this test util expects — a pre-existing gap,
+// unrelated to the mandate_metadata fix under test).
+fn add_stripe_metadata_with_key<T>(request: &mut Request<T>, api_key: &str) {
+    request.metadata_mut().append(
+        "x-connector",
+        CONNECTOR_NAME.parse().expect("Failed to parse x-connector"),
+    );
+    request
+        .metadata_mut()
+        .append("x-auth", AUTH_TYPE.parse().expect("Failed to parse x-auth"));
+    request.metadata_mut().append(
+        "x-api-key",
+        api_key.parse().expect("Failed to parse x-api-key"),
+    );
+    request.metadata_mut().append(
+        "x-merchant-id",
+        MERCHANT_ID.parse().expect("Failed to parse x-merchant-id"),
+    );
+    request.metadata_mut().append(
+        "x-request-id",
+        format!("test_request_{}", get_timestamp())
+            .parse()
+            .expect("Failed to parse x-request-id"),
+    );
+    request.metadata_mut().append(
+        "x-tenant-id",
+        "default".parse().expect("Failed to parse x-tenant-id"),
+    );
     request.metadata_mut().append(
         "x-connector-request-reference-id",
         format!("conn_ref_{}", get_timestamp())
@@ -568,5 +608,74 @@ async fn test_refund_sync() {
                 "Refund Sync should be in RefundSuccess state"
             );
         });
+    });
+}
+
+// Regression test for #16967 / #20158: split_payments authorize must carry
+// mandate_reference.mandate_metadata (transfer_account_id/charge_type/application_fees)
+// on the response, matching hyperswitch-native behavior.
+#[tokio::test]
+async fn test_payment_authorization_split_payments_mandate_metadata() {
+    grpc_test!(client, PaymentServiceClient<Channel>, {
+        let mut request = create_authorize_request(CaptureMethod::Automatic);
+        // No pre-existing Stripe customer under the connected account; let Stripe
+        // create one implicitly via the split-payment charge.
+        request.customer = None;
+        request.setup_future_usage = Some(i32::from(FutureUsage::OffSession));
+        request.customer_acceptance = Some(CustomerAcceptance {
+            acceptance_type: i32::from(AcceptanceType::Online),
+            accepted_at: i64::try_from(get_timestamp()).unwrap(),
+            online_mandate_details: Some(OnlineMandate {
+                ip_address: Some("127.0.0.1".to_string()),
+                user_agent: "Mozilla/5.0".to_string(),
+            }),
+        });
+        request.split_payments = Some(SplitPaymentsDetails {
+            split_payment_type: Some(
+                grpc_api_types::payments::split_payments_details::SplitPaymentType::StripeSplitPayment(
+                    StripeSplitPaymentData {
+                        charge_type: i32::from(PaymentChargeType::StripeDestination),
+                        application_fees: Some(100),
+                        transfer_account_id: "acct_1TjBkeDfqJC9T9K6".to_string(),
+                        on_behalf_of: None,
+                    },
+                ),
+            ),
+        });
+
+        let mut grpc_request = Request::new(request);
+        add_stripe_metadata_with_key(
+            &mut grpc_request,
+            "sk_test_51M7fTaD5R7gDAGffh6LSAGjm7NrQnDun8yBx4hdX4YopX5qnGs7w63f9nRnopCsuT0CkBwxFzry3s39rZGNKUw6S00iarKurhE",
+        );
+
+        let response = Box::pin(client.authorize(grpc_request))
+            .await
+            .expect("gRPC authorize call failed")
+            .into_inner();
+
+        assert!(
+            response.status == i32::from(PaymentStatus::Charged),
+            "Payment should be in Charged state"
+        );
+
+        let mandate_reference = response
+            .mandate_reference
+            .expect("mandate_reference must be present for a split-payment off_session authorize");
+        let connector_mandate_id = match mandate_reference.mandate_id_type {
+            Some(MandateIdType::ConnectorMandateId(id)) => id,
+            other => panic!("expected ConnectorMandateReferenceId, got {other:?}"),
+        };
+        let mandate_metadata = connector_mandate_id
+            .mandate_metadata
+            .expect("mandate_metadata must be populated from the split_payments data (was previously dropped, see #16967)");
+        assert!(
+            mandate_metadata.contains("acct_1TjBkeDfqJC9T9K6"),
+            "mandate_metadata should carry the split transfer_account_id, got: {mandate_metadata}"
+        );
+        assert!(
+            mandate_metadata.contains("100"),
+            "mandate_metadata should carry the split application_fees, got: {mandate_metadata}"
+        );
     });
 }
