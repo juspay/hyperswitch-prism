@@ -7,10 +7,10 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId, SetupMandateRequestData,
+        MandateReference, MandateReferenceId, PartnerMerchantIdentifierDetails, PaymentFlowData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
@@ -392,6 +392,27 @@ fn split_account_holder_name(
     }
 }
 
+// checkout's `udf5` field carries the partner/integrator name so checkout can attribute the
+// payment; mirrors `hyperswitch_connectors::connectors::checkout::transformers::build_metadata`.
+fn add_udf5(
+    mut metadata_json: serde_json::Value,
+    partner_merchant_identifier_details: Option<&PartnerMerchantIdentifierDetails>,
+) -> serde_json::Value {
+    let udf5 = partner_merchant_identifier_details
+        .and_then(|p| p.partner_details.as_ref())
+        .and_then(|e| e.name.clone().or_else(|| e.integrator.clone()));
+
+    if let Some(v) = udf5 {
+        if let Some(obj) = metadata_json.as_object_mut() {
+            obj.insert("udf5".to_string(), json!(v));
+        } else {
+            metadata_json = json!({ "udf5": v });
+        }
+    }
+
+    metadata_json
+}
+
 fn build_metadata<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
@@ -408,6 +429,14 @@ fn build_metadata<
         .clone()
         .expose_option()
         .unwrap_or_else(|| json!({}));
+
+    let metadata_json = add_udf5(
+        metadata_json,
+        item.router_data
+            .request
+            .partner_merchant_identifier_details
+            .as_ref(),
+    );
 
     Some(Secret::new(metadata_json))
 }
@@ -1027,7 +1056,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let auth_type: CheckoutAuthType = connector_auth.try_into()?;
         let processing_channel_id = auth_type.processing_channel_id;
 
-        let metadata = item.router_data.request.metadata.clone();
+        let metadata_json = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .expose_option()
+            .unwrap_or_else(|| json!({}));
+        let metadata = Some(Secret::new(add_udf5(
+            metadata_json,
+            item.router_data
+                .request
+                .partner_merchant_identifier_details
+                .as_ref(),
+        )));
 
         let (customer, processing, shipping, items) = if let Some(l2l3_data) =
             &item.router_data.resource_common_data.l2_l3_data
