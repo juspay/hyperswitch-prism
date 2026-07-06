@@ -359,33 +359,33 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
             use domain_types::payment_method_data::{PaymentMethodData, WalletData};
-            // Card-on-file recurring (CIT): when a Paysafe customer was created
-            // upstream (its id is carried on the flow data), mint a reusable
-            // MULTI_USE payment handle under the customer vault so the later MIT
-            // (RepeatPayment) can replay it. Mirrors hyperswitch's
-            // v1/customers/{customerId}/paymenthandles. The Tokenize proto does not
-            // carry setup_future_usage, so the presence of a connector_customer_id is
-            // the CIT signal; one-off card payments (no customer) fall through to the
-            // single-use v1/paymenthandles endpoint below (unchanged).
-            if matches!(req.request.payment_method_data, PaymentMethodData::Card(_)) {
-                if let Some(customer_id) = req.resource_common_data.connector_customer.as_ref() {
-                    return Ok(format!(
-                        "{}v1/customers/{}/paymenthandles",
-                        self.connector_base_url_payments(req),
-                        customer_id
-                    ));
+            let base = self.connector_base_url_payments(req);
+            match &req.request.payment_method_data {
+                // Card-on-file recurring (CIT): when a Paysafe customer was created
+                // upstream (its id is carried on the flow data), mint a reusable
+                // MULTI_USE payment handle under the customer vault so the later MIT
+                // (RepeatPayment) can replay it — mirrors hyperswitch's
+                // v1/customers/{customerId}/paymenthandles. The Tokenize proto does not
+                // carry setup_future_usage, so the presence of a connector_customer_id
+                // is the CIT signal; one-off card payments (no customer) fall through to
+                // the single-use v1/paymenthandles endpoint.
+                PaymentMethodData::Card(_) => {
+                    Ok(match req.resource_common_data.connector_customer.as_ref() {
+                        Some(customer_id) => {
+                            format!("{base}v1/customers/{customer_id}/paymenthandles")
+                        }
+                        None => format!("{base}v1/paymenthandles"),
+                    })
                 }
+                // Apple Pay (CARD account) and Skrill (redirect wallet) use the standard
+                // paymenthandles endpoint; singleusepaymenthandles returns 5270 for them.
+                PaymentMethodData::Wallet(WalletData::Skrill(_) | WalletData::ApplePay(_)) => {
+                    Ok(format!("{base}v1/paymenthandles"))
+                }
+                // Google Pay requires the singleusepaymenthandles endpoint per Paysafe docs.
+                PaymentMethodData::Wallet(_) => Ok(format!("{base}v1/singleusepaymenthandles")),
+                _ => Ok(format!("{base}v1/paymenthandles")),
             }
-            // Google Pay requires the singleusepaymenthandles endpoint per Paysafe docs.
-            // Apple Pay (CARD account) and Skrill (redirect wallet) use the standard
-            // paymenthandles endpoint; singleusepaymenthandles returns 5270 for them.
-            let endpoint = match &req.request.payment_method_data {
-                PaymentMethodData::Wallet(WalletData::Skrill(_))
-                | PaymentMethodData::Wallet(WalletData::ApplePay(_)) => "v1/paymenthandles",
-                PaymentMethodData::Wallet(_) => "v1/singleusepaymenthandles",
-                _ => "v1/paymenthandles",
-            };
-            Ok(format!("{}{}", self.connector_base_url_payments(req), endpoint))
         }
     }
 );

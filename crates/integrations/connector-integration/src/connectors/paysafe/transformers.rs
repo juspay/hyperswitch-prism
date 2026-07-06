@@ -16,7 +16,7 @@ use domain_types::{
         ApplePayPaymentData, BankDebitData, BankRedirectData, GiftCardData, GpayTokenizationData,
         PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, PaysafePaymentMethodDetails},
+    router_data::{ConnectorSpecificConfig, PaysafeAccountKind, PaysafePaymentMethodDetails},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -205,19 +205,33 @@ pub(crate) fn is_paysafe_apm_settle_leg<
 /// e-Transfer, paysafecard) directly from the Authorize request. Mirrors the
 /// payment-handle body created by the PaymentMethodToken flow, but sourced from
 /// `PaymentsAuthorizeData` so the Authorize response can return the redirect link
-/// (matching hyperswitch's single Authorize -> paymenthandles behaviour).
-fn build_paysafe_redirect_handle_request<
+/// (matching hyperswitch's single Authorize -> paymenthandles behaviour). Kept as a
+/// `TryFrom` (consistent with the sibling request builders) so the Authorize dispatch
+/// can call `PaysafeSetupMandateRequest::try_from(&router_data)`.
+impl<'a, T>
+    TryFrom<
+        &'a RouterDataV2<
+            Authorize,
+            PaymentFlowData,
+            PaymentsAuthorizeData<T>,
+            PaymentsResponseData,
+        >,
+    > for PaysafeSetupMandateRequest<T>
+where
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
->(
-    router_data: &RouterDataV2<
-        Authorize,
-        PaymentFlowData,
-        PaymentsAuthorizeData<T>,
-        PaymentsResponseData,
-    >,
-) -> Result<PaysafeSetupMandateRequest<T>, error_stack::Report<IntegrationError>> {
-    let auth = PaysafeAuthType::try_from(&router_data.connector_config)?;
-    let account_id = auth
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        router_data: &'a RouterDataV2<
+            Authorize,
+            PaymentFlowData,
+            PaymentsAuthorizeData<T>,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = PaysafeAuthType::try_from(&router_data.connector_config)?;
+        let account_id = auth
         .account_id
         .ok_or(IntegrationError::InvalidConnectorConfig {
             config: "account_id",
@@ -230,10 +244,10 @@ fn build_paysafe_redirect_handle_request<
             },
         })?;
 
-    let currency = router_data.request.currency;
-    let amount = router_data.request.minor_amount;
+        let currency = router_data.request.currency;
+        let amount = router_data.request.minor_amount;
 
-    let (payment_method, payment_type, account_id, profile) = match &router_data
+        let (payment_method, payment_type, account_id, profile) = match &router_data
         .request
         .payment_method_data
     {
@@ -256,7 +270,7 @@ fn build_paysafe_redirect_handle_request<
                         ..Default::default()
                     },
                 })?;
-            let skrill_account_id = account_id.get_skrill_account_id(currency)?;
+            let skrill_account_id = account_id.get_account_id(PaysafeAccountKind::Skrill, currency)?;
             let country_code = router_data.resource_common_data.get_optional_billing_country();
             (
                 PaysafePaymentMethod::Skrill {
@@ -290,7 +304,7 @@ fn build_paysafe_redirect_handle_request<
                     },
                 })?;
             // Interac REQUIRES an accountId for CAD (unlike Skrill).
-            let account_id = account_id.get_interac_account_id(currency)?;
+            let account_id = account_id.get_account_id(PaysafeAccountKind::Interac, currency)?;
             // Paysafe REQUIRES a consumer profile on the INTERAC_ETRANSFER payment
             // handle. Mirror hyperswitch: firstName, lastName and email are all
             // mandatory, sourced from billing details. profile is set ONLY for
@@ -361,10 +375,10 @@ fn build_paysafe_redirect_handle_request<
         }
     };
 
-    let billing_details = create_paysafe_billing_details(&router_data.resource_common_data)?;
+        let billing_details = create_paysafe_billing_details(&router_data.resource_common_data)?;
 
-    // Paysafe requires return_links to build the customer redirect.
-    let redirect_url = router_data.resource_common_data.get_return_url().ok_or(
+        // Paysafe requires return_links to build the customer redirect.
+        let redirect_url = router_data.resource_common_data.get_return_url().ok_or(
         IntegrationError::MissingRequiredField {
             field_name: "return_url",
             context: IntegrationErrorContext {
@@ -377,58 +391,59 @@ fn build_paysafe_redirect_handle_request<
         },
     )?;
 
-    // On successful redirect completion Paysafe must send the customer to the
-    // complete_authorize_url so hyperswitch runs CompleteAuthorize (settling the
-    // payment handle into a payment). Routing on_completed to the plain return_url
-    // only triggers a PSync, which finds no settled payment yet and fails. Falls
-    // back to the return_url when complete_authorize_url is absent.
-    let complete_authorize_url = router_data
-        .request
-        .complete_authorize_url
-        .clone()
-        .unwrap_or_else(|| redirect_url.clone());
+        // On successful redirect completion Paysafe must send the customer to the
+        // complete_authorize_url so hyperswitch runs CompleteAuthorize (settling the
+        // payment handle into a payment). Routing on_completed to the plain return_url
+        // only triggers a PSync, which finds no settled payment yet and fails. Falls
+        // back to the return_url when complete_authorize_url is absent.
+        let complete_authorize_url = router_data
+            .request
+            .complete_authorize_url
+            .clone()
+            .unwrap_or_else(|| redirect_url.clone());
 
-    let return_links = Some(vec![
-        ReturnLink {
-            rel: LinkType::Default,
-            href: redirect_url.clone(),
-            method: Method::Get.to_string(),
-        },
-        ReturnLink {
-            rel: LinkType::OnCompleted,
-            href: complete_authorize_url,
-            method: Method::Get.to_string(),
-        },
-        ReturnLink {
-            rel: LinkType::OnFailed,
-            href: redirect_url.clone(),
-            method: Method::Get.to_string(),
-        },
-        ReturnLink {
-            rel: LinkType::OnCancelled,
-            href: redirect_url,
-            method: Method::Get.to_string(),
-        },
-    ]);
+        let return_links = Some(vec![
+            ReturnLink {
+                rel: LinkType::Default,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnCompleted,
+                href: complete_authorize_url,
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnFailed,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnCancelled,
+                href: redirect_url,
+                method: Method::Get.to_string(),
+            },
+        ]);
 
-    Ok(PaysafeSetupMandateRequest {
-        merchant_ref_num: router_data
-            .resource_common_data
-            .connector_request_reference_id
-            .clone(),
-        amount,
-        // Redirect APMs omit settleWithAuth on the payment-handle body.
-        settle_with_auth: None,
-        payment_method,
-        currency_code: currency,
-        payment_type,
-        transaction_type: TransactionType::Payment,
-        return_links,
-        account_id,
-        three_ds: None,
-        profile,
-        billing_details,
-    })
+        Ok(Self {
+            merchant_ref_num: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            amount,
+            // Redirect APMs omit settleWithAuth on the payment-handle body.
+            settle_with_auth: None,
+            payment_method,
+            currency_code: currency,
+            payment_type,
+            transaction_type: TransactionType::Payment,
+            return_links,
+            account_id,
+            three_ds: None,
+            profile,
+            billing_details,
+        })
+    }
 }
 
 // Status Mapping Functions
@@ -693,7 +708,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 .get_optional_billing_full_name()
                         }),
                     };
-                    let account_id = account_id.get_no_three_ds_account_id(currency)?;
+                    let account_id = account_id.get_account_id(PaysafeAccountKind::CardNoThreeDs, currency)?;
                     (
                         PaysafePaymentMethod::Card { card },
                         PaysafePaymentType::Card,
@@ -744,7 +759,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         routing_number: routing_number.clone(),
                         account_type,
                     };
-                    let account_id = account_id.get_ach_account_id(currency)?;
+                    let account_id = account_id.get_account_id(PaysafeAccountKind::Ach, currency)?;
                     (
                         PaysafePaymentMethod::Ach { ach },
                         PaysafePaymentType::Ach,
@@ -872,7 +887,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         },
                     };
 
-                    let account_id = account_id.get_no_three_ds_account_id(currency)?;
+                    let account_id = account_id.get_account_id(PaysafeAccountKind::CardNoThreeDs, currency)?;
                     (
                         PaysafePaymentMethod::GooglePay {
                             google_pay: PaysafeGooglePay {
@@ -1050,8 +1065,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         ApplePayPaymentData::Encrypted(_)
                     );
                     let account_id = account_id
-                        .get_apple_pay_account_id(currency, is_encrypted)
-                        .or_else(|_| account_id.get_no_three_ds_account_id(currency))?;
+                        .get_account_id(PaysafeAccountKind::ApplePay { encrypted: is_encrypted }, currency)
+                        .or_else(|_| account_id.get_account_id(PaysafeAccountKind::CardNoThreeDs, currency))?;
                     (
                         PaysafePaymentMethod::ApplePay {
                             apple_pay: Box::new(apple_pay),
@@ -1085,7 +1100,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     // Paysafe requires its accountId on the payment handle when the FMA
                     // has multiple accounts (sending the card accountId instead returns
                     // error 5068). Mirror hyperswitch: resolve from the skrill slot.
-                    let skrill_account_id = account_id.get_skrill_account_id(currency)?;
+                    let skrill_account_id = account_id.get_account_id(PaysafeAccountKind::Skrill, currency)?;
                     (
                         PaysafePaymentMethod::Skrill { skrill },
                         PaysafePaymentType::Skrill,
@@ -1115,7 +1130,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     let interac_etransfer = PaysafeInterac { consumer_id };
                     // Interac REQUIRES an accountId for CAD (unlike Skrill). Resolve from the
                     // interac CAD metadata slot; gracefully errors if unprovisioned.
-                    let account_id = account_id.get_interac_account_id(currency)?;
+                    let account_id = account_id.get_account_id(PaysafeAccountKind::Interac, currency)?;
                     (
                         PaysafePaymentMethod::InteracEtransfer { interac_etransfer },
                         PaysafePaymentType::InteracEtransfer,
@@ -1346,9 +1361,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let account_id = match router_data.resource_common_data.payment_method {
             enums::PaymentMethod::Card => {
                 if router_data.resource_common_data.is_three_ds() {
-                    Some(account_id.get_three_ds_account_id(router_data.request.currency)?)
+                    Some(account_id.get_account_id(
+                        PaysafeAccountKind::CardThreeDs,
+                        router_data.request.currency,
+                    )?)
                 } else {
-                    Some(account_id.get_no_three_ds_account_id(router_data.request.currency)?)
+                    Some(account_id.get_account_id(
+                        PaysafeAccountKind::CardNoThreeDs,
+                        router_data.request.currency,
+                    )?)
                 }
             }
             _ => None,
@@ -1422,7 +1443,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             is_paysafe_apm_settle_leg(&item.router_data),
         ) {
             (true, false) => {
-                let handle_request = build_paysafe_redirect_handle_request(&item.router_data)?;
+                let handle_request = PaysafeSetupMandateRequest::try_from(&item.router_data)?;
                 Ok(Self::PaymentHandle(Box::new(handle_request)))
             }
             _ => {
@@ -1681,7 +1702,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     ..Default::default()
                 },
             })?
-            .get_no_three_ds_account_id(router_data.request.currency)?;
+            .get_account_id(PaysafeAccountKind::CardNoThreeDs, router_data.request.currency)?;
 
         Ok(Self {
             merchant_ref_num: router_data
