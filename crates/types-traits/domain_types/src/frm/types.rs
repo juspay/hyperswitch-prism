@@ -306,8 +306,8 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
                 },
             })?;
 
-        let mandate_info = value
-            .mandate_info
+        let mandate_details = value
+            .mandate_details
             .map(MandateAmountData::foreign_try_from)
             .transpose()?;
 
@@ -325,7 +325,7 @@ impl ForeignTryFrom<grpc_api_types::frm::FrmServicePreRiskCheckRequest> for PreR
             metadata: value.metadata,
             connector_feature_data: value.connector_feature_data,
             test_mode: value.test_mode,
-            mandate_info,
+            mandate_details,
             merchant_details: value.merchant_details.map(MerchantDetails::foreign_from),
             payment_method_type,
         })

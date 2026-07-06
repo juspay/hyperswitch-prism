@@ -10969,7 +10969,26 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
                 None
             },
             external_subscription_id: amount_data.external_subscription_id,
-            status: amount_data.status,
+            // proto MandateStatus enum -> domain common_enums::MandateStatus.
+            // UNSPECIFIED (and revoke-failed, which has no domain variant) map to None.
+            status: grpc_api_types::payments::MandateStatus::try_from(amount_data.mandate_status)
+                .ok()
+                .and_then(|status| match status {
+                    grpc_api_types::payments::MandateStatus::Active => {
+                        Some(common_enums::MandateStatus::Active)
+                    }
+                    grpc_api_types::payments::MandateStatus::MandateInactive => {
+                        Some(common_enums::MandateStatus::Inactive)
+                    }
+                    grpc_api_types::payments::MandateStatus::MandatePending => {
+                        Some(common_enums::MandateStatus::Pending)
+                    }
+                    grpc_api_types::payments::MandateStatus::Revoked => {
+                        Some(common_enums::MandateStatus::Revoked)
+                    }
+                    grpc_api_types::payments::MandateStatus::Unspecified
+                    | grpc_api_types::payments::MandateStatus::MandateRevokeFailed => None,
+                }),
             next_billing_date: amount_data
                 .next_billing_date
                 .and_then(to_primitive_date_time),

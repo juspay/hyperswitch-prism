@@ -481,7 +481,7 @@ pub struct KountItem {
 }
 
 /// Kount Orders `recurring` (RecurringDetails) block carried on a line item.
-/// Populated from the FRM request's `mandate_info`. Amounts are serialized as
+/// Populated from the FRM request's `mandate_details`. Amounts are serialized as
 /// strings to match Kount's `string<uint64>` schema.
 #[derive(Debug, Clone, Serialize)]
 pub struct KountRecurring {
@@ -522,7 +522,7 @@ fn format_kount_date(date: time::PrimitiveDateTime) -> Result<String, Error> {
         .format(&time::format_description::well_known::Rfc3339)
         .map_err(|_| {
             error_stack::report!(errors::IntegrationError::InvalidDataFormat {
-                field_name: "mandate_info.date",
+                field_name: "mandate_details.date",
                 context: errors::IntegrationErrorContext {
                     additional_context: Some(
                         "Failed to format a recurring date as RFC 3339".to_owned(),
@@ -531,6 +531,17 @@ fn format_kount_date(date: time::PrimitiveDateTime) -> Result<String, Error> {
                 },
             })
         })
+}
+
+/// Maps the domain mandate status to Kount's `recurring.status` string.
+fn kount_recurring_status(status: &common_enums::MandateStatus) -> String {
+    match status {
+        common_enums::MandateStatus::Active => "ACTIVE",
+        common_enums::MandateStatus::Inactive => "INACTIVE",
+        common_enums::MandateStatus::Pending => "PENDING",
+        common_enums::MandateStatus::Revoked => "REVOKED",
+    }
+    .to_string()
 }
 
 impl TryFrom<&MandateAmountData> for KountRecurring {
@@ -557,7 +568,7 @@ impl TryFrom<&MandateAmountData> for KountRecurring {
             period_billing_amount: minor_unit_amount(&mandate.amount),
             period: mandate.frequency.clone(),
             external_subscription_id: mandate.external_subscription_id.clone(),
-            status: mandate.status.clone(),
+            status: mandate.status.as_ref().map(kount_recurring_status),
             next_billing_date: mandate
                 .next_billing_date
                 .map(format_kount_date)
@@ -926,7 +937,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Subscription / recurring context, applied to every line item when the
         // order carries mandate info.
         let recurring = req
-            .mandate_info
+            .mandate_details
             .as_ref()
             .map(KountRecurring::try_from)
             .transpose()?;
