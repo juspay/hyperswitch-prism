@@ -12,7 +12,7 @@ use domain_types::{
     connector_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, ResponseTransformationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
@@ -219,7 +219,8 @@ impl
             ServerAuthenticationTokenResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
-        // if secondary_base_url is present, use it, else use base_url
+        // Itaú exposes the OAuth token endpoint on secondary_base_url for
+        // payout configs; older configs use the JWT endpoint on base_url.
         if let Some(secondary_base_url) = req
             .resource_common_data
             .connectors
@@ -249,10 +250,6 @@ impl
                 "application/x-www-form-urlencoded".to_string().into(),
             ),
             (headers::ACCEPT.to_string(), "*/*".to_string().into()),
-            (
-                headers::USER_AGENT.to_string(),
-                "Hyperswitch".to_string().into(),
-            ),
         ])
     }
 
@@ -307,14 +304,19 @@ impl
                     ..data.clone()
                 })
             }
-            Err(_) => {
-                tracing::error!(
-                    "Failed to parse access token response from Itaubank. Status: {}, Raw: {:?}",
-                    res.status_code,
-                    res.response
+            Err(error) => {
+                tracing::warn!(
+                    error = ?error,
+                    status_code = res.status_code,
+                    "Failed to parse access token response from Itaubank"
                 );
                 Err(ConnectorError::ResponseDeserializationFailed {
-                    context: Default::default(),
+                    context: ResponseTransformationErrorContext {
+                        http_status_code: Some(res.status_code),
+                        additional_context: Some(
+                            "Itaubank access token - failed to deserialize response".to_string(),
+                        ),
+                    },
                 }
                 .into())
             }

@@ -121,6 +121,7 @@ impl
 pub struct ItaubankAccessTokenResponse {
     pub access_token: String,
     pub token_type: Option<String>,
+    // Token lifetime in seconds, as returned by Itaú OAuth.
     pub expires_in: Option<i64>,
 }
 
