@@ -414,7 +414,7 @@ impl<T: PaymentMethodDataTypes> GetIntegrityObject<RepeatPaymentIntegrityObject>
                     .to_string(),
                 domain_types::connector_types::MandateReferenceId::NetworkMandateId(
                     network_mandate,
-                ) => network_mandate.clone(),
+                ) => network_mandate.network_transaction_id.clone(),
                 domain_types::connector_types::MandateReferenceId::NetworkTokenWithNTI(_) => {
                     String::new()
                 }

@@ -556,6 +556,9 @@ pub trait ConnectorResponseHeaders {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct NetworkTokenWithNTIRef {
     pub network_transaction_id: String,
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
     pub token_exp_month: Option<Secret<String>>,
     pub token_exp_year: Option<Secret<String>>,
 }
@@ -563,8 +566,17 @@ pub struct NetworkTokenWithNTIRef {
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id sent by connector
-    NetworkMandateId(String), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with card data
+    NetworkMandateId(NetworkMandateIdRef), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with card data
     NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with network token data
+}
+
+/// Scheme-level identifiers for PSP-agnostic MIT flows (raw card path).
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct NetworkMandateIdRef {
+    pub network_transaction_id: String,
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -585,6 +597,24 @@ impl MandateIds {
         Self {
             mandate_id: Some(mandate_id),
             mandate_reference_id: None,
+        }
+    }
+
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        match &self.mandate_reference_id {
+            Some(MandateReferenceId::ConnectorMandateId(data)) => data.connector_mandate_id.clone(),
+            Some(MandateReferenceId::NetworkMandateId(_))
+            | Some(MandateReferenceId::NetworkTokenWithNTI(_))
+            | None => None,
+        }
+    }
+
+    pub fn get_connector_mandate_metadata(&self) -> Option<SecretSerdeValue> {
+        match &self.mandate_reference_id {
+            Some(MandateReferenceId::ConnectorMandateId(data)) => data.mandate_metadata.clone(),
+            Some(MandateReferenceId::NetworkMandateId(_))
+            | Some(MandateReferenceId::NetworkTokenWithNTI(_))
+            | None => None,
         }
     }
 }
@@ -1653,7 +1683,7 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
-                    Some(network_transaction_id.clone())
+                    Some(network_transaction_id.network_transaction_id.clone())
                 }
                 Some(MandateReferenceId::ConnectorMandateId(_))
                 | Some(MandateReferenceId::NetworkTokenWithNTI(_))
@@ -1888,6 +1918,7 @@ pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub connector_mandate_request_reference_id: Option<String>,
+    pub mandate_metadata: Option<SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -3478,7 +3509,7 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
     pub fn get_network_mandate_id(&self) -> Option<String> {
         match &self.mandate_reference {
             MandateReferenceId::NetworkMandateId(network_mandate_id) => {
-                Some(network_mandate_id.to_string())
+                Some(network_mandate_id.network_transaction_id.clone())
             }
             MandateReferenceId::ConnectorMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => None,

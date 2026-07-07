@@ -796,6 +796,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                             .map(Box::new),
                         connector_metadata: None,
@@ -902,6 +903,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                             .map(Box::new),
                         connector_metadata: None,
@@ -1004,6 +1006,7 @@ impl<
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                             .map(Box::new),
                         connector_metadata: None,
@@ -1523,6 +1526,7 @@ impl<F> TryFrom<ResponseRouterData<NovalnetPSyncResponse, Self>>
                                 connector_mandate_id: Some(id.clone()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                             .map(Box::new),
                         connector_metadata: None,
@@ -2402,7 +2406,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 card_number: raw_card_details.card_number.clone(),
                                 card_expiry_month: raw_card_details.card_exp_month.clone(),
                                 card_expiry_year: raw_card_details.card_exp_year.clone(),
-                                scheme_tid: network_transaction_id.into(),
+                                scheme_tid: network_transaction_id.network_transaction_id.into(),
                             });
 
                         let transaction = NovalnetPaymentsRequestTransaction {
@@ -2509,6 +2513,7 @@ impl TryFrom<NovalnetWebhookNotificationResponse> for WebhookDetailsResponse {
                                     connector_mandate_id: Some(id.clone()),
                                     payment_method_id: None,
                                     connector_mandate_request_reference_id: None,
+                                    mandate_metadata: None,
                                 })
                                 .map(Box::new),
                             status_code: 200,

@@ -459,6 +459,7 @@ impl FiservcommercehubPaymentTokens {
                     connector_mandate_id: token.token_data.as_ref().map(|t| t.peek().clone()),
                     payment_method_id: token.token_source.clone(),
                     connector_mandate_request_reference_id: original_txn_id,
+                    mandate_metadata: None,
                 })
             })
     }

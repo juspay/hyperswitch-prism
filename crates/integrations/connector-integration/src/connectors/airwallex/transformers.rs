@@ -1612,6 +1612,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexSetupMandate
                 // reference it as `payment_method.id`.
                 payment_method_id: airwallex_payment_method_id,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
             .map(Box::new);
 

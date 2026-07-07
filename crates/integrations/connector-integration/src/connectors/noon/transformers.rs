@@ -638,6 +638,7 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                 connector_mandate_id: Some(subscription_data.identifier.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
         Ok(Self {
@@ -1448,6 +1449,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 connector_mandate_id: Some(subscription_data.identifier.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
         Ok(Self {
@@ -1671,6 +1673,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(subscription_data.identifier.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })
             });
         Ok(Self {
