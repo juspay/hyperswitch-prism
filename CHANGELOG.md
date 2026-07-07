@@ -19,6 +19,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.07.2
+
+### Features
+
+- **framework:** Added transaction_link_id support for mandate flows ([#1746](https://github.com/juspay/connector-service/pull/1746)) ([`48d36cf`](https://github.com/juspay/connector-service/commit/48d36cf858003a8f216fa6895f2b8507a32527d8))
+
+### Bug Fixes
+
+- Commercehub Authcode and 2xx error msg fixes ([#1815](https://github.com/juspay/connector-service/pull/1815)) ([`721f52b`](https://github.com/juspay/connector-service/commit/721f52b5a048ea349fd5b73a0cfa71a88db14a53))
+
+**Full Changelog:** [`2026.07.07.1...2026.07.07.2`](https://github.com/juspay/connector-service/compare/2026.07.07.1...2026.07.07.2)
+
+- - -
+
+## 2026.07.07.1
+
+### Bug Fixes
+
+- **twoc_twop_paco:** Require complete billing address for airline data ([#1834](https://github.com/juspay/connector-service/pull/1834)) ([`658e306`](https://github.com/juspay/connector-service/commit/658e30618bec793eb47a2b55dd96e664267afb62))
+- **types:** Map DuitNow payment method type ([#1823](https://github.com/juspay/connector-service/pull/1823)) ([`14cbfa2`](https://github.com/juspay/connector-service/commit/14cbfa25fa27b45159ff721361c39965dd5d7d3a))
+
+**Full Changelog:** [`2026.07.07.0...2026.07.07.1`](https://github.com/juspay/connector-service/compare/2026.07.07.0...2026.07.07.1)
+
+- - -
+
+## 2026.07.07.0
+
+### Refactors
+
+- **frm/kount:** Promote mandate_details + MandateStatus enum, drop deprecated fields ([#1817](https://github.com/juspay/connector-service/pull/1817)) ([`a54817b`](https://github.com/juspay/connector-service/commit/a54817b39c065cb49daa0dd9ff81752fc6889fc6))
+
+**Full Changelog:** [`2026.07.06.1...2026.07.07.0`](https://github.com/juspay/connector-service/compare/2026.07.06.1...2026.07.07.0)
+
+- - -
+
 ## 2026.07.06.1
 
 ### Features

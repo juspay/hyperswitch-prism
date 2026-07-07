@@ -5775,6 +5775,11 @@ grpc-status: 0
                 ["connector_mandate_id"],
             json!("mandate_123")
         );
+        assert!(
+            normalized["connector_recurring_payment_id"]["mandate_id_type"]["ConnectorMandateId"]
+                .get("update_history")
+                .is_none()
+        );
     }
 
     // ─── deep_set_json_path tests ───

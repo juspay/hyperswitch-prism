@@ -1157,18 +1157,14 @@ message MandateAmountData {
   optional Money initial_billing_amount = 8;
   // Merchant's external subscription identifier.
   optional string external_subscription_id = 9;
-  // Subscription status (e.g. "ACTIVE"). Kept as a string for backward
-  // compatibility; prefer `mandate_status` going forward.
-  optional string status = 10;
+  // Subscription status. UNSPECIFIED (0) means undefined / unset.
+  MandateStatus mandate_status = 10;
   // Unix timestamp for the next billing date.
   optional int64 next_billing_date = 11;
   // Number of billing cycles elapsed / scheduled.
   optional int32 billing_cycle = 12;
   // Free-form description of the subscription.
   optional string description = 13;
-  // Enum-typed subscription status. Additive/new; NOT yet consumed — the string
-  // `status` (field 10) is used for now (backward compatibility).
-  MandateStatus mandate_status = 14;
 }
 
 // Mandate type with amount details
@@ -1218,14 +1214,21 @@ message BrowserInformation {
   optional string device_model = 15;
 }
 
+message MandateReferenceDetails {
+  optional string connector_mandate_id = 1;
+  optional string payment_method_id = 2;
+  optional string connector_mandate_request_reference_id = 3;
+  optional SecretString mandate_metadata = 4;
+}
+
 message MandateReference {
   oneof mandate_id_type {
     // mandate_id sent by the connector
     ConnectorMandateReferenceId connector_mandate_id = 1;
 
-    // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate
+    // network_mandate_id sent by Issuer to connector, Used for PG agnostic mandate
     // txns along with card data
-    string network_mandate_id = 2;
+    NetworkMandateId network_mandate_id = 2;
 
     // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate
     // txns along with network token data
@@ -1237,12 +1240,23 @@ message ConnectorMandateReferenceId {
   optional string connector_mandate_id = 1;
   optional string payment_method_id = 2;
   optional string connector_mandate_request_reference_id = 3;
+  optional SecretString mandate_metadata = 4;
+}
+
+message NetworkMandateId {
+  string network_transaction_id = 1;
+  // Mastercard Transaction Link Identifier (TLID) provided by the card network
+  // during a CIT when setup_future_usage is off_session.
+  optional string transaction_link_id = 2;
 }
 
 message NetworkTokenWithNTI {
   string network_transaction_id = 1;
   optional SecretString token_exp_month = 2;
   optional SecretString token_exp_year = 3;
+  // Mastercard Transaction Link Identifier (TLID) provided by the card network
+  // during a CIT when setup_future_usage is off_session.
+  optional string transaction_link_id = 4;
 }
 
 // Container for various address types related to a payment
@@ -2483,7 +2497,7 @@ message PaymentServiceAuthorizeResponse {
   optional Money authorized_money = 20; // populated from AuthoriseIntegrityObject for integrity check
 
   // Mandate and Connector Response
-  optional MandateReference mandate_reference = 16;
+  optional MandateReference mandate_reference = 16 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
   optional ConnectorResponseData connector_response = 17;
   optional SecretString connector_feature_data =
       18; // Connector-specific metadata for the transaction
@@ -2493,6 +2507,9 @@ message PaymentServiceAuthorizeResponse {
 
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 21;
+
+  // Mandate reference details returned by the connector for future recurring payments.
+  optional MandateReferenceDetails mandate_reference_details = 22;
 }
 
 // Request message for synchronizing payment status
@@ -2571,7 +2588,7 @@ message PaymentServiceGetResponse {
   map<string, string> response_headers = 5;
 
   // Transaction Details
-  optional MandateReference mandate_reference = 6;
+  optional MandateReference mandate_reference = 6 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
   optional string network_transaction_id = 7;
   // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
   // Distinct from network_transaction_id.
@@ -2622,6 +2639,9 @@ message PaymentServiceGetResponse {
   // per-value semantics. Absent when the connector doesn't distinguish phases.
   optional SettlementStatus settlement_status = 34;
   
+
+  // Mandate reference details returned by the connector for future recurring payments.
+  optional MandateReferenceDetails mandate_reference_details = 35;
 }
 
 // Request message for voiding a payment
@@ -2679,7 +2699,7 @@ message PaymentServiceVoidResponse {
   optional SecretString raw_connector_request = 8;
 
   // Mandate Details
-  optional MandateReference mandate_reference = 9;
+  optional MandateReference mandate_reference = 9 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 10;
@@ -2692,6 +2712,9 @@ message PaymentServiceVoidResponse {
 
   // Raw Response/Request for debugging
   optional SecretString raw_connector_response = 13;
+
+  // Mandate reference details returned by the connector for future recurring payments.
+  optional MandateReferenceDetails mandate_reference_details = 14;
 }
 
 // Request message for reversing a captured payment if not yet settled (similar
@@ -2903,7 +2926,7 @@ message PaymentServiceCaptureResponse {
   optional int64 captured_amount = 9; // Captured amount in minor currency units
 
   // Mandate Details
-  MandateReference mandate_reference = 10;
+  MandateReference mandate_reference = 10 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 11;
@@ -2916,6 +2939,9 @@ message PaymentServiceCaptureResponse {
 
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 14;
+
+  // Mandate reference details returned by the connector for future recurring payments.
+  optional MandateReferenceDetails mandate_reference_details = 15;
 }
 
 // Request message for creating an order
@@ -3264,7 +3290,7 @@ message PaymentServiceSetupRecurringResponse {
       5; // Optional HTTP response headers from the connector
 
   // Mandate Details
-  MandateReference mandate_reference = 6; // Reference to the created mandate
+  MandateReference mandate_reference = 6 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // Redirection and Transaction Details
   optional RedirectForm redirection_data =
@@ -3295,6 +3321,9 @@ message PaymentServiceSetupRecurringResponse {
 
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 16;
+
+  // Mandate reference details returned by the connector for future recurring payments.
+  optional MandateReferenceDetails mandate_reference_details = 17;
 }
 
 // Request message for repeat payment (MIT - Merchant Initiated Transaction)
@@ -3404,7 +3433,7 @@ message RecurringPaymentServiceChargeResponse {
   // Transaction Details
   optional string network_transaction_id = 7;
   optional string merchant_charge_id = 8;
-  optional MandateReference mandate_reference = 9;
+  optional MandateReference mandate_reference = 9 [deprecated = true]; // use mandate_reference_details instead (will be removed in a future release)
 
   // State Information
   optional ConnectorState state = 10;
@@ -3423,6 +3452,9 @@ message RecurringPaymentServiceChargeResponse {
 
   // Split payment response data from connector
   optional ConnectorSplitResponseData splits = 16;
+
+  // Mandate reference details returned by the connector for future recurring payments.
+  optional MandateReferenceDetails mandate_reference_details = 17;
 }
 
 // Request message for a mandate revoke operation

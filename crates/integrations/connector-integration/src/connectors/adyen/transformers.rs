@@ -915,6 +915,7 @@ pub struct AdditionalData {
     recurring_shopper_reference: Option<String>,
     network_tx_reference: Option<Secret<String>>,
     /// Network-issued link id chaining related transactions (`transactionLinkId`).
+    #[serde(rename = "transactionLinkId")]
     transaction_link_id: Option<String>,
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
@@ -4724,6 +4725,7 @@ pub fn get_adyen_response(
             connector_mandate_id: Some(mandate_id.expose()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         });
     let network_txn_id = response
         .additional_data
@@ -5126,6 +5128,7 @@ pub fn get_webhook_response(
                 connector_mandate_id: Some(mandate_id.clone().expose()),
                 payment_method_id: response.recurring_shopper_reference.clone(),
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             });
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(
@@ -5502,6 +5505,7 @@ pub(crate) fn get_adyen_mandate_reference_from_webhook(
                 connector_mandate_id: Some(mandate_id.peek().to_string()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         })
 }
@@ -5733,6 +5737,12 @@ fn get_additional_data_for_repeat_payment<
         Some("false".to_string())
     };
 
+    let transaction_link_id = match &item.request.mandate_reference {
+        MandateReferenceId::NetworkMandateId(ref_data) => ref_data.transaction_link_id.clone(),
+        MandateReferenceId::NetworkTokenWithNTI(ref_data) => ref_data.transaction_link_id.clone(),
+        MandateReferenceId::ConnectorMandateId(_) => None,
+    };
+
     Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -5747,6 +5757,7 @@ fn get_additional_data_for_repeat_payment<
                 .as_ref()
                 .and_then(to_adyen_exemption)
         }),
+        transaction_link_id,
         ..AdditionalData::default()
     })
 }
@@ -6852,7 +6863,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             cvc: None,
                             holder_name: test_holder_name.or(card_holder_name),
                             brand: Some(brand),
-                            network_payment_reference: Some(Secret::new(network_mandate_id)),
+                            network_payment_reference: Some(Secret::new(
+                                network_mandate_id.network_transaction_id.clone(),
+                            )),
                         };
                         PaymentMethod::AdyenPaymentMethod(Box::new(AdyenPaymentMethod::AdyenCard(
                             Box::new(adyen_card),

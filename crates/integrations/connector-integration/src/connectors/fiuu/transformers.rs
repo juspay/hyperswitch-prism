@@ -778,7 +778,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
                         FiuuPaymentMethodData::try_from((
                             raw_card_details,
-                            network_transaction_id.clone(),
+                            network_transaction_id.network_transaction_id.clone(),
                         ))
                     }
                     _ => Err(IntegrationError::NotImplemented(
@@ -1441,6 +1441,7 @@ where
                                     connector_mandate_id: Some(token.clone().expose()),
                                     payment_method_id: None,
                                     connector_mandate_request_reference_id: None,
+                                    mandate_metadata: None,
                                 })
                             });
                     let status = match non_threeds_data.status.as_str() {
@@ -2007,6 +2008,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                             connector_mandate_id: Some(token.clone().expose()),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         }),
                         Err(_err) => None,
                     }

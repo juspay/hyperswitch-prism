@@ -562,16 +562,18 @@ impl Payments {
         };
 
         // Execute connector processing - ONLY the authorize call
-        let response = external_services::service::execute_connector_processing_step(
-            &config.proxy,
-            connector_integration,
-            router_data,
-            None,
-            event_params,
-            token_data,
-            common_enums::CallConnectorAction::Trigger,
-            test_context,
-            api_tag,
+        let response = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                token_data,
+                common_enums::CallConnectorAction::Trigger,
+                test_context,
+                api_tag,
+            ),
         )
         .await;
 
