@@ -19,6 +19,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.07.1
+
+### Bug Fixes
+
+- **twoc_twop_paco:** Require complete billing address for airline data ([#1834](https://github.com/juspay/connector-service/pull/1834)) ([`658e306`](https://github.com/juspay/connector-service/commit/658e30618bec793eb47a2b55dd96e664267afb62))
+- **types:** Map DuitNow payment method type ([#1823](https://github.com/juspay/connector-service/pull/1823)) ([`14cbfa2`](https://github.com/juspay/connector-service/commit/14cbfa25fa27b45159ff721361c39965dd5d7d3a))
+
+**Full Changelog:** [`2026.07.07.0...2026.07.07.1`](https://github.com/juspay/connector-service/compare/2026.07.07.0...2026.07.07.1)
+
+- - -
+
 ## 2026.07.07.0
 
 ### Refactors
