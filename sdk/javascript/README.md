@@ -1,8 +1,8 @@
 # hyperswitch-prism
 
-**Universal Connector Service — Node.js SDK**
+**Hyperswitch Prism — Node.js SDK**
 
-A high-performance, type-safe Node.js SDK for payment processing through the Universal Connector Service. Connect to 100+ payment processors through a single, unified API.
+A high-performance, type-safe Node.js SDK for payment processing through Hyperswitch Prism. Connect to 100+ payment processors through a single, unified API.
 
 [![npm version](https://badge.fury.io/js/hyperswitch-prism.svg)](https://www.npmjs.com/package/hyperswitch-prism)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)

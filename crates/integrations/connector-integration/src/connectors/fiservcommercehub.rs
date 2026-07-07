@@ -8,27 +8,17 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
-        SubmitEvidence, Void, VoidPC,
+        Authorize, Capture, PSync, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
+        SetupMandate, Void,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, SetupMandateRequestData,
     },
     errors,
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -36,7 +26,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Mask, Maskable, Secret};
+use hyperswitch_masking::Maskable;
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -46,9 +36,13 @@ use transformers as fiservcommercehub;
 use transformers::{
     FiservcommercehubAccessTokenRequest, FiservcommercehubAccessTokenResponse,
     FiservcommercehubAuthorizeRequest, FiservcommercehubAuthorizeResponse,
+    FiservcommercehubCaptureRequest, FiservcommercehubCaptureResponse,
     FiservcommercehubPSyncRequest, FiservcommercehubPSyncResponse, FiservcommercehubRSyncRequest,
     FiservcommercehubRSyncResponse, FiservcommercehubRefundRequest,
-    FiservcommercehubRefundResponse, FiservcommercehubVoidRequest, FiservcommercehubVoidResponse,
+    FiservcommercehubRefundResponse, FiservcommercehubRepeatPaymentRequest,
+    FiservcommercehubRepeatResponse, FiservcommercehubSetupMandateRequest,
+    FiservcommercehubSetupMandateResponse, FiservcommercehubVoidRequest,
+    FiservcommercehubVoidResponse,
 };
 
 use super::macros;
@@ -78,7 +72,7 @@ macros::create_all_prerequisites!(
             flow: ServerAuthenticationToken,
             request_body: FiservcommercehubAccessTokenRequest,
             response_body: FiservcommercehubAccessTokenResponse,
-            router_data: RouterDataV2<ServerAuthenticationToken, PaymentFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+            router_data: RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ),
         (
             flow: Authorize,
@@ -109,6 +103,24 @@ macros::create_all_prerequisites!(
             request_body: FiservcommercehubRSyncRequest,
             response_body: FiservcommercehubRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: Capture,
+            request_body: FiservcommercehubCaptureRequest,
+            response_body: FiservcommercehubCaptureResponse,
+            router_data: RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ),
+        (
+            flow: RepeatPayment,
+            request_body: FiservcommercehubRepeatPaymentRequest,
+            response_body: FiservcommercehubRepeatResponse,
+            router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: FiservcommercehubSetupMandateRequest,
+            response_body: FiservcommercehubSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -119,15 +131,13 @@ macros::create_all_prerequisites!(
             &self,
             req: &RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError>
         where
-            Self: ConnectorIntegrationV2<
-                ServerAuthenticationToken,
-                PaymentFlowData,
+            Self: ConnectorIntegrationV2<ServerAuthenticationToken, MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -136,48 +146,18 @@ macros::create_all_prerequisites!(
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let api_key = auth.api_key.clone().expose();
-            let client_request_id =
-                fiservcommercehub::FiservcommercehubAuthType::generate_client_request_id();
-            let timestamp =
-                fiservcommercehub::FiservcommercehubAuthType::generate_timestamp();
-
             let temp_request_body = self.get_request_body(req)?;
             let request_body_str = match temp_request_body {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
                 _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
-};
+            };
 
-            let authorization = auth.generate_hmac_signature(
-                &api_key,
-                &client_request_id,
-                &timestamp,
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
                 &request_body_str,
-            )?;
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::API_KEY.to_string(),
-                    Secret::new(api_key).into_masked(),
-                ),
-                (headers::TIMESTAMP.to_string(), timestamp.into()),
-                (
-                    headers::CLIENT_REQUEST_ID.to_string(),
-                    client_request_id.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    authorization.into_masked(),
-                ),
-                (headers::AUTH_TOKEN_TYPE.to_string(), headers::AUTH_TOKEN_TYPE_HMAC.into()),
-                (headers::ACCEPT_LANGUAGE.to_string(), headers::ACCEPT_LANGUAGE_EN.into()),
-            ])
+            )
         }
 
         pub fn build_authorize_headers(
@@ -194,45 +174,26 @@ macros::create_all_prerequisites!(
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let api_key = auth.api_key.clone().expose();
-            let client_request_id =
-                fiservcommercehub::FiservcommercehubAuthType::generate_client_request_id();
-            let timestamp =
-                fiservcommercehub::FiservcommercehubAuthType::generate_timestamp();
-
-            let authorization = auth.generate_hmac_signature(
-                &api_key,
-                &client_request_id,
-                &timestamp,
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
                 request_body_str,
-            )?;
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::API_KEY.to_string(),
-                    Secret::new(api_key).into_masked(),
-                ),
-                (headers::TIMESTAMP.to_string(), timestamp.into()),
-                (
-                    headers::CLIENT_REQUEST_ID.to_string(),
-                    client_request_id.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    authorization.into_masked(),
-                ),
-                (headers::AUTH_TOKEN_TYPE.to_string(), headers::AUTH_TOKEN_TYPE_HMAC.into()),
-                (headers::ACCEPT_LANGUAGE.to_string(), headers::ACCEPT_LANGUAGE_EN.into()),
-            ])
+            )
         }
 
         pub fn connector_base_url<F, Req, Res>(
             &self,
             req: &RouterDataV2<F, PaymentFlowData, Req, Res>,
+        ) -> String {
+            req.resource_common_data
+                .connectors
+                .fiservcommercehub
+                .base_url
+                .clone()
+        }
+
+        pub fn connector_base_url_merchant_auth<F, Req, Res>(
+            &self,
+            req: &RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> String {
             req.resource_common_data
                 .connectors
@@ -262,48 +223,18 @@ macros::create_all_prerequisites!(
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let api_key = auth.api_key.clone().expose();
-            let client_request_id =
-                fiservcommercehub::FiservcommercehubAuthType::generate_client_request_id();
-            let timestamp =
-                fiservcommercehub::FiservcommercehubAuthType::generate_timestamp();
-
             let temp_request_body = self.get_request_body(req)?;
             let request_body_str = match temp_request_body {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
                 _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
-};
+            };
 
-            let authorization = auth.generate_hmac_signature(
-                &api_key,
-                &client_request_id,
-                &timestamp,
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
                 &request_body_str,
-            )?;
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::API_KEY.to_string(),
-                    Secret::new(api_key).into_masked(),
-                ),
-                (headers::TIMESTAMP.to_string(), timestamp.into()),
-                (
-                    headers::CLIENT_REQUEST_ID.to_string(),
-                    client_request_id.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    authorization.into_masked(),
-                ),
-                (headers::AUTH_TOKEN_TYPE.to_string(), headers::AUTH_TOKEN_TYPE_HMAC.into()),
-                (headers::ACCEPT_LANGUAGE.to_string(), headers::ACCEPT_LANGUAGE_EN.into()),
-            ])
+            )
         }
 
         pub fn build_void_headers(
@@ -317,48 +248,19 @@ macros::create_all_prerequisites!(
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let api_key = auth.api_key.clone().expose();
-            let client_request_id =
-                fiservcommercehub::FiservcommercehubAuthType::generate_client_request_id();
-            let timestamp =
-                fiservcommercehub::FiservcommercehubAuthType::generate_timestamp();
-
             let temp_request_body = self.get_request_body(req)?;
             let request_body_str = match temp_request_body {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
                 _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
-};
+            };
 
-            let authorization = auth.generate_hmac_signature(
-                &api_key,
-                &client_request_id,
-                &timestamp,
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
                 &request_body_str,
-            )?;
+            )
 
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::API_KEY.to_string(),
-                    Secret::new(api_key).into_masked(),
-                ),
-                (headers::TIMESTAMP.to_string(), timestamp.into()),
-                (
-                    headers::CLIENT_REQUEST_ID.to_string(),
-                    client_request_id.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    authorization.into_masked(),
-                ),
-                (headers::AUTH_TOKEN_TYPE.to_string(), headers::AUTH_TOKEN_TYPE_HMAC.into()),
-                (headers::ACCEPT_LANGUAGE.to_string(), headers::ACCEPT_LANGUAGE_EN.into()),
-            ])
         }
 
         /// Builds the HMAC-authenticated headers for the Refund endpoint.
@@ -373,48 +275,18 @@ macros::create_all_prerequisites!(
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let api_key = auth.api_key.clone().expose();
-            let client_request_id =
-                fiservcommercehub::FiservcommercehubAuthType::generate_client_request_id();
-            let timestamp =
-                fiservcommercehub::FiservcommercehubAuthType::generate_timestamp();
-
             let temp_request_body = self.get_request_body(req)?;
             let request_body_str = match temp_request_body {
                 Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
                 _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
-};
+            };
 
-            let authorization = auth.generate_hmac_signature(
-                &api_key,
-                &client_request_id,
-                &timestamp,
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
                 &request_body_str,
-            )?;
-
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::API_KEY.to_string(),
-                    Secret::new(api_key).into_masked(),
-                ),
-                (headers::TIMESTAMP.to_string(), timestamp.into()),
-                (
-                    headers::CLIENT_REQUEST_ID.to_string(),
-                    client_request_id.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    authorization.into_masked(),
-                ),
-                (headers::AUTH_TOKEN_TYPE.to_string(), headers::AUTH_TOKEN_TYPE_HMAC.into()),
-                (headers::ACCEPT_LANGUAGE.to_string(), headers::ACCEPT_LANGUAGE_EN.into()),
-            ])
+            )
         }
 
         /// Builds the HMAC-authenticated headers for the RSync (refund transaction-inquiry) endpoint.
@@ -429,11 +301,30 @@ macros::create_all_prerequisites!(
                 fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
                     .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
-            let api_key = auth.api_key.clone().expose();
-            let client_request_id =
-                fiservcommercehub::FiservcommercehubAuthType::generate_client_request_id();
-            let timestamp =
-                fiservcommercehub::FiservcommercehubAuthType::generate_timestamp();
+            let temp_request_body = self.get_request_body(req)?;
+            let request_body_str = match temp_request_body {
+                Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
+                    .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
+                None => String::new(),
+                _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
+            };
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
+                &request_body_str,
+            )
+        }
+
+        /// Builds the HMAC-authenticated headers for the Capture endpoint.
+        pub fn build_capture_headers(
+            &self,
+            req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError>
+        where
+            Self: ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        {
+            let auth =
+                fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
+                    .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
 
             let temp_request_body = self.get_request_body(req)?;
             let request_body_str = match temp_request_body {
@@ -441,36 +332,54 @@ macros::create_all_prerequisites!(
                     .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
                 None => String::new(),
                 _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
-};
-
-            let authorization = auth.generate_hmac_signature(
-                &api_key,
-                &client_request_id,
-                &timestamp,
+            };
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
                 &request_body_str,
-            )?;
+            )
+        }
 
-            Ok(vec![
-                (
-                    headers::CONTENT_TYPE.to_string(),
-                    self.common_get_content_type().to_string().into(),
-                ),
-                (
-                    headers::API_KEY.to_string(),
-                    Secret::new(api_key).into_masked(),
-                ),
-                (headers::TIMESTAMP.to_string(), timestamp.into()),
-                (
-                    headers::CLIENT_REQUEST_ID.to_string(),
-                    client_request_id.into(),
-                ),
-                (
-                    headers::AUTHORIZATION.to_string(),
-                    authorization.into_masked(),
-                ),
-                (headers::AUTH_TOKEN_TYPE.to_string(), headers::AUTH_TOKEN_TYPE_HMAC.into()),
-                (headers::ACCEPT_LANGUAGE.to_string(), headers::ACCEPT_LANGUAGE_EN.into()),
-            ])
+        /// Builds the HMAC-authenticated headers for the RepeatPayment endpoint.
+        pub fn build_repeat_payment_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError>
+        where
+            Self: ConnectorIntegrationV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        {
+            let auth =
+                fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
+                    .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+
+            let temp_request_body = self.get_request_body(req)?;
+            let request_body_str = match temp_request_body {
+                Some(RequestContent::Json(json_body)) => serde_json::to_string(&json_body)
+                    .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?,
+                None => String::new(),
+                _ => return Err(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?
+            };
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
+                &request_body_str,
+            )
+        }
+
+        /// Builds the HMAC-authenticated headers for the SetupMandate endpoint.
+        pub fn build_setup_mandate_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+            request_body_str: &str,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError>
+        where
+            Self: ConnectorIntegrationV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        {
+            let auth = fiservcommercehub::FiservcommercehubAuthType::try_from(&req.connector_config)
+                      .change_context(errors::IntegrationError::FailedToObtainAuthType { context: Default::default() })?;
+
+            auth.build_hmac_headers(
+                self.common_get_content_type(),
+                request_body_str,
+            )
         }
     }
 );
@@ -478,6 +387,7 @@ macros::create_all_prerequisites!(
 // =============================================================================
 // CONNECTOR COMMON IMPLEMENTATION
 // =============================================================================
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorCommon
     for Fiservcommercehub<T>
 {
@@ -508,6 +418,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: fiservcommercehub::FiservcommercehubErrorResponse = res
             .response
@@ -594,7 +505,7 @@ macros::macro_connector_implementation!(
     curl_request: Json(FiservcommercehubAccessTokenRequest),
     curl_response: FiservcommercehubAccessTokenResponse,
     flow_name: ServerAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ServerAuthenticationTokenRequestData,
     flow_response: ServerAuthenticationTokenResponseData,
     http_method: Post,
@@ -605,7 +516,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -617,12 +528,12 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
         ) -> CustomResult<String, errors::IntegrationError> {
-            let base_url = self.connector_base_url(req);
+            let base_url = self.connector_base_url_merchant_auth(req);
             Ok(format!("{base_url}security/v1/keys/generate"))
         }
     }
@@ -636,27 +547,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 // ===== FLOW TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Fiservcommercehub<T>
 {
 }
 
@@ -666,57 +557,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Fiservcommercehub<T>
 {
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentCapture for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPostAuthenticateV2<T> for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Fiservcommercehub<T>
 {
 }
 
@@ -735,31 +581,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::RepeatPaymentV2<T> for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ClientAuthentication for Fiservcommercehub<T>
-{
-}
-
 macros::macro_connector_payout_implementation!(
     connector: Fiservcommercehub,
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
 );
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SetupMandateV2<T> for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Fiservcommercehub<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Fiservcommercehub<T>
@@ -774,50 +600,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentCapture for Fiservcommercehub<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::RepeatPaymentV2<T> for Fiservcommercehub<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::SetupMandateV2<T> for Fiservcommercehub<T>
+{
+}
+
 // ===== CONNECTOR INTEGRATION V2 IMPLEMENTATIONS =====
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Fiservcommercehub<T>
-{
-}
 
 // ServerAuthenticationToken is implemented via macro_connector_implementation! above.
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Fiservcommercehub<T>
-{
-}
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -883,62 +682,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
-    for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Fiservcommercehub<T>
-{
-}
-
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Fiservcommercehub,
@@ -970,26 +713,6 @@ macros::macro_connector_implementation!(
         }
     }
 );
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Fiservcommercehub<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Fiservcommercehub<T>
-{
-}
 
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -1091,44 +814,150 @@ macros::macro_connector_implementation!(
     }
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        RepeatPayment,
-        PaymentFlowData,
-        RepeatPaymentData<T>,
-        PaymentsResponseData,
-    > for Fiservcommercehub<T>
-{
-}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiservcommercehub,
+    curl_request: Json(FiservcommercehubCaptureRequest),
+    curl_response: FiservcommercehubCaptureResponse,
+    flow_name: Capture,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            self.build_capture_headers(req)
+        }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Fiservcommercehub<T>
-{
-}
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            let base_url = self.connector_base_url(req);
+            Ok(format!("{base_url}payments/v1/charges"))
+        }
+    }
+);
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Fiservcommercehub<T>
-{
-}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiservcommercehub,
+    curl_request: Json(FiservcommercehubRepeatPaymentRequest),
+    curl_response: FiservcommercehubRepeatResponse,
+    flow_name: RepeatPayment,
+    resource_common_data: PaymentFlowData,
+    flow_request: RepeatPaymentData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, errors::IntegrationError> {
+            self.build_repeat_payment_headers(req)
+        }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Fiservcommercehub<T>
-{
-}
+        fn get_url(
+            &self,
+            req: &RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            let base_url = self.connector_base_url(req);
+            Ok(format!("{base_url}payments/v1/charges"))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiservcommercehub,
+    curl_request: Json(FiservcommercehubSetupMandateRequest),
+    curl_response: FiservcommercehubSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+          fn build_request_v2(
+            &self,
+            req: &RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+        ) -> CustomResult<Option<common_utils::request::Request>, errors::IntegrationError> {
+            use common_utils::request::{Method, RequestBuilder};
+
+            let input_data = FiservcommercehubRouterData {
+                connector: self.to_owned(),
+                router_data: req.clone()
+};
+            let request_body: FiservcommercehubSetupMandateRequest =
+                FiservcommercehubSetupMandateRequest::try_from(input_data)?;
+            let request_body_str = serde_json::to_string(&request_body)
+                .change_context(errors::IntegrationError::RequestEncodingFailed { context: Default::default() })?;
+
+            let headers = self.build_setup_mandate_headers(req, &request_body_str)?;
+
+            let url = self.get_url(req)?;
+            let request_content = RequestContent::Json(Box::new(request_body));
+
+            Ok(Some(
+                RequestBuilder::new()
+                    .method(Method::Post)
+                    .url(&url)
+                    .attach_default_headers()
+                    .headers(headers)
+                    .set_optional_body(Some(request_content))
+                    .build(),
+            ))
+        }
+
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, errors::IntegrationError> {
+            let base_url = self.connector_base_url(req);
+            Ok(format!("{base_url}payments-vas/v1/tokens"))
+        }
+    }
+);
 
 // ===== SOURCE VERIFICATION IMPLEMENTATION =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> SourceVerification
     for Fiservcommercehub<T>
 {
 }
+
+macros::macro_connector_flow_status_impls!(
+    connector: Fiservcommercehub,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [VoidPostRefund],
+    not_supported: [
+        Accept,
+        CreateConnectorCustomer,
+        DefendDispute,
+        MandateRevoke,
+        Authenticate,
+        IncrementalAuthorization,
+        CreateOrder,
+        PostAuthenticate,
+        PreAuthenticate,
+        ServerSessionAuthenticationToken,
+        PaymentMethodToken,
+        VoidPC,
+        ClientAuthenticationToken,
+        SubmitEvidence,
+    ],
+);

@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by fiservcommercehub connector"
       }
     },
     "authorize": {
@@ -67,6 +68,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
@@ -93,9 +98,13 @@
       },
       "Card": {
         "status": "error",
-        "error": "Failed to encode connector request"
+        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
       },
       "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "CashfreeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
@@ -109,7 +118,11 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -117,9 +130,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
@@ -139,13 +156,21 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
       "Giropay": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -187,11 +212,19 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
       "Klarna": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
       "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "LazyPayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
@@ -219,7 +252,19 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
@@ -253,7 +298,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -273,7 +318,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
@@ -283,11 +332,19 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
@@ -343,11 +400,27 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
       "Sofort": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
       "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
+      "Twint": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
@@ -363,6 +436,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
       },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
+      },
       "WeChatPayQr": {
         "status": "not_implemented",
         "error": "This feature is not implemented: This payment method is not implemented"
@@ -374,22 +451,49 @@
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_capture_id": "probe_capture_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount_to_capture": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments/v1/charges",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_capture_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
+        }
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by fiservcommercehub connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by fiservcommercehub connector"
       }
     },
     "create_server_authentication_token": {
@@ -415,17 +519,26 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by fiservcommercehub connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by fiservcommercehub connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by fiservcommercehub connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by fiservcommercehub connector"
       }
     },
     "dispute_get": {
@@ -435,12 +548,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by fiservcommercehub connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by fiservcommercehub connector"
       }
     },
     "get": {
@@ -485,38 +600,97 @@
     },
     "incremental_authorization": {
       "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by fiservcommercehub connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
         "status": "not_implemented"
       }
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by fiservcommercehub connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by fiservcommercehub connector"
       }
     },
     "proxy_authorize": {
       "default": {
         "status": "error",
-        "error": "Failed to encode connector request"
+        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true,
+          "state": {
+            "access_token": {
+              "token": "probe_key_id|||MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://connect-cert.fiservapis.com/ch/payments/v1/charges",
+          "method": "Post",
+          "headers": {
+            "accept-language": "en",
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "authorization": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"source\":{\"sourceType\":\"PaymentToken\",\"tokenData\":\"probe-mandate-123\",\"tokenSource\":\"TRANSARMOR\",\"declineDuplicates\":false},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"\"},\"transactionInteraction\":{\"origin\":\"ECOM\"},\"storedCredentials\":{\"initiator\":\"MERCHANT\",\"sequence\":\"SUBSEQUENT\"}}"
+        }
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by fiservcommercehub connector"
       }
     },
     "refund": {
@@ -552,7 +726,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_refund_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
+          "body": "{\"amount\":{\"currency\":\"USD\",\"total\":10.0},\"transactionDetails\":{\"merchantTransactionId\":\"probe_refund_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
         }
       }
     },
@@ -590,12 +764,14 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by fiservcommercehub connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Failed to encode connector request. RSA OAEP-SHA256 encryption for card data failed"
       }
     },
     "token_authorize": {
@@ -606,12 +782,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not implemented"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by fiservcommercehub connector"
       }
     },
     "verify_redirect": {
@@ -646,7 +824,7 @@
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"transactionDetails\":{\"captureFlag\":true,\"merchantTransactionId\":\"probe_void_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
+          "body": "{\"transactionDetails\":{\"merchantTransactionId\":\"probe_void_001\"},\"merchantDetails\":{\"merchantId\":\"probe_merchant\",\"terminalId\":\"probe_id\"},\"referenceTransactionDetails\":{\"referenceTransactionId\":\"probe_connector_txn_001\"}}"
         }
       }
     }

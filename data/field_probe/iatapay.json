@@ -3,161 +3,186 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by iatapay connector"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "AchBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Alfamart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "BacsBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "BcaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Bizum": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Boleto": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Card": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "ClassicReward": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Efecty": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "FamilyMart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Ideal": {
         "status": "supported",
@@ -197,36 +222,44 @@
         }
       },
       "Indomaret": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "InstantBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "InstantBankTransferFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "InstantBankTransferPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Interac": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Lawson": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "LocalBankRedirect": {
         "status": "supported",
@@ -266,156 +299,196 @@
         }
       },
       "LocalBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "MiniStop": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "OnlineBankingFpx": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "Oxxo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "PagoEfectivo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "PayEasy": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "RedCompra": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "RedPagos": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Seicomart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "SepaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "SevenEleven": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Trustly": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Unsupported bank redirect type for Iatapay"
+        "status": "not_supported",
+        "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "UpiCollect": {
         "status": "supported",
@@ -530,33 +603,35 @@
           "body": "{\"merchantId\":\"probe_merchant\",\"merchantPaymentId\":\"probe_txn_001\",\"amount\":10.0,\"currency\":\"USD\",\"country\":\"IN\",\"locale\":\"en-IN\",\"redirectUrls\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"notificationUrl\":\"https://example.com/webhook\"}"
         }
       },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       }
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "capture flow not supported by iatapay connector"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for iatapay"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for iatapay"
       }
     },
     "create_server_authentication_token": {
@@ -577,17 +652,26 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for iatapay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by iatapay connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by iatapay connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by iatapay connector"
       }
     },
     "dispute_get": {
@@ -597,12 +681,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by iatapay connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by iatapay connector"
       }
     },
     "get": {
@@ -643,38 +729,54 @@
     },
     "incremental_authorization": {
       "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by iatapay connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
         "status": "not_implemented"
       }
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by iatapay connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by iatapay connector"
       }
     },
     "proxy_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for iatapay"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for iatapay"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by iatapay connector"
       }
     },
     "refund": {
@@ -739,28 +841,32 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by iatapay connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for iatapay"
       }
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not supported by Iatapay"
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for iatapay"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for iatapay"
       }
     },
     "verify_redirect": {
@@ -770,7 +876,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void flow not supported by iatapay connector"
       }
     }
   }

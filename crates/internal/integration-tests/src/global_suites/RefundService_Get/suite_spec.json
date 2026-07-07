@@ -1,0 +1,22 @@
+{
+  "suite": "RefundService/Get",
+  "suite_type": "dependent",
+  "depends_on": [
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+    "CustomerService/Create",
+    "PaymentMethodService/Tokenize",
+    {
+      "suite": "PaymentService/Authorize",
+      "scenario": "no3ds_auto_capture_credit_card"
+    },
+    {
+      "suite": "PaymentService/Refund",
+      "context_map": {
+        "refund_id": "res.connector_refund_id"
+      }
+    }
+  ],
+  "dependency_scope": "scenario",
+  "strict_dependencies": false
+}

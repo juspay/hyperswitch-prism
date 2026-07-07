@@ -210,11 +210,10 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 )
             }
             PaymentMethodData::Wallet(_wallet) => {
-                return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: "Wallet payment method is not supported".to_string(),
-                    connector: "hyperpg",
-                    context: Default::default()
-                }));
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Wallet payment method support is not yet implemented".to_string(),
+                    Default::default()
+                )));
             }
             PaymentMethodData::PayLater(_paylater) => {
                 return Err(error_stack::report!(IntegrationError::NotSupported {
@@ -224,15 +223,15 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 }));
             }
             PaymentMethodData::Voucher(_voucher) => {
-                return Err(error_stack::report!(IntegrationError::NotSupported {
-                    message: "Voucher payment method is not supported".to_string(),
-                    connector: "hyperpg",
-                    context: Default::default()
-                }));
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Voucher payment method support is not yet implemented".to_string(),
+                    Default::default()
+                )));
             }
             _ => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
                     "This payment method is not implemented".to_string(),
+                    Default::default()
                 )));
             }
         };
@@ -409,8 +408,10 @@ impl<T: PaymentMethodDataTypes + fmt::Debug + Sync + Send + 'static + Serialize>
                 mandate_reference: None,
                 connector_metadata: Some(connector_metadata),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -440,8 +441,10 @@ impl TryFrom<ResponseRouterData<HyperpgSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

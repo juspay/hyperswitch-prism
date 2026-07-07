@@ -1,8 +1,0 @@
-{
-  "suite": "verify_redirect_response",
-  "suite_type": "dependent",
-  "depends_on": [
-    "authorize"
-  ],
-  "strict_dependencies": false
-}

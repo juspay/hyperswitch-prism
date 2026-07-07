@@ -1,6 +1,6 @@
 # PR Classifier
 
-You classify a `connector-service` pull request into one or more repo-specific scenarios.
+You classify a `hyperswitch-prism` pull request into one or more repo-specific scenarios.
 
 Do not review code deeply here. Your job is to route the PR correctly so the right specialists review it.
 

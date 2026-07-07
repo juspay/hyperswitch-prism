@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for ppro"
       }
     },
     "authorize": {
@@ -20,16 +21,44 @@
         "error": "payment method affirm is not supported by PPRO is not supported by ppro"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "payment method afterpay_clearpay is not supported by PPRO is not supported by ppro"
+        "status": "error",
+        "error": "Stuck on field: email. Afterpay requires consumer email — Missing required field: email. Afterpay requires consumer email"
       },
       "Alfamart": {
         "status": "not_supported",
         "error": "payment method alfamart is not supported by PPRO is not supported by ppro"
       },
       "AliPayRedirect": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ali_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"ALIPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "AmazonPayRedirect": {
         "status": "not_supported",
@@ -56,8 +85,41 @@
         "error": "payment method bacs is not supported by PPRO is not supported by ppro"
       },
       "BancontactCard": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bancontact_card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"BANCONTACT\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "BcaBankTransfer": {
         "status": "not_supported",
@@ -67,13 +129,47 @@
         "status": "not_supported",
         "error": "payment method becs is not supported by PPRO is not supported by ppro"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "payment method bill_desk is not supported by PPRO is not supported by ppro"
+      },
       "Bizum": {
         "status": "not_supported",
         "error": "payment method bizum is not supported by PPRO is not supported by ppro"
       },
       "Blik": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "blik": {
+              "blik_code": "777124"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"BLIK\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "Bluecode": {
         "status": "not_supported",
@@ -99,6 +195,10 @@
         "status": "not_supported",
         "error": "payment method cashapp is not supported by PPRO is not supported by ppro"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "payment method cashfree is not supported by PPRO is not supported by ppro"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "payment method cimb_va is not supported by PPRO is not supported by ppro"
@@ -109,7 +209,11 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "payment method dana is not supported by PPRO is not supported by ppro"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -117,11 +221,15 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
         "status": "not_supported",
         "error": "payment method evoucher is not supported by PPRO is not supported by ppro"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "payment method ease_buzz is not supported by PPRO is not supported by ppro"
       },
       "Efecty": {
         "status": "not_supported",
@@ -139,13 +247,21 @@
         "status": "not_supported",
         "error": "payment method family_mart is not supported by PPRO is not supported by ppro"
       },
+      "GCash": {
+        "status": "not_supported",
+        "error": "payment method gcash is not supported by PPRO is not supported by ppro"
+      },
       "Giropay": {
         "status": "not_supported",
         "error": "payment method giropay is not supported by PPRO is not supported by ppro"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "payment method go_pay is not supported by PPRO is not supported by ppro"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -160,8 +276,36 @@
         "error": "payment method google_pay is not supported by PPRO is not supported by ppro"
       },
       "Ideal": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ideal": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"IDEAL\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "Indomaret": {
         "status": "not_supported",
@@ -187,6 +331,10 @@
         "status": "not_supported",
         "error": "payment method interac is not supported by PPRO is not supported by ppro"
       },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "payment method kakao_pay is not supported by PPRO is not supported by ppro"
+      },
       "Klarna": {
         "status": "not_supported",
         "error": "payment method klarna is not supported by PPRO is not supported by ppro"
@@ -194,6 +342,10 @@
       "Lawson": {
         "status": "not_supported",
         "error": "payment method lawson is not supported by PPRO is not supported by ppro"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "payment method lazy_pay is not supported by PPRO is not supported by ppro"
       },
       "LocalBankRedirect": {
         "status": "not_supported",
@@ -208,8 +360,36 @@
         "error": "payment method mandiri_va is not supported by PPRO is not supported by ppro"
       },
       "MbWay": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mb_way": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"MBWAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "Mifinity": {
         "status": "not_supported",
@@ -219,9 +399,21 @@
         "status": "not_supported",
         "error": "payment method mini_stop is not supported by PPRO is not supported by ppro"
       },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "payment method momo is not supported by PPRO is not supported by ppro"
+      },
       "MultibancoBankTransfer": {
         "status": "not_supported",
         "error": "payment method multibanco is not supported by PPRO is not supported by ppro"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "payment method netbanking is not supported by PPRO is not supported by ppro"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_supported",
@@ -253,7 +445,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -273,7 +465,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "payment method pay_u is not supported by PPRO is not supported by ppro"
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -283,13 +479,21 @@
         "status": "not_supported",
         "error": "payment method paypal is not supported by PPRO is not supported by ppro"
       },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
         "status": "not_supported",
         "error": "payment method permata_bank_transfer is not supported by PPRO is not supported by ppro"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "payment method phone_pe is not supported by PPRO is not supported by ppro"
       },
       "Pix": {
         "status": "not_supported",
@@ -320,8 +524,36 @@
         "error": "payment method samsung_pay is not supported by PPRO is not supported by ppro"
       },
       "Satispay": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "satispay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"SATISPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "Seicomart": {
         "status": "not_supported",
@@ -343,33 +575,165 @@
         "status": "not_supported",
         "error": "payment method seven_eleven is not supported by PPRO is not supported by ppro"
       },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
       "Sofort": {
         "status": "not_supported",
         "error": "payment method sofort is not supported by PPRO is not supported by ppro"
       },
+      "Swish": {
+        "status": "not_supported",
+        "error": "payment method swish is not supported by PPRO is not supported by ppro"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "payment method touch_n_go is not supported by PPRO is not supported by ppro"
+      },
       "Trustly": {
         "status": "error",
         "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "payment method twint is not supported by PPRO is not supported by ppro"
       },
       "UpiCollect": {
         "status": "not_supported",
         "error": "payment method upi_collect is not supported by PPRO is not supported by ppro"
       },
       "UpiIntent": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_intent": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"APP_INTENT\",\"settings\":{\"mobileIntentUri\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "UpiQr": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"APP_INTENT\",\"settings\":{\"mobileIntentUri\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "payment method vipps is not supported by PPRO is not supported by ppro"
       },
       "WeChatPayQr": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "we_chat_pay_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"WECHATPAY\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       },
       "Wero": {
-        "status": "error",
-        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "wero": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "merchant-id": "probe_merchant",
+            "request-idempotency-key": "probe_txn_001",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"WERO\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+        }
       }
     },
     "capture": {
@@ -399,37 +763,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for ppro"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for ppro"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for ppro"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for ppro"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by ppro connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for ppro"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for ppro"
       }
     },
     "dispute_get": {
@@ -439,12 +810,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for ppro"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by ppro connector"
       }
     },
     "get": {
@@ -473,22 +846,64 @@
     },
     "handle_event": {
       "default": {
-        "status": "supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
+        }
       }
     },
     "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by ppro connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"specversion\":\"1.0\",\"type\":\"PAYMENT_CHARGE_SUCCESS\",\"source\":\"probe_source\",\"id\":\"probe_event_001\",\"time\":\"2024-01-01T00:00:00Z\",\"data\":{\"charge\":{\"id\":\"probe_txn_001\",\"status\":\"SUCCEEDED\",\"amount\":1000,\"currency\":\"EUR\"}}}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for ppro"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for ppro"
       }
     },
     "proxy_authorize": {
@@ -543,7 +958,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for ppro"
       }
     },
     "refund": {
@@ -569,7 +985,7 @@
             "request-idempotency-key": "probe_refund_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"refundReason\":\"CUSTOMER_REQUEST\"}"
+          "body": "{\"amount\":1000,\"merchantRefundReference\":\"probe_refund_001\",\"refundReason\":\"CUSTOMER_REQUEST\"}"
         }
       }
     },
@@ -582,7 +998,7 @@
           "refund_id": "probe_refund_id_001"
         },
         "sample": {
-          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges/probe_refund_id_001",
+          "url": "https://api.sandbox.eu.ppro.com/v1/payment-charges/probe_connector_txn_001",
           "method": "Get",
           "headers": {
             "authorization": "Bearer probe_key",
@@ -596,7 +1012,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by ppro connector"
       }
     },
     "setup_recurring": {
@@ -619,12 +1036,13 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for ppro"
       }
     },
     "verify_redirect": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported"
       }
     },
     "void": {

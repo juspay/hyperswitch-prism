@@ -361,6 +361,11 @@ aliases = ["session_token"]
 type = "string"
 value = "probe_session_token"
 
+[shipping_cost]
+aliases = ["shipping_cost"]
+type = "i32"
+value = "0"
+
 [setup_future_usage]
 aliases = ["setup_future_usage"]
 type = "future_usage_off_session"
@@ -398,7 +403,7 @@ aliases = ["eps.bank_name"]
 type = "bank_names_ing"
 
 ["proxy_setup_recurring.customer.id"]
-aliases = ["customer_id", "customer.id"]
+aliases = ["customer.id"]
 type = "string"
 value = "probe_customer_001"
 
@@ -407,9 +412,9 @@ aliases = ["browser_info", "browser_info.ip_address", "ip_address"]
 type = "full_browser_info"
 
 ["proxy_setup_recurring.customer.connector_customer_id"]
-aliases = ["connector_customer_id", "connector_customer_id is missing"]
+aliases = ["connector_customer_id", "connector_customer_id is missing", "customer_id"]
 type = "string"
-value = "cust_probe_123"
+value = "probe_customer_001"
 
 
 # ── capture flow ───────────────────────────────────────────────────────────────
@@ -642,6 +647,11 @@ value = "{\"params\":\"probe_redirect_params\",\"payload\":{\"TransactionId\":\"
 aliases = ["continue_redirection_url"]
 type = "string"
 value = "https://example.com/3ds-continue"
+
+["post_authenticate.connector_order_reference_id"]
+aliases = ["reference_id (order_id)", "reference_id"]
+type = "string"
+value = "probe_order_ref_001"
 
 
 # ── refund_get flow ───────────────────────────────────────────────────────────

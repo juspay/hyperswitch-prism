@@ -22,11 +22,14 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        authipay=payment_pb2.AuthipayConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     authipay=payment_pb2.AuthipayConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +41,18 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Authipay',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.AUTHIPAY,
+    environment: Environment.SANDBOX,
+    auth: {
+        authipay: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            apiSecret: { value: 'YOUR_API_SECRET' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +66,15 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Authipay")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setAuthipay(AuthipayConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setApiSecret(SecretString.newBuilder().setValue("YOUR_API_SECRET").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +87,21 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Authipay".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Authipay(AuthipayConfig {
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
+                api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -108,7 +127,7 @@ Simple payment that authorizes and captures in one call. Use for immediate charg
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L139) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L103) · [Rust](../../examples/authipay/authipay.rs#L131)
+**Examples:** [Python](../../examples/authipay/authipay.py#L127) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L119) · [Rust](../../examples/authipay/authipay.rs#L165)
 
 ### Card Payment (Authorize + Capture)
 
@@ -122,25 +141,25 @@ Two-step card payment. First authorize, then capture. Use when you need to verif
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L158) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L119) · [Rust](../../examples/authipay/authipay.rs#L147)
+**Examples:** [Python](../../examples/authipay/authipay.py#L146) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L135) · [Rust](../../examples/authipay/authipay.rs#L181)
 
 ### Refund
 
 Return funds to the customer for a completed payment.
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L183) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L141) · [Rust](../../examples/authipay/authipay.rs#L170)
+**Examples:** [Python](../../examples/authipay/authipay.py#L171) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L157) · [Rust](../../examples/authipay/authipay.rs#L204)
 
 ### Void Payment
 
 Cancel an authorized but not-yet-captured payment.
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L208) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L163) · [Rust](../../examples/authipay/authipay.rs#L193)
+**Examples:** [Python](../../examples/authipay/authipay.py#L196) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L179) · [Rust](../../examples/authipay/authipay.rs#L227)
 
 ### Get Payment Status
 
 Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L230) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L182) · [Rust](../../examples/authipay/authipay.rs#L212)
+**Examples:** [Python](../../examples/authipay/authipay.py#L218) · [JavaScript](../../examples/authipay/authipay.js) · [Kotlin](../../examples/authipay/authipay.kt#L198) · [Rust](../../examples/authipay/authipay.rs#L246)
 
 ## API Reference
 
@@ -152,6 +171,7 @@ Retrieve current payment status from the connector.
 | [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.Reverse](#paymentservicereverse) | Payments | `PaymentServiceReverseRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -191,6 +211,15 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | MB Way | ⚠ |
 | Satispay | ⚠ |
 | Wero | ⚠ |
+| GoPay | ⚠ |
+| GCash | ⚠ |
+| Momo | ⚠ |
+| Dana | ⚠ |
+| Kakao Pay | ⚠ |
+| Touch 'n Go | ⚠ |
+| Twint | ⚠ |
+| Vipps | ⚠ |
+| Swish | ⚠ |
 | Affirm | ⚠ |
 | Afterpay | ⚠ |
 | Klarna | ⚠ |
@@ -267,17 +296,17 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment.
-        "card_number": {"value": "4111111111111111"},  # Card Identification.
-        "card_exp_month": {"value": "03"},
-        "card_exp_year": {"value": "2030"},
-        "card_cvc": {"value": "737"},
-        "card_holder_name": {"value": "John Doe"}  # Cardholder Information.
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L252) · [TypeScript](../../examples/authipay/authipay.ts#L240) · [Kotlin](../../examples/authipay/authipay.kt#L200) · [Rust](../../examples/authipay/authipay.rs#L230)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L252) · [Kotlin](../../examples/authipay/authipay.kt#L216) · [Rust](../../examples/authipay/authipay.rs)
 
 #### PaymentService.Capture
 
@@ -288,7 +317,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L261) · [TypeScript](../../examples/authipay/authipay.ts#L249) · [Kotlin](../../examples/authipay/authipay.kt#L212) · [Rust](../../examples/authipay/authipay.rs#L242)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L261) · [Kotlin](../../examples/authipay/authipay.kt#L228) · [Rust](../../examples/authipay/authipay.rs)
 
 #### PaymentService.Get
 
@@ -299,7 +328,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L270) · [TypeScript](../../examples/authipay/authipay.ts#L258) · [Kotlin](../../examples/authipay/authipay.kt#L222) · [Rust](../../examples/authipay/authipay.rs#L249)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L270) · [Kotlin](../../examples/authipay/authipay.kt#L238) · [Rust](../../examples/authipay/authipay.rs)
 
 #### PaymentService.ProxyAuthorize
 
@@ -310,7 +339,7 @@ Authorize using vault-aliased card data. Proxy substitutes before connector.
 | **Request** | `PaymentServiceProxyAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L279) · [TypeScript](../../examples/authipay/authipay.ts#L267) · [Kotlin](../../examples/authipay/authipay.kt#L230) · [Rust](../../examples/authipay/authipay.rs#L256)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L279) · [Kotlin](../../examples/authipay/authipay.kt#L246) · [Rust](../../examples/authipay/authipay.rs)
 
 #### PaymentService.Refund
 
@@ -321,7 +350,18 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L288) · [TypeScript](../../examples/authipay/authipay.ts#L276) · [Kotlin](../../examples/authipay/authipay.kt#L258) · [Rust](../../examples/authipay/authipay.rs#L263)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L288) · [Kotlin](../../examples/authipay/authipay.kt#L275) · [Rust](../../examples/authipay/authipay.rs)
+
+#### PaymentService.Reverse
+
+Reverse a captured payment in full. Initiates a complete refund when you need to cancel a settled transaction rather than just an authorization.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceReverseRequest` |
+| **Response** | `PaymentServiceReverseResponse` |
+
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L306) · [Kotlin](../../examples/authipay/authipay.kt#L297) · [Rust](../../examples/authipay/authipay.rs)
 
 #### PaymentService.Void
 
@@ -332,7 +372,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L306) · [TypeScript](../../examples/authipay/authipay.ts) · [Kotlin](../../examples/authipay/authipay.kt#L280) · [Rust](../../examples/authipay/authipay.rs#L277)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts) · [Kotlin](../../examples/authipay/authipay.kt#L305) · [Rust](../../examples/authipay/authipay.rs)
 
 ### Refunds
 
@@ -345,4 +385,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/authipay/authipay.py#L297) · [TypeScript](../../examples/authipay/authipay.ts#L285) · [Kotlin](../../examples/authipay/authipay.kt#L268) · [Rust](../../examples/authipay/authipay.rs#L270)
+**Examples:** [Python](../../examples/authipay/authipay.py) · [TypeScript](../../examples/authipay/authipay.ts#L297) · [Kotlin](../../examples/authipay/authipay.kt#L285) · [Rust](../../examples/authipay/authipay.rs)

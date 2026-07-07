@@ -1,12 +1,13 @@
 {
   "connector": "fiuu",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "get",
-    "recurring_charge",
-    "refund",
-    "refund_sync",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Void"
   ]
 }

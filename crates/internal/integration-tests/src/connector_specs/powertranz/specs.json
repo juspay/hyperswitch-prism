@@ -1,11 +1,14 @@
 {
   "connector": "powertranz",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "void",
-    "refund",
-    "get",
-    "refund_sync"
-  ]
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
+  ],
+  "request_id_source_field": "merchant_transaction_id"
 }

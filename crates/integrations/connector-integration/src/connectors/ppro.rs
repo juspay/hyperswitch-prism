@@ -10,28 +10,13 @@ use common_utils::{
     ext_traits::ByteSliceExt,
 };
 use domain_types::{
-    connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
-        SubmitEvidence, Void, VoidPC,
-    },
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventType,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
-        ResponseId, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData, SupportedPaymentMethodsExt,
-        WebhookDetailsResponse,
+        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        SetupMandateRequestData, SupportedPaymentMethodsExt, WebhookDetailsResponse,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -114,6 +99,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: PproErrorResponse = res
             .response
@@ -149,18 +135,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Ppro<T>
 {
 }
@@ -181,127 +155,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Ppro<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Ppro<T>
 {
 }
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPostAuthenticateV2<T> for Ppro<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerAuthenticationToken,
-        PaymentFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Ppro<T>
-{
-}
-
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Ppro,
@@ -346,81 +206,15 @@ macros::macro_connector_implementation!(
 );
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Ppro<T>
 {
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"specversion":"1.0","type":"PAYMENT_CHARGE_SUCCESS","source":"probe_source","id":"probe_event_001","time":"2024-01-01T00:00:00Z","data":{"charge":{"id":"probe_txn_001","status":"SUCCEEDED","amount":1000,"currency":"EUR"}}}"#
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let event: PproWebhookEvent = request
             .body
@@ -435,6 +229,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
         let event: PproWebhookEvent = request
             .body
@@ -442,15 +237,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
         let charge = match event.data {
-            PproWebhookData::Charge { charge } => charge,
-            PproWebhookData::Agreement { .. } => {
+            PproWebhookData::Charge(charge) => charge,
+            PproWebhookData::Agreement(_) => {
                 return Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
                     operation: "process_payment_webhook",
                 }));
             }
         };
 
-        let status = common_enums::AttemptStatus::from(charge.status);
+        let status = common_enums::AttemptStatus::from(charge.payment_charge_status);
 
         let (error_code, error_message, error_reason) = match charge.failure.as_ref() {
             Some(failure) => (
@@ -466,9 +261,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         };
 
         Ok(WebhookDetailsResponse {
-            resource_id: Some(ResponseId::ConnectorTransactionId(charge.id.clone())),
+            resource_id: Some(ResponseId::ConnectorTransactionId(
+                charge.payment_charge_id.clone(),
+            )),
             status,
-            connector_response_reference_id: Some(charge.id),
+            connector_response_reference_id: charge.merchant_payment_charge_reference,
             error_code,
             error_message,
             error_reason,
@@ -476,11 +273,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             status_code: 200,
             mandate_reference: None,
             response_headers: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Complete,
             amount_captured: None,
             minor_amount_captured: None,
             network_txn_id: None,
             payment_method_update: None,
+            sender_payment_instrument_id: None,
         })
     }
 
@@ -499,15 +296,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
         let charge = match event.data {
-            PproWebhookData::Charge { charge } => charge,
-            PproWebhookData::Agreement { .. } => {
+            PproWebhookData::Charge(charge) => charge,
+            PproWebhookData::Agreement(_) => {
                 return Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
                     operation: "process_refund_webhook",
                 }));
             }
         };
 
-        let status = common_enums::RefundStatus::from(charge.status);
+        let status = common_enums::RefundStatus::from(charge.payment_charge_status);
 
         let (error_code, error_message) = match charge.failure.as_ref() {
             Some(failure) => (
@@ -519,9 +316,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
-                connector_refund_id: Some(charge.id.clone()),
+                connector_refund_id: charge.refund_id.clone(),
+                merchant_transaction_id: charge.merchant_payment_charge_reference.clone(),
                 status,
-                connector_response_reference_id: Some(charge.id),
+                connector_response_reference_id: charge.merchant_refund_reference.clone(),
                 error_code,
                 error_message,
                 raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
@@ -555,21 +353,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))
             .attach_printable("Connector webhook secret not configured")?;
 
-        let signature = request
+        let signature_header = request
             .headers
             .get("Webhook-Signature")
             .ok_or_else(|| error_stack::report!(WebhookError::WebhookSignatureNotFound))?;
 
-        let algorithm = crypto::HmacSha256;
-        let expected_signature =
-            hex::decode(signature).change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        let expected_signature = hex::decode(signature_header)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
-        algorithm
-            .verify_signature(
-                &connector_webhook_secrets.secret,
-                &expected_signature,
-                &request.body,
-            )
+        let mut message = request.body.to_vec();
+        message.push(b'.');
+        message.extend_from_slice(&connector_webhook_secrets.secret);
+
+        crypto::Sha256
+            .verify_signature(&[], &expected_signature, &message)
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
@@ -584,8 +381,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookResourceObjectNotFound)?;
 
         match event.data {
-            PproWebhookData::Charge { charge } => Ok(Box::new(charge)),
-            PproWebhookData::Agreement { agreement } => Ok(Box::new(agreement)),
+            PproWebhookData::Charge(charge) => Ok(Box::new(charge)),
+            PproWebhookData::Agreement(agreement) => Ok(Box::new(agreement)),
         }
     }
 }
@@ -593,6 +390,35 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Ppro<T>
 {
+    fn verify_redirect_response_source(
+        &self,
+        _request: &RequestDetails,
+        _secrets: Option<interfaces::verification::ConnectorSourceVerificationSecrets>,
+    ) -> CustomResult<bool, IntegrationError> {
+        Ok(false)
+    }
+
+    fn process_redirect_response(
+        &self,
+        request: &RequestDetails,
+    ) -> CustomResult<RedirectDetailsResponse, IntegrationError> {
+        let charge_id = request.query_params.as_deref().and_then(|qs| {
+            url::form_urlencoded::parse(qs.as_bytes())
+                .find(|(k, _)| k == "payment-charge-id")
+                .map(|(_, v)| v.into_owned())
+        });
+
+        Ok(RedirectDetailsResponse {
+            resource_id: charge_id.map(ResponseId::ConnectorTransactionId),
+            status: None,
+            connector_response_reference_id: None,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            response_amount: None,
+            raw_connector_response: None,
+        })
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -607,11 +433,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Ppro<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ClientAuthentication for Ppro<T>
 {
 }
 
@@ -697,6 +518,17 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
         },
     );
 
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::Upi,
+        common_enums::PaymentMethodType::UpiQr,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
     let bank_redirect_methods = vec![
         (
             common_enums::PaymentMethodType::Ideal,
@@ -728,6 +560,17 @@ static PPRO_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyL
             },
         );
     }
+
+    ppro_supported_payment_methods.add(
+        common_enums::PaymentMethod::PayLater,
+        common_enums::PaymentMethodType::AfterpayClearpay,
+        PaymentMethodDetails {
+            mandates: FeatureStatus::NotSupported,
+            refunds: FeatureStatus::Supported,
+            supported_capture_methods: ppro_bridge_supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
     ppro_supported_payment_methods
 });
@@ -1025,8 +868,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            let refund_id = req.request.connector_refund_id.clone();
-            Ok(format!("{}/v1/payment-charges/{}", self.base_url(&req.resource_common_data.connectors), refund_id))
+            let charge_id = req.request.connector_transaction_id.clone();
+            Ok(format!("{}/v1/payment-charges/{}", self.base_url(&req.resource_common_data.connectors), charge_id))
         }
     }
 );
@@ -1145,11 +988,37 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + Serialize + 'static> Inco
             .change_context(WebhookError::WebhookBodyDecodingFailed)?;
 
         match event.data {
-            PproWebhookData::Charge { charge } => Ok(Box::new(charge)),
-            PproWebhookData::Agreement { agreement } => Ok(Box::new(agreement)),
+            PproWebhookData::Charge(charge) => Ok(Box::new(charge)),
+            PproWebhookData::Agreement(agreement) => Ok(Box::new(agreement)),
         }
     }
 }
 
 #[cfg(test)]
 mod test;
+
+macros::macro_connector_flow_status_impls!(
+    connector: Ppro,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        CreateOrder,
+        ServerSessionAuthenticationToken,
+        ClientAuthenticationToken,
+        ServerAuthenticationToken,
+        PaymentMethodToken,
+        MandateRevoke,
+        Accept,
+        SubmitEvidence,
+        DefendDispute,
+        PreAuthenticate,
+        Authenticate,
+        PostAuthenticate,
+    ],
+    not_supported: [
+        VoidPostRefund,
+        VoidPC,
+        CreateConnectorCustomer,
+        IncrementalAuthorization,
+    ],
+);

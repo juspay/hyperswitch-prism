@@ -25,6 +25,7 @@ thiserror = { workspace = true }
 bytes = { workspace = true }
 time = "0.3.41"
 tracing-actix-web = "0.7.18"
+tracing = { workspace = true }
 async-trait = "0.1.88"
 actix-web = "4.11.0"
 

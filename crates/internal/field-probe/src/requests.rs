@@ -26,33 +26,31 @@
 // WHEN IN DOUBT: Add to patch-config.toml instead of here!
 // ─────────────────────────────────────────────────────────────────────────────
 
-use cards::CardNumber;
 use grpc_api_types::payments::{
     self as proto, mandate_reference::MandateIdType,
     merchant_authentication_service_create_client_authentication_token_request::DomainContext,
     payment_method::PaymentMethod as PmVariant, AcceptanceType, Address, AuthenticationType,
-    CaptureMethod, CardDetails, ConnectorMandateReferenceId, CustomerAcceptance,
-    CustomerServiceCreateRequest, DisputeServiceAcceptRequest, DisputeServiceDefendRequest,
-    DisputeServiceSubmitEvidenceRequest, EventServiceHandleRequest, EvidenceDocument, EvidenceType,
-    HttpMethod, MandateReference,
+    CaptureMethod, ConnectorMandateReferenceId, CustomerAcceptance, CustomerServiceCreateRequest,
+    DisputeServiceAcceptRequest, DisputeServiceDefendRequest, DisputeServiceSubmitEvidenceRequest,
+    EventServiceHandleRequest, EvidenceDocument, EvidenceType, HttpMethod, MandateReference,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, PaymentAddress,
     PaymentClientAuthenticationContext, PaymentMethod,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateRequest,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceTokenizeRequest,
     PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
     PaymentServiceGetRequest, PaymentServiceIncrementalAuthorizationRequest,
     PaymentServiceProxyAuthorizeRequest, PaymentServiceProxySetupRecurringRequest,
     PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
-    PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVoidRequest,
+    PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVoidRequest, ProxyCardDetails,
     RecurringPaymentServiceChargeRequest, RecurringPaymentServiceRevokeRequest,
     RefundServiceGetRequest, RequestDetails,
 };
 use hyperswitch_masking::Secret;
-use std::str::FromStr;
 
 use crate::sample_data::{card_payment_method, usd_money};
 
@@ -200,6 +198,7 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
                     connector_mandate_id: Some("probe-mandate-123".to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 },
             )),
         }),
@@ -207,14 +206,25 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
     }
 }
 
-pub(crate) fn base_create_customer_request() -> CustomerServiceCreateRequest {
-    // create_customer is explicitly about registering a customer — pre-populate
+pub(crate) fn base_customer_create_request() -> CustomerServiceCreateRequest {
+    // customer_create is explicitly about registering a customer — pre-populate
     // all standard customer fields so connectors get a complete customer record.
     CustomerServiceCreateRequest {
         merchant_customer_id: Some("cust_probe_123".to_string()),
         customer_name: Some("John Doe".to_string()),
         email: Some(Secret::new("test@example.com".to_string())),
-        phone_number: Some("4155552671".to_string()),
+        phone_number: Some(Secret::new("4155552671".to_string())),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_eligibility_request() -> PaymentMethodServiceEligibilityRequest {
+    PaymentMethodServiceEligibilityRequest {
+        amount: Some(usd_money(1000)),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            shipping_address: None,
+        }),
         ..Default::default()
     }
 }
@@ -343,13 +353,17 @@ pub(crate) fn base_defend_dispute_request() -> DisputeServiceDefendRequest {
 
 // ── Non-PCI (Tokenized / Proxy) request builders ──────────────────────────────
 
-fn base_card_proxy() -> CardDetails {
-    CardDetails {
-        card_number: Some(CardNumber::from_str("4111111111111111").unwrap()),
+fn base_card_proxy() -> ProxyCardDetails {
+    ProxyCardDetails {
+        // card_number holds a vault token in production (e.g. "token_123456").
+        // We use a real-looking number here only for field-probe/testing purposes.
+        // card_network MUST be set explicitly since BIN detection is not possible on vault tokens.
+        card_number: Some(Secret::new("4111111111111111".to_string())),
         card_exp_month: Some(Secret::new("03".to_string())),
         card_exp_year: Some(Secret::new("2030".to_string())),
         card_cvc: Some(Secret::new("123".to_string())),
         card_holder_name: Some(Secret::new("John Doe".to_string())),
+        card_network: Some(grpc_api_types::payments::CardNetwork::Visa as i32),
         ..Default::default()
     }
 }
@@ -389,9 +403,11 @@ pub(crate) fn base_tokenized_setup_recurring_request() -> PaymentServiceTokenSet
         setup_mandate_details: Some(proto::SetupMandateDetails {
             mandate_type: Some(proto::MandateType {
                 mandate_type: Some(proto::mandate_type::MandateType::MultiUse(
+                    #[allow(deprecated)]
                     proto::MandateAmountData {
                         amount: 0,
                         currency: proto::Currency::Usd as i32,
+                        amount_money: Some(usd_money(0)),
                         ..Default::default()
                     },
                 )),
@@ -479,6 +495,18 @@ pub(crate) fn base_verify_redirect_request() -> PaymentServiceVerifyRedirectResp
             query_params: None,
         }),
         ..Default::default()
+    }
+}
+
+pub(crate) fn base_parse_event_request() -> grpc_api_types::payments::EventServiceParseRequest {
+    grpc_api_types::payments::EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post as i32,
+            uri: Some("https://example.com/webhook".to_string()),
+            headers: Default::default(),
+            body: b"{}".to_vec(),
+            query_params: None,
+        }),
     }
 }
 

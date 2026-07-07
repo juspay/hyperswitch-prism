@@ -180,7 +180,6 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
             id_type: Some(IdType::Id(format!("braintree_sync_{}", get_timestamp()))),
         }),
         capture_method: None,
-        handle_response: None,
         amount: TEST_AMOUNT,
         currency: i32::from(Currency::Usd),
         state: None,
@@ -191,6 +190,8 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         sync_type: None,
         connector_order_reference_id: None,
         test_mode: None,
+        payment_method_type: None,
+        mandate_reference: None,
     }
 }
 

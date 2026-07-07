@@ -7,13 +7,34 @@
 
 package examples.gigadat
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.PaymentServiceGetRequest
-import payments.PaymentServiceRefundRequest
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.GigadatConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("get", "refund")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setGigadat(GigadatConfig.newBuilder()
+                .setCampaignId(SecretString.newBuilder().setValue("YOUR_CAMPAIGN_ID").build())
+                .setAccessToken(SecretString.newBuilder().setValue("YOUR_ACCESS_TOKEN").build())
+                .setSecurityToken(SecretString.newBuilder().setValue("YOUR_SECURITY_TOKEN").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setSite("YOUR_SITE")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
@@ -40,23 +61,17 @@ private fun buildRefundRequest(connectorTransactionIdStr: String): PaymentServic
     }.build()
 }
 
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
-
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")
 }
 
 // Flow: PaymentService.Refund
-fun refund(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun refund(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildRefundRequest("probe_connector_txn_001")
     val response = client.refund(request)
     if (response.status.name == "FAILED")

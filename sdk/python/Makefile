@@ -16,7 +16,7 @@ include $(SDK_ROOT)/../common.mk
 GENERATED_OUT    := $(SDK_ROOT)/src/payments/generated
 PACKAGE_DIR      := $(ARTIFACTS_DIR)/sdk-python
 PACKAGE_NAME     := $(shell python3 -c "t = open('$(SDK_ROOT)/pyproject.toml').read(); print([l.split('=')[1].strip().strip('\"') for l in t.split('\n') if l.startswith('name =')][0])")
-PACKAGE_VERSION  := $(shell python3 -c "t = open('$(SDK_ROOT)/pyproject.toml').read(); print([l.split('=')[1].strip().strip('\"') for l in t.split('\n') if l.startswith('version =')][0])")
+PACKAGE_VERSION  := $(if $(VERSION),$(VERSION),$(shell python3 -c "t = open('$(SDK_ROOT)/pyproject.toml').read(); print([l.split('=')[1].strip().strip('\"') for l in t.split('\n') if l.startswith('version =')][0])"))
 WHEEL_FILE       := $(PACKAGE_DIR)/$(subst -,_,$(PACKAGE_NAME))-$(PACKAGE_VERSION)-py3-none-any.whl
 
 # Note: BINDGEN is defined in common.mk
@@ -123,7 +123,13 @@ pack-archive:
 	@mkdir -p $(PACKAGE_DIR)
 	@rm -f $(PACKAGE_DIR)/$(subst -,_,$(PACKAGE_NAME))-*.whl
 	@rm -rf $(SDK_ROOT)/build
+ifdef VERSION
+	@sed -i.bak 's/^version = .*/version = "$(VERSION)"/' $(SDK_ROOT)/pyproject.toml
+endif
 	@cd $(SDK_ROOT) && python3 -m pip wheel . --no-deps --wheel-dir $(PACKAGE_DIR)/
+ifdef VERSION
+	@mv $(SDK_ROOT)/pyproject.toml.bak $(SDK_ROOT)/pyproject.toml
+endif
 	@echo "Wheel built: $(WHEEL_FILE)"
 
 # ---------------------------------------------------------------------------
@@ -162,13 +168,16 @@ test-package: generate-all pack-archive
 	@echo "Running composite flow test..."
 	@cp $(SDK_ROOT)/smoke-test/test_smoke_composite.py /tmp/test-hyperswitch-py/
 	@cd /tmp/test-hyperswitch-py && python3 test_smoke_composite.py --creds-file creds.json
+	@echo "Running webhook smoke test..."
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_webhook.py /tmp/test-hyperswitch-py/
+	@cd /tmp/test-hyperswitch-py && python3 test_smoke_webhook.py
 	@rm -rf /tmp/test-hyperswitch-py
 	@echo "Package test passed."
 
 # ---------------------------------------------------------------------------
 # test-package-mock
 # Same as test-package but runs in MOCK mode (no real HTTP calls).
-# Uses generated harnesses instead of examples and verifies req_transformer only.
+# Uses examples/connector/connector.py files and verifies req_transformer only.
 # ---------------------------------------------------------------------------
 test-package-mock: generate-all pack-archive
 	@echo "Testing packed wheel in MOCK mode (no real HTTP)..."
@@ -186,10 +195,10 @@ test-package-mock: generate-all pack-archive
 		$(WHEEL_FILE) \
 		--force-reinstall
 	@cp $(REPO_ROOT)/sdk/generated/flows.json /tmp/test-hyperswitch-py-mock/
-	@# Copy generated harnesses to examples directory structure expected by smoke test
+	@# Copy examples to directory structure expected by smoke test
 	@mkdir -p /tmp/test-hyperswitch-py-mock/examples/$(CONNECTORS)
-	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).py /tmp/test-hyperswitch-py-mock/examples/$(CONNECTORS)/
-	@cd /tmp/test-hyperswitch-py-mock && python3 test_smoke.py --connectors $(CONNECTORS) --creds-file creds.json --mock
+	@cp $(REPO_ROOT)/examples/$(CONNECTORS)/$(CONNECTORS).py /tmp/test-hyperswitch-py-mock/examples/$(CONNECTORS)/
+	@cd /tmp/test-hyperswitch-py-mock && python3 test_smoke.py --connectors $(CONNECTORS) --creds-file creds.json --examples-dir ./examples --mock
 	@rm -rf /tmp/test-hyperswitch-py-mock
 	@echo "Package mock test passed."
 
@@ -221,7 +230,7 @@ test-composite: generate-all pack-archive
 # installs it in an isolated temp directory, then runs test_smoke_grpc.py.
 # ---------------------------------------------------------------------------
 GRPC_PROFILE    ?= release-fast
-GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(GRPC_PROFILE)/grpc-server
+GRPC_SERVER_BIN := $(REPO_ROOT)/target/$(PLATFORM)/$(GRPC_PROFILE)/grpc-server
 
 # Run gRPC test assuming server is already running (used by top-level test-grpc)
 test-grpc-no-server: build-ffi-lib build-grpc-ffi-lib generate-all pack-archive
@@ -247,7 +256,7 @@ test-grpc-no-server: build-ffi-lib build-grpc-ffi-lib generate-all pack-archive
 
 test-grpc: build-ffi-lib build-grpc-ffi-lib generate-all pack-archive
 	@echo "Building grpc-server ($(GRPC_PROFILE))..."
-	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) 2>&1
+	@cd $(REPO_ROOT) && cargo build -p grpc-server --profile $(GRPC_PROFILE) --target $(PLATFORM) 2>&1
 	@echo "Starting gRPC server..."
 	@pkill -KILL -f grpc-server 2>/dev/null || true
 	@sleep 1

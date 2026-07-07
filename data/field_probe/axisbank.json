@@ -1,0 +1,634 @@
+{
+  "connector": "axisbank",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for axisbank"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Affirm": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Afterpay": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Alfamart": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "AliPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "AmazonPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "ApplePay": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Bacs": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "BacsBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "BancontactCard": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "BcaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Becs": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Bizum": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Blik": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Bluecode": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "BniVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Boleto": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "BriVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "CashappQr": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "CimbVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "ClassicReward": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "EaseBuzzRedirect": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Efecty": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Eft": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Eps": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "FamilyMart": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "GCash": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Giropay": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Ideal": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Indomaret": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "IndonesianBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "InstantBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "InstantBankTransferFinland": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "InstantBankTransferPoland": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Interac": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "KakaoPay": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Klarna": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Lawson": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "LocalBankRedirect": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "LocalBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "MbWay": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Mifinity": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "MiniStop": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "OnlineBankingFinland": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "OnlineBankingFpx": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "OnlineBankingPoland": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "OnlineBankingThailand": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "OpenBanking": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Oxxo": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "PagoEfectivo": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "PayEasy": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "PaypalRedirect": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "PaypalSdk": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "PhonePeRedirect": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Pix": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Przelewy24": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Pse": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "RedCompra": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "RedPagos": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "RevolutPay": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "SamsungPay": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Satispay": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Seicomart": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Sepa": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "SepaBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "SevenEleven": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Sofort": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Swish": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "TouchNGo": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Trustly": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Twint": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Vipps": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "WeChatPayQr": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      },
+      "Wero": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for axisbank"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for axisbank"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for axisbank"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for axisbank"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for axisbank"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for axisbank"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for axisbank"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for axisbank"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for axisbank"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by axisbank connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for axisbank"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for axisbank"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for axisbank"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for axisbank"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for axisbank"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for axisbank"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors — Missing required field: metadata.merchant_id. merchant_id is required for all Juspay UPI Stack bank connectors"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for axisbank"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for axisbank"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for axisbank"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for axisbank"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for axisbank"
+      }
+    }
+  }
+}

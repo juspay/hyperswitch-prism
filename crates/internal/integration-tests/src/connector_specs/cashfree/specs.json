@@ -1,7 +1,13 @@
 {
   "connector": "cashfree",
   "supported_suites": [
-    "authorize",
-    "create_order"
-  ]
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/CreateOrder",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Void"
+  ],
+  "sync_poll_until_terminal_seconds": 60
 }

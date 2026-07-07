@@ -46,38 +46,75 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"},\"consumerAuthenticationInformation\":{\"returnUrl\":\"https://example.com/3ds-continue\",\"referenceId\":\"probe_redirect_params\"},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}}}"
+          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":\"001\",\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"},\"consumerAuthenticationInformation\":{\"returnUrl\":\"https://example.com/3ds-continue\",\"referenceId\":\"probe_redirect_params\"},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}}}"
         }
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach": {
+              "account_number": "000123456789",
+              "routing_number": "110000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://apitest.cybersource.com/pts/v2/payments/",
+          "method": "Post",
+          "headers": {
+            "accept": "application/hal+json;charset=utf-8",
+            "content-type": "application/json;charset=utf-8",
+            "date": "2020-01-01T00:00:00+00:00",
+            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "host": "apitest.cybersource.com",
+            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
+            "v-c-merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":null,\"commerceIndicator\":\"internet\",\"capture\":null,\"captureOptions\":null,\"paymentSolution\":null,\"bankTransferOptions\":{\"secCode\":\"WEB\"}},\"paymentInformation\":{\"bank\":{\"account\":{\"number\":\"000123456789\",\"type\":\"C\"},\"routingNumber\":\"110000000\"},\"paymentType\":{\"name\":\"check\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"}}"
+        }
       },
       "AchBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Alfamart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "ApplePay": {
         "status": "supported",
@@ -88,7 +125,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
               },
@@ -135,7 +172,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "decrypted_data": {
                   "application_primary_account_number": "4111111111111111",
@@ -182,52 +219,56 @@
         }
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "BacsBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "BcaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Bizum": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Boleto": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Card": {
         "status": "supported",
@@ -269,60 +310,80 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":null,\"merchantInitiatedTransaction\":null,\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"commerceIndicator\":\"internet\",\"capture\":true,\"captureOptions\":null,\"paymentSolution\":null},\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"}}"
+          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":null,\"merchantInitiatedTransaction\":null,\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"commerceIndicator\":\"internet\",\"capture\":true,\"captureOptions\":null,\"paymentSolution\":null},\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":\"001\",\"typeSelectionIndicator\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_txn_001\"}}"
         }
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "ClassicReward": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Efecty": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "FamilyMart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "GooglePay": {
         "status": "supported",
@@ -333,7 +394,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -383,7 +444,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -428,164 +489,196 @@
         }
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Indomaret": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "InstantBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "InstantBankTransferFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "InstantBankTransferPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Interac": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Lawson": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "LocalBankRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "LocalBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "MiniStop": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "OnlineBankingFpx": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Oxxo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "PagoEfectivo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "PayEasy": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "RedCompra": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "RedPagos": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "SamsungPay": {
         "status": "supported",
@@ -596,7 +689,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "samsung_pay": {
+            "samsung_pay_sdk": {
               "payment_credential": {
                 "method": "3DS",
                 "recurring_payment": false,
@@ -637,56 +730,76 @@
         }
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Seicomart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "SepaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "SevenEleven": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Trustly": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "UpiIntent": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "UpiQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Cybersource"
+        "status": "not_supported",
+        "error": "Selected payment method through Cybersource is not supported by Cybersource"
       }
     },
     "capture": {
@@ -723,34 +836,40 @@
         "error": "Stuck on field: return_url. Cybersource Flex Microform requires a return_url to set target_origins for the session — Missing required field: return_url. Cybersource Flex Microform requires a return_url to set target_origins for the session"
       }
     },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for cybersource"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for cybersource"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for cybersource"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for cybersource"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by cybersource connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by cybersource connector"
       }
     },
     "dispute_get": {
@@ -760,12 +879,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by cybersource connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by cybersource connector"
       }
     },
     "get": {
@@ -801,6 +922,40 @@
       }
     },
     "incremental_authorization": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe"
+        },
+        "sample": {
+          "url": "https://apitest.cybersource.com/pts/v2/payments/probe_connector_txn_001",
+          "method": "Patch",
+          "headers": {
+            "accept": "application/hal+json;charset=utf-8",
+            "content-type": "application/json;charset=utf-8",
+            "date": "2020-01-01T00:00:00+00:00",
+            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "host": "apitest.cybersource.com",
+            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
+            "v-c-merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":{\"type\":null,\"credentialStoredOnFile\":null,\"storedCredentialUsed\":true},\"merchantInitiatedTransaction\":null,\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"commerceIndicator\":\"internet\",\"capture\":null,\"captureOptions\":null,\"paymentSolution\":null},\"orderInformation\":{\"amountDetails\":{\"additionalAmount\":\"11.00\",\"currency\":\"USD\"}}}"
+        }
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -845,7 +1000,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"},\"consumerAuthenticationInformation\":{\"authenticationTransactionId\":\"probe_txn_123\"},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"}}}"
+          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":\"001\",\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"},\"consumerAuthenticationInformation\":{\"authenticationTransactionId\":\"probe_txn_123\"},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"}}}"
         }
       }
     },
@@ -885,7 +1040,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"}}"
+          "body": "{\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"737\",\"type\":\"001\",\"typeSelectionIndicator\":\"1\"}},\"clientReferenceInformation\":{\"code\":\"\"}}"
         }
       }
     },
@@ -903,7 +1058,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "customer": {
             "email": "test@example.com"
@@ -928,7 +1084,7 @@
             "v-c-merchant-id": "probe_merchant",
             "via": "HyperSwitch"
           },
-          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":null,\"merchantInitiatedTransaction\":null,\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"commerceIndicator\":\"internet\",\"capture\":true,\"captureOptions\":null,\"paymentSolution\":null},\"paymentInformation\":{\"card\":{\"number\":\"4111111111111111\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"securityCode\":\"123\",\"type\":null,\"typeSelectionIndicator\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_proxy_txn_001\"}}"
+          "body": "{\"processingInformation\":{\"actionList\":null,\"actionTokenTypes\":null,\"authorizationOptions\":{\"initiator\":null,\"merchantInitiatedTransaction\":null,\"ignoreAvsResult\":null,\"ignoreCvResult\":null},\"commerceIndicator\":\"internet\",\"capture\":true,\"captureOptions\":null,\"paymentSolution\":null},\"paymentInformation\":{\"card\":{\"number\":\"{{$card_number}}\",\"expirationMonth\":\"{{$card_exp_month}}\",\"expirationYear\":\"{{$card_exp_year}}\",\"securityCode\":\"{{$card_cvc}}\",\"type\":\"001\",\"typeSelectionIndicator\":\"1\"}},\"orderInformation\":{\"amountDetails\":{\"totalAmount\":\"10.00\",\"currency\":\"USD\"},\"billTo\":{\"firstName\":null,\"lastName\":null,\"address1\":null,\"locality\":null,\"country\":null,\"email\":\"test@example.com\"}},\"clientReferenceInformation\":{\"code\":\"probe_proxy_txn_001\"}}"
         }
       }
     },
@@ -1060,7 +1216,26 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://apitest.cybersource.com/pts/v2/captures/probe_connector_txn_001/voids",
+          "method": "Post",
+          "headers": {
+            "accept": "application/hal+json;charset=utf-8",
+            "content-type": "application/json;charset=utf-8",
+            "date": "2020-01-01T00:00:00+00:00",
+            "digest": "SHA-256=cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "host": "apitest.cybersource.com",
+            "signature": "keyid=\"probe_key\", algorithm=\"HmacSHA256\", headers=\"host date (request-target) digest v-c-merchant-id\", signature=\"cHJvYmVfa2V5OnByb2JlX3NlY3JldA==\"",
+            "v-c-merchant-id": "probe_merchant",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"clientReferenceInformation\":{\"code\":\"probe_reverse_001\"}}"
+        }
       }
     },
     "setup_recurring": {
@@ -1113,7 +1288,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for cybersource"
       }
     },
     "verify_redirect": {

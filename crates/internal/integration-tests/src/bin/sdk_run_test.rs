@@ -472,18 +472,23 @@ mod tests {
 
     #[test]
     fn parses_suite_and_connector() {
-        let args = vec!["--suite", "authorize", "--connector", "stripe"]
-            .into_iter()
-            .map(str::to_string);
+        let args = vec![
+            "--suite",
+            "PaymentService/Authorize",
+            "--connector",
+            "stripe",
+        ]
+        .into_iter()
+        .map(str::to_string);
 
         let parsed = parse_args(args).expect("args should parse");
-        assert_eq!(parsed.suite.as_deref(), Some("authorize"));
+        assert_eq!(parsed.suite.as_deref(), Some("PaymentService/Authorize"));
         assert_eq!(parsed.connector.as_deref(), Some("stripe"));
     }
 
     #[test]
     fn parses_report_flag() {
-        let args = vec!["--suite", "authorize", "--report"]
+        let args = vec!["--suite", "PaymentService/Authorize", "--report"]
             .into_iter()
             .map(str::to_string);
 

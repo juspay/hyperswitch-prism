@@ -67,7 +67,6 @@ pub trait IncomingWebhook {
         &self,
         _request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorAuthType>,
     ) -> Result<bool, error_stack::Report<IntegrationError>> {
         Ok(false)
     }
@@ -164,7 +163,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorAuthType>,
     ) -> Result<bool, error_stack::Report<errors::IntegrationError>> {
         let connector_webhook_secret = connector_webhook_secret
             .ok_or(errors::IntegrationError::WebhookSourceVerificationFailed)
@@ -235,7 +233,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorAuthType>,
     ) -> Result<bool, error_stack::Report<errors::IntegrationError>> {
         let algorithm = crypto::Md5;
 
@@ -310,7 +307,6 @@ fn verify_webhook_source(
     &self,
     request: RequestDetails,
     connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-    _connector_account_details: Option<ConnectorAuthType>,
 ) -> Result<bool, error_stack::Report<errors::IntegrationError>> {
     let connector_webhook_secrets = match connector_webhook_secret {
         Some(secrets) => secrets,
@@ -624,7 +620,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         request: RequestDetails,
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorAuthType>,
     ) -> Result<bool, error_stack::Report<errors::IntegrationError>> {
         let connector_webhook_secret = connector_webhook_secret
             .ok_or(errors::IntegrationError::WebhookSourceVerificationFailed)

@@ -338,11 +338,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .unwrap_or_default() // Empty string fallback
             }
             _ => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "Payment method not supported".to_string(),
+                    Default::default(),
                 ))
-                .change_context(IntegrationError::not_implemented(
+                .change_context(IntegrationError::NotImplemented(
                     "Payment method".to_string(),
+                    Default::default(),
                 ))
             }
         };
@@ -506,9 +508,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<HipayAuthorizeRespons
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.order.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -590,11 +594,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
+                Err(IntegrationError::NotImplemented(
                     "Payment method not supported for tokenization".to_string(),
+                    Default::default(),
                 ))
-                .change_context(IntegrationError::not_implemented(
+                .change_context(IntegrationError::NotImplemented(
                     "Payment method".to_string(),
+                    Default::default(),
                 ))
             }
         }
@@ -696,9 +702,11 @@ impl TryFrom<ResponseRouterData<HipayPSyncResponse, Self>>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: attempt_status,
@@ -814,9 +822,11 @@ impl TryFrom<ResponseRouterData<HipayCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -995,9 +1005,11 @@ impl TryFrom<ResponseRouterData<HipayVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 

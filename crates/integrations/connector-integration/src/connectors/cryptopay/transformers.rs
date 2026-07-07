@@ -111,9 +111,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    get_unimplemented_payment_method_error_message("CryptoPay"),
-                ))
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: get_unimplemented_payment_method_error_message("CryptoPay"),
+                    connector: "Cryptopay",
+                    context: Default::default(),
+                }))
             }
         }?;
         Ok(cryptopay_request)
@@ -220,12 +222,14 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: cryptopay_response
                     .data
                     .custom_id
                     .or(Some(cryptopay_response.data.id)),
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             })
         };
         let amount_captured_in_minor_units = match cryptopay_response.data.price_amount {
@@ -363,12 +367,14 @@ impl<F> TryFrom<ResponseRouterData<CryptopayPaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: cryptopay_response
                     .data
                     .custom_id
                     .or(Some(cryptopay_response.data.id)),
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             })
         };
         let amount_captured_in_minor_units = match cryptopay_response.data.price_amount {
@@ -438,11 +444,11 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                 mandate_reference: None,
                 raw_connector_response: None,
                 response_headers: None,
-                transformation_status: common_enums::WebhookTransformationStatus::Complete,
                 minor_amount_captured: None,
                 amount_captured: None,
                 network_txn_id: None,
                 payment_method_update: None,
+                sender_payment_instrument_id: None,
             })
         } else {
             let amount_captured_in_minor_units =
@@ -479,7 +485,7 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                         response_headers: None,
                         network_txn_id: None,
                         payment_method_update: None,
-                        transformation_status: common_enums::WebhookTransformationStatus::Complete,
+                        sender_payment_instrument_id: None,
                     })
                 }
                 _ => Ok(Self {
@@ -497,7 +503,7 @@ impl TryFrom<CryptopayWebhookDetails> for WebhookDetailsResponse {
                     error_reason: None,
                     network_txn_id: None,
                     payment_method_update: None,
-                    transformation_status: common_enums::WebhookTransformationStatus::Complete,
+                    sender_payment_instrument_id: None,
                 }),
             }
         }

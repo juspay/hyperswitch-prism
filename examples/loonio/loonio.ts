@@ -6,20 +6,24 @@
 // Run a scenario:  npx tsx loonio.ts checkout_autocapture
 
 import { PaymentClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, Currency } = types;
+const { Environment, Currency } = types;
+export const SUPPORTED_FLOWS = ["get"];
 
-const _defaultConfig: ConnectorConfig = {
+const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
+    connectorConfig: {
+        loonio: {
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            merchantToken: { value: 'YOUR_MERCHANT_TOKEN' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
+    },
 };
-// Standalone credentials (field names depend on connector auth type):
-// _defaultConfig.connectorConfig = {
-//     loonio: { apiKey: { value: 'YOUR_API_KEY' } }
-// };
 
 
-function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequest {
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
     return {
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
@@ -33,12 +37,12 @@ function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequ
 
 // ANCHOR: scenario_functions
 // Flow: PaymentService.Get
-async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
+async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
     const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
-    return { status: getResponse.status };
+    return getResponse;
 }
 
 

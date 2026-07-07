@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for powertranz"
       }
     },
     "authorize": {
@@ -64,6 +65,10 @@
         "error": "Payment method is not supported by powertranz"
       },
       "Becs": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "BillDeskRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
@@ -131,6 +136,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
@@ -141,7 +150,11 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -149,9 +162,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
@@ -171,13 +188,21 @@
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
       "Giropay": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -219,11 +244,19 @@
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
       "Klarna": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
       "Lawson": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "LazyPayRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
@@ -251,7 +284,19 @@
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
@@ -285,7 +330,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -305,7 +350,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -315,11 +364,19 @@
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
@@ -375,11 +432,27 @@
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
       "Sofort": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
       "Trustly": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Twint": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
@@ -392,6 +465,10 @@
         "error": "Payment method is not supported by powertranz"
       },
       "UpiQr": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by powertranz"
+      },
+      "Vipps": {
         "status": "not_supported",
         "error": "Payment method is not supported by powertranz"
       },
@@ -430,37 +507,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by powertranz connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by powertranz connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by powertranz connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by powertranz connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by powertranz connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for powertranz"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for powertranz"
       }
     },
     "dispute_get": {
@@ -470,12 +554,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for powertranz"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by powertranz connector"
       }
     },
     "get": {
@@ -509,17 +595,30 @@
     },
     "incremental_authorization": {
       "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by powertranz connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
         "status": "not_implemented"
       }
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for powertranz"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for powertranz"
       }
     },
     "proxy_authorize": {
@@ -536,7 +635,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -554,23 +654,60 @@
             "powertranz-powertranzpassword": "probe_pass",
             "via": "HyperSwitch"
           },
-          "body": "{\"TransactionIdentifier\":\"00000000-0000-0000-0000-000000000000\",\"TotalAmount\":10.0,\"CurrencyCode\":\"840\",\"ThreeDSecure\":false,\"Source\":{\"CardholderName\":\"John Doe\",\"CardPan\":\"4111111111111111\",\"CardCvv\":\"123\",\"CardExpiration\":\"3003\"},\"OrderIdentifier\":\"probe_proxy_txn_001\",\"ExtendedData\":null}"
+          "body": "{\"TransactionIdentifier\":\"00000000-0000-0000-0000-000000000000\",\"TotalAmount\":10.0,\"CurrencyCode\":\"840\",\"ThreeDSecure\":false,\"Source\":{\"CardholderName\":\"John Doe\",\"CardPan\":\"{{$card_number}}\",\"CardCvv\":\"{{$card_cvc}}\",\"CardExpiration\":\"{{$card_exp_year}}{{$card_exp_month}}\"},\"OrderIdentifier\":\"probe_proxy_txn_001\",\"ExtendedData\":null}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://staging.ptranz.com/api/auth",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "powertranz-powertranzid": "probe_id",
+            "powertranz-powertranzpassword": "probe_pass",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"TransactionIdentifier\":\"00000000-0000-0000-0000-000000000000\",\"TotalAmount\":0.0,\"CurrencyCode\":\"840\",\"ThreeDSecure\":false,\"Source\":{\"CardholderName\":\"John Doe\",\"CardPan\":\"{{$card_number}}\",\"CardCvv\":\"{{$card_cvc}}\",\"CardExpiration\":\"{{$card_exp_year}}{{$card_exp_month}}\"},\"OrderIdentifier\":\"probe_proxy_mandate_001\",\"ExtendedData\":null}"
+        }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Payment method not supported for RepeatPayment is not supported by powertranz"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for powertranz"
       }
     },
     "refund": {
@@ -622,12 +759,52 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for powertranz"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://staging.ptranz.com/api/auth",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "powertranz-powertranzid": "probe_id",
+            "powertranz-powertranzpassword": "probe_pass",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"TransactionIdentifier\":\"00000000-0000-0000-0000-000000000000\",\"TotalAmount\":0.0,\"CurrencyCode\":\"840\",\"ThreeDSecure\":false,\"Source\":{\"CardholderName\":\"John Doe\",\"CardPan\":\"4111111111111111\",\"CardCvv\":\"737\",\"CardExpiration\":\"3003\"},\"OrderIdentifier\":\"probe_mandate_001\",\"ExtendedData\":null}"
+        }
       }
     },
     "token_authorize": {
@@ -638,12 +815,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "Payment method not supported for SetupMandate is not supported by powertranz"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for powertranz"
       }
     },
     "verify_redirect": {

@@ -6,20 +6,26 @@
 // Run a scenario:  npx tsx gigadat.ts checkout_autocapture
 
 import { PaymentClient, types } from 'hyperswitch-prism';
-const { ConnectorConfig, ConnectorSpecificConfig, SdkOptions, Environment, Currency } = types;
+const { Environment, Currency } = types;
+export const SUPPORTED_FLOWS = ["get", "refund"];
 
-const _defaultConfig: ConnectorConfig = {
+const _defaultConfig: types.IConnectorConfig = {
     options: {
         environment: Environment.SANDBOX,
     },
+    connectorConfig: {
+        gigadat: {
+            campaignId: { value: 'YOUR_CAMPAIGN_ID' },
+            accessToken: { value: 'YOUR_ACCESS_TOKEN' },
+            securityToken: { value: 'YOUR_SECURITY_TOKEN' },
+            baseUrl: 'YOUR_BASE_URL',
+            site: 'YOUR_SITE',
+        }
+    },
 };
-// Standalone credentials (field names depend on connector auth type):
-// _defaultConfig.connectorConfig = {
-//     gigadat: { apiKey: { value: 'YOUR_API_KEY' } }
-// };
 
 
-function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequest {
+function _buildGetRequest(connectorTransactionId: string): types.IPaymentServiceGetRequest {
     return {
         "merchantTransactionId": "probe_merchant_txn_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
@@ -30,7 +36,7 @@ function _buildGetRequest(connectorTransactionId: string): PaymentServiceGetRequ
     };
 }
 
-function _buildRefundRequest(connectorTransactionId: string): PaymentServiceRefundRequest {
+function _buildRefundRequest(connectorTransactionId: string): types.IPaymentServiceRefundRequest {
     return {
         "merchantRefundId": "probe_refund_001",  // Identification.
         "connectorTransactionId": connectorTransactionId,
@@ -46,21 +52,21 @@ function _buildRefundRequest(connectorTransactionId: string): PaymentServiceRefu
 
 // ANCHOR: scenario_functions
 // Flow: PaymentService.Get
-async function get(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<PaymentServiceGetResponse> {
+async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
     const getResponse = await paymentClient.get(_buildGetRequest('probe_connector_txn_001'));
 
-    return { status: getResponse.status };
+    return getResponse;
 }
 
 // Flow: PaymentService.Refund
-async function refund(merchantTransactionId: string, config: ConnectorConfig = _defaultConfig): Promise<RefundResponse> {
+async function refund(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
 
     const refundResponse = await paymentClient.refund(_buildRefundRequest('probe_connector_txn_001'));
 
-    return { status: refundResponse.status };
+    return refundResponse;
 }
 
 

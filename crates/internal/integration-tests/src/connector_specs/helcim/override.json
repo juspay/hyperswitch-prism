@@ -1,5 +1,5 @@
 {
-  "authorize": {
+  "PaymentService/Authorize": {
     "no3ds_auto_capture_ach_bank_transfer": {
       "grpc_req": {
         "amount": { "minor_amount": 6101, "currency": "USD" },
@@ -134,7 +134,7 @@
       "grpc_req": {
         "amount": { "minor_amount": 6111, "currency": "USD" },
         "payment_method": {
-          "google_pay": null,
+          "google_pay_sdk": null,
           "card": {
             "card_number": { "value": "4111111111111111" },
             "card_exp_month": { "value": "08" },

@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for stripe"
       }
     },
     "authorize": {
@@ -209,7 +210,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
               },
@@ -249,7 +250,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "apple_pay": {
+            "apple_pay_sdk": {
               "payment_data": {
                 "decrypted_data": {
                   "application_primary_account_number": "4111111111111111",
@@ -429,6 +430,10 @@
           "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=au_becs_debit&payment_method_data%5Bau_becs_debit%5D%5Baccount_number%5D=000123456&payment_method_data%5Bau_becs_debit%5D%5Bbsb_number%5D=000000&capture_method=automatic&payment_method_types%5B0%5D=au_becs_debit&expand%5B0%5D=latest_charge"
         }
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
@@ -547,6 +552,10 @@
           "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=cashapp&capture_method=automatic&payment_method_types%5B0%5D=cashapp&expand%5B0%5D=latest_charge"
         }
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
@@ -557,7 +566,11 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -565,9 +578,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
@@ -613,6 +630,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
       "Giropay": {
         "status": "supported",
         "proto_request": {
@@ -645,7 +666,11 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "GooglePay": {
         "status": "supported",
@@ -656,7 +681,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -752,6 +777,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
       "Klarna": {
         "status": "supported",
         "proto_request": {
@@ -786,6 +815,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
       "LocalBankRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
@@ -807,6 +840,14 @@
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
@@ -842,6 +883,10 @@
           "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=multibanco&payment_method_types%5B0%5D=multibanco&payment_method_data%5Bbilling_details%5D%5Bemail%5D=test%40example.com&capture_method=automatic&expand%5B0%5D=latest_charge"
         }
       },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
@@ -872,7 +917,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -892,7 +937,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
@@ -902,11 +951,19 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
@@ -1071,11 +1128,27 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
       "Sofort": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
       "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Twint": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
@@ -1088,6 +1161,10 @@
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
+      },
+      "Vipps": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
@@ -1177,7 +1254,25 @@
         }
       }
     },
-    "create_customer": {
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by stripe connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by stripe connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for stripe"
+      }
+    },
+    "customer_create": {
       "default": {
         "status": "supported",
         "proto_request": {
@@ -1199,29 +1294,16 @@
         }
       }
     },
-    "create_order": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_server_authentication_token": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_server_session_authentication_token": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for stripe"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for stripe"
       }
     },
     "dispute_get": {
@@ -1231,12 +1313,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for stripe"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by stripe connector"
       }
     },
     "get": {
@@ -1265,7 +1349,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}"
+        }
       }
     },
     "incremental_authorization": {
@@ -1293,14 +1392,40 @@
         }
       }
     },
-    "post_authenticate": {
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for stripe"
+      }
+    },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for stripe"
       }
     },
     "proxy_authorize": {
@@ -1317,7 +1442,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -1335,7 +1461,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_proxy_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=4111111111111111&payment_method_data%5Bcard%5D%5Bexp_month%5D=03&payment_method_data%5Bcard%5D%5Bexp_year%5D=2030&payment_method_data%5Bcard%5D%5Bcvc%5D=123&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&capture_method=automatic&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_charge"
+          "body": "amount=1000&currency=USD&metadata%5Border_id%5D=probe_proxy_txn_001&return_url=https%3A%2F%2Fexample.com%2Freturn&confirm=true&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=%7B%7B%24card_number%7D%7D&payment_method_data%5Bcard%5D%5Bexp_month%5D=%7B%7B%24card_exp_month%7D%7D&payment_method_data%5Bcard%5D%5Bexp_year%5D=%7B%7B%24card_exp_year%7D%7D&payment_method_data%5Bcard%5D%5Bcvc%5D=%7B%7B%24card_cvc%7D%7D&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&payment_method_options%5Bcard%5D%5Bnetwork%5D=visa&capture_method=automatic&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_charge"
         }
       }
     },
@@ -1353,7 +1479,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -1374,7 +1501,7 @@
             "stripe-version": "2022-11-15",
             "via": "HyperSwitch"
           },
-          "body": "confirm=true&usage=off_session&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=4111111111111111&payment_method_data%5Bcard%5D%5Bexp_month%5D=03&payment_method_data%5Bcard%5D%5Bexp_year%5D=2030&payment_method_data%5Bcard%5D%5Bcvc%5D=123&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&metadata%5Border_id%5D=probe_proxy_mandate_001&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_attempt"
+          "body": "confirm=true&usage=off_session&payment_method_data%5Btype%5D=card&payment_method_data%5Bcard%5D%5Bnumber%5D=%7B%7B%24card_number%7D%7D&payment_method_data%5Bcard%5D%5Bexp_month%5D=%7B%7B%24card_exp_month%7D%7D&payment_method_data%5Bcard%5D%5Bexp_year%5D=%7B%7B%24card_exp_year%7D%7D&payment_method_data%5Bcard%5D%5Bcvc%5D=%7B%7B%24card_cvc%7D%7D&payment_method_options%5Bcard%5D%5Brequest_three_d_secure%5D=automatic&payment_method_options%5Bcard%5D%5Bnetwork%5D=visa&metadata%5Border_id%5D=probe_proxy_mandate_001&payment_method_types%5B0%5D=card&expand%5B0%5D=latest_attempt"
         }
       }
     },
@@ -1418,7 +1545,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by stripe connector"
       }
     },
     "refund": {
@@ -1470,7 +1598,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by stripe connector"
       }
     },
     "setup_recurring": {

@@ -34,7 +34,7 @@ impl ConnectorOverride for HelcimConnectorOverride {
 
     #[allow(clippy::as_conversions)] // value is ≤ 999 after modulo, safe to narrow
     fn normalize_tonic_request(&self, suite: &str, _scenario: &str, req: &mut Value) {
-        if suite != "authorize" {
+        if suite != "PaymentService/Authorize" {
             return;
         }
 
@@ -56,7 +56,7 @@ impl ConnectorOverride for HelcimConnectorOverride {
     }
 
     fn transform_response(&self, suite: &str, _scenario: &str, response: &mut Value) {
-        if suite != "authorize" {
+        if suite != "PaymentService/Authorize" {
             return;
         }
 

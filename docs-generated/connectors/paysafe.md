@@ -22,11 +22,14 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        paysafe=payment_pb2.PaysafeConfig(
+            username=payment_methods_pb2.SecretString(value="YOUR_USERNAME"),
+            password=payment_methods_pb2.SecretString(value="YOUR_PASSWORD"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     paysafe=payment_pb2.PaysafeConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +41,18 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Paysafe',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.PAYSAFE,
+    environment: Environment.SANDBOX,
+    auth: {
+        paysafe: {
+            username: { value: 'YOUR_USERNAME' },
+            password: { value: 'YOUR_PASSWORD' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +66,15 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Paysafe")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setPaysafe(PaysafeConfig.newBuilder()
+                .setUsername(SecretString.newBuilder().setValue("YOUR_USERNAME").build())
+                .setPassword(SecretString.newBuilder().setValue("YOUR_PASSWORD").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +87,21 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Paysafe".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Paysafe(PaysafeConfig {
+                username: Some(hyperswitch_masking::Secret::new("YOUR_USERNAME".to_string())),  // Authentication credential
+                password: Some(hyperswitch_masking::Secret::new("YOUR_PASSWORD".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -115,7 +134,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L134) · [TypeScript](../../examples/paysafe/paysafe.ts#L119) · [Kotlin](../../examples/paysafe/paysafe.kt#L80) · [Rust](../../examples/paysafe/paysafe.rs#L123)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L123) · [Kotlin](../../examples/paysafe/paysafe.kt#L88) · [Rust](../../examples/paysafe/paysafe.rs)
 
 #### PaymentService.Get
 
@@ -126,7 +145,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L143) · [TypeScript](../../examples/paysafe/paysafe.ts#L128) · [Kotlin](../../examples/paysafe/paysafe.kt#L90) · [Rust](../../examples/paysafe/paysafe.rs#L130)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L132) · [Kotlin](../../examples/paysafe/paysafe.kt#L98) · [Rust](../../examples/paysafe/paysafe.rs)
 
 #### PaymentService.Refund
 
@@ -137,7 +156,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L152) · [TypeScript](../../examples/paysafe/paysafe.ts#L137) · [Kotlin](../../examples/paysafe/paysafe.kt#L98) · [Rust](../../examples/paysafe/paysafe.rs#L137)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L141) · [Kotlin](../../examples/paysafe/paysafe.kt#L106) · [Rust](../../examples/paysafe/paysafe.rs)
 
 #### PaymentService.TokenAuthorize
 
@@ -148,7 +167,7 @@ Authorize using a connector-issued payment method token.
 | **Request** | `PaymentServiceTokenAuthorizeRequest` |
 | **Response** | `PaymentServiceAuthorizeResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L170) · [TypeScript](../../examples/paysafe/paysafe.ts#L155) · [Kotlin](../../examples/paysafe/paysafe.kt#L120) · [Rust](../../examples/paysafe/paysafe.rs#L151)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L159) · [Kotlin](../../examples/paysafe/paysafe.kt#L128) · [Rust](../../examples/paysafe/paysafe.rs)
 
 #### PaymentMethodService.Tokenize
 
@@ -159,7 +178,7 @@ Tokenize payment method for secure storage. Replaces raw card details with secur
 | **Request** | `PaymentMethodServiceTokenizeRequest` |
 | **Response** | `PaymentMethodServiceTokenizeResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L179) · [TypeScript](../../examples/paysafe/paysafe.ts#L164) · [Kotlin](../../examples/paysafe/paysafe.kt#L141) · [Rust](../../examples/paysafe/paysafe.rs#L158)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L168) · [Kotlin](../../examples/paysafe/paysafe.kt#L149) · [Rust](../../examples/paysafe/paysafe.rs)
 
 #### PaymentService.Void
 
@@ -170,7 +189,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L188) · [TypeScript](../../examples/paysafe/paysafe.ts) · [Kotlin](../../examples/paysafe/paysafe.kt#L168) · [Rust](../../examples/paysafe/paysafe.rs#L165)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts) · [Kotlin](../../examples/paysafe/paysafe.kt#L176) · [Rust](../../examples/paysafe/paysafe.rs)
 
 ### Refunds
 
@@ -183,4 +202,4 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/paysafe/paysafe.py#L161) · [TypeScript](../../examples/paysafe/paysafe.ts#L146) · [Kotlin](../../examples/paysafe/paysafe.kt#L108) · [Rust](../../examples/paysafe/paysafe.rs#L144)
+**Examples:** [Python](../../examples/paysafe/paysafe.py) · [TypeScript](../../examples/paysafe/paysafe.ts#L150) · [Kotlin](../../examples/paysafe/paysafe.kt#L116) · [Rust](../../examples/paysafe/paysafe.rs)

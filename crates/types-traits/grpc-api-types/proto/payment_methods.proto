@@ -44,34 +44,72 @@ message PaymentMethod {
     // CARD METHODS (1-9) - Direct variants
     CardDetails card = 3;                               // Generic card payment
     CardRedirect card_redirect = 4;                     // Card redirect flow
-    CardDetails card_proxy = 7;                         // Generic card proxy payment
+    ProxyCardDetails card_proxy = 7;                         // Generic card proxy payment
     TokenPaymentMethodType token = 8;                   // Payment tokens
     
-    // DIGITAL WALLETS (10-29) - Direct variants
-    AppleWallet apple_pay = 10;                         // Apple Pay
-    GoogleWallet google_pay = 11;                       // Google Pay
-    ApplePayThirdPartySdkWallet apple_pay_third_party_sdk = 12;  // Apple Pay Third Party SDK
-    GooglePayThirdPartySdkWallet google_pay_third_party_sdk = 13; // Google Pay Third Party SDK
-    PaypalSdkWallet paypal_sdk = 14;                    // PayPal SDK
-    AmazonPayRedirectWallet amazon_pay_redirect = 15;   // Amazon Pay
-    CashappQrWallet cashapp_qr = 16;                    // Cash App
-    PaypalRedirectWallet paypal_redirect = 17;          // PayPal
-    WeChatPayQrWallet we_chat_pay_qr = 18;              // WeChat Pay
-    AliPayRedirectWallet ali_pay_redirect = 19;         // AliPay
-    RevolutPayWallet revolut_pay = 20;                  // Revolut Pay
-    MifinityWallet mifinity = 21;                       // Mifinity
-    Bluecode bluecode = 22;                             // Bluecode
-    PazeWallet paze = 23;                               // Paze
-    SamsungWallet samsung_pay = 24;                     //Samsung
-    MBWay mb_way = 25;                                  // MB WAY 
-    Satispay satispay = 26;                             // Satispay 
-    Wero wero = 27;                                     // Wero
-    LazyPayRedirectWallet lazypay_redirect = 28;
-    PhonePeRedirectWallet phonepe_redirect = 29;
-    BillDeskRedirectWallet billdesk_redirect = 159;
-    CashfreeRedirectWallet cashfree_redirect = 160;
-    PayURedirectWallet payu_redirect = 161;
-    EaseBuzzRedirectWallet easebuzz_redirect = 162;
+    // ============================================================================
+    // DIGITAL WALLETS (10-178)
+    // ============================================================================
+    
+    // --- SDK-BASED WALLETS ---
+    // Native wallet SDK integrations with encrypted token exchange
+    AppleWallet apple_pay_sdk = 10;                          // Apple Pay
+    GoogleWallet google_pay_sdk = 11;                        // Google Pay
+    PaypalSdkWallet paypal_sdk = 12;                     // PayPal SDK
+    PazeWallet paze_sdk = 13;                                // Paze
+    SamsungWallet samsung_pay_sdk = 14;                      // Samsung Pay
+    
+    // --- THIRD PARTY SDK WALLETS ---
+    // Third-party SDK integrations providing tokenized payment data
+    ApplePayThirdPartySdkWallet apple_pay_third_party_sdk = 15;   // Apple Pay Third Party SDK
+    GooglePayThirdPartySdkWallet google_pay_third_party_sdk = 16;  // Google Pay Third Party SDK
+    
+    // --- REDIRECT WALLETS ---
+    // User redirects to wallet provider to authorize payment
+    AmazonPayRedirectWallet amazon_pay_redirect = 17;    // Amazon Pay
+    PaypalRedirectWallet paypal_redirect = 18;           // PayPal
+    AliPayRedirectWallet ali_pay_redirect = 19;          // AliPay
+    RevolutPayRedirectWallet revolut_pay_redirect = 20;  // Revolut Pay
+    MifinityRedirectWallet mifinity_redirect = 21;       // Mifinity
+    BluecodeRedirectWallet bluecode_redirect = 22;       // Bluecode
+    SatispayRedirectWallet satispay_redirect = 23;       // Satispay
+    WeroRedirectWallet wero_redirect = 24;               // Wero
+    LazyPayRedirectWallet lazypay_redirect = 25;         // LazyPay
+    PhonePeRedirectWallet phonepe_redirect = 26;         // PhonePe
+    BillDeskRedirectWallet billdesk_redirect = 27;       // BillDesk
+    CashfreeRedirectWallet cashfree_redirect = 28;       // Cashfree
+    PayURedirectWallet payu_redirect = 29;               // PayU
+    EaseBuzzRedirectWallet easebuzz_redirect = 159;      // EaseBuzz
+    KakaoPayRedirectWallet kakao_pay_redirect = 160;     // KakaoPay
+    MbWayRedirectWallet mb_way_redirect = 161;           // MB WAY Redirect
+    MomoRedirectWallet momo_redirect = 162;              // MoMo
+    TouchNGoRedirectWallet touch_n_go_redirect = 163;    // Touch 'n Go
+    TwintRedirectWallet twint_redirect = 164;            // TWINT
+    VippsRedirectWallet vipps_redirect = 165;            // Vipps
+    WeChatPayRedirectWallet we_chat_pay_redirect = 167;  // WeChat Pay
+    AliPayHKRedirectWallet ali_pay_hk_redirect = 168;    // AliPay HK
+    DanaRedirectWallet dana_redirect = 169;              // Dana
+    GcashRedirectWallet gcash_redirect = 170;            // GCash
+    GoPayRedirectWallet go_pay_redirect = 171;           // GoPay
+    MobilePayRedirectWallet mobile_pay_redirect = 172;   // MobilePay
+    VenmoRedirectWallet venmo_redirect = 173;            // Venmo
+    SkrillRedirectWallet skrill_redirect = 174;          // Skrill
+    PayseraRedirectWallet paysera_redirect = 175;        // Paysera
+
+    // --- DIRECT WALLETS --- (server-to-server; wallet id rides on the payment_method itself)
+    QwikcilverDirectWallet qwikcilver_wallet_direct = 185; // Qwikcilver / Pine Labs stored-value wallet
+
+    // --- DEPRECATED REDIRECT WALLETS ---
+    RevolutPayWallet revolut_pay = 181;                   // Revolut Pay
+    MBWay mb_way = 182;                                   // MB WAY
+    Satispay satispay = 183;                              // Satispay
+    Wero wero = 184;                                      // Wero
+    
+    // --- QR CODE WALLETS ---
+    // User scans QR code with wallet app to complete payment
+    CashappQrWallet cashapp_qr = 178;                     // Cash App
+    WeChatPayQrWallet we_chat_pay_qr = 179;               // WeChat Pay QR
+    SwishQrWallet swish_qr = 180;                         // Swish QR
 
     // UPI METHODS (30-39) - Direct variants
     UpiCollect upi_collect = 30;                        // UPI Collect
@@ -100,7 +138,7 @@ message PaymentMethod {
     OpenBanking open_banking = 58;
     Interac interac = 59;                                     // Interac - Canadian bank redirect payment method
     Bizum bizum = 156;
-    Eft eft = 157;
+    EftBankRedirect eft_bank_redirect = 157;
     
     // MOBILE PAYMENTS (60-69) - Direct variants
     DuitNow duit_now = 60;
@@ -128,7 +166,7 @@ message PaymentMethod {
     CIMBVaBankTransfer cimb_va_bank_transfer = 134;            // CIMB VA Bank transfer in Indonesia
     DanamonVaBankTransfer danamon_va_bank_transfer = 135;      // Danamon VA Bank transfer in Indonesia
     MandiriVaBankTransfer mandiri_va_bank_transfer = 136;      // Mandiri VA Bank transfer in Indonesia
-    LocalBankTransfer local_bank_transfer = 154;               // Generic local bank transfer
+    LocalBankTransfer local_bank_transfer = 154;              // Generic local bank transfer
     IndonesianBankTransfer indonesian_bank_transfer = 155;     // Indonesian bank transfer method
 
     // DIRECT DEBIT (100-109)
@@ -137,11 +175,14 @@ message PaymentMethod {
     Bacs bacs = 102;                                            // Bacs - Bankers' Automated Clearing Services
     Becs becs = 103;                                            // Becs - Bulk Electronic Clearing System - Australian direct debit
     SepaGuaranteedDebit sepa_guaranteed_debit = 104;            // SEPA Guaranteed Direct Debit - bank debit with payment guarantee
+    Eft eft = 105;                                              // Eft - Electronic Funds Transfer
 
     // BUY NOW, PAY LATER (110-119)
     Affirm affirm = 110;                                       // Affirm - US BNPL service
     AfterpayClearpay afterpay_clearpay = 111;                  // Afterpay/Clearpay - BNPL service
     Klarna klarna = 112;                                       // Klarna - Swedish BNPL service
+    Alma alma = 113;                                           // Alma - French BNPL service
+    TamaraRedirect tamara_redirect = 114;                                       // Tamara - Middle Eastern BNPL service
     
     // NETWORK TRANSACTION METHODS (120-129) - For recurring payments with network transaction IDs
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
@@ -207,6 +248,26 @@ message TokenPaymentMethodType {
 message CardDetails {
   // Card Identification
   CardNumberType card_number = 1;
+  SecretString card_exp_month = 2;
+  SecretString card_exp_year = 3;
+  SecretString card_cvc = 4;
+  
+  // Cardholder Information
+  optional SecretString card_holder_name = 5;
+  
+  // Card Metadata
+  optional string card_issuer = 6;
+  optional CardNetwork card_network = 7;
+  optional string card_type = 8;
+  optional string card_issuing_country_alpha2 = 9;
+  optional string bank_code = 10;
+  optional string nick_name = 11;
+}
+
+// Details of a payment card.
+message ProxyCardDetails {
+  // Card Identification
+  SecretString card_number = 1;
   SecretString card_exp_month = 2;
   SecretString card_exp_year = 3;
   SecretString card_cvc = 4;
@@ -378,7 +439,7 @@ message SamsungWallet {
     SecretString card_last_four_digits = 5;
     
     // 3DS token data
-    message TokenData {
+    message TokenData {  
       // 3DS type
       optional string type = 1;
       
@@ -399,7 +460,7 @@ message AliPayWallet {
 }
 
 // Alipay Hong Kong - Hong Kong version of Alipay
-message AliPayHKWallet {
+message AliPayHKRedirectWallet {
   // Fields will be added as needed for Alipay HK integration
 }
 
@@ -409,13 +470,18 @@ message WeChatPayWallet {
 }
 
 // Venmo - US mobile payment service owned by PayPal
-message VenmoWallet {
+message VenmoRedirectWallet {
   // Fields will be added as needed for Venmo integration
 }
 
 // Amazon Pay - Online payment service by Amazon
 message AmazonPayRedirectWallet {
   // Fields will be added as needed for Amazon Pay integration
+}
+
+// Qwikcilver / Pine Labs stored-value wallet.
+message QwikcilverDirectWallet {
+  SecretString wallet_number = 1;
 }
 
 // TODO: Should we keep both Paze options, or just one?
@@ -479,7 +545,7 @@ message PazeDecryptedData {
   optional string eci = 8;
 }
 // Mifinity - Online payment service by Mifinity
-message MifinityWallet {
+message MifinityRedirectWallet {
   // Date of birth from Mifinity
   SecretString date_of_birth = 1;
   // Language preference
@@ -497,6 +563,11 @@ message WeChatPayQrWallet {
   // Fields will be added as needed for WeChat Pay QR integration
 }
 
+// WeChat Pay Redirect - WeChat Pay redirect payment service
+message WeChatPayRedirectWallet {
+  // Fields will be added as needed for WeChat Pay redirect integration
+}
+
 // Alipay Redirect - Alipay redirect payment service
 message AliPayRedirectWallet {
   // Fields will be added as needed for Alipay redirect integration
@@ -511,7 +582,7 @@ message CashappQrWallet {
 message RevolutPayWallet {
 }
 
-message Bluecode {
+message BluecodeRedirectWallet {
 }
 
 // MB WAY - Portuguese mobile payment solution
@@ -527,6 +598,20 @@ message Satispay {
 // Wero - European digital wallet payment solution
 message Wero {
   // Fields will be added as needed for Wero integration
+}
+
+// Revolut Pay Redirect - Revolut digital wallet payment service
+message RevolutPayRedirectWallet {
+}
+
+// Satispay Redirect - Italian mobile payment solution
+message SatispayRedirectWallet {
+  // Fields will be added as needed for Satispay Redirect integration
+}
+
+// Wero Redirect - European digital wallet payment solution
+message WeroRedirectWallet {
+  // Fields will be added as needed for Wero Redirect integration
 }
 
 // LazyPay - Indian BNPL/wallet service
@@ -546,6 +631,71 @@ message PayURedirectWallet {}
 
 // EaseBuzz - Indian payment gateway with wallet support
 message EaseBuzzRedirectWallet {}
+
+// Dana Redirect - Indonesian digital wallet Dana redirect payment
+message DanaRedirectWallet {
+  // Fields will be added as needed for Dana redirect integration
+}
+
+// GCash Redirect - Filipino mobile wallet GCash redirect payment
+message GcashRedirectWallet {
+  // Fields will be added as needed for GCash redirect integration
+}
+
+// GoPay Redirect - Indonesian digital wallet GoPay redirect payment
+message GoPayRedirectWallet {
+  // Fields will be added as needed for GoPay redirect integration
+}
+
+// KakaoPay Redirect - South Korean mobile payment KakaoPay redirect
+message KakaoPayRedirectWallet {
+  // Fields will be added as needed for KakaoPay redirect integration
+}
+
+// MB Way Redirect - Portuguese mobile payment MB WAY redirect
+message MbWayRedirectWallet {
+  // Fields will be added as needed for MB WAY redirect integration
+}
+
+// MoMo Redirect - Vietnamese digital wallet MoMo redirect payment
+message MomoRedirectWallet {
+  // Fields will be added as needed for MoMo redirect integration
+}
+
+// Touch n Go Redirect - Malaysian e-wallet Touch 'n Go redirect payment
+message TouchNGoRedirectWallet {
+  // Fields will be added as needed for Touch 'n Go redirect integration
+}
+
+// Twint Redirect - Swiss mobile payment TWINT redirect
+message TwintRedirectWallet {
+  // Fields will be added as needed for TWINT redirect integration
+}
+
+// Vipps Redirect - Norwegian mobile payment Vipps redirect
+message VippsRedirectWallet {
+  // Fields will be added as needed for Vipps redirect integration
+}
+
+// Swish QR - Swedish mobile payment Swish QR code payment
+message SwishQrWallet {
+  // Fields will be added as needed for Swish QR integration
+}
+
+// MobilePay Redirect - Danish mobile payment MobilePay redirect
+message MobilePayRedirectWallet {
+  // Fields will be added as needed for MobilePay redirect integration
+}
+
+// Skrill Redirect - Digital wallet for online payments
+message SkrillRedirectWallet {
+  // Fields will be added as needed for Skrill Redirect integration
+}
+
+// Paysera Redirect - European digital wallet and payment service
+message PayseraRedirectWallet {
+  // Fields will be added as needed for Paysera Redirect integration
+}
 
 // Apple Pay Third Party SDK - Apple Pay with token from third-party SDK
 message ApplePayThirdPartySdkWallet {
@@ -671,8 +821,8 @@ message MultibancoBankTransfer {
 
 }
 
-// Eft (Electronic Funds Transfer) - Generic electronic transfer of funds
-message Eft {
+// Eft Bank Redirect (Electronic Funds Transfer) - Generic electronic transfer of funds
+message EftBankRedirect {
   // Identifier for the specific Eft provider/service to be used  
   // Examples: "ozow", "paystack", "instant_eft"
   string provider = 1;
@@ -914,12 +1064,17 @@ message Klarna {
   // Fields will be added as needed for Klarna integration
 }
 
-/*
-
 // Alma - French BNPL service
 message Alma {
   // Fields will be added as needed for Alma integration
 }
+
+// Tamara - Middle Eastern BNPL service (redirect-based)
+message TamaraRedirect {
+  // Fields will be added as needed for tamara integration
+}
+
+/*
 
 // Atome - Asian BNPL service
 message Atome {
@@ -977,6 +1132,10 @@ message Alfamart {
 message Boleto {
   // The shopper's social security number
   optional string social_security_number = 1;
+
+  // Merchant-controlled boleto due date (ISO 8601)
+  // use this when provided and otherwise fall back to a connector default.
+  optional string expiration_date = 2;
 }
 
 // Efecty - Colombian cash payment network
@@ -1084,6 +1243,24 @@ message Ach {
   
   // Bank holder type
   BankHolderType bank_holder_type = 7;
+}
+
+// Eft - Electronic Funds Transfer
+message Eft {
+  // Account number for eft bank debit payment
+  SecretString account_number = 1;
+  
+  // Branch code for eft bank debit payment
+  SecretString branch_code = 2;
+  
+  // Bank account holder name
+  SecretString bank_account_holder_name = 3;
+  
+  // Bank name
+  BankNames bank_name = 4;
+  
+  // Bank type
+  BankType bank_type = 5;
 }
 
 // Sepa - Single Euro Payments Area direct debit
@@ -1311,6 +1488,42 @@ enum BankNames {
   FederalBank = 159;
   IndianOverseasBank = 160;
   CentralBankOfIndia = 161;
+  Absa = 162;
+  AccessBank = 163;
+  Albaraka = 164;
+  ChinaConstructionBank = 165;
+  Discovery = 166;
+  EnlBank = 167;
+  FirstNationalBank = 168;
+  GotymeBank = 169;
+  HabibOverseas = 170;
+  HbzBank = 171;
+  Investec = 172;
+  JpMorganChase = 173;
+  MtnBanking = 174;
+  Olympus = 175;
+  OldMutual = 176;
+  PermanentBank = 177;
+  SocieteGenerale = 178;
+  StandardBank = 179;
+  StateBankOfIndia = 180;
+  Ubank = 181;
+  VbsMutualBank = 182;
+  BankZero = 183;
+  BidvestBank = 184;
+  BidvestBankAlliances = 185;
+  FbcFidelityBank = 186;
+  FinbondEpe = 187;
+  FinbondMutualBank = 188;
+  Ithala = 189;
+  PeoplesBankPepBank = 190;
+  PeoplesBank = 191;
+  PostBank = 192;
+  Nedbank = 193;
+  Capitec = 194;
+  CapitecBusiness = 195;
+  AfricanBank = 196;
+  AfricanBankBusiness = 197;
 }
 
 // ============================================================================
@@ -1621,6 +1834,10 @@ enum BankType {
   BANK_TYPE_UNSPECIFIED = 0;
   BANK_TYPE_CHECKING = 1;
   BANK_TYPE_SAVINGS = 2;
+  BANK_TYPE_TRANSMISSION = 3;
+  BANK_TYPE_CURRENT = 4;
+  BANK_TYPE_BOND = 5;
+  BANK_TYPE_SUBSCRIPTION_SHARE = 6;
 }
 
 enum BankHolderType {

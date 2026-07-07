@@ -1,6 +1,6 @@
 {
-  "create_customer": {
-    "create_customer": {
+  "CustomerService/Create": {
+    "CustomerService/Create": {
       "grpc_req": {
         "address": {
           "shipping_address": {
@@ -13,7 +13,7 @@
       }
     }
   },
-  "authorize": {
+  "PaymentService/Authorize": {
     "no3ds_auto_capture_credit_card": {
       "grpc_req": {
         "amount": {
@@ -142,7 +142,7 @@
       }
     }
   },
-  "capture": {
+  "PaymentService/Capture": {
     "capture_full_amount": {
       "grpc_req": {
         "amount_to_capture": {
@@ -168,7 +168,7 @@
       }
     }
   },
-  "refund": {
+  "PaymentService/Refund": {
     "refund_full_amount": {
       "grpc_req": {
         "payment_amount": 1500000,

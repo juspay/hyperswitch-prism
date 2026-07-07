@@ -368,6 +368,13 @@ pub struct WorldpayPartialRequest {
 pub type WorldpayCaptureRequest = WorldpayPartialRequest;
 pub type WorldpayRefundRequest = WorldpayPartialRequest;
 
+/// Request body for POST /payments/authorizations/incrementalAuthorizations/{linkData}
+/// Only the `value` field (amount + currency) is required by Access Worldpay.
+#[derive(Default, Debug, Serialize)]
+pub struct WorldpayIncrementalAuthRequest {
+    pub value: PaymentValue,
+}
+
 pub(super) const THREE_DS_MODE: &str = "always";
 pub(super) const THREE_DS_TYPE: &str = "integrated";
 pub(super) const THREE_DS_CHALLENGE_PREFERENCE: &str = "challengeMandated";

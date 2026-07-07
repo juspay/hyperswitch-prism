@@ -1,98 +1,310 @@
 {
-  "authorize": {
+  "PaymentService/Authorize": {
     "no3ds_auto_capture_credit_card": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay",
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "AE",
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "phone_country_code": "+971"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "AE",
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "phone_country_code": "+971"
+          }
+        }
       }
     },
     "no3ds_auto_capture_debit_card": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay",
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "AE",
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "phone_country_code": "+971"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "AE",
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "phone_country_code": "+971"
+          }
+        }
       }
     },
     "no3ds_manual_capture_credit_card": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay",
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "AE",
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "phone_country_code": "+971"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "AE",
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "phone_country_code": "+971"
+          }
+        }
       }
     },
     "no3ds_manual_capture_debit_card": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay",
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "AE",
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "phone_country_code": "+971"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "AE",
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "phone_country_code": "+971"
+          }
+        }
       }
     },
     "threeds_manual_capture_credit_card": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay",
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "AE",
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "phone_country_code": "+971"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "AE",
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "phone_country_code": "+971"
+          }
+        }
       }
     },
     "no3ds_auto_capture_google_pay_encrypted": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
       }
     },
     "no3ds_fail_payment": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay",
+        "amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        },
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "AE",
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "phone_country_code": "+971"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "AE",
+            "state": {
+              "value": "Dubai"
+            },
+            "zip_code": {
+              "value": "00000"
+            },
+            "phone_country_code": "+971"
+          }
+        }
       }
     },
     "no3ds_auto_capture_ideal": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
       }
     },
     "no3ds_auto_capture_giropay": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
       }
     },
     "no3ds_auto_capture_bancontact": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
       }
     },
     "no3ds_auto_capture_klarna": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
       }
     },
     "no3ds_auto_capture_affirm": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
       }
     },
     "no3ds_auto_capture_afterpay_clearpay": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
       }
     },
     "no3ds_auto_capture_przelewy24": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
       }
     },
     "no3ds_auto_capture_alipay": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
       }
     },
     "no3ds_auto_capture_eps": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
       }
     },
     "no3ds_auto_capture_sepa_bank_transfer": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
       }
     },
     "no3ds_auto_capture_ach_bank_transfer": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
       }
     },
     "no3ds_auto_capture_bacs_bank_transfer": {
       "grpc_req": {
-        "order_category": "mobile"
+        "order_category": "pay"
+      }
+    }
+  },
+  "PaymentService/Refund": {
+    "refund_full_amount": {
+      "grpc_req": {
+        "payment_amount": 100,
+        "refund_amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        }
+      }
+    },
+    "refund_partial_amount": {
+      "grpc_req": {
+        "payment_amount": 100,
+        "refund_amount": {
+          "minor_amount": 50,
+          "currency": "AED"
+        }
+      }
+    },
+    "refund_with_reason": {
+      "grpc_req": {
+        "payment_amount": 100,
+        "refund_amount": {
+          "minor_amount": 100,
+          "currency": "AED"
+        }
+      }
+    }
+  },
+  "PaymentService/Get": {
+    "sync_payment": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate"
+      }
+    },
+    "sync_payment_with_handle_response": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate"
+      }
+    },
+    "sync_upi_collect": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate"
+      }
+    },
+    "sync_upi_intent": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate"
+      }
+    },
+    "sync_upi_qr": {
+      "grpc_req": {
+        "merchant_transaction_id": "auto_generate"
       }
     }
   }

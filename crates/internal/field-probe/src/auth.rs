@@ -284,6 +284,11 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             public_key: None,
             base_url: None,
         },
+        ConnectorEnum::AbsaSanlam => ConnectorSpecificConfig::AbsaSanlam {
+            api_key: k(),
+            merchant_id: m(),
+            base_url: None,
+        },
         ConnectorEnum::Payme => ConnectorSpecificConfig::Payme {
             seller_payme_id: id(),
             payme_client_key: None,
@@ -633,6 +638,90 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
         ConnectorEnum::Itaubank => ConnectorSpecificConfig::Itaubank {
             client_id: id(),
             client_secret: s(),
+            certificates: None,
+            private_key: None,
+            base_url: None,
+        },
+        ConnectorEnum::PinelabsOnline => ConnectorSpecificConfig::PinelabsOnline {
+            client_id: id(),
+            client_secret: s(),
+            base_url: None,
+        },
+        ConnectorEnum::Easebuzz => ConnectorSpecificConfig::Easebuzz {
+            api_key: s(),
+            api_salt: s(),
+            base_url: None,
+            secondary_base_url: None,
+        },
+        ConnectorEnum::Imerchantsolutions => ConnectorSpecificConfig::Imerchantsolutions {
+            api_key: k(),
+            merchant_id: Some(m()),
+            base_url: None,
+        },
+        ConnectorEnum::Axisbank => ConnectorSpecificConfig::Axisbank {
+            merchant_kid: k(),
+            juspay_kid: k(),
+            merchant_private_key: s(),
+            juspay_public_key: s(),
+            base_url: None,
+        },
+        ConnectorEnum::TsysTransit => ConnectorSpecificConfig::TsysTransit {
+            device_id: id(),
+            transaction_key: k(),
+            developer_id: s(),
+            base_url: None,
+        },
+        ConnectorEnum::TwocTwopPaco => ConnectorSpecificConfig::TwocTwopPaco {
+            access_token: s(),
+            office_id: s(),
+            paco_kid: s(),
+            merchant_signing_private_key: s(),
+            merchant_encryption_private_key: s(),
+            paco_signing_public_key: s(),
+            paco_encryption_public_key: s(),
+            response_audience: None,
+            base_url: None,
+        },
+        ConnectorEnum::Juspay => ConnectorSpecificConfig::Juspay {
+            api_key: k(),
+            merchant_id: m(),
+            base_url: None,
+        },
+        ConnectorEnum::Payconex => ConnectorSpecificConfig::Payconex {
+            api_key: k(),
+            account_id: m(),
+            base_url: None,
+        },
+        ConnectorEnum::Tamara => ConnectorSpecificConfig::Tamara {
+            api_key: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Hyperswitch => ConnectorSpecificConfig::Hyperswitch {
+            api_key: k(),
+            base_url: None,
+        },
+
+        ConnectorEnum::Qwikcilver => ConnectorSpecificConfig::Qwikcilver {
+            bootstrap_bearer_token: k(),
+            terminal_id: k(),
+            username: k(),
+            password: k(),
+            base_url: None,
+        },
+        ConnectorEnum::Flywire => ConnectorSpecificConfig::Flywire {
+            api_key: s(),
+            shared_secret: None,
+            recipient_id: "ZENDD".to_string(),
+            base_url: None,
+        },
+        ConnectorEnum::Affirm => ConnectorSpecificConfig::Affirm {
+            public_key: u(),
+            private_key: p(),
+            base_url: None,
+        },
+        ConnectorEnum::Kount => ConnectorSpecificConfig::Kount {
+            api_key: k(),
+            auth_server_id: None,
             base_url: None,
         },
     }

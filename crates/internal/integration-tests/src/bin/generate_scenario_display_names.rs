@@ -14,7 +14,9 @@ use integration_tests::harness::report::{
     regenerate_markdown_from_disk, regenerate_markdown_from_path,
 };
 use integration_tests::harness::scenario_display_name::generate_style_a_display_name;
-use integration_tests::harness::scenario_loader::{scenario_file_path, scenario_root};
+use integration_tests::harness::scenario_loader::{
+    scenario_file_path, scenario_root, suite_dir_name_to_suite_name,
+};
 use serde_json::Value;
 
 #[derive(Debug, Default)]
@@ -166,12 +168,11 @@ fn discover_suites(single_suite: Option<&str>) -> Result<Vec<String>, String> {
         let Some(dir_name) = path.file_name().and_then(|value| value.to_str()) else {
             continue;
         };
-        if !dir_name.ends_with("_suite") {
-            continue;
-        }
 
         if path.join("scenario.json").is_file() {
-            suites.insert(dir_name.trim_end_matches("_suite").to_string());
+            if let Some(suite_name) = suite_dir_name_to_suite_name(dir_name) {
+                suites.insert(suite_name);
+            }
         }
     }
 

@@ -1,34 +1,22 @@
 pub mod transformers;
 
 use common_utils::{
-    crypto::{self, SignMessage},
+    crypto::{self, SignMessage, VerifySignature},
     date_time,
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
     types::FloatMajorUnit,
 };
+use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
-    connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
-        SubmitEvidence, Void, VoidPC,
-    },
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        ConnectorWebhookSecrets, EventContext, EventType, MandateReference, PaymentFlowData,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::ErrorResponse,
@@ -36,8 +24,8 @@ use domain_types::{
     router_response_types::Response,
     types::Connectors,
 };
-use error_stack::ResultExt;
-use hyperswitch_masking::{Mask, Maskable, PeekInterface};
+use error_stack::{report, ResultExt};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -45,11 +33,12 @@ use interfaces::{
 use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
-    self as dlocal, DlocalPaymentsCaptureRequest, DlocalPaymentsRequest, DlocalPaymentsResponse,
-    DlocalPaymentsResponse as DlocalPaymentsSyncResponse,
+    self as dlocal, DlocalPaymentStatus, DlocalPaymentsCaptureRequest, DlocalPaymentsRequest,
+    DlocalPaymentsResponse, DlocalPaymentsResponse as DlocalPaymentsSyncResponse,
     DlocalPaymentsResponse as DlocalPaymentsCaptureResponse,
     DlocalPaymentsResponse as DlocalPaymentsVoidResponse, DlocalRefundRequest,
-    DlocalRepeatPaymentRequest, DlocalRepeatPaymentResponse, RefundResponse,
+    DlocalRepeatPaymentRequest, DlocalRepeatPaymentResponse, DlocalSetupMandateRequest,
+    DlocalSetupMandateResponse, DlocalWebhookBody, RefundResponse,
     RefundResponse as RefundSyncResponse,
 };
 
@@ -57,25 +46,9 @@ use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
+use domain_types::errors::WebhookError;
 
 const VERSION: &str = "2.1";
-
-// Trait implementations with generic type parameters
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ClientAuthentication for Dlocal<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Dlocal<T>
@@ -97,10 +70,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Dlocal<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Dlocal<T>
 {
 }
@@ -117,25 +86,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Dlocal<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Dlocal<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Dlocal<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -147,20 +98,186 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Dlocal<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Dlocal<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Dlocal<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Dlocal<T>
 {
+    /// The signature dLocal sends with the IPN: the hex value in the
+    /// `Authorization: V2-HMAC-SHA256, Signature: <hex>` header, decoded to bytes.
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        let authorization = get_header_case_insensitive(request, headers::AUTHORIZATION)
+            .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
+        // Format: "V2-HMAC-SHA256, Signature: <hex>"
+        let signature_hex = authorization
+            .rsplit("Signature:")
+            .next()
+            .map(str::trim)
+            .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
+        hex::decode(signature_hex).change_context(WebhookError::WebhookSignatureNotFound)
+    }
+
+    /// The message dLocal signs for the IPN is identical to the outbound request
+    /// signing scheme reused in `build_headers`: `X-Login + X-Date + rawBody`.
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<WebhookError>> {
+        let x_login = get_header_case_insensitive(request, headers::X_LOGIN)
+            .ok_or_else(|| report!(WebhookError::WebhookSourceVerificationFailed))?;
+        let x_date = get_header_case_insensitive(request, headers::X_DATE)
+            .ok_or_else(|| report!(WebhookError::WebhookSourceVerificationFailed))?;
+        let mut message = format!("{x_login}{x_date}").into_bytes();
+        message.extend_from_slice(&request.body);
+        Ok(message)
+    }
+
+    /// dLocal signs the IPN with the same V2-HMAC-SHA256 scheme as outbound
+    /// requests: `HMAC_SHA256(secret, X-Login + X-Date + rawBody)`. We recompute
+    /// it with the configured webhook secret and compare (constant-time, via
+    /// `crypto::HmacSha256::verify_signature`).
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
+        let connector_webhook_secrets = match connector_webhook_secret {
+            Some(secrets) => secrets,
+            None => return Ok(false),
+        };
+
+        let signature =
+            self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
+        let message =
+            self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
+
+        crypto::HmacSha256
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"id":"F-probe-001","status":"PAID","status_code":"200","order_id":"probe_order_001","payment_method_id":"RG","payment_method_type":"WALLET","payment_method_flow":"REDIRECT"}"#
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<WebhookError>> {
+        let body: DlocalWebhookBody = request
+            .body
+            .parse_struct("DlocalWebhookBody")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        Ok(EventType::from(&body))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let body: DlocalWebhookBody = request
+            .body
+            .parse_struct("DlocalWebhookBody")
+            .change_context(WebhookError::WebhookResourceObjectNotFound)?;
+        Ok(Some(WebhookResourceReference::Payment(
+            PaymentWebhookReference {
+                // dLocal payment `id` is the connector transaction id.
+                connector_transaction_id: Some(body.id),
+                // `order_id` is the merchant-assigned reference echoed back.
+                merchant_transaction_id: body.order_id,
+            },
+        )))
+    }
+
+    /// Returns the parsed dLocal Payment object so HS can persist the raw resource
+    /// (including `wallet.token` for mandate flows) alongside the typed event.
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, error_stack::Report<WebhookError>>
+    {
+        let body: DlocalWebhookBody = request
+            .body
+            .parse_struct("DlocalWebhookBody")
+            .change_context(WebhookError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(body))
+    }
+
+    /// Builds the PSync-shaped status response from the IPN. The wallet token
+    /// (when present) is surfaced as `mandate_reference.connector_mandate_id` so
+    /// HS can persist the connector mandate id for recurring wallet flows.
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let body: DlocalWebhookBody = request
+            .body
+            .parse_struct("DlocalWebhookBody")
+            .change_context(WebhookError::WebhookResourceObjectNotFound)?;
+
+        let status = common_enums::AttemptStatus::from(body.status.clone());
+
+        // Only surface error details for genuine failures. dLocal sends
+        // `status_code`/`status_detail` on success too (PAID -> "200" / "The payment
+        // was paid."); copying those into error_* makes HS treat a CHARGED webhook as
+        // an errored response (UE_9000) and skip persisting the connector mandate id.
+        let is_failure = matches!(
+            body.status,
+            DlocalPaymentStatus::Rejected | DlocalPaymentStatus::Cancelled
+        );
+
+        // dLocal delivers the reusable wallet token only via the IPN (never in the
+        // synchronous authorize/CIT response). Surface it as the connector mandate
+        // id so HS can persist the mandate.
+        let mandate_reference = body
+            .wallet
+            .as_ref()
+            .and_then(|w| w.token.clone())
+            .map(|token| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(token.expose()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
+                })
+            });
+
+        Ok(WebhookDetailsResponse {
+            resource_id: Some(ResponseId::ConnectorTransactionId(body.id.clone())),
+            status,
+            connector_response_reference_id: body.order_id.clone(),
+            mandate_reference,
+            error_code: is_failure
+                .then(|| body.status_code.as_ref().map(ToString::to_string))
+                .flatten(),
+            error_message: is_failure.then(|| body.status_detail.clone()).flatten(),
+            error_reason: is_failure.then_some(body.status_detail).flatten(),
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            network_txn_id: None,
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+        })
+    }
+}
+
+/// dLocal IPN headers may arrive with their canonical casing (`X-Login`) or
+/// lowercased depending on the proxy; look them up case-insensitively.
+fn get_header_case_insensitive(request: &RequestDetails, name: &str) -> Option<String> {
+    request
+        .headers
+        .iter()
+        .find(|(k, _)| k.eq_ignore_ascii_case(name))
+        .map(|(_, v)| v.clone())
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::VerifyRedirectResponse for Dlocal<T>
@@ -174,42 +291,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
     for Dlocal<T>
 {
 }
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Dlocal<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Dlocal<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Dlocal<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Dlocal<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPostAuthenticateV2<T> for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Dlocal<T>
-{
-}
-
 pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
@@ -261,6 +342,12 @@ macros::create_all_prerequisites!(
             request_body: DlocalRepeatPaymentRequest,
             response_body: DlocalRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: DlocalSetupMandateRequest<T>,
+            response_body: DlocalSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -355,6 +442,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: dlocal::DlocalErrorResponse = res
             .response
@@ -405,8 +493,11 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
+            // hyperswitch dlocal routes all Authorize traffic to /secure_payments. Mirror
+            // that for the in-scope HS-parity flows (Card + Voucher/OXXO) while leaving
+            // wallet / bank-transfer / bank-debit on /payments, where they currently work.
             match &req.request.payment_method_data {
-                PaymentMethodData::Card(_) => {
+                PaymentMethodData::Card(_) | PaymentMethodData::Voucher(_) => {
                     Ok(format!("{base_url}secure_payments"))
                 }
                 _ => Ok(format!("{base_url}payments")),
@@ -595,133 +686,65 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Stub implementations for unsupported flows
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Dlocal<T>
-{
-}
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Dlocal,
+    curl_request: Json(DlocalSetupMandateRequest),
+    curl_response: DlocalSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let base_url = self.connector_base_url_payments(req);
+            match &req.request.payment_method_data {
+                // dLocal card tokenization uses the same /secure_payments endpoint as
+                // the card authorize flow with `card.save: true` and a minimal verify
+                // amount (dLocal rejects amounts <= 1.00 with code 5016 "Amount too low").
+                PaymentMethodData::Card(_) => Ok(format!("{base_url}secure_payments")),
+                // Redirect-flow APMs (e.g. GCash Recurring "RG" enrollment) use the
+                // standard /payments endpoint.
+                _ => Ok(format!("{base_url}payments")),
+            }
+        }
+    }
+);
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
+macros::macro_connector_flow_status_impls!(
+    connector: Dlocal,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        SubmitEvidence,
+        DefendDispute,
         PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Dlocal<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Dlocal<T>
-{
-}
-
-// SourceVerification implementations for all flows
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
+    ],
+    not_supported: [
+        VoidPostRefund,
+        IncrementalAuthorization,
+        VoidPC,
+        CreateOrder,
+        Accept,
+        ServerSessionAuthenticationToken,
+        PreAuthenticate,
+        Authenticate,
+        PostAuthenticate,
+        CreateConnectorCustomer,
         ServerAuthenticationToken,
-        PaymentFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for Dlocal<T>
-{
-}
+    ],
+);

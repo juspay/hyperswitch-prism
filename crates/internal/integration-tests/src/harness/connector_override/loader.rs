@@ -12,6 +12,42 @@ pub struct ScenarioOverridePatch {
     pub grpc_req: Option<Value>,
     #[serde(rename = "assert", default)]
     pub assert_rules: Option<BTreeMap<String, Value>>,
+    /// Fire an HTTP request (fire-and-forget) before this scenario runs.
+    /// Used to drive sandbox simulators that settle a payment outside of the
+    /// normal connector API surface — e.g. Cashfree's `/pg/view/simulate`
+    /// endpoint which flips a UPI Intent payment to SUCCESS so the subsequent
+    /// sync returns `CHARGED` without browser automation.
+    #[serde(default)]
+    pub pre_request_http: Option<PreRequestHttpHook>,
+}
+
+/// Fire-and-forget HTTP call issued before the scenario's gRPC request.
+/// Body supports `{{dep_res.<index>.<json-path>}}` templating from
+/// dependency responses (e.g. pulling cf_payment_id out of the authorize
+/// response at dep_res index 1).
+#[derive(Debug, Clone, Deserialize)]
+pub struct PreRequestHttpHook {
+    /// When `Some`, fire an HTTP request to the URL before the scenario runs.
+    /// When `None`, the hook degenerates to a pure sleep of `timeout_secs`
+    /// seconds — useful for waiting out sandbox-side dedup/rate windows
+    /// without needing an unreachable URL as a sleep vehicle.
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default = "default_http_method")]
+    pub method: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
+    #[serde(default)]
+    pub body: Option<String>,
+    #[serde(default = "default_hook_timeout_secs")]
+    pub timeout_secs: u64,
+}
+
+fn default_http_method() -> String {
+    "POST".to_string()
+}
+fn default_hook_timeout_secs() -> u64 {
+    10
 }
 
 type SuiteOverrideFile = BTreeMap<String, ScenarioOverridePatch>;
@@ -62,6 +98,16 @@ pub fn load_scenario_override_patch(
     }
 
     Ok(None)
+}
+
+/// Loads the optional `pre_request_http` hook for a scenario override.
+pub fn load_scenario_pre_request_http(
+    connector: &str,
+    suite: &str,
+    scenario: &str,
+) -> Result<Option<PreRequestHttpHook>, ScenarioError> {
+    Ok(load_scenario_override_patch(connector, suite, scenario)?
+        .and_then(|patch| patch.pre_request_http))
 }
 
 /// Path to `<connector>/webhook_payload.json` under connector override root.
@@ -202,8 +248,12 @@ mod tests {
         let previous = std::env::var("UCS_CONNECTOR_OVERRIDE_ROOT").ok();
         std::env::set_var("UCS_CONNECTOR_OVERRIDE_ROOT", &temp_root);
 
-        let loaded = load_scenario_override_patch("stripe", "authorize", "no3ds_fail_payment")
-            .expect("loading missing override should not fail");
+        let loaded = load_scenario_override_patch(
+            "stripe",
+            "PaymentService/Authorize",
+            "no3ds_fail_payment",
+        )
+        .expect("loading missing override should not fail");
         assert!(loaded.is_none());
 
         match previous {
@@ -223,7 +273,7 @@ mod tests {
 
         let override_path = connector_dir.join("override.json");
         let file_content = json!({
-            "authorize": {
+            "PaymentService/Authorize": {
                 "no3ds_fail_payment": {
                     "grpc_req": {
                         "payment_method": {
@@ -251,9 +301,13 @@ mod tests {
         let previous = std::env::var("UCS_CONNECTOR_OVERRIDE_ROOT").ok();
         std::env::set_var("UCS_CONNECTOR_OVERRIDE_ROOT", &temp_root);
 
-        let loaded = load_scenario_override_patch("stripe", "authorize", "no3ds_fail_payment")
-            .expect("loading override patch should succeed")
-            .expect("override patch should exist");
+        let loaded = load_scenario_override_patch(
+            "stripe",
+            "PaymentService/Authorize",
+            "no3ds_fail_payment",
+        )
+        .expect("loading override patch should succeed")
+        .expect("override patch should exist");
         assert!(matches!(loaded, ScenarioOverridePatch { .. }));
         assert_eq!(
             loaded.grpc_req,

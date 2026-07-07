@@ -105,12 +105,29 @@ pub(crate) fn flatten_oneof_wrappers(value: &serde_json::Value) -> serde_json::V
     }
 }
 
+/// Detect whether a JSON array is a serialized `Vec<u8>` (byte array).
+///
+/// Prost serializes `bytes`/`Vec<u8>` fields as JSON arrays of integers. When all
+/// elements are integers in `[0, 255]` and the array is non-empty, treat it as a
+/// byte array and attempt to decode it as UTF-8.
+fn try_decode_byte_array(arr: &[serde_json::Value]) -> Option<String> {
+    if arr.is_empty() {
+        return None;
+    }
+    let bytes: Option<Vec<u8>> = arr
+        .iter()
+        .map(|v| v.as_u64().and_then(|n| u8::try_from(n).ok()))
+        .collect();
+    bytes.and_then(|b| String::from_utf8(b).ok())
+}
+
 /// Clean a proto_request for documentation output:
 ///   1. Remove probe-internal keys (connector_feature_data, etc.)
 ///   2. Remove null values and empty arrays
 ///   3. Remove proto3 default enum values (*_UNSPECIFIED / *_UNKNOWN)
 ///   4. Collapse proto3 oneof wrappers
 ///   5. Remove empty objects (e.g. `"billing_address": {}` — artifact of domain-layer gate)
+///   6. Decode byte arrays (`Vec<u8>`) to UTF-8 strings where possible
 pub(crate) fn clean_proto_request(value: &serde_json::Value) -> serde_json::Value {
     match value {
         serde_json::Value::Object(map) => {
@@ -129,6 +146,11 @@ pub(crate) fn clean_proto_request(value: &serde_json::Value) -> serde_json::Valu
                     if arr.is_empty() {
                         continue;
                     }
+                    // Decode Vec<u8> byte arrays to UTF-8 strings
+                    if let Some(s) = try_decode_byte_array(arr) {
+                        result.insert(k.clone(), serde_json::Value::String(s));
+                        continue;
+                    }
                 }
                 // Skip default enum values
                 if let serde_json::Value::String(s) = v {
@@ -141,6 +163,10 @@ pub(crate) fn clean_proto_request(value: &serde_json::Value) -> serde_json::Valu
             flatten_oneof_wrappers(&serde_json::Value::Object(result))
         }
         serde_json::Value::Array(arr) => {
+            // Top-level array: attempt byte-array decode before recursing
+            if let Some(s) = try_decode_byte_array(arr) {
+                return serde_json::Value::String(s);
+            }
             serde_json::Value::Array(arr.iter().map(clean_proto_request).collect())
         }
         other => other.clone(),

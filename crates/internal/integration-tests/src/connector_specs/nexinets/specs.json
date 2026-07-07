@@ -1,12 +1,14 @@
 {
   "connector": "nexinets",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "client_authentication_token",
-    "get",
-    "refund",
-    "refund_sync",
-    "void"
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
   ]
 }

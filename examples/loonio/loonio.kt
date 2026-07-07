@@ -7,12 +7,32 @@
 
 package examples.loonio
 
+import types.Payment.*
+import types.PaymentMethods.*
 import payments.PaymentClient
-import payments.PaymentServiceGetRequest
 import payments.Currency
 import payments.ConnectorConfig
 import payments.SdkOptions
 import payments.Environment
+import payments.ConnectorSpecificConfig
+import types.Payment.LoonioConfig
+import payments.SecretString
+
+val SUPPORTED_FLOWS = listOf<String>("get")
+
+val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setLoonio(LoonioConfig.newBuilder()
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setMerchantToken(SecretString.newBuilder().setValue("YOUR_MERCHANT_TOKEN").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
+    )
+    .build()
+
 
 
 private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGetRequest {
@@ -26,15 +46,9 @@ private fun buildGetRequest(connectorTransactionIdStr: String): PaymentServiceGe
     }.build()
 }
 
-val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
-    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
-    // .setConnectorConfig(...) — set your connector config here
-    .build()
-
-
 // Flow: PaymentService.Get
-fun get(txnId: String) {
-    val client = PaymentClient(_defaultConfig)
+fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = PaymentClient(config)
     val request = buildGetRequest("probe_connector_txn_001")
     val response = client.get(request)
     println("Status: ${response.status.name}")

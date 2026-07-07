@@ -1,10 +1,10 @@
 {
   "connector": "iatapay",
   "supported_suites": [
-    "authorize",
-    "get",
-    "refund",
-    "refund_sync",
-    "server_authentication_token"
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken"
   ]
 }

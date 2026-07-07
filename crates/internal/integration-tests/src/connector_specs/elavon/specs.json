@@ -1,10 +1,10 @@
 {
   "connector": "elavon",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "refund",
-    "refund_sync",
-    "get"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Get"
   ]
 }

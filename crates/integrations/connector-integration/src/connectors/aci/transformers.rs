@@ -11,7 +11,7 @@ use domain_types::{
         BankRedirectData, Card, NetworkTokenData, PayLaterData, PaymentMethodData,
         PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -223,8 +223,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::BillDeskRedirect(_)
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
-            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
                 "Payment method".to_string(),
+                Default::default(),
             ))?,
         };
         Ok(payment_data)
@@ -420,8 +422,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBankingUk { .. }
             | BankRedirectData::OpenBanking {}
-            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 "Payment method".to_string(),
+                Default::default(),
             ))?,
         };
         Ok(payment_data)
@@ -756,8 +759,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
+                Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
+                    Default::default(),
                 ))?
             }
         }
@@ -1368,6 +1372,7 @@ where
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             });
 
         let auto_capture = matches!(
@@ -1390,7 +1395,7 @@ where
                 message: item.response.result.description.clone(),
                 reason: Some(item.response.result.description),
                 status_code: item.http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1403,9 +1408,11 @@ where
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -1548,7 +1555,7 @@ impl<F, T> TryFrom<ResponseRouterData<AciCaptureResponse, Self>>
                 message: item.response.result.description.clone(),
                 reason: Some(item.response.result.description),
                 status_code: item.http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1561,9 +1568,11 @@ impl<F, T> TryFrom<ResponseRouterData<AciCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
         Ok(Self {
@@ -1613,7 +1622,7 @@ impl<F, T> TryFrom<ResponseRouterData<AciVoidResponse, Self>>
                 message: item.response.result.description.clone(),
                 reason: Some(item.response.result.description),
                 status_code: item.http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 ..Default::default()
             })
@@ -1624,9 +1633,11 @@ impl<F, T> TryFrom<ResponseRouterData<AciVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
         Ok(Self {
@@ -1776,6 +1787,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         });
 
         let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {
@@ -1792,7 +1804,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 message: item.response.result.description.clone(),
                 reason: Some(item.response.result.description),
                 status_code: item.http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1805,9 +1817,11 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 

@@ -188,6 +188,7 @@ async def test_paypal_authorize(creds_file: str) -> bool:
         authorize_request.state.access_token.token_type = token_type_value
         authorize_request.state.access_token.expires_in_seconds = expires_in_seconds
 
+        authorize_request.shipping_cost = 0
         authorize_request.auth_type = AuthenticationType.NO_THREE_DS
         authorize_request.address.CopyFrom(PaymentAddress())
         authorize_request.return_url = "https://example.com/return"

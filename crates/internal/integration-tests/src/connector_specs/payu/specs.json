@@ -1,7 +1,12 @@
 {
   "connector": "payu",
   "supported_suites": [
-    "authorize",
-    "get"
+    "PaymentService/Authorize",
+    "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Void"
   ]
 }

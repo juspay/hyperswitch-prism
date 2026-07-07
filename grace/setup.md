@@ -12,15 +12,15 @@
 Open Terminal and run:
 
 ```bash
-git clone git@github.com:juspay/connector-service.git
-cd connector-service
+git clone git@github.com:juspay/hyperswitch-prism.git
+cd hyperswitch-prism
 git clone git@github.com:juspay/grace.git
 ```
 
 Your folder should now look like:
 
 ```
-connector-service/
+hyperswitch-prism/
 ├── crates/         ← Rust connector code
 ├── config/          ← Server configs
 ├── grace/           ← Grace CLI + codegen rules
@@ -113,7 +113,7 @@ Replace `myconnector` with the actual name (e.g. `stripe`, `adyen`).
 
 **Important:** Go back to the connector-service root folder (not `grace/`)
 
-Open `connector-service/` in your AI coding agent (Cursor / Claude Code / Windsurf) and tell it:
+Open `hyperswitch-prism/` in your AI coding agent (Cursor / Claude Code / Windsurf) and tell it:
 
 ```
 integrate MyConnector using grace/rulesbook/codegen/.gracerules

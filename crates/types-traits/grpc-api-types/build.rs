@@ -31,6 +31,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ".types.GoogleWallet.TokenizationData.tokenization_data",
         "#[serde(rename_all = \"snake_case\")]",
     );
+    config.type_attribute(
+        ".types.FlowStatus.status",
+        "#[serde(rename_all = \"snake_case\")]",
+    );
 
     // Use compile_protos_with_config which handles everything internally
     // including string enum support, serde derives, and descriptor set writing
@@ -42,9 +46,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "proto/payment.proto",
             "proto/composite_services.proto",
             "proto/composite_payment.proto",
+            "proto/composite_frm.proto",
             "proto/payment_methods.proto",
             "proto/sdk_config.proto",
             "proto/payouts.proto",
+            "proto/surcharge.proto",
+            "proto/frm.proto",
         ],
         &["proto"],
     )?;
