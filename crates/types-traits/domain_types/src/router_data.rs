@@ -189,6 +189,16 @@ pub struct PaysafeRedirectAccountId {
     pub three_ds: Option<Secret<String>>,
 }
 
+/// Selects the dedicated Apple Pay processing account by token flow. `Encrypt`
+/// uses the encrypted PKPaymentToken account; `Decrypt` uses the decrypted-token
+/// account. Mirrors hyperswitch's `get_applepay_encrypt_account_id` /
+/// `get_applepay_decrypt_account_id`.
+#[derive(Debug, Clone, Copy)]
+pub enum PaysafeApplePayFlow {
+    Encrypt,
+    Decrypt,
+}
+
 /// Selects which per-currency processing account to resolve from a
 /// [`PaysafePaymentMethodDetails`] map. Each variant maps to one payment-method
 /// slot; `ApplePay` additionally picks the encrypt vs. decrypt token flow.
@@ -198,12 +208,7 @@ pub enum PaysafeAccountKind {
     CardThreeDs,
     Ach,
     Interac,
-    /// `encrypted = true` selects the `encrypt` account (encrypted PKPaymentToken
-    /// flow); `false` selects the `decrypt` account. Mirrors hyperswitch's
-    /// `get_applepay_encrypt_account_id` / `get_applepay_decrypt_account_id`.
-    ApplePay {
-        encrypted: bool,
-    },
+    ApplePay(PaysafeApplePayFlow),
     Skrill,
     PaysafeGiftCard,
 }
@@ -246,21 +251,17 @@ impl PaysafePaymentMethodDetails {
                     .and_then(|interac| interac.three_ds.clone()),
                 "Missing interac account_id",
             ),
-            PaysafeAccountKind::ApplePay { encrypted } => (
+            PaysafeAccountKind::ApplePay(flow) => (
                 self.apple_pay
                     .as_ref()
                     .and_then(|apple_pay| apple_pay.get(&currency))
-                    .and_then(|flow| {
-                        if encrypted {
-                            flow.encrypt.clone()
-                        } else {
-                            flow.decrypt.clone()
-                        }
+                    .and_then(|account| match flow {
+                        PaysafeApplePayFlow::Encrypt => account.encrypt.clone(),
+                        PaysafeApplePayFlow::Decrypt => account.decrypt.clone(),
                     }),
-                if encrypted {
-                    "Missing ApplePay encrypt account_id"
-                } else {
-                    "Missing ApplePay decrypt account_id"
+                match flow {
+                    PaysafeApplePayFlow::Encrypt => "Missing ApplePay encrypt account_id",
+                    PaysafeApplePayFlow::Decrypt => "Missing ApplePay decrypt account_id",
                 },
             ),
             PaysafeAccountKind::Skrill => (

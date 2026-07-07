@@ -16,7 +16,10 @@ use domain_types::{
         ApplePayPaymentData, BankDebitData, BankRedirectData, GiftCardData, GpayTokenizationData,
         PaymentMethodData, PaymentMethodDataTypes, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, PaysafeAccountKind, PaysafePaymentMethodDetails},
+    router_data::{
+        ConnectorSpecificConfig, PaysafeAccountKind, PaysafeApplePayFlow,
+        PaysafePaymentMethodDetails,
+    },
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -1060,12 +1063,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     // while enabling parity once provisioned, prefer the apple_pay
                     // account and gracefully fall back to the card no_three_ds
                     // account when the apple_pay slot is absent.
-                    let is_encrypted = matches!(
-                        &apple_pay_data.payment_data,
-                        ApplePayPaymentData::Encrypted(_)
-                    );
+                    let flow = match &apple_pay_data.payment_data {
+                        ApplePayPaymentData::Encrypted(_) => PaysafeApplePayFlow::Encrypt,
+                        _ => PaysafeApplePayFlow::Decrypt,
+                    };
                     let account_id = account_id
-                        .get_account_id(PaysafeAccountKind::ApplePay { encrypted: is_encrypted }, currency)
+                        .get_account_id(PaysafeAccountKind::ApplePay(flow), currency)
                         .or_else(|_| account_id.get_account_id(PaysafeAccountKind::CardNoThreeDs, currency))?;
                     (
                         PaysafePaymentMethod::ApplePay {
