@@ -3576,7 +3576,7 @@ impl ForeignTryFrom<grpc_payment_types::DomainData> for connector_types::DomainD
                         student_id: s.student_id,
                         student_first_name: s.student_first_name,
                         student_last_name: s.student_last_name,
-                        student_email: s.student_email,
+                        student_email: s.student_email.map(Secret::new),
                     }),
                 }),
         })

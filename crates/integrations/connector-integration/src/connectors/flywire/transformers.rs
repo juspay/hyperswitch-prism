@@ -17,7 +17,7 @@ use domain_types::{
     router_request_types::AuthoriseIntegrityObject,
     router_response_types::RedirectForm,
 };
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -273,22 +273,29 @@ fn domain_data_to_recipient_fields(
                 })
             })?;
             Ok([
-                (FIELD_STUDENT_ID, student_details.student_id.as_ref()),
+                (FIELD_STUDENT_ID, student_details.student_id.clone()),
                 (
                     FIELD_STUDENT_FIRST_NAME,
-                    student_details.student_first_name.as_ref(),
+                    student_details.student_first_name.clone(),
                 ),
                 (
                     FIELD_STUDENT_LAST_NAME,
-                    student_details.student_last_name.as_ref(),
+                    student_details.student_last_name.clone(),
                 ),
-                (FIELD_STUDENT_EMAIL, student_details.student_email.as_ref()),
+                (
+                    FIELD_STUDENT_EMAIL,
+                    // student_email is secret; expose it only into the outbound request.
+                    student_details
+                        .student_email
+                        .as_ref()
+                        .map(|e| e.peek().clone()),
+                ),
             ]
             .into_iter()
             .filter_map(|(id, value)| {
                 value.map(|value| FlywireRecipientField {
                     id: id.to_string(),
-                    value: value.clone(),
+                    value,
                 })
             })
             .collect())

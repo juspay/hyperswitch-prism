@@ -4141,7 +4141,7 @@ pub struct StudentDetails {
     pub student_id: Option<String>,
     pub student_first_name: Option<String>,
     pub student_last_name: Option<String>,
-    pub student_email: Option<String>,
+    pub student_email: Option<Secret<String>>,
 }
 
 /// Connector-agnostic airline / travel itinerary data — the union of fields
