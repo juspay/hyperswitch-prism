@@ -363,6 +363,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   L2L3Data: { "orderInfo": "OrderInfo", "taxInfo": "TaxInfo" },
   DomainData: { "airlineData": "AirlineData", "educationData": "EducationData" },
   EducationData: { "studentDetails": "StudentDetails" },
+  StudentDetails: { "studentEmail": "SecretString" },
   AirlineData: { "ticketIssueAddress": "Address", "totalFare": "Money", "totalTaxes": "Money", "totalFee": "Money", "boardingFee": "Money", "flightSegments": "AirlineSegment", "passengers": "AirlinePassenger" },
   AirlineSegment: { "departure": "AirlineLocation", "arrival": "AirlineLocation", "fareAmount": "Money", "feeAmount": "Money", "taxAmount": "Money" },
   AirlinePassenger: { "customer": "Customer" },

@@ -3569,16 +3569,18 @@ impl ForeignTryFrom<grpc_payment_types::DomainData> for connector_types::DomainD
                 .airline_data
                 .map(connector_types::AirlineData::foreign_try_from)
                 .transpose()?,
-            education_data: domain_data
-                .education_data
-                .map(|ed| connector_types::EducationData {
-                    student_details: ed.student_details.map(|s| connector_types::StudentDetails {
-                        student_id: s.student_id,
-                        student_first_name: s.student_first_name,
-                        student_last_name: s.student_last_name,
-                        student_email: s.student_email.map(Secret::new),
+            education_data: domain_data.education_data.map(|education_data| {
+                connector_types::EducationData {
+                    student_details: education_data.student_details.map(|student_details| {
+                        connector_types::StudentDetails {
+                            student_id: student_details.student_id,
+                            student_first_name: student_details.student_first_name,
+                            student_last_name: student_details.student_last_name,
+                            student_email: student_details.student_email,
+                        }
                     }),
-                }),
+                }
+            }),
         })
     }
 }
