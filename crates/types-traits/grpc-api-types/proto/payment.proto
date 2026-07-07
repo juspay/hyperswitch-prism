@@ -3577,6 +3577,10 @@ message RecurringPaymentServiceChargeResponse {
 
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 19;
+
+  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+  // Distinct from network_transaction_id.
+  optional string network_txn_link_id = 20;
 }
 
 // Request message for a mandate revoke operation
