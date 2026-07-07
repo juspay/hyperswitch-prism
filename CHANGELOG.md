@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.07.0
+
+### Refactors
+
+- **frm/kount:** Promote mandate_details + MandateStatus enum, drop deprecated fields ([#1817](https://github.com/juspay/connector-service/pull/1817)) ([`a54817b`](https://github.com/juspay/connector-service/commit/a54817b39c065cb49daa0dd9ff81752fc6889fc6))
+
+**Full Changelog:** [`2026.07.06.1...2026.07.07.0`](https://github.com/juspay/connector-service/compare/2026.07.06.1...2026.07.07.0)
+
+- - -
+
 ## 2026.07.06.1
 
 ### Features
