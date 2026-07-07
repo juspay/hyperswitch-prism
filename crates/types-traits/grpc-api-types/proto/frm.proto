@@ -56,6 +56,14 @@ message FrmServicePreRiskCheckRequest {
 
   // State Information
   optional ConnectorState state = 11;
+
+  // Recurring / mandate details for subscription risk scoring. Reuses the shared
+  // MandateAmountData (from payment.proto): `amount` is the per-period billing
+  // amount, `frequency` the billing period. 
+  optional MandateAmountData mandate_details = 12;
+
+  // Merchant details (id + MCC) for risk scoring.
+  optional MerchantDetails merchant_details = 13;
 }
 
 // Response for FrmService.PreRiskCheck

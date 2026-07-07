@@ -2584,6 +2584,7 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
 
                 Ok(Self {
                     connector_refund_id: Some(refund_id),
+                    merchant_transaction_id: None,
                     status: common_enums::RefundStatus::from(transaction_status),
                     status_code: 200,
                     connector_response_reference_id: None,
@@ -2596,6 +2597,7 @@ impl TryFrom<NovalnetWebhookNotificationResponseRefunds> for RefundWebhookDetail
             NovalnetAPIStatus::Failure => Ok(Self {
                 status: common_enums::RefundStatus::Failure,
                 connector_refund_id: Some(refund_id),
+                merchant_transaction_id: None,
                 status_code: 200,
                 connector_response_reference_id: None,
                 error_code: Some(notif.result.status.to_string()),
