@@ -193,34 +193,32 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone();
         let payor_id = payment_ref.clone();
 
-        // Domain data on the request. Extracted generically so future vertical
-        // sub-fields (beyond education / student details) can be read from here too.
-        let domain_data = router_data.request.domain_data.as_ref().ok_or_else(|| {
-            error_stack::report!(IntegrationError::MissingRequiredField {
-                field_name: "domain_data",
-                context: domain_types::errors::IntegrationErrorContext {
-                    suggested_action: Some("Pass `domain_data` on the request.".to_string()),
-                    doc_url: Some(
-                        "https://developers.flywire.com/docs/checkout-session".to_string(),
-                    ),
-                    additional_context: None,
-                },
-            })
-        })?;
-
-        // Recipient fields: mapped from typed `education_data.student_details`.
-        // Institution-specific and required — cannot be defaulted.
-        let student_details = domain_data
-            .education_data
+        // Recipient fields. Prefer the typed `domain_data.education_data.student_details`;
+        // fall back to the legacy free-form `connector_feature_data.flywire_recipient_fields`
+        // array so existing merchant integrations — and institutions with custom recipient
+        // schemas (arbitrary field IDs) — keep working. At least one must be present.
+        let typed_recipient_fields = router_data
+            .request
+            .domain_data
             .as_ref()
+            .and_then(|d| d.education_data.as_ref())
             .and_then(|e| e.student_details.as_ref())
+            .map(student_details_to_recipient_fields)
+            .filter(|fields| !fields.is_empty());
+
+        let recipient_fields = typed_recipient_fields
+            .or_else(|| {
+                build_recipient_fields(&router_data.resource_common_data.connector_feature_data)
+            })
             .ok_or_else(|| {
                 error_stack::report!(IntegrationError::MissingRequiredField {
                     field_name: "domain_data.education_data.student_details",
                     context: domain_types::errors::IntegrationErrorContext {
                         suggested_action: Some(
                             "Pass student details in `domain_data.education_data.student_details` \
-                         (student_id, student_first_name, student_last_name, student_email)."
+                             (student_id, student_first_name, student_last_name, student_email), \
+                             or provide `flywire_recipient_fields` as a JSON array of {id, value} \
+                             entries in connector_feature_data."
                                 .to_string(),
                         ),
                         doc_url: Some(
@@ -230,7 +228,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     },
                 })
             })?;
-        let recipient_fields = student_details_to_recipient_fields(student_details);
 
         // Payor (name, address, email): from billing address on resource_common_data.
         let payor = build_payor_from_billing(&router_data.resource_common_data);
@@ -290,6 +287,29 @@ fn student_details_to_recipient_fields(
         })
     })
     .collect()
+}
+
+/// Legacy fallback: read recipient fields from the free-form
+/// `connector_feature_data.flywire_recipient_fields` JSON array. Preserves support
+/// for institutions with custom recipient schemas (arbitrary `{id, value}` IDs) and
+/// for merchants integrated before typed `education_data.student_details` existed.
+/// Returns `None` when the key is absent; short-circuits to `None` if any entry is
+/// missing `id`/`value`.
+fn build_recipient_fields(
+    metadata: &Option<Secret<serde_json::Value>>,
+) -> Option<Vec<FlywireRecipientField>> {
+    use hyperswitch_masking::PeekInterface;
+    let value = metadata.as_ref().map(|m| m.peek())?;
+    let fields_value = value.get("flywire_recipient_fields")?;
+    fields_value
+        .as_array()?
+        .iter()
+        .map(|entry| {
+            let id = entry.get("id").and_then(|v| v.as_str())?.to_string();
+            let value = entry.get("value").and_then(|v| v.as_str())?.to_string();
+            Some(FlywireRecipientField { id, value })
+        })
+        .collect()
 }
 
 fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {
