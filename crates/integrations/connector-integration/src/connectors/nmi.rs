@@ -122,9 +122,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<WebhookError>> {
-        let connector_webhook_secrets = connector_webhook_secret.ok_or_else(|| {
-            error_stack::report!(WebhookError::WebhookVerificationSecretNotFound)
-        })?;
+        let connector_webhook_secrets = connector_webhook_secret
+            .ok_or_else(|| error_stack::report!(WebhookError::WebhookVerificationSecretNotFound))?;
 
         let signature =
             self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
@@ -215,11 +214,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 },
             ))),
             // HS maps `credit` to `WebhooksNotImplemented`.
-            transformers::NmiActionType::Credit => Err(error_stack::report!(
-                WebhookError::WebhooksNotImplemented {
+            transformers::NmiActionType::Credit => {
+                Err(error_stack::report!(WebhookError::WebhooksNotImplemented {
                     operation: "nmi credit webhooks",
-                }
-            )),
+                }))
+            }
         }
     }
 
