@@ -16,7 +16,9 @@ use domain_types::{
         RefundsResponseData, ResponseId as DomainResponseId,
     },
     payment_address::PaymentAddress,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{
+        GpayTokenizationData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
@@ -120,12 +122,68 @@ pub struct CardPaymentRequest<
     pub ssl_invoice_number: Option<String>,
 }
 
+/// Helper structs for constructing the ssl_google_pay JSON payload that Elavon expects.
+/// Elavon's XML API requires the full Google Pay paymentData object to be passed as a JSON
+/// string in the <ssl_google_pay> field. Converge handles decryption server-side.
+/// Ref: https://developer.elavon.com/products/xml-api/v1/wallets
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ElavonGpayTokenizationData {
+    #[serde(rename = "type")]
+    token_type: String,
+    token: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ElavonGpayPaymentMethodInfo {
+    card_network: String,
+    card_details: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ElavonGpayPaymentMethodData {
+    #[serde(rename = "type")]
+    pm_type: String,
+    description: String,
+    info: ElavonGpayPaymentMethodInfo,
+    tokenization_data: ElavonGpayTokenizationData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ElavonGpayPayload {
+    api_version: u8,
+    api_version_minor: u8,
+    payment_method_data: ElavonGpayPaymentMethodData,
+}
+
+/// Request struct for Google Pay payments via Elavon Converge.
+/// The entire Google Pay payload is passed as a JSON string in ssl_google_pay.
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct GooglePayPaymentRequest {
+    pub ssl_transaction_type: TransactionType,
+    pub ssl_account_id: Secret<String>,
+    pub ssl_user_id: Secret<String>,
+    pub ssl_pin: Secret<String>,
+    pub ssl_amount: StringMajorUnit,
+    pub ssl_google_pay: Secret<String>,
+    pub ssl_email: Option<common_utils::pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssl_transaction_currency: Option<Currency>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ssl_invoice_number: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum ElavonPaymentsRequest<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     Card(CardPaymentRequest<T>),
+    GooglePay(GooglePayPaymentRequest),
 }
 
 fn get_avs_details_from_payment_address(
@@ -270,8 +328,96 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 tracing::debug!(?card_req, "Elavon Card Payment Request");
                 Ok(Self::Card(card_req))
             }
+            PaymentMethodData::Wallet(WalletData::GooglePay(ref gpay_data)) => {
+                let router_data = item.router_data.clone();
+                let request_data = &router_data.request;
+                let auth_type = ElavonAuthType::try_from(&router_data.connector_config)?;
+
+                let transaction_type = match request_data.capture_method {
+                    Some(HyperswitchCaptureMethod::Manual) => TransactionType::CcAuthOnly,
+                    Some(HyperswitchCaptureMethod::Automatic) | None => TransactionType::CcSale,
+                    Some(other_capture_method) => {
+                        Err(report!(IntegrationError::FlowNotSupported {
+                            flow: format!("Capture method: {other_capture_method:?}"),
+                            connector: "Elavon".to_string(),
+                            context: Default::default()
+                        }))?
+                    }
+                };
+
+                // Elavon requires the full Google Pay paymentData JSON in ssl_google_pay.
+                // We only support the encrypted token path — Converge decrypts server-side.
+                let encrypted_data = match &gpay_data.tokenization_data {
+                    GpayTokenizationData::Encrypted(enc) => enc,
+                    GpayTokenizationData::Decrypted(_) => {
+                        return Err(report!(IntegrationError::InvalidWalletToken {
+                            wallet_name: "Google Pay".to_string(),
+                            context: Default::default(),
+                        }))
+                        .attach_printable(
+                            "Elavon requires the encrypted Google Pay token; \
+                             pre-decrypted tokens are not supported. \
+                             Ensure google_pay_pre_decrypt_flow is NOT set for elavon \
+                             in pm_filters.",
+                        )
+                    }
+                };
+
+                // Construct the paymentData JSON wrapper Elavon expects.
+                let gpay_payload = ElavonGpayPayload {
+                    api_version: 2,
+                    api_version_minor: 0,
+                    payment_method_data: ElavonGpayPaymentMethodData {
+                        pm_type: gpay_data.pm_type.clone(),
+                        description: gpay_data.description.clone(),
+                        info: ElavonGpayPaymentMethodInfo {
+                            card_network: gpay_data.info.card_network.clone(),
+                            card_details: gpay_data.info.card_details.clone(),
+                        },
+                        tokenization_data: ElavonGpayTokenizationData {
+                            token_type: encrypted_data.token_type.clone(),
+                            token: encrypted_data.token.clone(),
+                        },
+                    },
+                };
+
+                let gpay_json = serde_json::to_string(&gpay_payload).map_err(|e| {
+                    report!(IntegrationError::RequestEncodingFailed {
+                        context: Default::default()
+                    })
+                    .attach_printable(format!("Failed to serialize Google Pay payload: {e}"))
+                })?;
+
+                let amount_converter = StringMajorUnitForConnector;
+                let amount = amount_converter
+                    .convert(request_data.minor_amount, request_data.currency)
+                    .map_err(|e| {
+                        report!(IntegrationError::AmountConversionFailed {
+                            context: Default::default()
+                        })
+                        .attach_printable(format!("Failed to convert amount: {e}"))
+                    })?;
+
+                Ok(Self::GooglePay(GooglePayPaymentRequest {
+                    ssl_transaction_type: transaction_type,
+                    ssl_account_id: auth_type.ssl_merchant_id,
+                    ssl_user_id: auth_type.ssl_user_id,
+                    ssl_pin: auth_type.ssl_pin,
+                    ssl_amount: amount,
+                    ssl_google_pay: Secret::new(gpay_json),
+                    ssl_email: request_data.email.clone(),
+                    ssl_transaction_currency: request_data
+                        .connector_feature_data
+                        .as_ref()
+                        .and_then(|d| d.peek().get("multi_currency_enabled"))
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                        .then_some(request_data.currency),
+                    ssl_invoice_number: Some(router_data.resource_common_data.payment_id.clone()),
+                }))
+            }
             _ => Err(report!(IntegrationError::NotImplemented(
-                "Only card payments are supported for Elavon".to_string(),
+                "Only card and Google Pay payments are supported for Elavon".to_string(),
                 Default::default()
             ))),
         }
