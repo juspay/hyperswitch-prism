@@ -2414,6 +2414,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodType> for PaymentMeth
             grpc_api_types::payments::PaymentMethodType::Evoucher => {
                 Ok(PaymentMethodType::Evoucher)
             }
+            grpc_api_types::payments::PaymentMethodType::DuitNow => Ok(PaymentMethodType::DuitNow),
             grpc_api_types::payments::PaymentMethodType::ApplePay => {
                 Ok(PaymentMethodType::ApplePay)
             }
@@ -11062,6 +11063,29 @@ impl ForeignTryFrom<grpc_api_types::payments::AcceptanceType> for mandates::Acce
     }
 }
 
+impl ForeignFrom<grpc_api_types::payments::MandateStatus> for Option<common_enums::MandateStatus> {
+    // proto MandateStatus enum -> domain common_enums::MandateStatus.
+    // UNSPECIFIED (and revoke-failed, which has no domain variant) map to None.
+    fn foreign_from(value: grpc_api_types::payments::MandateStatus) -> Self {
+        match value {
+            grpc_api_types::payments::MandateStatus::Active => {
+                Some(common_enums::MandateStatus::Active)
+            }
+            grpc_api_types::payments::MandateStatus::MandateInactive => {
+                Some(common_enums::MandateStatus::Inactive)
+            }
+            grpc_api_types::payments::MandateStatus::MandatePending => {
+                Some(common_enums::MandateStatus::Pending)
+            }
+            grpc_api_types::payments::MandateStatus::Revoked => {
+                Some(common_enums::MandateStatus::Revoked)
+            }
+            grpc_api_types::payments::MandateStatus::Unspecified
+            | grpc_api_types::payments::MandateStatus::MandateRevokeFailed => None,
+        }
+    }
+}
+
 #[allow(deprecated)]
 impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::MandateAmountData {
     type Error = IntegrationError;
@@ -11110,7 +11134,10 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateAmountData> for mandates::M
                 None
             },
             external_subscription_id: amount_data.external_subscription_id,
-            status: amount_data.status,
+            status: Option::<common_enums::MandateStatus>::foreign_from(
+                grpc_api_types::payments::MandateStatus::try_from(amount_data.mandate_status)
+                    .unwrap_or_default(),
+            ),
             next_billing_date: amount_data
                 .next_billing_date
                 .and_then(to_primitive_date_time),
@@ -14602,6 +14629,7 @@ impl<
                 .authentication_data
                 .map(router_request_types::AuthenticationData::try_from)
                 .transpose()?,
+            webhook_url: value.webhook_url,
         })
     }
 }

@@ -2107,6 +2107,7 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub redirect_response: Option<ContinueRedirectionResponse>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub authentication_data: Option<router_request_types::AuthenticationData>,
+    pub webhook_url: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {

@@ -587,6 +587,7 @@ impl
             state: item.state.clone(),
             redirection_response: item.redirection_response.clone(),
             capture_method: item.capture_method,
+            webhook_url: item.webhook_url.clone(),
         }
     }
 }
@@ -1095,9 +1096,7 @@ impl
                 access_token,
                 connector_customer_id,
             }),
-            mandate_info: item.mandate_info.clone(),
             merchant_details: item.merchant_details.clone(),
-            // Forwarded for parity; not yet consumed by connectors (mandate_info used).
             mandate_details: item.mandate_details.clone(),
         }
     }

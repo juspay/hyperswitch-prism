@@ -378,7 +378,6 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
                     frequency: Some("monthly".to_string()),
                     initial_billing_amount: None,
                     external_subscription_id: None,
-                    status: None,
                     next_billing_date: None,
                     billing_cycle: None,
                     description: None,

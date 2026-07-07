@@ -19,6 +19,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.07.0
+
+### Refactors
+
+- **frm/kount:** Promote mandate_details + MandateStatus enum, drop deprecated fields ([#1817](https://github.com/juspay/connector-service/pull/1817)) ([`a54817b`](https://github.com/juspay/connector-service/commit/a54817b39c065cb49daa0dd9ff81752fc6889fc6))
+
+**Full Changelog:** [`2026.07.06.1...2026.07.07.0`](https://github.com/juspay/connector-service/compare/2026.07.06.1...2026.07.07.0)
+
+- - -
+
+## 2026.07.06.1
+
+### Features
+
+- **connector:** Implement Stripe incoming webhooks in UCS (#17452, #17453) ([#1777](https://github.com/juspay/connector-service/pull/1777)) ([`94f607a`](https://github.com/juspay/connector-service/commit/94f607add1f697f3c692fe11d65c02c3e586b57e))
+
+### Bug Fixes
+
+- **twoc_twop_paco:** Drop airline data when billing address is absent ([#1813](https://github.com/juspay/connector-service/pull/1813)) ([`253b3ed`](https://github.com/juspay/connector-service/commit/253b3ed754a06c0a3e13684ed9c3da2edf0b9931))
+
+**Full Changelog:** [`2026.07.06.0...2026.07.06.1`](https://github.com/juspay/connector-service/compare/2026.07.06.0...2026.07.06.1)
+
+- - -
+
+## 2026.07.06.0
+
+### Features
+
+- **twoc_twop_paco:** Require billing address when airline data is present ([#1810](https://github.com/juspay/connector-service/pull/1810)) ([`6805288`](https://github.com/juspay/connector-service/commit/6805288cff3d88ffbbbb82bf7f1773f4e45ccced))
+
+### Bug Fixes
+
+- **tamara:** Converting minor_to_major_units ([#1808](https://github.com/juspay/connector-service/pull/1808)) ([`32d9640`](https://github.com/juspay/connector-service/commit/32d9640da5e49809a6d67d76c205aa2ac4ca092b))
+
+**Full Changelog:** [`2026.07.03.1...2026.07.06.0`](https://github.com/juspay/connector-service/compare/2026.07.03.1...2026.07.06.0)
+
+- - -
+
+## 2026.07.03.1
+
+### Features
+
+- **pma:** Thread webhook_url through PaymentMethodAuthenticationService ([#1809](https://github.com/juspay/connector-service/pull/1809)) ([`4d6b5b7`](https://github.com/juspay/connector-service/commit/4d6b5b7609f9be2ec92f7275cd1fe9d4cfc439b7))
+
+### Bug Fixes
+
+- **cybersource:** Parse 5xx server-error body on UCS authorize ([#17186](https://github.com/juspay/connector-service/pull/17186)) ([#1736](https://github.com/juspay/connector-service/pull/1736)) ([`fd5ce4e`](https://github.com/juspay/connector-service/commit/fd5ce4ed0976ceac551c473dace6b21a317b3434))
+
+**Full Changelog:** [`2026.07.03.0...2026.07.03.1`](https://github.com/juspay/connector-service/compare/2026.07.03.0...2026.07.03.1)
+
+- - -
+
 ## 2026.07.03.0
 
 ### Features

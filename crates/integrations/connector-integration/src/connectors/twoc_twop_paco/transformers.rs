@@ -931,6 +931,22 @@ where
         .map(PacoAirlineData::try_from)
         .transpose()?;
 
+    // PACO's airline authorization requires a billing address alongside
+    // airlineData; PACO rejects an airline payload that lacks one. Rather than
+    // fail the whole payment, drop the airline block when no billing address is
+    // present and proceed with the base authorization.
+    let airline_data = if airline_data.is_some() && paco_billing_address.is_none() {
+        tracing::warn!(
+            target: "twoc_twop_paco",
+            "twoc_twop_paco: airlineData supplied without a billing address — \
+             dropping airlineData and proceeding with the base authorization, \
+             since PACO requires a billing address for airline data"
+        );
+        None
+    } else {
+        airline_data
+    };
+
     match &item.request.payment_method_data {
         PaymentMethodData::Card(card) => {
             let card_type = match card.card_type.as_deref() {
