@@ -3454,10 +3454,6 @@ message RecurringPaymentServiceChargeResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 17;
-
-  // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
-  // Distinct from network_transaction_id.
-  optional string network_txn_link_id = 18;
 }
 
 // Request message for a mandate revoke operation

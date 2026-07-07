@@ -13291,7 +13291,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
             PaymentsResponseData::TransactionResponse {
                 resource_id,
                 network_txn_id,
-                network_txn_link_id,
+                network_txn_link_id: _,
                 connector_response_reference_id,
                 connector_metadata,
                 mandate_reference,
@@ -13339,7 +13339,6 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                                 split_response,
                             )
                         }),
-                        network_txn_link_id,
                     },
                 )
             }
@@ -13401,7 +13400,6 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     captured_amount: None,
                     incremental_authorization_allowed: None,
                     splits: None,
-                    network_txn_link_id: None,
                 },
             )
         }
