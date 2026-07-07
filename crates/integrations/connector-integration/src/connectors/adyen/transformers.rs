@@ -4119,7 +4119,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for AttemptStatus {
                     ConnectorError::response_handling_failed_http_status_unknown()
                 ))
             }
-            AdyenWebhookStatus::Unknown => Ok(Self::Unknown),
+            AdyenWebhookStatus::Unknown => Ok(Self::Unspecified),
         }
     }
 }
@@ -4150,7 +4150,7 @@ fn get_adyen_payment_status(
         },
         // Unknown means Adyen returned a status value not in our enum; signal hyperswitch core
         // to retain the previous attempt status rather than corrupting DB state.
-        AdyenStatus::Unknown => AttemptStatus::Unknown,
+        AdyenStatus::Unknown => AttemptStatus::Unspecified,
     }
 }
 
