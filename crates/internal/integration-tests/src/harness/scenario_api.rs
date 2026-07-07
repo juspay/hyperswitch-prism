@@ -2267,7 +2267,7 @@ pub fn execute_tonic_request_from_payload(
                     &connector_request_reference_id,
                 );
                 let mut client = grpc_api_types::payments::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient::new(channel.clone());
-                let response = client.authenticate(request).await.map_err(|error| {
+                let response = Box::pin(client.authenticate(request)).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
