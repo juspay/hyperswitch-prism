@@ -78,6 +78,9 @@ const FLYWIRE_EVENT_LISTENER_TEMPLATE: &str = r#"window.addEventListener("messag
   if (d.source !== 'checkout_session') return;
   if (d.success === true && d.confirm_url) {
     window.location.href = __RETURN_URL__;
+  } else if (d.success === false) {
+    // Decline / error / payer-closed: redirect back so euler /pay/response can PSync and finalize the failed txn.
+    window.location.href = __RETURN_URL__;
   }
 });"#;
 
