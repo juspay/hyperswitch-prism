@@ -4,7 +4,7 @@
     "authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_feature_data.flywire_recipient_fields — Missing required field: connector_feature_data.flywire_recipient_fields"
+        "error": "Stuck on field: domain_data — Missing required field: domain_data"
       }
     },
     "authorize": {

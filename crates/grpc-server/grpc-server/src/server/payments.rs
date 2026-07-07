@@ -1837,7 +1837,7 @@ impl PaymentService for Payments {
             .unwrap_or_else(|| "PaymentService".to_string());
         let config = get_config_from_request(&request)?;
 
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config.clone(),
@@ -1889,7 +1889,7 @@ impl PaymentService for Payments {
                     }
                 })
             },
-        )
+        ))
         .await
     }
 

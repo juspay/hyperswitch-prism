@@ -588,6 +588,7 @@ impl
             redirection_response: item.redirection_response.clone(),
             capture_method: item.capture_method,
             webhook_url: item.webhook_url.clone(),
+            domain_data: item.domain_data.clone(),
         }
     }
 }
