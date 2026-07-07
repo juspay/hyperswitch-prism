@@ -931,16 +931,27 @@ where
         .map(PacoAirlineData::try_from)
         .transpose()?;
 
-    // PACO's airline authorization requires a billing address alongside
-    // airlineData; PACO rejects an airline payload that lacks one. Rather than
-    // fail the whole payment, drop the airline block when no billing address is
-    // present and proceed with the base authorization.
-    let airline_data = if airline_data.is_some() && paco_billing_address.is_none() {
+    // PACO's airline authorization requires a complete billing address whenever
+    // airlineData is defined; it rejects the payload otherwise ("The
+    // BillingAddress '<field>' field is required when AirlineData is defined").
+    // Verified against PACO UAT, the required set is billAddrLine1, billAddrCity,
+    // billAddrPostCode and billAddrCountry (line2/line3 are optional). A billing
+    // address object alone is not enough — all four must be populated. Rather
+    // than fail the whole payment, drop the airline block when any required
+    // field is missing and proceed with the base authorization.
+    let billing_complete_for_airline = paco_billing_address.as_ref().is_some_and(|billing| {
+        billing.bill_addr_line1.is_some()
+            && billing.bill_addr_city.is_some()
+            && billing.bill_addr_post_code.is_some()
+            && billing.bill_addr_country.is_some()
+    });
+    let airline_data = if airline_data.is_some() && !billing_complete_for_airline {
         tracing::warn!(
             target: "twoc_twop_paco",
-            "twoc_twop_paco: airlineData supplied without a billing address — \
-             dropping airlineData and proceeding with the base authorization, \
-             since PACO requires a billing address for airline data"
+            "twoc_twop_paco: airlineData supplied without a complete billing address \
+             (PACO requires billAddrLine1, billAddrCity, billAddrPostCode and \
+             billAddrCountry) — dropping airlineData and proceeding with the base \
+             authorization"
         );
         None
     } else {
