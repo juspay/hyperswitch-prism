@@ -277,6 +277,8 @@ pub struct SetupMandateRequest<
     pub expand: Option<ExpandableObjects>,
     #[serde(flatten)]
     pub browser_info: Option<StripeBrowserInformation>,
+    #[serde(rename = "payment_method_options[card][moto]")]
+    pub moto: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -4927,6 +4929,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone()
             .map(StripeBrowserInformation::from);
 
+        let is_moto = if matches!(
+            item.router_data.request.payment_method_data,
+            PaymentMethodData::Card(..)
+        ) && item.router_data.request.payment_channel
+            == Some(common_enums::PaymentChannel::MailOrder)
+            || item.router_data.request.payment_channel
+                == Some(common_enums::PaymentChannel::TelephoneOrder)
+        {
+            Some(true)
+        } else {
+            None
+        };
+
         Ok(Self {
             confirm: true,
             payment_data,
@@ -4944,6 +4959,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_method_types: Some(pm_type),
             expand: Some(ExpandableObjects::LatestAttempt),
             browser_info,
+            moto: is_moto,
         })
     }
 }
