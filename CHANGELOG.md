@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.07.2
+
+### Features
+
+- **framework:** Added transaction_link_id support for mandate flows ([#1746](https://github.com/juspay/connector-service/pull/1746)) ([`48d36cf`](https://github.com/juspay/connector-service/commit/48d36cf858003a8f216fa6895f2b8507a32527d8))
+
+### Bug Fixes
+
+- Commercehub Authcode and 2xx error msg fixes ([#1815](https://github.com/juspay/connector-service/pull/1815)) ([`721f52b`](https://github.com/juspay/connector-service/commit/721f52b5a048ea349fd5b73a0cfa71a88db14a53))
+
+**Full Changelog:** [`2026.07.07.1...2026.07.07.2`](https://github.com/juspay/connector-service/compare/2026.07.07.1...2026.07.07.2)
+
+- - -
+
 ## 2026.07.07.1
 
 ### Bug Fixes
