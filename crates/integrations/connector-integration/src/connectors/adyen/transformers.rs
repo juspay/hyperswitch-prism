@@ -818,6 +818,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 pub enum AdyenRecurringModel {
     UnscheduledCardOnFile,
     CardOnFile,
+    #[serde(other)]
+    Unknown,
 }
 
 #[serde_with::skip_serializing_none]
@@ -3964,6 +3966,8 @@ pub enum ActionType {
     #[serde(rename = "qrCode")]
     QrCode,
     Voucher,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -4017,6 +4021,8 @@ pub enum AdyenWebhookStatus {
     Expired,
     AdjustedAuthorization,
     AdjustAuthorizationFailed,
+    #[serde(other)]
+    Unknown,
 }
 
 //Creating custom struct which can be consumed in Psync Handler triggered from Webhooks
@@ -4054,6 +4060,8 @@ pub enum AdyenStatus {
     RedirectShopper,
     Refused,
     PresentToShopper,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -4111,6 +4119,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for AttemptStatus {
                     ConnectorError::response_handling_failed_http_status_unknown()
                 ))
             }
+            AdyenWebhookStatus::Unknown => Ok(Self::Unknown),
         }
     }
 }
@@ -4139,6 +4148,9 @@ fn get_adyen_payment_status(
             Some(common_enums::PaymentMethodType::Pix) => AttemptStatus::AuthenticationPending,
             _ => AttemptStatus::Pending,
         },
+        // Unknown means Adyen returned a status value not in our enum; signal hyperswitch core
+        // to retain the previous attempt status rather than corrupting DB state.
+        AdyenStatus::Unknown => AttemptStatus::Unknown,
     }
 }
 
@@ -5131,6 +5143,8 @@ pub enum DisputeStatus {
     Lost,
     Accepted,
     Won,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
@@ -5333,7 +5347,12 @@ pub(crate) fn get_adyen_webhook_event_type(
         WebhookEventCode::SecondChargeback | WebhookEventCode::PrearbitrationLost => {
             Ok(EventType::DisputeLost)
         }
-        WebhookEventCode::Unknown => Err(WebhookError::WebhookEventTypeNotFound),
+        WebhookEventCode::Unknown => {
+            tracing::warn!(
+                "Received unknown Adyen webhook event code; acknowledging without processing"
+            );
+            Ok(EventType::IncomingWebhookEventUnspecified)
+        }
     }
 }
 
@@ -6987,7 +7006,9 @@ pub(crate) fn get_dispute_stage_and_status(
                 Some(DisputeStatus::Undefended) | Some(DisputeStatus::Pending) => {
                     HSDisputeStatus::DisputeOpened
                 }
-                Some(DisputeStatus::Lost) | None => HSDisputeStatus::DisputeLost,
+                Some(DisputeStatus::Lost) | Some(DisputeStatus::Unknown) | None => {
+                    HSDisputeStatus::DisputeLost
+                }
                 Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
                 Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
             };
