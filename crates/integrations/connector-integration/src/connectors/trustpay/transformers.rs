@@ -2854,10 +2854,14 @@ fn extract_trustpay_mandate_id(mandate_reference: &MandateReferenceId) -> Result
             message: "Network mandate / NTI not supported for trustpay RepeatPayment".to_string(),
             connector: "trustpay",
             context: IntegrationErrorContext {
-                additional_context: Some(
-                    "Trustpay repeat payments require the connector mandate InstanceId returned during the initial setup/payment; network mandate references do not provide that InstanceId".to_string(),
+                suggested_action: Some(
+                    "Use ConnectorMandateId with the Trustpay InstanceId returned during the initial setup/payment. Trustpay RepeatPayment cannot be built from NetworkMandateId or NetworkTokenWithNTI."
+                        .to_string(),
                 ),
-                ..Default::default()
+                doc_url: None,
+                additional_context: Some(
+                    "Trustpay RepeatPayment received a network mandate reference. This request builder only sends the connector mandate InstanceId as the recurring payment reference; network mandate references provide an NTI or network token data, but do not provide the Trustpay InstanceId required by this endpoint".to_string(),
+                ),
             },
         })),
     }

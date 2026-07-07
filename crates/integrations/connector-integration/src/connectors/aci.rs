@@ -274,10 +274,14 @@ macros::create_all_prerequisites!(
                             .to_string(),
                         connector: "Aci",
                         context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "ACI repeat payments use the registration id stored as connector_mandate_id; NetworkMandateId does not contain that ACI registration reference".to_string(),
+                            suggested_action: Some(
+                                "Use ConnectorMandateId with the ACI registration id for RepeatPayment, or add a separate raw-card NTI mapper before sending NetworkMandateId."
+                                    .to_string(),
                             ),
-                            ..Default::default()
+                            doc_url: None,
+                            additional_context: Some(
+                                "ACI RepeatPayment received a NetworkMandateId mandate reference. This request builder extracts the ACI registration id from connector_mandate_id and sends it as the repeated-payment reference; NetworkMandateId only provides an NTI and does not provide the required ACI registration reference".to_string(),
+                            ),
                         },
                     }))
                 }
@@ -286,10 +290,14 @@ macros::create_all_prerequisites!(
                         message: "Network token with NTI not supported for aci".to_string(),
                         connector: "Aci",
                         context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "ACI repeat payments use the registration id stored as connector_mandate_id; network token credentials plus NTI are not mapped to an ACI repeat-payment request".to_string(),
+                            suggested_action: Some(
+                                "Use ConnectorMandateId with the ACI registration id for RepeatPayment, or implement a dedicated ACI network-token MIT request before sending NetworkTokenWithNTI."
+                                    .to_string(),
                             ),
-                            ..Default::default()
+                            doc_url: None,
+                            additional_context: Some(
+                                "ACI RepeatPayment received a NetworkTokenWithNTI mandate reference. This request builder extracts the ACI registration id from connector_mandate_id; it does not extract or map network token credentials, cryptogram data, or the NTI into an ACI repeat-payment request".to_string(),
+                            ),
                         },
                     }))
                 }

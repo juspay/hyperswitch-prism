@@ -1029,10 +1029,14 @@ impl<T: PaymentMethodDataTypes>
                         message: "NetworkMandateId is not supported for Shift4 MIT".to_string(),
                         connector: "Shift4",
                         context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "This Shift4 repeat-payment path sends a stored card token from connector_mandate_id; NetworkMandateId requires raw card MIT handling and cannot be represented as the token used here".to_string(),
+                            suggested_action: Some(
+                                "Use ConnectorMandateId with the stored Shift4 card token for this RepeatPayment path, or add a separate raw-card MIT mapper before sending NetworkMandateId."
+                                    .to_string(),
                             ),
-                            ..Default::default()
+                            doc_url: None,
+                            additional_context: Some(
+                                "Shift4 RepeatPayment received a NetworkMandateId mandate reference. The current transformer only builds a token payment from connector_mandate_id; NetworkMandateId carries an NTI for raw-card MIT handling, which cannot be represented in the stored-token payload built here".to_string(),
+                            ),
                         },
                     }));
                 }
@@ -1041,10 +1045,14 @@ impl<T: PaymentMethodDataTypes>
                         message: "NetworkTokenWithNTI is not supported for Shift4 MIT".to_string(),
                         connector: "Shift4",
                         context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "This Shift4 repeat-payment path sends a stored card token from connector_mandate_id; network token credentials plus NTI are not mapped to a Shift4 MIT request".to_string(),
+                            suggested_action: Some(
+                                "Use ConnectorMandateId with the stored Shift4 card token for this RepeatPayment path, or implement a dedicated Shift4 network-token MIT mapper before sending NetworkTokenWithNTI."
+                                    .to_string(),
                             ),
-                            ..Default::default()
+                            doc_url: None,
+                            additional_context: Some(
+                                "Shift4 RepeatPayment received a NetworkTokenWithNTI mandate reference. The current transformer only builds a token payment from connector_mandate_id; it does not extract or map network token credentials, cryptogram data, or the NTI into a Shift4 MIT request".to_string(),
+                            ),
                         },
                     }));
                 }

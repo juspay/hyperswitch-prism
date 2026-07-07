@@ -1423,7 +1423,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 return Err(IntegrationError::NotImplemented(
                     "NetworkTokenWithNTI mandate reference is not implemented for JPMorgan RepeatPayment"
                         .to_string(),
-                    Default::default(),
+                    IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use ConnectorMandateId for stored JPMorgan transaction_reference repeat payments, or use NetworkMandateId with card data for raw-card NTI MITs. NetworkTokenWithNTI is not mapped for JPMorgan RepeatPayment."
+                                .to_string(),
+                        ),
+                        doc_url: Some(JPMORGAN_GETTING_STARTED_DOC.to_owned()),
+                        additional_context: Some(
+                            "JPMorgan RepeatPayment received a NetworkTokenWithNTI mandate reference. This transformer builds either transaction_reference from connector_mandate_id or card.accountNumber, expiry, and originalNetworkTransactionId from NetworkMandateId; it does not build a JPMorgan MIT payload from network token credentials plus NTI."
+                                .to_string(),
+                        ),
+                    },
                 )
                 .into());
             }

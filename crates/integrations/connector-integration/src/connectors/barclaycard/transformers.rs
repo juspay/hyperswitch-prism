@@ -1704,10 +1704,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             MandateReferenceId::NetworkTokenWithNTI(_) => Err(IntegrationError::NotImplemented(
                 "Network token with NTI based MIT is not supported for Barclaycard".to_string(),
                 IntegrationErrorContext {
-                    additional_context: Some(
-                        "Barclaycard repeat payments currently support stored TMS payment instruments and raw card MITs with a network transaction id; this transformer does not map network token credentials into the Barclaycard repeat-payment payload".to_string(),
+                    suggested_action: Some(
+                        "Use ConnectorMandateId for stored TMS repeat payments, or use NetworkMandateId with raw card data for NTI-based MITs. NetworkTokenWithNTI is not mapped for Barclaycard RepeatPayment."
+                            .to_string(),
                     ),
-                    ..Default::default()
+                    doc_url: None,
+                    additional_context: Some(
+                        "Barclaycard RepeatPayment received a NetworkTokenWithNTI mandate reference. This transformer currently supports stored TMS payment instruments from connector_mandate_id and raw card MITs with a network transaction id; it does not build the Barclaycard payload fields required for network token credentials plus NTI".to_string(),
+                    ),
                 },
             ))?,
         };

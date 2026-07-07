@@ -5781,7 +5781,9 @@ impl ForeignFrom<connector_types::MandateReference> for grpc_payment_types::Mand
                         payment_method_id: mandate_reference.payment_method_id,
                         connector_mandate_request_reference_id: mandate_reference
                             .connector_mandate_request_reference_id,
-                        mandate_metadata: None,
+                        mandate_metadata: mandate_reference
+                            .mandate_metadata
+                            .map(|metadata| Secret::new(metadata.expose().to_string())),
                     },
                 ),
             ),
@@ -5809,7 +5811,7 @@ impl ForeignTryFrom<grpc_api_types::payments::MandateReference> for MandateRefer
                     .map(|metadata| {
                         SecretSerdeValue::foreign_try_from((
                             metadata,
-                            "connector_recurring_payment_id.connector_mandate_id.mandate_metadata",
+                            "mandate_reference.connector_mandate_id.mandate_metadata",
                         ))
                     })
                     .transpose()?,

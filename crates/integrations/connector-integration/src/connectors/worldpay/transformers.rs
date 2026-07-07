@@ -580,10 +580,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 return Err(IntegrationError::NotImplemented(
                     "NetworkMandateId not supported in RepeatPayment".to_string(),
                     IntegrationErrorContext {
-                        additional_context: Some(
-                            "Worldpay repeat payments in this transformer build a token payment instrument from connector_mandate_id; NetworkMandateId would require a raw-card MIT payload that is not available in RepeatPayment".to_string(),
+                        suggested_action: Some(
+                            "Use ConnectorMandateId with the stored Worldpay card token for this RepeatPayment path, or implement a separate raw-card MIT request before sending NetworkMandateId."
+                                .to_string(),
                         ),
-                        ..Default::default()
+                        doc_url: None,
+                        additional_context: Some(
+                            "Worldpay RepeatPayment received a NetworkMandateId mandate reference. The current transformer builds PaymentInstrument::CardToken from connector_mandate_id; NetworkMandateId carries an NTI for raw-card MIT handling and cannot be represented by the token instrument built here".to_string(),
+                        ),
                     },
                 )
                 .into());
@@ -592,10 +596,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 return Err(IntegrationError::NotImplemented(
                     "NetworkTokenWithNTI not supported in RepeatPayment yet".to_string(),
                     IntegrationErrorContext {
-                        additional_context: Some(
-                            "Worldpay repeat payments in this transformer build a token payment instrument from connector_mandate_id; network token credentials plus NTI are not mapped to a Worldpay repeat-payment request".to_string(),
+                        suggested_action: Some(
+                            "Use ConnectorMandateId with the stored Worldpay card token for this RepeatPayment path, or implement a dedicated Worldpay network-token MIT request before sending NetworkTokenWithNTI."
+                                .to_string(),
                         ),
-                        ..Default::default()
+                        doc_url: None,
+                        additional_context: Some(
+                            "Worldpay RepeatPayment received a NetworkTokenWithNTI mandate reference. The current transformer builds PaymentInstrument::CardToken from connector_mandate_id; it does not extract or map network token credentials, cryptogram data, or the NTI into the Worldpay repeat-payment request".to_string(),
+                        ),
                     },
                 )
                 .into());
