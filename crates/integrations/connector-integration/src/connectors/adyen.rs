@@ -397,8 +397,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
                 })
             }
             Err(error_msg) => {
-                tracing::error!(deserialization_error=?error_msg);
-                crate::utils::handle_json_response_deserialization_failure(res, "adyen")
+                if let Some(event) = event_builder {
+                    event.set_connector_response(&serde_json::json!({"error": "Error response parsing failed", "status_code": res.status_code}));
+                }
+                tracing::error!(deserialization_error =? error_msg);
+                utils::handle_json_response_deserialization_failure(res, "mifinity")
             }
         }
     }

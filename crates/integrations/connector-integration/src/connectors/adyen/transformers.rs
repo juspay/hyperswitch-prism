@@ -7462,23 +7462,24 @@ pub(crate) fn get_dispute_stage_and_status(
                 Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
                 Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
                 Some(DisputeStatus::Unknown) => {
-                    return Err(error_stack::report!(
-                        WebhookError::WebhookBodyDecodingFailed
-                    )
-                    .attach_printable(
-                        "Received unknown Adyen dispute status in Chargeback event; \
+                    return Err(
+                        error_stack::report!(WebhookError::WebhookBodyDecodingFailed)
+                            .attach_printable(
+                                "Received unknown Adyen dispute status in Chargeback event; \
                          cannot determine dispute state without a known status",
-                    ));
+                            ),
+                    );
                 }
             };
             Ok((DisputeStage::Dispute, status))
         }
         WebhookEventCode::ChargebackReversed => {
             if let Some(DisputeStatus::Unknown) = dispute_status {
-                return Err(error_stack::report!(WebhookError::WebhookBodyDecodingFailed)
-                    .attach_printable(
+                return Err(
+                    error_stack::report!(WebhookError::WebhookBodyDecodingFailed).attach_printable(
                         "Received unknown Adyen dispute status in ChargebackReversed event",
-                    ));
+                    ),
+                );
             }
             let status = match dispute_status {
                 Some(DisputeStatus::Pending) => HSDisputeStatus::DisputeChallenged,
@@ -7491,10 +7492,11 @@ pub(crate) fn get_dispute_stage_and_status(
         }
         WebhookEventCode::PrearbitrationWon => {
             if let Some(DisputeStatus::Unknown) = dispute_status {
-                return Err(error_stack::report!(WebhookError::WebhookBodyDecodingFailed)
-                    .attach_printable(
+                return Err(
+                    error_stack::report!(WebhookError::WebhookBodyDecodingFailed).attach_printable(
                         "Received unknown Adyen dispute status in PrearbitrationWon event",
-                    ));
+                    ),
+                );
             }
             let status = match dispute_status {
                 Some(DisputeStatus::Pending) => HSDisputeStatus::DisputeOpened,
