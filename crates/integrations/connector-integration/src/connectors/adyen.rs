@@ -882,6 +882,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
+        if request.body.is_empty() {
+            return Ok(domain_types::connector_types::EventType::IncomingWebhookEventUnspecified);
+        }
         let notif: AdyenNotificationRequestItemWH =
             transformers::get_webhook_object_from_body(request.body).map_err(|err| {
                 report!(WebhookError::WebhookBodyDecodingFailed)
