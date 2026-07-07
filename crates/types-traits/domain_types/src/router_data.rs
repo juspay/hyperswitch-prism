@@ -6,7 +6,7 @@ use common_utils::{
     types::Money,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
     connector_types, errors, payment_method_data,
@@ -278,10 +278,21 @@ impl PaysafePaymentMethodDetails {
                 "Missing paysafe gift card account_id",
             ),
         };
-        value.ok_or(errors::IntegrationError::InvalidConnectorConfig {
-            config,
-            context: Default::default(),
-        })
+        value
+            // A provisioned-but-blank account id must not silently reach Paysafe as
+            // `accountId: ""`. `#[serde(default)]` on the proto config lets a partial
+            // config through (missing maps -> empty), and an explicit `""` value would
+            // otherwise resolve as `Some(Secret(""))`; treat empty/whitespace as missing.
+            .filter(|account_id| !account_id.peek().trim().is_empty())
+            .ok_or(errors::IntegrationError::InvalidConnectorConfig {
+                config,
+                context: errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Paysafe has no non-empty processing account for {currency:?} in the required account_id slot; check the connector config's account_id map."
+                    )),
+                    ..Default::default()
+                },
+            })
     }
 }
 
