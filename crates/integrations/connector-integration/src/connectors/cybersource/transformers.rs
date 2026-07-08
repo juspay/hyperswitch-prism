@@ -1369,6 +1369,18 @@ fn extract_score_id(message_extensions: &[MessageExtensionAttribute]) -> Option<
     })
 }
 
+/// UCAF collection indicator "2" — Mastercard fully-authenticated transaction
+/// (UCAF data collected and populated).
+const MASTERCARD_UCAF_COLLECTION_INDICATOR: &str = "2";
+/// Verification response enrollment status "Y" — cardholder authenticated. For
+/// external authentication this is always "Y" (mirrors Hyperswitch).
+const VERES_ENROLLED_AUTHENTICATED: &str = "Y";
+/// CAVV algorithm "2" — CVV with Authentication Transaction Number (ATN), the most
+/// common algorithm for 3DS 2.0 (Visa, Mastercard). Used as the default because the
+/// 3DS Server might not include `cavvAlgorithm` in the challenge response (mirrors
+/// Hyperswitch).
+const DEFAULT_CAVV_ALGORITHM: &str = "2";
+
 /// Builds the Cybersource `consumerAuthenticationInformation` block from external 3DS
 /// authentication data, mirroring Hyperswitch's construction at every call site: the
 /// card-network-aware ucaf/cavv split (Mastercard), `authenticationDate` formatted from
@@ -1380,7 +1392,11 @@ fn build_consumer_auth_information(
     let effective_authentication_type = authn_data.authentication_type.as_ref().map(Into::into);
     let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
         if card_network == Some(&common_enums::CardNetwork::Mastercard) {
-            (authn_data.cavv.clone(), None, Some("2".to_string()))
+            (
+                authn_data.cavv.clone(),
+                None,
+                Some(MASTERCARD_UCAF_COLLECTION_INDICATOR.to_string()),
+            )
         } else {
             (None, authn_data.cavv.clone(), None)
         };
@@ -1408,7 +1424,7 @@ fn build_consumer_auth_information(
         directory_server_transaction_id: authn_data.ds_trans_id.clone().map(Secret::new),
         specification_version: authn_data.message_version.clone(),
         pa_specification_version: authn_data.message_version.clone(),
-        veres_enrolled: Some("Y".to_string()),
+        veres_enrolled: Some(VERES_ENROLLED_AUTHENTICATED.to_string()),
         eci_raw: authn_data.eci.clone(),
         authentication_date: authn_data.created_at.and_then(|created_at| {
             common_utils::date_time::format_date(
@@ -1423,10 +1439,7 @@ fn build_consumer_auth_information(
         challenge_cancel_code: authn_data.challenge_cancel.clone(),
         network_score,
         acs_transaction_id: authn_data.acs_transaction_id.clone(),
-        // The 3DS Server might not include the `cavvAlgorithm` field in the challenge
-        // response. Default to "2" (CVV with ATN), the most common value for 3DS 2.0
-        // (mirrors Hyperswitch).
-        cavv_algorithm: Some("2".to_string()),
+        cavv_algorithm: Some(DEFAULT_CAVV_ALGORITHM.to_string()),
     }
 }
 
