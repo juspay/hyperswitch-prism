@@ -19,6 +19,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.08.0
+
+### Features
+
+- **flywire:**
+  - Redirect payer on failed checkout_session event ([#1841](https://github.com/juspay/connector-service/pull/1841)) ([`c21e9f5`](https://github.com/juspay/connector-service/commit/c21e9f5c1dff06cf905883194611b12f21a9ff36))
+  - Add nested education_data (student details) to DomainData ([#1820](https://github.com/juspay/connector-service/pull/1820)) ([`5757dbf`](https://github.com/juspay/connector-service/commit/5757dbf33f54f168b79958dc8ddd3467d55c50da))
+
+### Bug Fixes
+
+- **adyen:** Add deserialization resilience for unknown connector response values ([#1835](https://github.com/juspay/connector-service/pull/1835)) ([`6459ee5`](https://github.com/juspay/connector-service/commit/6459ee5a6bf107622f46ee202f0dee35bf8856ae))
+
+**Full Changelog:** [`2026.07.07.2...2026.07.08.0`](https://github.com/juspay/connector-service/compare/2026.07.07.2...2026.07.08.0)
+
+- - -
+
 ## 2026.07.07.2
 
 ### Features
