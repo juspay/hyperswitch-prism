@@ -1,0 +1,8 @@
+{
+  "url": "https://example.com",
+  "rules": [
+    { "action": "waitFor", "selector": "h1" },
+    { "action": "extract", "selector": "h1", "as": "headline" },
+    { "action": "screenshot", "as": "snapshot" }
+  ]
+}

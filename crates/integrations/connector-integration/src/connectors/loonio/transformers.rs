@@ -2,7 +2,7 @@ use super::LoonioRouterData;
 use crate::types::ResponseRouterData;
 use common_enums::AttemptStatus;
 use common_utils::{id_type::CustomerId, pii::Email, types::FloatMajorUnit, Method};
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
     connector_flow::{Authorize, PSync},
     connector_types::{
@@ -224,9 +224,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     webhook_url: Some(item.router_data.request.get_webhook_url()?),
                 })
             }
-            PaymentMethodData::BankRedirect(_) => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Loonio"),
-            ))?,
+            PaymentMethodData::BankRedirect(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Loonio"),
+                    connector: "Loonio",
+                    context: Default::default(),
+                }))?
+            }
             PaymentMethodData::Card(_)
             | PaymentMethodData::Wallet(_)
             | PaymentMethodData::CardRedirect(_)
@@ -240,13 +244,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::not_implemented(
+            | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Loonio"),
+                Default::default(),
             ))?,
         }
     }
@@ -260,7 +265,7 @@ pub struct LoonioAuthorizeResponse {
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<LoonioAuthorizeResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<LoonioAuthorizeResponse, Self>,
@@ -287,9 +292,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<LoonioAuthorizeRespon
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -360,7 +367,7 @@ pub struct LoonioTransactionSyncResponse {
 impl TryFrom<ResponseRouterData<LoonioPaymentResponseData, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<LoonioPaymentResponseData, Self>,
@@ -396,9 +403,11 @@ impl TryFrom<ResponseRouterData<LoonioPaymentResponseData, Self>>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })
@@ -428,9 +437,11 @@ impl TryFrom<ResponseRouterData<LoonioPaymentResponseData, Self>>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })

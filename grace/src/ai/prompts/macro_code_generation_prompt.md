@@ -200,11 +200,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {{connector_name_lower}}::{{ConnectorName}}ErrorResponse = res
             .response
             .parse_struct("ErrorResponse")
-            .map_err(|_| errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+            .map_err(|_| errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         with_error_response_body!(event_builder, response);
 
@@ -282,7 +282,7 @@ use common_utils::{ext_traits::OptionExt, pii, request::Method, types::{MinorUni
 use domain_types::{
     connector_flow::{self, *},
     connector_types::*,
-    errors::{self, IntegrationError, ConnectorResponseTransformationError},
+    errors::{self, IntegrationError, ConnectorError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::{ConnectorAuthType, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -441,7 +441,7 @@ impl{{if flow.needs_generic}}<T: PaymentMethodDataTypes + Debug + Sync + Send + 
     TryFrom<ResponseRouterData<{{ConnectorName}}{{FlowName}}Response, RouterDataV2<{{FlowName}}, {{resource_common_data}}, {{request_data}}, {{response_data}}>>>
     for RouterDataV2<{{FlowName}}, {{resource_common_data}}, {{request_data}}, {{response_data}}>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<{{ConnectorName}}{{FlowName}}Response, RouterDataV2<{{FlowName}}, {{resource_common_data}}, {{request_data}}, {{response_data}}}>,

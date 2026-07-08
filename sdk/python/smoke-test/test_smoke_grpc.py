@@ -45,8 +45,35 @@ except ImportError as e:
     print("Make sure the wheel is installed: pip install dist/hyperswitch_payments-*.whl")
     sys.exit(1)
 
-# ── Field-probe support filtering ────────────────────────────────────────────
+# ── Flow manifest ─────────────────────────────────────────────────────────────
 
+def load_flow_manifest(sdk_root: Path) -> List[str]:
+    """Load the canonical flow manifest from flows.json."""
+    # Try multiple locations for flows.json
+    manifest_locations = [
+        sdk_root / "generated" / "flows.json",
+    ]
+    
+    # Check environment variable
+    if env_path := os.environ.get("FLOWS_JSON_PATH"):
+        manifest_locations.insert(0, Path(env_path))
+    
+    # Check cwd as fallback
+    manifest_locations.append(Path.cwd() / "flows.json")
+    
+    for manifest_path in manifest_locations:
+        if manifest_path.exists():
+            with open(manifest_path) as f:
+                data = json.load(f)
+            return data["flows"]
+    
+    # If we get here, we couldn't find the file
+    searched = "\n  - ".join(str(p) for p in manifest_locations)
+    raise FileNotFoundError(
+        f"flows.json not found. Searched:\n  - {searched}\nRun: make generate"
+    )
+
+# ── Field-probe support filtering ────────────────────────────────────────────
 
 def load_field_probe(
     connector: str, examples_dir: str
@@ -98,72 +125,30 @@ FLOW_META = [
     ("authenticate",             "payment_method_authentication", "authenticate",      "_build_authenticate_request",      "none"),
     ("post_authenticate",        "payment_method_authentication", "post_authenticate", "_build_post_authenticate_request", "none"),
     ("handle_event",             "event",            "handle_event",        "_build_handle_event_request",           "none"),
-    ("create_access_token",      "merchant_authentication", "create_access_token",  "_build_create_access_token_request",  "none"),
-    ("create_session_token",     "merchant_authentication", "create_session_token", "_build_create_session_token_request", "none"),
+    ("create_access_token",      "payment",   "create_access_token", "_build_create_access_token_request",    "none"),
+    ("create_session_token",     "payment",   "create_session_token","_build_create_session_token_request",   "none"),
+    ("create_sdk_session_token", "payment",   "create_sdk_session_token", "_build_create_sdk_session_token_request", "none"),
 ]
 
-# capture/void: run inline MANUAL authorize first (AUTOMATIC txn_id can't be captured)
+TXN_ID_FLOWS   = {"capture", "void", "get", "refund", "reverse"}
 SELF_AUTH_FLOWS = {"capture", "void"}
-# get/refund/reverse: receive connector txn_id from shared AUTOMATIC pre-run authorize
-TXN_ID_FLOWS    = {"get", "refund", "reverse"}
-
-
-# ── Response formatting ───────────────────────────────────────────────────────
 
 
 def _format_result(res) -> str:
-    """Extract key fields from a gRPC response message for display."""
-    try:
-        from google.protobuf.json_format import MessageToDict
-        d = MessageToDict(res, preserving_proto_field_name=True,
-                          including_default_value_fields=False)
-    except Exception:
-        return f"status_code: {getattr(res, 'status_code', '?')}"
-
-    parts: List[str] = []
-
-    # ID fields — short label, value
-    _id_keys = [
-        ("connector_transaction_id", "txn_id"),
-        ("connector_refund_id",      "refund_id"),
-        ("connector_customer_id",    "customer_id"),
-        ("payment_method_token",     "token"),
-        ("connector_recurring_payment_id", "recurring_id"),
-    ]
-    for key, label in _id_keys:
-        val = d.get(key)
-        if val:
-            parts.append(f"{label}: {val}")
-
-    # Status enum (string name via MessageToDict)
-    if "status" in d:
-        parts.append(f"status: {d['status']}")
-
-    # HTTP status code
-    sc = d.get("status_code")
-    if sc is not None:
-        parts.append(f"http: {sc}")
-
-    # Error message (best-effort extraction)
-    err = d.get("error", {})
-    if err:
-        msg = (
-            (err.get("unified_details") or {}).get("message")
-            or err.get("message", "")
-        )
-        parts.append(f"error: {msg or str(err)}")
-
-    return ", ".join(parts) if parts else f"status_code: {getattr(res, 'status_code', '?')}"
-
-
-# ── Request building ──────────────────────────────────────────────────────────
+    """Format a gRPC response for display."""
+    if hasattr(res, "connector_transaction_id") and res.connector_transaction_id:
+        return f"txn_id: {res.connector_transaction_id}, status_code: {res.status_code}"
+    if hasattr(res, "connector_refund_id") and res.connector_refund_id:
+        return f"refund_id: {res.connector_refund_id}, status_code: {res.status_code}"
+    if hasattr(res, "connector_customer_id") and res.connector_customer_id:
+        return f"customer_id: {res.connector_customer_id}, status_code: {res.status_code}"
+    if hasattr(res, "payment_method_token") and res.payment_method_token:
+        return f"token: {res.payment_method_token}, status_code: {res.status_code}"
+    return f"status_code: {res.status_code}"
 
 
 def build_request(mod, builder_fn: str, arg_type: str, arg: str):
-    """
-    Call build_{flow}_request() from the connector module.
-    Returns None if the builder doesn't exist in the module.
-    """
+    """Call the connector's builder function with the appropriate argument."""
     fn = getattr(mod, builder_fn, None)
     if fn is None:
         return None
@@ -172,34 +157,27 @@ def build_request(mod, builder_fn: str, arg_type: str, arg: str):
     return fn(arg)
 
 
-# ── Credentials ───────────────────────────────────────────────────────────────
-
+# ── Credentials loading ───────────────────────────────────────────────────────
 
 def load_creds(creds_file: str) -> Dict[str, Any]:
     if not os.path.exists(creds_file):
         return {}
     with open(creds_file, encoding="utf-8") as f:
-        raw = json.load(f)
-    # Single-connector format: {"connector": "stripe", "endpoint": ...}
-    if isinstance(raw.get("connector"), str) and isinstance(raw.get("endpoint"), str):
-        return {raw["connector"]: raw}
-    return raw
+        return json.load(f)
 
 
 def build_grpc_config(connector: str, cred: Dict[str, Any]) -> GrpcConfig:
-    def s(*keys):
+    """Build GrpcConfig from credentials entry."""
+    def s(*keys: str) -> Optional[str]:
         for k in keys:
             v = cred.get(k)
+            if isinstance(v, dict):
+                v = v.get("value")
             if isinstance(v, str) and v:
                 return v
-            if isinstance(v, dict):
-                inner = v.get("value")
-                if isinstance(inner, str) and inner:
-                    return inner
         return None
 
     # Build connector-specific config for x-connector-config header
-    # Capitalize first letter of connector name for the config key
     connector_variant = connector[0].upper() + connector[1:] if connector else connector
     
     api_key = s("api_key", "apiKey") or "placeholder"
@@ -208,7 +186,6 @@ def build_grpc_config(connector: str, cred: Dict[str, Any]) -> GrpcConfig:
     merchant_id = s("merchant_id", "merchantId")
     tenant_id = s("tenant_id", "tenantId")
     
-    # Build the connector-specific config object
     connector_specific_config: Dict[str, Any] = {"api_key": api_key}
     if api_secret:
         connector_specific_config["api_secret"] = api_secret
@@ -219,7 +196,6 @@ def build_grpc_config(connector: str, cred: Dict[str, Any]) -> GrpcConfig:
     if tenant_id:
         connector_specific_config["tenant_id"] = tenant_id
     
-    # Build the full x-connector-config format
     connector_config = {
         "config": {
             connector_variant: connector_specific_config
@@ -233,14 +209,47 @@ def build_grpc_config(connector: str, cred: Dict[str, Any]) -> GrpcConfig:
     )
 
 
+# ── Scenario result tracking ─────────────────────────────────────────────────
+
+class ScenarioResult:
+    def __init__(self, status: str, message: Optional[str] = None, 
+                 reason: Optional[str] = None, error: Optional[str] = None):
+        self.status = status  # "passed", "skipped", "failed"
+        self.message = message
+        self.reason = reason
+        self.error = error
+
+class ConnectorResult:
+    def __init__(self, connector: str):
+        self.connector = connector
+        self.status = "passed"  # "passed", "failed", "skipped"
+        self.scenarios: Dict[str, ScenarioResult] = {}
+        self.error: Optional[str] = None
+
+
+def is_transport_error(err_str: str) -> bool:
+    """Check if error is a transport-level error (vs connector error)."""
+    return any(x in err_str.lower() for x in [
+        "unavailable", "deadlineexceeded", "connection refused", 
+        "transport error", "dns error", "connection reset", "tonic transport"
+    ])
+
+
 # ── Connector runner ──────────────────────────────────────────────────────────
 
-
-def run_connector(connector_name: str, examples_dir: str, cred: Dict[str, Any]) -> bool:
+def run_connector(connector_name: str, examples_dir: str, cred: Dict[str, Any], 
+                  manifest: List[str]) -> ConnectorResult:
+    result = ConnectorResult(connector_name)
+    
+    # Try both new structure (with python/ subdirectory) and old structure (flat)
     py_file = Path(examples_dir) / connector_name / "python" / f"{connector_name}.py"
     if not py_file.exists():
+        py_file = Path(examples_dir) / connector_name / f"{connector_name}.py"
+    if not py_file.exists():
+        result.status = "skipped"
+        result.error = f"No Python file found at {py_file}"
         print(_grey(f"  [{connector_name}] No Python file found at {py_file}, skipping."))
-        return True
+        return result
 
     spec = importlib.util.spec_from_file_location(connector_name, py_file)
     mod  = importlib.util.module_from_spec(spec)
@@ -261,8 +270,10 @@ def run_connector(connector_name: str, examples_dir: str, cred: Dict[str, Any]) 
     ]
 
     if not present_flows:
+        result.status = "skipped"
+        result.error = "No flows to run"
         print(_grey(f"  [{connector_name}] No flows to run, skipping."))
-        return True
+        return result
 
     import time
     txn_id         = f"probe_py_grpc_{int(time.time() * 1000)}"
@@ -281,32 +292,35 @@ def run_connector(connector_name: str, examples_dir: str, cred: Dict[str, Any]) 
                 raise RuntimeError("_build_authorize_request not found in connector module")
             res = client.payment.authorize(req)
             authorize_txn_id = res.connector_transaction_id or txn_id
-            result = _format_result(res)
+            result_str = _format_result(res)
             if res.status_code >= 400:
-                print(f"{_yellow('~ connector error')} {_grey(f'— {result}')}")
+                print(f"{_yellow('SKIPPED (connector error)')} {_grey(f'— {result_str}')}")
+                result.scenarios["authorize"] = ScenarioResult(
+                    status="skipped", reason="connector_error", message=result_str
+                )
             else:
-                print(f"{_green('✓ ok')} {_grey(f'— {result}')}")
+                print(f"{_green('PASSED')} {_grey(f'— {result_str}')}")
+                result.scenarios["authorize"] = ScenarioResult(
+                    status="passed", message=result_str
+                )
         except Exception as e:
             err_str = str(e)
-            is_transport = any(x in err_str.lower() for x in [
-                "unavailable", "deadlineexceeded", "connection refused", 
-                "transport error", "dns error", "connection reset"
-            ])
-            if is_transport:
-                print(f"{_red('✗ FAILED')} {_grey(f'— {err_str}')}")
+            if is_transport_error(err_str):
+                print(f"{_red('FAILED')} {_grey(f'— {err_str}')}")
+                result.scenarios["authorize"] = ScenarioResult(
+                    status="failed", error=err_str
+                )
                 pre_run_failed = True
+                result.status = "failed"
             else:
-                print(f"{_yellow('~ connector error')} {_grey(f'— {err_str}')}")
-                pre_run_failed = True
-
-    all_passed = True
+                print(f"{_yellow('SKIPPED (connector error)')} {_grey(f'— {err_str}')}")
+                result.scenarios["authorize"] = ScenarioResult(
+                    status="skipped", reason="connector_error", message=err_str
+                )
 
     for flow_key, client_attr, method_name, builder_fn, arg_type in present_flows:
         # Skip authorize — already handled in pre-run above
         if flow_key == "authorize" and has_authorize and has_dependents:
-            if not pre_run_failed:
-                print(f"  [{flow_key}] running … ", end="", flush=True)
-                print(f"{_green('✓ ok')} {_grey(f'— txn_id: {authorize_txn_id}')}")
             continue
 
         print(f"  [{flow_key}] running … ", end="", flush=True)
@@ -326,7 +340,7 @@ def run_connector(connector_name: str, examples_dir: str, cred: Dict[str, Any]) 
                     raise RuntimeError(f"{builder_fn} not found in connector module")
                 sub_client = getattr(client, client_attr)
                 res = getattr(sub_client, method_name)(req)
-                result = _format_result(res)
+                result_str = _format_result(res)
 
             else:
                 arg = authorize_txn_id if flow_key in TXN_ID_FLOWS else txn_id
@@ -335,24 +349,109 @@ def run_connector(connector_name: str, examples_dir: str, cred: Dict[str, Any]) 
                     raise RuntimeError(f"{builder_fn} not found in connector module")
                 sub_client = getattr(client, client_attr)
                 res = getattr(sub_client, method_name)(req)
-                result = _format_result(res)
+                result_str = _format_result(res)
 
-            print(f"{_green('✓ ok')} {_grey(f'— {result}')}")
+            print(f"{_green('PASSED')} {_grey(f'— {result_str}')}")
+            result.scenarios[flow_key] = ScenarioResult(
+                status="passed", message=result_str
+            )
 
         except Exception as e:
             err_str = str(e)
-            # Check if it's a transport error vs connector error
-            is_transport = any(x in err_str.lower() for x in [
-                "unavailable", "deadlineexceeded", "connection refused", 
-                "transport error", "dns error", "connection reset"
-            ])
-            if is_transport:
-                print(f"{_red('✗ FAILED')} {_grey(f'— {err_str}')}")
-                all_passed = False
+            if is_transport_error(err_str):
+                print(f"{_red('FAILED')} {_grey(f'— {err_str}')}")
+                result.scenarios[flow_key] = ScenarioResult(
+                    status="failed", error=err_str
+                )
+                result.status = "failed"
             else:
-                print(f"{_yellow('~ connector error')} {_grey(f'— {err_str}')}")
+                print(f"{_yellow('SKIPPED (connector error)')} {_grey(f'— {err_str}')}")
+                result.scenarios[flow_key] = ScenarioResult(
+                    status="skipped", reason="connector_error", message=err_str
+                )
 
-    return all_passed
+    # Update connector status based on scenarios
+    if result.status != "failed":
+        if all(s.status in ("passed", "skipped") for s in result.scenarios.values()):
+            result.status = "passed"
+        else:
+            result.status = "failed"
+    
+    return result
+
+
+def print_result(result: ConnectorResult) -> None:
+    """Print connector result summary."""
+    if result.status == "passed":
+        passed_count = sum(1 for s in result.scenarios.values() if s.status == "passed")
+        skipped_count = sum(1 for s in result.scenarios.values() if s.status == "skipped")
+        print(_green(f"  PASSED") + f" ({passed_count} passed, {skipped_count} skipped)")
+        for key, scenario in result.scenarios.items():
+            if scenario.status == "passed":
+                print(_green(f"    {key}: ✓"))
+            elif scenario.status == "skipped":
+                print(_yellow(f"    {key}: ~ skipped ({scenario.reason})"))
+    elif result.status == "skipped":
+        print(_grey(f"  SKIPPED ({result.error or 'unknown'})"))
+    else:
+        print(_red(f"  FAILED"))
+        for key, scenario in result.scenarios.items():
+            if scenario.status == "failed":
+                print(_red(f"    {key}: ✗ FAILED — {scenario.error}"))
+        if result.error:
+            print(_red(f"  Error: {result.error}"))
+
+
+def print_summary(results: List[ConnectorResult]) -> int:
+    """Print test summary and return exit code."""
+    print(f"\n{'='*60}")
+    print(_bold("TEST SUMMARY"))
+    print(f"{'='*60}\n")
+
+    passed = sum(1 for r in results if r.status == "passed")
+    skipped = sum(1 for r in results if r.status == "skipped")
+    failed = sum(1 for r in results if r.status == "failed")
+
+    # Count per-scenario statuses
+    total_flows_passed = 0
+    total_flows_skipped = 0
+    total_flows_failed = 0
+    for r in results:
+        for scenario in r.scenarios.values():
+            if scenario.status == "passed":
+                total_flows_passed += 1
+            elif scenario.status == "skipped":
+                total_flows_skipped += 1
+            elif scenario.status == "failed":
+                total_flows_failed += 1
+
+    print(f"Total connectors:   {len(results)}")
+    print(_green(f"Passed:  {passed}"))
+    print(_grey(f"Skipped: {skipped} (no examples or placeholder credentials)"))
+    print((_red if failed > 0 else _green)(f"Failed:  {failed}"))
+    print()
+    print(f"Flow results:")
+    print(_green(f"  {total_flows_passed} flows PASSED"))
+    if total_flows_skipped > 0:
+        print(_yellow(f"  {total_flows_skipped} flows SKIPPED (connector errors)"))
+    if total_flows_failed > 0:
+        print(_red(f"  {total_flows_failed} flows FAILED"))
+    print()
+
+    if failed > 0:
+        print(_red("Failed connectors:"))
+        for result in results:
+            if result.status == "failed":
+                print(_red(f"  - {result.connector}: {result.error or 'see scenarios above'}"))
+        print()
+        return 1
+
+    if passed == 0 and skipped > 0:
+        print(_yellow("All tests skipped (no valid flows found)"))
+        return 1
+
+    print(_green("All tests completed successfully!"))
+    return 0
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -375,28 +474,33 @@ def main() -> None:
     creds_file = args.creds_file or os.path.join(os.getcwd(), "creds.json")
 
     all_creds = load_creds(creds_file)
+    
+    # Load flow manifest
+    try:
+        sdk_root = Path(__file__).parent.parent
+        manifest = load_flow_manifest(sdk_root)
+    except FileNotFoundError as e:
+        print(_red(f"MANIFEST ERROR: {e}"))
+        sys.exit(1)
 
     print(_bold("hyperswitch gRPC smoke test (Python)"))
     print(_grey(f"connectors: {', '.join(connectors)}"))
     print()
 
-    any_failed = False
+    results: List[ConnectorResult] = []
 
     for connector in connectors:
         print(_bold(f"── {connector} ──"))
         raw   = all_creds.get(connector)
         creds = raw if isinstance(raw, list) else ([raw] if raw else [{}])
         for cred in creds:
-            passed = run_connector(connector, examples_dir, cred)
-            if not passed:
-                any_failed = True
+            result = run_connector(connector, examples_dir, cred, manifest)
+            results.append(result)
+            print_result(result)
         print()
 
-    if any_failed:
-        print(_red("Some gRPC tests FAILED."), file=sys.stderr)
-        sys.exit(1)
-    else:
-        print(_green("All gRPC tests passed."))
+    exit_code = print_summary(results)
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

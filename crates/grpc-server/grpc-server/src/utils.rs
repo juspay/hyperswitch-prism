@@ -4,28 +4,24 @@ pub use ucs_interface_common::config::*;
 pub use ucs_interface_common::flow::*;
 pub use ucs_interface_common::metadata::*;
 
-use base64::{engine::general_purpose, Engine as _};
 use common_utils::{
-    config_patch::Patch,
-    consts::{self, Env, X_API_KEY, X_API_SECRET, X_AUTH, X_AUTH_KEY_MAP, X_KEY1, X_KEY2},
+    consts::{self, Env},
     errors::CustomResult,
     events::{Event, EventStage, FlowName, MaskedSerdeValue},
     lineage::LineageIds,
     superposition_config::{get_connector_urls, ConnectorUrls, SuperpositionConfig},
+    types::ExecutionMode,
 };
 use domain_types::{
-    connector_types,
-    errors::{ApiError, ApplicationErrorResponse},
-    router_data::ConnectorSpecificConfig,
-    utils::ForeignTryFrom,
+    connector_types, errors::IntegrationError, router_data::ConnectorSpecificConfig,
 };
-use error_stack::{Report, ResultExt};
+use error_stack::Report;
 use http::request::Request;
 use hyperswitch_masking;
+use prost::Message;
 use serde_json::Value;
 use std::{collections::HashMap, sync::Arc};
-use tonic::metadata;
-use ucs_env::{configs, configs::ConfigPatch, error::ResultExtGrpc};
+use ucs_env::{configs, error::ResultExtGrpc};
 
 use crate::request::RequestData;
 
@@ -39,6 +35,7 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         version = ?request.version(),
         tenant_id = tracing::field::Empty,
         request_id = tracing::field::Empty,
+        execution_mode = tracing::field::Empty,
     );
     request
         .headers()
@@ -51,6 +48,17 @@ pub fn record_fields_from_header<B: hyper::body::Body>(request: &Request<B>) -> 
         .get(consts::X_REQUEST_ID)
         .and_then(|value| value.to_str().ok())
         .map(|request_id| span.record("request_id", request_id));
+
+    // On the request span so every log line of the request carries primary/shadow.
+    let shadow = request
+        .headers()
+        .get(consts::X_SHADOW_MODE)
+        .and_then(|value| value.to_str().ok())
+        .is_some_and(|value| value.eq_ignore_ascii_case("true"));
+    span.record(
+        "execution_mode",
+        ExecutionMode::from_shadow_flag(shadow).as_str(),
+    );
 
     span
 }
@@ -80,15 +88,17 @@ pub fn get_resolved_connectors(
     connector: &connector_types::ConnectorEnum,
     connector_config: &ConnectorSpecificConfig,
     environment: Option<&str>,
-) -> Result<domain_types::types::Connectors, ApplicationErrorResponse> {
+) -> CustomResult<domain_types::types::Connectors, IntegrationError> {
+    use domain_types::errors::IntegrationErrorContext;
     match environment {
         Some(env) => {
             validate_environment(env).map_err(|e| {
-                ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "INVALID_ENVIRONMENT".to_string(),
-                    error_identifier: 400,
-                    error_message: e,
-                    error_object: None,
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-environment",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(e),
+                        ..Default::default()
+                    },
                 })
             })?;
 
@@ -99,51 +109,32 @@ pub fn get_resolved_connectors(
             ) {
                 Some(urls) => {
                     tracing::info!("resolved URLs from superposition for environment: {}", env);
-                    let patched_connectors =
-                        config.connectors.patch_connector_urls(connector, &urls)?;
+                    let patched_connectors = config
+                        .connectors
+                        .patch_connector_urls(connector, &urls)
+                        .map_err(|e| {
+                            Report::new(IntegrationError::ConfigurationError {
+                                code: "URL_PATCHING_FAILED".to_string(),
+                                message: format!("URL patching failed: {e}"),
+                                context: IntegrationErrorContext::default(),
+                            })
+                        })?;
                     connectors_with_connector_config_overrides_on_connectors(
                         connector_config,
                         patched_connectors,
                     )
-                    .map_err(|e| {
-                        ApplicationErrorResponse::InternalServerError(ApiError {
-                            sub_code: "CONNECTOR_OVERRIDE_ERROR".to_string(),
-                            error_identifier: 500,
-                            error_message: format!("Failed to resolve connector overrides: {}", e),
-                            error_object: None,
-                        })
-                    })
                 }
                 None => {
                     tracing::info!(
                         "superposition resolution failed, using static config with overrides"
                     );
-                    connectors_with_connector_config_overrides(connector_config, config).map_err(
-                        |e| {
-                            ApplicationErrorResponse::InternalServerError(ApiError {
-                                sub_code: "CONNECTOR_OVERRIDE_ERROR".to_string(),
-                                error_identifier: 500,
-                                error_message: format!(
-                                    "Failed to resolve connector overrides: {}",
-                                    e
-                                ),
-                                error_object: None,
-                            })
-                        },
-                    )
+                    connectors_with_connector_config_overrides(connector_config, config)
                 }
             }
         }
         None => {
             tracing::info!("no x-environment header, using static config with overrides");
-            connectors_with_connector_config_overrides(connector_config, config).map_err(|e| {
-                ApplicationErrorResponse::InternalServerError(ApiError {
-                    sub_code: "CONNECTOR_OVERRIDE_ERROR".to_string(),
-                    error_identifier: 500,
-                    error_message: format!("Failed to resolve connector overrides: {}", e),
-                    error_object: None,
-                })
-            })
+            connectors_with_connector_config_overrides(connector_config, config)
         }
     }
 }
@@ -224,156 +215,6 @@ pub fn resolve_connector_urls(
     }
 }
 
-/// Extracts connector-specific auth from metadata headers.
-/// Uses the connector name to determine which variant to create.
-pub fn auth_from_metadata(
-    metadata: &metadata::MetadataMap,
-    connector: &connector_types::ConnectorEnum,
-) -> CustomResult<ConnectorSpecificConfig, ApplicationErrorResponse> {
-    let generic_auth = generic_auth_from_metadata(metadata)?;
-    ConnectorSpecificConfig::foreign_try_from((&generic_auth, connector)).map_err(|_| {
-        Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-            sub_code: "AUTH_CONVERSION_FAILED".to_string(),
-            error_identifier: 400,
-            error_message: format!("Failed to convert legacy auth for connector: {}", connector),
-            error_object: None,
-        }))
-    })
-}
-
-/// Extracts generic auth type from metadata headers.
-/// This is the legacy format that uses key1, key2, etc.
-pub fn generic_auth_from_metadata(
-    metadata: &metadata::MetadataMap,
-) -> CustomResult<domain_types::router_data::ConnectorAuthType, ApplicationErrorResponse> {
-    use domain_types::router_data::ConnectorAuthType;
-
-    let auth = parse_metadata(metadata, X_AUTH)?;
-
-    #[allow(clippy::wildcard_in_or_patterns)]
-    match auth {
-        "header-key" => Ok(ConnectorAuthType::HeaderKey {
-            api_key: parse_metadata(metadata, X_API_KEY)?.to_string().into(),
-        }),
-        "body-key" => Ok(ConnectorAuthType::BodyKey {
-            api_key: parse_metadata(metadata, X_API_KEY)?.to_string().into(),
-            key1: parse_metadata(metadata, X_KEY1)?.to_string().into(),
-        }),
-        "signature-key" => Ok(ConnectorAuthType::SignatureKey {
-            api_key: parse_metadata(metadata, X_API_KEY)?.to_string().into(),
-            key1: parse_metadata(metadata, X_KEY1)?.to_string().into(),
-            api_secret: parse_metadata(metadata, X_API_SECRET)?.to_string().into(),
-        }),
-        "multi-auth-key" => Ok(ConnectorAuthType::MultiAuthKey {
-            api_key: parse_metadata(metadata, X_API_KEY)?.to_string().into(),
-            key1: parse_metadata(metadata, X_KEY1)?.to_string().into(),
-            key2: parse_metadata(metadata, X_KEY2)?.to_string().into(),
-            api_secret: parse_metadata(metadata, X_API_SECRET)?.to_string().into(),
-        }),
-        "no-key" => Ok(ConnectorAuthType::NoKey),
-        "temporary-auth" => Ok(ConnectorAuthType::TemporaryAuth),
-        "currency-auth-key" => {
-            let auth_key_map_str = parse_metadata(metadata, X_AUTH_KEY_MAP)?;
-            let auth_key_map: HashMap<
-                common_enums::enums::Currency,
-                common_utils::pii::SecretSerdeValue,
-            > = serde_json::from_str(auth_key_map_str).change_context(
-                ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "INVALID_AUTH_KEY_MAP".to_string(),
-                    error_identifier: 400,
-                    error_message: "Invalid auth-key-map format".to_string(),
-                    error_object: None,
-                }),
-            )?;
-            Ok(ConnectorAuthType::CurrencyAuthKey { auth_key_map })
-        }
-        "certificate-auth" | _ => Err(Report::new(ApplicationErrorResponse::BadRequest(
-            ApiError {
-                sub_code: "INVALID_AUTH_TYPE".to_string(),
-                error_identifier: 400,
-                error_message: format!("Invalid auth type: {auth}"),
-                error_object: None,
-            },
-        ))),
-    }
-}
-
-pub fn merge_config_with_override(
-    config_override: String,
-    config: configs::Config,
-) -> CustomResult<Arc<configs::Config>, ApplicationErrorResponse> {
-    match config_override.trim().is_empty() {
-        true => Ok(Arc::new(config)),
-        false => {
-            let mut override_patch: ConfigPatch = serde_json::from_str(config_override.trim())
-                .map_err(|e| {
-                    Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                        sub_code: "CANNOT_CONVERT_TO_JSON".into(),
-                        error_identifier: 400,
-                        error_message: format!("Cannot convert override config to JSON: {e}"),
-                        error_object: None,
-                    }))
-                })?;
-
-            if let Some(proxy_patch) = override_patch.proxy.as_mut() {
-                if let Some(cert_input) = proxy_patch
-                    .mitm_ca_cert
-                    .as_ref()
-                    .and_then(|value| value.as_ref())
-                {
-                    let cert_trimmed = cert_input.trim();
-
-                    let cert = if cert_trimmed.is_empty() {
-                        Err(Report::new(ApplicationErrorResponse::BadRequest(
-                            ApiError {
-                                sub_code: "INVALID_MITM_CA_CERT_BASE64".into(),
-                                error_identifier: 400,
-                                error_message: "proxy.mitm_ca_cert must be base64-encoded"
-                                    .to_string(),
-                                error_object: None,
-                            },
-                        )))
-                    } else {
-                        let sanitized: String = cert_trimmed.split_whitespace().collect();
-                        let decoded = general_purpose::STANDARD
-                            .decode(sanitized.as_bytes())
-                            .map_err(|e| {
-                                Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                                    sub_code: "INVALID_MITM_CA_CERT_BASE64".into(),
-                                    error_identifier: 400,
-                                    error_message: format!(
-                                        "Invalid base64 for proxy.mitm_ca_cert: {e}"
-                                    ),
-                                    error_object: None,
-                                }))
-                            })?;
-
-                        String::from_utf8(decoded).map_err(|e| {
-                            Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                                sub_code: "INVALID_MITM_CA_CERT_UTF8".into(),
-                                error_identifier: 400,
-                                error_message: format!(
-                                    "Decoded proxy.mitm_ca_cert is not valid UTF-8: {e}"
-                                ),
-                                error_object: None,
-                            }))
-                        })
-                    }?;
-
-                    proxy_patch.mitm_ca_cert = Some(Some(cert));
-                }
-            }
-
-            let mut merged_config = config;
-            merged_config.apply(override_patch);
-
-            tracing::info!("Config override applied successfully");
-
-            Ok(Arc::new(merged_config))
-        }
-    }
-}
-
 pub fn merge_configs(override_val: &Value, base_val: &Value) -> Value {
     match (base_val, override_val) {
         (Value::Object(base_map), Value::Object(override_map)) => {
@@ -392,7 +233,7 @@ pub fn merge_configs(override_val: &Value, base_val: &Value) -> Value {
 pub fn log_before_initialization<T>(
     request_data: &RequestData<T>,
     service_name: &str,
-) -> CustomResult<(), ApplicationErrorResponse>
+) -> CustomResult<(), IntegrationError>
 where
     T: serde::Serialize,
 {
@@ -412,13 +253,14 @@ where
             "<masked serialization error>".to_string()
         }
     };
+    let connector_name = connector.get_connector_name();
     current_span.record("service_name", service_name);
     current_span.record("request_body", req_body_json);
-    current_span.record("gateway", connector.to_string());
+    current_span.record("gateway", connector_name);
     current_span.record("merchant_id", merchant_id);
     current_span.record("tenant_id", tenant_id);
     current_span.record("request_id", request_id);
-    tracing::info!("Golden Log Line (incoming)");
+    tracing::info!("Golden Log Line (incoming - request)");
     Ok(())
 }
 
@@ -459,9 +301,79 @@ where
             current_span.record("status_code", status.code().to_string());
         }
     }
-    tracing::info!("Golden Log Line (incoming)");
+    tracing::info!("Golden Log Line (incoming - response)");
 }
 
+/// Generic gRPC logging wrapper that accepts a custom parser function.
+/// This allows different parsing strategies for different flow types
+/// (e.g., authenticated flows vs unauthenticated webhook flows).
+pub async fn grpc_logging_wrapper_with_parser<T, P, F, R>(
+    request: tonic::Request<T>,
+    service_name: &str,
+    config: Arc<configs::Config>,
+    flow_name: FlowName,
+    parser: P,
+    handler: F,
+) -> Result<tonic::Response<R>, tonic::Status>
+where
+    T: serde::Serialize
+        + std::fmt::Debug
+        + Send
+        + 'static
+        + hyperswitch_masking::ErasedMaskSerialize,
+    P: FnOnce(tonic::Request<T>, Arc<configs::Config>) -> Result<RequestData<T>, tonic::Status>,
+    F: FnOnce(
+        RequestData<T>,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<tonic::Response<R>, tonic::Status>> + Send>,
+    >,
+    R: serde::Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
+{
+    let current_span = tracing::Span::current();
+    let start_time = tokio::time::Instant::now();
+    let masked_request_data =
+        MaskedSerdeValue::from_masked_optional(request.get_ref(), "grpc_request");
+    let mut event_metadata_payload = None;
+    let mut event_headers = HashMap::new();
+
+    let grpc_response = async {
+        let request_data = parser(request, config.clone())?;
+        log_before_initialization(&request_data, service_name).into_grpc_status()?;
+        event_headers = request_data.masked_metadata.get_all_masked();
+        event_metadata_payload = Some(request_data.extracted_metadata.clone());
+
+        let result = handler(request_data).await;
+
+        let duration = start_time.elapsed().as_millis();
+        current_span.record("response_time", duration);
+        log_after_initialization(&result);
+        result
+    }
+    .await;
+
+    #[cfg(feature = "otel")]
+    observe_internal_latency(
+        start_time,
+        flow_name,
+        service_name,
+        event_metadata_payload.as_ref(),
+    );
+    create_and_emit_grpc_event(
+        masked_request_data,
+        &grpc_response,
+        start_time,
+        flow_name,
+        service_name,
+        &config,
+        event_metadata_payload.as_ref(),
+        event_headers,
+    );
+
+    grpc_response
+}
+
+/// Original gRPC logging wrapper for authenticated flows.
+/// Maintains backward compatibility with existing code.
 pub async fn grpc_logging_wrapper<T, F, Fut, R>(
     request: tonic::Request<T>,
     service_name: &str,
@@ -501,6 +413,13 @@ where
     }
     .await;
 
+    #[cfg(feature = "otel")]
+    observe_internal_latency(
+        start_time,
+        flow_name,
+        service_name,
+        event_metadata_payload.as_ref(),
+    );
     create_and_emit_grpc_event(
         masked_request_data,
         &grpc_response,
@@ -513,6 +432,31 @@ where
     );
 
     grpc_response
+}
+
+#[cfg(feature = "otel")]
+fn observe_internal_latency(
+    start_time: tokio::time::Instant,
+    flow_name: FlowName,
+    service_name: &str,
+    metadata_payload: Option<&MetadataPayload>,
+) {
+    let connector_time = metadata_payload
+        .map(|metadata| metadata.connector_latency.connector_time())
+        .unwrap_or_default();
+    let internal = start_time.elapsed().saturating_sub(connector_time);
+    let connector = metadata_payload
+        .map(|md| md.connector.get_connector_name())
+        .unwrap_or_else(|| "unknown".to_string());
+    let mode =
+        ExecutionMode::from_shadow_flag(metadata_payload.map(|md| md.shadow_mode).unwrap_or(false));
+    external_services::otel_metrics::record_internal_latency(
+        &flow_name.to_string(),
+        service_name,
+        &connector,
+        mode.as_str(),
+        internal.as_secs_f64(),
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -528,17 +472,26 @@ fn create_and_emit_grpc_event<R>(
 ) where
     R: serde::Serialize,
 {
+    let connector = metadata_payload
+        .map(|md| md.connector.get_connector_name())
+        .unwrap_or_else(|| "unknown".to_string());
+
     let mut grpc_event = Event {
         request_id: metadata_payload.map_or("unknown".to_string(), |md| md.request_id.clone()),
-        timestamp: chrono::Utc::now().timestamp().into(),
+        timestamp: chrono::Utc::now().timestamp_millis().into(),
         flow_type: flow_name,
-        connector: metadata_payload.map_or("unknown".to_string(), |md| md.connector.to_string()),
+        connector,
         url: None,
+        method: None,
         stage: EventStage::GrpcRequest,
+        execution_mode: ExecutionMode::from_shadow_flag(
+            metadata_payload.map(|md| md.shadow_mode).unwrap_or(false),
+        ),
         latency_ms: Some(u64::try_from(start_time.elapsed().as_millis()).unwrap_or(u64::MAX)),
         status_code: None,
         request_data: masked_request_data,
         response_data: None,
+        error: None,
         headers: masked_headers,
         additional_fields: HashMap::new(),
         lineage_ids: metadata_payload
@@ -551,13 +504,44 @@ fn create_and_emit_grpc_event<R>(
         .add_resource_id(metadata_payload.and_then(|metadata| metadata.resource_id.as_deref()));
     grpc_event.add_service_type(service_type_str(&config.server.type_));
     grpc_event.add_service_name(service_name);
+    grpc_event.add_tenant_id(
+        metadata_payload
+            .map(|md| md.tenant_id.as_str())
+            .unwrap_or("public"),
+    );
 
     match grpc_response {
         Ok(response) => grpc_event.set_grpc_success_response(response.get_ref()),
-        Err(error) => grpc_event.set_grpc_error_response(error),
+        Err(error) => {
+            grpc_event.set_grpc_error_response(error);
+            grpc_event.set_error_response(&build_error_detail(error));
+        }
     }
 
     common_utils::emit_event_with_config(grpc_event, &config.events);
+}
+
+fn build_error_detail(status: &tonic::Status) -> Value {
+    use grpc_api_types::payments::{ConnectorError, IntegrationError};
+
+    let details = status.details();
+    let (error_code, http_status_code) = if details.is_empty() {
+        (None, None)
+    } else {
+        IntegrationError::decode(details)
+            .map(|e| (Some(e.error_code), None))
+            .or_else(|_| {
+                ConnectorError::decode(details).map(|e| (Some(e.error_code), e.http_status_code))
+            })
+            .unwrap_or((None, None))
+    };
+    serde_json::json!({
+        "grpc_code": i32::from(status.code()),
+        "grpc_code_name": format!("{:?}", status.code()),
+        "error_code": error_code,
+        "http_status_code": http_status_code,
+        "error_message": status.message(),
+    })
 }
 
 #[allow(clippy::result_large_err)]
@@ -583,6 +567,7 @@ where
 
 #[macro_export]
 macro_rules! implement_connector_operation {
+    // Pattern with payment method data processing and action matching
     (
         fn_name: $fn_name:ident,
         log_prefix: $log_prefix:literal,
@@ -595,12 +580,15 @@ macro_rules! implement_connector_operation {
         request_data_constructor: $request_data_constructor:path,
         common_flow_data_constructor: $common_flow_data_constructor:path,
         generate_response_fn: $generate_response_fn:path,
-        all_keys_required: $all_keys_required:expr
+        connector_data_type: $connector_data_type:ty,
+        all_keys_required: $all_keys_required:expr,
+        has_payment_method_data: true
     ) => {
         async fn $fn_name(
             &self,
             request: $crate::request::RequestData<$request_type>,
         ) -> Result<tonic::Response<$response_type>, tonic::Status> {
+            #[allow(unused_imports)]
             use ucs_env::error::IntoGrpcStatus;
             tracing::info!(concat!($log_prefix, "_FLOW: initiated"));
             let config = request
@@ -618,13 +606,16 @@ macro_rules! implement_connector_operation {
                 payload,
                 extracted_metadata: metadata_payload,
                 masked_metadata,
-                extensions: _  // unused in macro
+                extensions: _
             } = request;
 
-            let (connector, request_id, connector_config) = (metadata_payload.connector, metadata_payload.request_id, metadata_payload.connector_config);
+            let request_id = metadata_payload.request_id.clone();
+            let connector_config = metadata_payload.connector_config.clone();
 
-            // Get connector data
-            let connector_data: ConnectorData<domain_types::payment_method_data::DefaultPCIHolder> = connector_integration::types::ConnectorData::get_connector_by_name(&connector);
+            // Get connector data using ConnectorDataProvider trait
+            let connector_data: $connector_data_type =
+                connector_integration::types::ConnectorDataProvider::from_connector_variant(&metadata_payload.connector)
+                    .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
 
             // Get connector integration
             let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
@@ -635,21 +626,200 @@ macro_rules! implement_connector_operation {
                 $response_data_type,
             > = connector_data.connector.get_connector_integration_v2();
 
-            // Create connector request data
-            let specific_request_data = $request_data_constructor(payload.clone())
+            // Create common request data
+            let common_flow_data = $common_flow_data_constructor((payload.clone(), config.connectors.clone(), &masked_metadata))
                 .into_grpc_status()?;
 
-
-            let connectors = $crate::utils::get_resolved_connectors(
-                &config,
-                &metadata_payload.connector,
-                &connector_config,
-                metadata_payload.environment.as_deref(),
+            // Process payment method data
+            let payment_method_data_action = domain_types::types::PaymentMethodDataAction::get_payment_method_data_action(
+                payload.payment_method.clone()
+                    .ok_or_else(|| tonic::Status::invalid_argument("missing payment_method in the payload"))?
             )
-            .map_err(|e| error_stack::Report::new(e).into_grpc_status())?;
+            .map_err(|err| {
+                tracing::error!(concat!($log_prefix, "_FLOW: failed to get payment method data action - error: {:?}"), err);
+                tonic::Status::invalid_argument("Invalid payment method data")
+            })?;
+
+            let payment_method_data = match payment_method_data_action {
+                domain_types::types::PaymentMethodDataAction::Card(card_details) => {
+                    tracing::info!(concat!($log_prefix, "_FLOW: Processing regular payment with card"));
+                    let card = domain_types::payment_method_data::Card::<domain_types::payment_method_data::DefaultPCIHolder>::foreign_try_from(card_details)
+                        .map_err(|err| {
+                            tracing::error!(concat!($log_prefix, "_FLOW: failed to convert card details - error: {:?}"), err);
+                            tonic::Status::invalid_argument("Invalid card details")
+                        })?;
+                    Ok(domain_types::payment_method_data::PaymentMethodData::Card(card))
+                }
+                domain_types::types::PaymentMethodDataAction::Default => {
+                    let pm_data = domain_types::payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(
+                        payload.payment_method.clone()
+                            .ok_or_else(|| tonic::Status::invalid_argument("missing payment_method in the payload"))?
+                    )
+                    .map_err(|err| {
+                        tracing::error!("Failed to convert payment method data: {:?}", err);
+                        tonic::Status::invalid_argument("Invalid payment method data")
+                    })?;
+                    Ok(pm_data)
+                }
+                domain_types::types::PaymentMethodDataAction::CardProxy(_) => {
+                    Err(tonic::Status::invalid_argument("CardProxy not supported in this flow"))
+                }
+            }?;
+
+            // Create connector request data with payment method data
+            let specific_request_data = $request_data_constructor((payload.clone(), payment_method_data))
+                .into_grpc_status()?;
+
+            // Create router data
+            let router_data = domain_types::router_data_v2::RouterDataV2::<
+                $flow_marker,
+                $resource_common_data_type,
+                $request_data_type,
+                $response_data_type,
+            > {
+                flow: std::marker::PhantomData,
+                resource_common_data: common_flow_data,
+                connector_config,
+                request: specific_request_data,
+                response: Err(domain_types::router_data::ErrorResponse::default()),
+            };
+
+            // Calculate flow name for dynamic flow-specific configurations
+            let flow_name = $crate::utils::flow_marker_to_flow_name::<$flow_marker>();
+
+            // Get API tag for the current flow with payment method type
+            let api_tag = config
+                .api_tags
+                .get_tag(flow_name, router_data.request.payment_method_type);
+
+            // Create test context if test mode is enabled
+            let test_context = config.test.create_test_context(&request_id).map_err(|e| {
+                tonic::Status::internal(format!("Test mode configuration error: {e}"))
+            })?;
+
+            // Execute connector processing
+            let event_params = external_services::service::EventProcessingParams {
+                connector_name: &connector.to_string(),
+                service_name: &service_name,
+                service_type: $crate::utils::service_type_str(&config.server.type_),
+                flow_name,
+                event_config: &config.events,
+                request_id: &request_id,
+                lineage_ids: &metadata_payload.lineage_ids,
+                reference_id: &metadata_payload.reference_id,
+                resource_id: &metadata_payload.resource_id,
+                shadow_mode: metadata_payload.shadow_mode,
+                proxy_name: metadata_payload.proxy_name.as_deref(),
+                tenant_id: &metadata_payload.tenant_id,
+                merchant_id: metadata_payload.merchant_id.as_str(),
+                return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
+            };
+            let call_connector_action = connector_integration.get_call_connector_action();
+            let response_result = external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                $all_keys_required,
+                event_params,
+                None,
+                call_connector_action,
+                test_context,
+                api_tag,
+            )
+            .await
+            .switch()
+            .into_grpc_status()?;
+
+            // Generate response
+            let final_response = $generate_response_fn(response_result)
+                .into_grpc_status()?;
+
+            Ok(tonic::Response::new(final_response))
+        }).await;
+        result
+    }
+};
+
+    // Pattern with Option<PaymentMethodData> for flows that need it but don't do action processing
+    (
+        fn_name: $fn_name:ident,
+        log_prefix: $log_prefix:literal,
+        request_type: $request_type:ty,
+        response_type: $response_type:ty,
+        flow_marker: $flow_marker:ty,
+        resource_common_data_type: $resource_common_data_type:ty,
+        request_data_type: $request_data_type:ty,
+        response_data_type: $response_data_type:ty,
+        request_data_constructor: $request_data_constructor:path,
+        common_flow_data_constructor: $common_flow_data_constructor:path,
+        generate_response_fn: $generate_response_fn:path,
+        connector_data_type: $connector_data_type:ty,
+        all_keys_required: $all_keys_required:expr,
+        has_payment_method_data: option
+    ) => {
+        async fn $fn_name(
+            &self,
+            request: $crate::request::RequestData<$request_type>,
+        ) -> Result<tonic::Response<$response_type>, tonic::Status> {
+            tracing::info!(concat!($log_prefix, "_FLOW: initiated"));
+            let config = request
+                .extensions
+
+                .get::<std::sync::Arc<ucs_env::configs::Config>>()
+                .cloned()
+                .ok_or_else(|| tonic::Status::internal("Configuration not found in request extensions"))?;
+            let service_name = request
+                .extensions
+                .get::<String>()
+                .cloned()
+                .unwrap_or_else(|| "unknown_service".to_string());
+            let result = Box::pin(async{
+            let $crate::request::RequestData {
+                payload,
+                extracted_metadata: metadata_payload,
+                masked_metadata,
+                extensions: _
+            } = request;
+
+            let request_id = metadata_payload.request_id.clone();
+            let connector_config = metadata_payload.connector_config.clone();
+
+            // Get connector data using ConnectorDataProvider trait
+            let connector_data: $connector_data_type =
+                connector_integration::types::ConnectorDataProvider::from_connector_variant(&metadata_payload.connector)
+                    .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+
+            // Get connector integration
+            let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
+                '_,
+                $flow_marker,
+                $resource_common_data_type,
+                $request_data_type,
+                $response_data_type,
+            > = connector_data.connector.get_connector_integration_v2();
+
+            let payment_method_data: Option<domain_types::payment_method_data::PaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>> =
+                match payload.payment_method.clone() {
+                    Some(pm) => match domain_types::types::PaymentMethodDataAction::get_payment_method_data_action(pm.clone()).into_grpc_status()? {
+                        domain_types::types::PaymentMethodDataAction::Card(card_details) => {
+                            Some(domain_types::payment_method_data::PaymentMethodData::Card(
+                                domain_types::payment_method_data::Card::<domain_types::payment_method_data::DefaultPCIHolder>::foreign_try_from(card_details)
+                                    .into_grpc_status()?
+                            ))
+                        }
+                        domain_types::types::PaymentMethodDataAction::Default => {
+                            Some(domain_types::payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(pm).into_grpc_status()?)
+                        }
+                        _ => None,
+                    },
+                    None => None,
+                };
+            let specific_request_data = $request_data_constructor((payload.clone(), payment_method_data))
+                .into_grpc_status()?;
 
             // Create common request data
-            let common_flow_data = $common_flow_data_constructor((payload.clone(), connectors, &masked_metadata))
+            let common_flow_data = $common_flow_data_constructor((payload.clone(), config.connectors.clone(), &masked_metadata))
                 .into_grpc_status()?;
 
             // Create router data
@@ -670,7 +840,6 @@ macro_rules! implement_connector_operation {
             let flow_name = $crate::utils::flow_marker_to_flow_name::<$flow_marker>();
 
             // Get API tag for the current flow
-            // Note: Flows with payment_method_type should implement manually (e.g., authorize, psync)
             let api_tag = config
                 .api_tags
                 .get_tag(flow_name, None);
@@ -682,7 +851,7 @@ macro_rules! implement_connector_operation {
 
             // Execute connector processing
             let event_params = external_services::service::EventProcessingParams {
-                connector_name: &connector.to_string(),
+                connector_name: &metadata_payload.connector.get_connector_name(),
                 service_name: &service_name,
                 service_type: $crate::utils::service_type_str(&config.server.type_),
                 flow_name,
@@ -692,7 +861,13 @@ macro_rules! implement_connector_operation {
                 reference_id: &metadata_payload.reference_id,
                 resource_id: &metadata_payload.resource_id,
                 shadow_mode: metadata_payload.shadow_mode,
+                proxy_name: metadata_payload.proxy_name.as_deref(),
+                tenant_id: &metadata_payload.tenant_id,
+                merchant_id: metadata_payload.merchant_id.as_str(),
+                return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
             };
+            let call_connector_action = connector_integration.get_call_connector_action();
             let response_result = external_services::service::execute_connector_processing_step(
                 &config.proxy,
                 connector_integration,
@@ -700,12 +875,11 @@ macro_rules! implement_connector_operation {
                 $all_keys_required,
                 event_params,
                 None,
-                common_enums::CallConnectorAction::Trigger,
+                call_connector_action,
                 test_context,
                 api_tag,
             )
             .await
-            .switch()
             .into_grpc_status()?;
 
             // Generate response
@@ -715,6 +889,139 @@ macro_rules! implement_connector_operation {
             Ok(tonic::Response::new(final_response))
         }).await;
         result
-        }
-    };
+    }
+};
+
+    // Pattern without payment method data processing (original behavior)
+    (
+        fn_name: $fn_name:ident,
+        log_prefix: $log_prefix:literal,
+        request_type: $request_type:ty,
+        response_type: $response_type:ty,
+        flow_marker: $flow_marker:ty,
+        resource_common_data_type: $resource_common_data_type:ty,
+        request_data_type: $request_data_type:ty,
+        response_data_type: $response_data_type:ty,
+        request_data_constructor: $request_data_constructor:path,
+        common_flow_data_constructor: $common_flow_data_constructor:path,
+        generate_response_fn: $generate_response_fn:path,
+        connector_data_type: $connector_data_type:ty,
+        all_keys_required: $all_keys_required:expr
+    ) => {
+        async fn $fn_name(
+            &self,
+            request: $crate::request::RequestData<$request_type>,
+        ) -> Result<tonic::Response<$response_type>, tonic::Status> {
+            tracing::info!(concat!($log_prefix, "_FLOW: initiated"));
+            let config = request
+                .extensions
+                .get::<std::sync::Arc<ucs_env::configs::Config>>()
+                .cloned()
+                .ok_or_else(|| tonic::Status::internal("Configuration not found in request extensions"))?;
+            let service_name = request
+                .extensions
+                .get::<String>()
+                .cloned()
+                .unwrap_or_else(|| "unknown_service".to_string());
+            let result = Box::pin(async{
+            let $crate::request::RequestData {
+                payload,
+                extracted_metadata: metadata_payload,
+                masked_metadata,
+                extensions: _
+            } = request;
+
+            let request_id = metadata_payload.request_id.clone();
+            let connector_config = metadata_payload.connector_config.clone();
+
+            // Get connector data using ConnectorDataProvider trait
+            let connector_data: $connector_data_type =
+                connector_integration::types::ConnectorDataProvider::from_connector_variant(&metadata_payload.connector)
+                    .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+
+            // Get connector integration
+            let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
+                '_,
+                $flow_marker,
+                $resource_common_data_type,
+                $request_data_type,
+                $response_data_type,
+            > = connector_data.connector.get_connector_integration_v2();
+
+            // Create connector request data
+            let specific_request_data = $request_data_constructor(payload.clone())
+                .into_grpc_status()?;
+
+            // Create common request data
+            let common_flow_data = $common_flow_data_constructor((payload.clone(), config.connectors.clone(), &masked_metadata))
+                .into_grpc_status()?;
+
+            // Create router data
+            let router_data = domain_types::router_data_v2::RouterDataV2::<
+                $flow_marker,
+                $resource_common_data_type,
+                $request_data_type,
+                $response_data_type,
+            > {
+                flow: std::marker::PhantomData,
+                resource_common_data: common_flow_data,
+                connector_config,
+                request: specific_request_data,
+                response: Err(domain_types::router_data::ErrorResponse::default()),
+            };
+            let flow_name = $crate::utils::flow_marker_to_flow_name::<$flow_marker>();
+
+            // Get API tag for the current flow
+
+            let api_tag = config
+                .api_tags
+                .get_tag(flow_name, None);
+
+            // Create test context if test mode is enabled
+            let test_context = config.test.create_test_context(&request_id).map_err(|e| {
+                tonic::Status::internal(format!("Test mode configuration error: {e}"))
+            })?;
+
+            // Execute connector processing
+            let event_params = external_services::service::EventProcessingParams {
+                connector_name: &metadata_payload.connector.get_connector_name(),
+                service_name: &service_name,
+                service_type: $crate::utils::service_type_str(&config.server.type_),
+                flow_name,
+                event_config: &config.events,
+                request_id: &request_id,
+                lineage_ids: &metadata_payload.lineage_ids,
+                reference_id: &metadata_payload.reference_id,
+                resource_id: &metadata_payload.resource_id,
+                shadow_mode: metadata_payload.shadow_mode,
+                proxy_name: metadata_payload.proxy_name.as_deref(),
+                tenant_id: &metadata_payload.tenant_id,
+                merchant_id: metadata_payload.merchant_id.as_str(),
+                return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
+            };
+            let call_connector_action = connector_integration.get_call_connector_action();
+            let response_result = external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                $all_keys_required,
+                event_params,
+                None,
+                call_connector_action,
+                test_context,
+                api_tag,
+            )
+            .await
+            .into_grpc_status()?;
+
+            // Generate response
+            let final_response = $generate_response_fn(response_result)
+                .into_grpc_status()?;
+
+            Ok(tonic::Response::new(final_response))
+        }).await;
+        result
+    }
+};
 }

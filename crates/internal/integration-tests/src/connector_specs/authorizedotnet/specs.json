@@ -1,0 +1,17 @@
+{
+  "connector": "authorizedotnet",
+  "supported_suites": [
+    "CustomerService/Create",
+    "PaymentService/Authorize",
+    "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Reverse",
+    "PaymentService/Refund",
+    "PaymentService/Get",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge",
+    "EventService/HandleEvent"
+  ]
+}

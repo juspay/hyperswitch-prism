@@ -271,7 +271,7 @@ impl TryFrom<{ConnectorName}RouterData<RouterDataV2<Capture, PaymentFlowData, Pa
 impl TryFrom<ResponseRouterData<{ConnectorName}CaptureResponse, RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}CaptureResponse, RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>>,

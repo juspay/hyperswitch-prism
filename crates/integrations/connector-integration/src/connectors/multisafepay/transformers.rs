@@ -1,13 +1,17 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::types::MinorUnit;
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
-    connector_flow::{Authorize, PSync, RSync},
+    connector_flow::{Authorize, ClientAuthenticationToken, PSync, RSync},
     connector_types::{
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse,
+        MultisafepayClientAuthenticationResponse as MultisafepayClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -112,8 +116,17 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
+            | WalletData::Wero(_)
+            | WalletData::LazyPayRedirect(_)
+            | WalletData::PhonePeRedirect(_)
+            | WalletData::BillDeskRedirect(_)
+            | WalletData::CashfreeRedirect(_)
+            | WalletData::PayURedirect(_)
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Wallet payment method not supported")?,
         },
@@ -137,8 +150,10 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
+            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Bank redirect payment method not supported")?,
         },
@@ -153,12 +168,13 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-            Err(IntegrationError::not_implemented(
+            Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Payment method not supported")?
         }
@@ -261,8 +277,10 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | BankRedirectData::OnlineBankingFpx { .. }
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
-            | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
+            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Bank redirect payment method not supported")?,
         },
@@ -300,8 +318,17 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
+            | WalletData::Wero(_)
+            | WalletData::LazyPayRedirect(_)
+            | WalletData::PhonePeRedirect(_)
+            | WalletData::BillDeskRedirect(_)
+            | WalletData::CashfreeRedirect(_)
+            | WalletData::PayURedirect(_)
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Wallet payment method not supported")?,
         },
@@ -311,12 +338,14 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
                 BankDebitData::SepaBankDebit { .. } => Gateway::DirectDebit,
                 BankDebitData::AchBankDebit { .. }
                 | BankDebitData::BecsBankDebit { .. }
+                | BankDebitData::EftBankDebit { .. }
                 | BankDebitData::BacsBankDebit { .. }
                 | BankDebitData::SepaGuaranteedBankDebit { .. } => {
-                    Err(IntegrationError::not_implemented(
+                    Err(IntegrationError::NotImplemented(
                         crate::utils::get_unimplemented_payment_method_error_message(
                             "multisafepay",
                         ),
+                        Default::default(),
                     ))
                     .attach_printable("Only SEPA bank debit is supported by MultiSafepay")?
                 }
@@ -333,12 +362,13 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
         | PaymentMethodData::Voucher(_)
         | PaymentMethodData::GiftCard(_)
         | PaymentMethodData::OpenBanking(_)
-        | PaymentMethodData::CardToken(_)
+        | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-            Err(IntegrationError::not_implemented(
+            Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Payment method not supported")?
         }
@@ -379,26 +409,36 @@ fn build_gateway_info<T: PaymentMethodDataTypes>(
     order_type: &Type,
     payment_method_data: &domain_types::payment_method_data::PaymentMethodData<T>,
 ) -> Result<Option<MultisafepayGatewayInfo<T>>, error_stack::Report<IntegrationError>> {
+    use common_utils::fp_utils::when;
     use domain_types::payment_method_data::{BankDebitData, PaymentMethodData};
     use error_stack::ResultExt;
 
     match (order_type, payment_method_data) {
         (Type::Direct, PaymentMethodData::Card(card_data)) => {
             // Build gateway_info with card details
-            // Format card expiry as YYMM (2-digit year + 2-digit month) as integer
-            let card_expiry_str = card_data
+            // Format card expiry as YYMM (2-digit year + 2-digit month)
+            let card_expiry_secret = card_data
                 .get_card_expiry_year_month_2_digit_with_delimiter(String::new())
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
-                })?
-                .expose();
+                })?;
+            let card_expiry_str = card_expiry_secret.expose();
 
-            let card_expiry_date: i64 = card_expiry_str
-                .parse::<i64>()
-                .change_context(IntegrationError::RequestEncodingFailed {
+            // Vault token placeholders (e.g. "{{$card_exp_month}}") cannot be parsed as i64.
+            // Multisafepay requires a numeric YYMM value, so proxy flows are not supported.
+            when(card_expiry_str.contains("{{"), || {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Multisafepay requires a numeric YYMM expiry value; vault token placeholders are not supported for proxy flows".to_string(),
+                    connector: "Multisafepay",
                     context: Default::default(),
-                })
-                .attach_printable("Failed to parse card expiry date as integer")?;
+                }))
+            })?;
+
+            let card_expiry_date = card_expiry_str.parse::<i64>().change_context(
+                IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                },
+            )?;
 
             Ok(Some(MultisafepayGatewayInfo::Card(GatewayInfo {
                 card_number: card_data.card_number.clone(),
@@ -432,8 +472,9 @@ fn build_gateway_info<T: PaymentMethodDataTypes>(
                     },
                 )))
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+                Default::default(),
             ))
             .attach_printable("Payment method not supported")?,
         },
@@ -875,7 +916,7 @@ where
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MultisafepayPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<MultisafepayPaymentsResponse, Self>,
@@ -901,9 +942,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MultisafepayPaymentsR
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: response_data.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -918,7 +961,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MultisafepayPaymentsR
 impl TryFrom<ResponseRouterData<MultisafepayPaymentsResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<MultisafepayPaymentsResponse, Self>,
@@ -940,9 +983,11 @@ impl TryFrom<ResponseRouterData<MultisafepayPaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: response_data.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1034,7 +1079,7 @@ pub struct MultisafepayRefundData {
 impl<F> TryFrom<ResponseRouterData<MultisafepayRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<MultisafepayRefundResponse, Self>,
@@ -1060,7 +1105,7 @@ impl<F> TryFrom<ResponseRouterData<MultisafepayRefundResponse, Self>>
 impl TryFrom<ResponseRouterData<MultisafepayRefundResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<MultisafepayRefundResponse, Self>,
@@ -1075,6 +1120,54 @@ impl TryFrom<ResponseRouterData<MultisafepayRefundResponse, Self>>
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.response.data.refund_id.to_string(),
                 refund_status: refund_status.into(),
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== CLIENT AUTHENTICATION TOKEN FLOW STRUCTURES =====
+
+/// Response from the /auth/api_token endpoint for client-side Payment Components.
+/// The API token is used to encrypt sensitive payment details from a customer's device.
+/// Tokens are active for 600 seconds.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MultisafepayClientAuthResponse {
+    pub success: bool,
+    pub data: MultisafepayClientAuthData,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MultisafepayClientAuthData {
+    pub api_token: Secret<String>,
+}
+
+impl TryFrom<ResponseRouterData<MultisafepayClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<MultisafepayClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Multisafepay(
+                MultisafepayClientAuthenticationResponseDomain {
+                    api_token: response.data.api_token,
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
                 status_code: item.http_code,
             }),
             ..item.router_data

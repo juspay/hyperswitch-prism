@@ -270,10 +270,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + std::marker::Sync + std::mark
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response: {ConnectorName}ErrorResponse = res.response
             .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         if let Some(i) = event_builder {
             i.set_error_response_body(&response);
@@ -521,7 +521,7 @@ impl TryFrom<&RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestD
 impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
     for RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>,
@@ -531,7 +531,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
                 common_enums::MandateStatus::Revoked
             }
             {ConnectorName}RevokeStatus::Failed => {
-                return Err(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() }.into())
+                return Err(ConnectorError::ResponseDeserializationFailed { context: Default::default() }.into())
             }
         };
 
@@ -549,7 +549,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
 impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
     for RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>,
@@ -732,10 +732,10 @@ impl ConnectorCommon for {ConnectorName} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: {ConnectorName}ErrorResponse = res.response
             .parse_struct("ErrorResponse")
-            .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         if let Some(i) = event_builder {
             i.set_error_response_body(&response);
@@ -771,7 +771,7 @@ impl ConnectorCommon for {ConnectorName} {
 impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
     for RouterDataV2<MandateRevoke, PaymentFlowData, MandateRevokeRequestData, MandateRevokeResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>,
@@ -786,7 +786,7 @@ impl TryFrom<ResponseRouterData<{ConnectorName}RevokeMandateResponse, Self>>
             }),
             {ConnectorName}RevokeStatus::Failed => {
                 // Return error response
-                Err(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() }.into())
+                Err(ConnectorError::ResponseDeserializationFailed { context: Default::default() }.into())
             }
         }
     }

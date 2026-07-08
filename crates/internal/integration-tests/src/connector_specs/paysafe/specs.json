@@ -1,0 +1,14 @@
+{
+  "connector": "paysafe",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentMethodService/Tokenize",
+    "PaymentService/Void",
+    "CustomerService/Create"
+  ]
+}

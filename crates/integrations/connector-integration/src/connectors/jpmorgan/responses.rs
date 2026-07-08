@@ -55,7 +55,7 @@ pub struct JpmorganPaymentsResponse {
     pub transaction_state: JpmorganTransactionState,
     pub response_status: JpmorganTransactionStatus,
     pub response_code: String,
-    pub response_message: String,
+    pub response_message: Option<String>,
     pub payment_method_type: Option<PaymentMethodType>,
     pub capture_method: Option<CapMethod>,
 }
@@ -92,6 +92,7 @@ pub struct NetworkResponse {
     pub address_verification_result: Option<Secret<String>>,
     pub address_verification_result_code: Option<Secret<String>>,
     pub card_verification_result_code: Option<Secret<String>>,
+    pub network_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -156,10 +157,25 @@ pub struct JpmorganRefundResponse {
     pub transaction_state: JpmorganTransactionState,
     pub response_status: JpmorganResponseStatus,
     pub response_code: String,
-    pub response_message: String,
+    pub response_message: Option<String>,
+}
+
+/// Client Authentication Token response — wraps the OAuth2 token response.
+/// The access_token serves as the client authentication token for SDK initialization.
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct JpmorganClientAuthResponse {
+    pub access_token: Secret<String>,
+    pub scope: String,
+    pub token_type: String,
+    pub expires_in: i64,
 }
 
 pub type JpmorganPSyncResponse = JpmorganPaymentsResponse;
 pub type JpmorganCaptureResponse = JpmorganPaymentsResponse;
 pub type JpmorganVoidResponse = JpmorganPaymentsResponse;
+/// VoidPC (post-capture void/reversal) response — JPMorgan returns the same payment
+/// response shape for both pre-capture void and post-capture void operations.
+pub type JpmorganVoidPcResponse = JpmorganPaymentsResponse;
 pub type JpmorganRSyncResponse = JpmorganRefundResponse;
+pub type JpmorganSetupMandateResponse = JpmorganPaymentsResponse;
+pub type JpmorganRepeatPaymentResponse = JpmorganPaymentsResponse;

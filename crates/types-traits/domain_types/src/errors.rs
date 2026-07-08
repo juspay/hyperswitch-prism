@@ -1,9 +1,10 @@
 #![allow(unused_variables, unused_assignments)]
 
+use crate::router_data::ErrorResponse;
+use crate::utils::ForeignFrom;
 use common_enums;
 use common_utils::errors::ErrorSwitch;
 use error_stack::Report;
-use strum::Display;
 // use api_models::errors::types::{ Extra};
 #[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
@@ -44,60 +45,6 @@ pub enum ApiClientError {
     UnexpectedServerResponse,
 }
 
-#[derive(Debug, Clone, thiserror::Error, Display)]
-pub enum ApplicationErrorResponse {
-    Unauthorized(ApiError),
-    ForbiddenCommonResource(ApiError),
-    ForbiddenPrivateResource(ApiError),
-    Conflict(ApiError),
-    Gone(ApiError),
-    Unprocessable(ApiError),
-    InternalServerError(ApiError),
-    NotImplemented(ApiError),
-    NotFound(ApiError),
-    MethodNotAllowed(ApiError),
-    BadRequest(ApiError),
-    DomainError(ApiError),
-}
-
-impl ApplicationErrorResponse {
-    /// Returns a reference to the inner ApiError
-    pub fn get_api_error(&self) -> &ApiError {
-        match self {
-            Self::Unauthorized(err) => err,
-            Self::ForbiddenCommonResource(err) => err,
-            Self::ForbiddenPrivateResource(err) => err,
-            Self::Conflict(err) => err,
-            Self::Gone(err) => err,
-            Self::Unprocessable(err) => err,
-            Self::InternalServerError(err) => err,
-            Self::NotImplemented(err) => err,
-            Self::NotFound(err) => err,
-            Self::MethodNotAllowed(err) => err,
-            Self::BadRequest(err) => err,
-            Self::DomainError(err) => err,
-        }
-    }
-
-    pub fn missing_required_field(field_name: &'static str) -> Self {
-        Self::BadRequest(ApiError {
-            sub_code: "MISSING_REQUIRED_FIELD".to_owned(),
-            error_identifier: 400,
-            error_message: format!("Missing required param: {field_name}"),
-            error_object: None,
-        })
-    }
-
-    pub fn empty_field_error(field_name: &str) -> Self {
-        Self::BadRequest(ApiError {
-            sub_code: format!("INVALID_{}", field_name.to_uppercase()),
-            error_identifier: 400,
-            error_message: format!("{} cannot be empty", field_name),
-            error_object: None,
-        })
-    }
-}
-
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct ApiError {
     pub sub_code: String,
@@ -131,16 +78,16 @@ pub struct IntegrationErrorContext {
 }
 
 /// Fields used when mapping response-phase connector errors to
-/// `ConnectorResponseTransformationError`.
+/// `ConnectorError`.
 ///
 /// For rare cases (e.g. HTTP status unknown **and** [`Self::additional_context`] set), build
-/// [`ConnectorResponseTransformationError`] with a struct literal instead of adding more constructor helpers.
+/// [`ConnectorError`] with a struct literal instead of adding more constructor helpers.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ResponseTransformationErrorContext {
     /// HTTP status from the connector response when known.
     pub http_status_code: Option<u16>,
     /// Connector-specific detail; **appended** to the base error message for
-    /// `ConnectorResponseTransformationError.error_message` — see [`combine_error_message_with_context`].
+    /// `ConnectorError.error_message` — see [`combine_error_message_with_context`].
     pub additional_context: Option<String>,
 }
 
@@ -296,18 +243,48 @@ impl IntegrationError {
         }
     }
 
-    /// Connector feature not implemented; uses default empty [`IntegrationErrorContext`].
-    pub fn not_implemented(message: impl Into<String>) -> Self {
-        Self::not_implemented_with_context(message, IntegrationErrorContext::default())
+    /// Connector feature not implemented. Pass `IntegrationErrorContext::default()`
+    /// when no connector-specific guidance is needed.
+    pub fn not_implemented(message: impl Into<String>, context: IntegrationErrorContext) -> Self {
+        Self::NotImplemented(message.into(), context)
     }
 
-    /// Like [`Self::not_implemented`], but allows connector-specific [`IntegrationErrorContext`]
-    /// (merged with central defaults in `ucs_env`).
-    pub fn not_implemented_with_context(
+    /// Connector flow not implemented; formats a canonical `{flow} flow for {connector}` message.
+    pub fn connector_flow_not_implemented(
+        connector: impl Into<String>,
+        flow: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        Self::not_implemented(
+            format!("{} flow for {}", flow.into(), connector.into()),
+            context,
+        )
+    }
+
+    /// Connector flow not supported.
+    pub fn connector_flow_not_supported(
+        connector: impl Into<String>,
+        flow: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        Self::FlowNotSupported {
+            flow: flow.into(),
+            connector: connector.into(),
+            context,
+        }
+    }
+
+    /// Connector feature not supported.
+    pub fn connector_feature_not_supported(
+        connector: &'static str,
         message: impl Into<String>,
         context: IntegrationErrorContext,
     ) -> Self {
-        Self::NotImplemented(message.into(), context)
+        Self::NotSupported {
+            message: message.into(),
+            connector,
+            context,
+        }
     }
 
     /// Optional connector-specific guidance for gRPC [`IntegrationError`] (overrides merged in `ucs_env`).
@@ -348,6 +325,16 @@ impl IntegrationError {
         }
     }
 
+    /// Get API error representation (compatibility with PaymentAuthorizationError)
+    pub fn get_api_error(&self) -> ApiError {
+        ApiError {
+            sub_code: self.error_code().to_string(),
+            error_identifier: 500,
+            error_message: self.to_string(),
+            error_object: None,
+        }
+    }
+
     /// Machine-readable error code (SCREAMING_SNAKE_CASE from variant name, or explicit `code` for ConfigurationError).
     pub fn error_code(&self) -> &str {
         match self {
@@ -376,76 +363,12 @@ impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for IntegrationErro
     }
 }
 
-/// **LEGACY:** Lossy conversion to ApplicationErrorResponse to grpc successResponse with error field for gRPC server (payments.rs:820-860).
-/// **TODO:** Refactor gRPC server to use `ConnectorFlowError → tonic::Status` directly.
-/// **FFI:** Already uses lossless `IntegrationError → grpc_api_types::payments::IntegrationError`.
-impl ErrorSwitch<ApplicationErrorResponse> for IntegrationError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        let api_err = |sub_code: &str, id: u16| ApiError {
-            sub_code: sub_code.to_string(),
-            error_identifier: id,
-            error_message: self.to_string(),
-            error_object: None,
-        };
-        match self {
-            Self::FailedToObtainIntegrationUrl { .. }
-            | Self::FailedToObtainAuthType { .. }
-            | Self::RequestEncodingFailed { .. }
-            | Self::HeaderMapConstructionFailed { .. }
-            | Self::BodySerializationFailed { .. }
-            | Self::UrlParsingFailed { .. }
-            | Self::UrlEncodingFailed { .. }
-            | Self::AmountConversionFailed { .. }
-            | Self::NoConnectorMetaData { .. } => {
-                ApplicationErrorResponse::InternalServerError(api_err("INTERNAL_SERVER_ERROR", 500))
-            }
-            Self::SourceVerificationFailed { .. } => {
-                ApplicationErrorResponse::Unauthorized(api_err("UNAUTHORIZED", 401))
-            }
-            Self::InvalidWallet { .. }
-            | Self::MissingRequiredField { .. }
-            | Self::MissingRequiredFields { .. }
-            | Self::InvalidDataFormat { .. }
-            | Self::MismatchedPaymentData { .. }
-            | Self::InvalidWalletToken { .. }
-            | Self::MissingPaymentMethodType { .. }
-            | Self::CurrencyNotSupported { .. }
-            | Self::InvalidConnectorConfig { .. }
-            | Self::NotSupported { .. }
-            | Self::FlowNotSupported { .. }
-            | Self::MissingApplePayTokenData { .. }
-            | Self::MandatePaymentDataMismatch { .. }
-            | Self::ConfigurationError { .. } => {
-                ApplicationErrorResponse::BadRequest(api_err("BAD_REQUEST", 400))
-            }
-            Self::MaxFieldLengthViolated { .. }
-            | Self::MissingConnectorMandateID { .. }
-            | Self::MissingConnectorMandateMetadata { .. }
-            | Self::MissingConnectorTransactionID { .. }
-            | Self::MissingConnectorRefundID { .. }
-            | Self::MissingConnectorRelatedTransactionID { .. } => {
-                ApplicationErrorResponse::Unprocessable(api_err("UNPROCESSABLE_ENTITY", 422))
-            }
-            Self::NotImplemented(..) | Self::CaptureMethodNotSupported { .. } => {
-                ApplicationErrorResponse::NotImplemented(api_err("NOT_IMPLEMENTED", 501))
-            }
-        }
-    }
-}
-
-impl common_utils::errors::ErrorSwitchFrom<ApplicationErrorResponse> for ApplicationErrorResponse {
-    fn switch_from(error: &ApplicationErrorResponse) -> Self {
-        error.clone()
-    }
-}
-
-/// Errors that occur on the response transformation side:
-/// - connector bytes → domain (`handle_response_v2`)
-/// - domain → proto (`generate_payment_*_response`)
-/// - connector infra HTTP error responses (5xx, unexpected status)
-#[derive(Debug, thiserror::Error, PartialEq, Clone, strum::AsRefStr)]
+/// Errors that occur on the response side of a connector call:
+/// - UCS-side: connector bytes → domain (`handle_response_v2`), domain → proto (`generate_payment_*_response`)
+/// - Connector-side: connector returned a 4xx/5xx HTTP error response (parsed by `get_error_response_v2` / `get_5xx_error_response`)
+#[derive(Debug, thiserror::Error, Clone, strum::AsRefStr)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
-pub enum ConnectorResponseTransformationError {
+pub enum ConnectorError {
     #[error("Failed to deserialize connector response")]
     ResponseDeserializationFailed {
         /// Always present: set `http_status_code` to `Some` when the connector HTTP response is known.
@@ -465,6 +388,12 @@ pub enum ConnectorResponseTransformationError {
         field_names: String,
         connector_transaction_id: Option<String>,
     },
+    /// Connector returned a 4xx or 5xx HTTP error response.
+    /// The `ErrorResponse` is fully parsed by the connector's own `get_error_response_v2` /
+    /// `get_5xx_error_response` / `build_error_response` implementation.
+    /// `error_response.status_code` carries the actual HTTP status (4xx or 5xx).
+    #[error("Connector returned an error response with status {}", _0.status_code)]
+    ConnectorErrorResponse(ErrorResponse),
 }
 
 /// Returns documentation URL for error codes.
@@ -473,7 +402,12 @@ pub fn doc_url_for_error_code(_error_code: &str) -> Option<String> {
     Some("https://docs.hyperswitch.io/prism/architecture/concepts/error-codes".to_string())
 }
 
-impl ConnectorResponseTransformationError {
+impl ConnectorError {
+    /// Machine-readable error code (SCREAMING_SNAKE_CASE from variant name via `strum::AsRefStr`).
+    pub fn error_code(&self) -> &str {
+        self.as_ref()
+    }
+
     /// HTTP status code from the connector response (`None` when not applicable).
     pub fn http_status_code(&self) -> Option<u16> {
         match self {
@@ -481,6 +415,7 @@ impl ConnectorResponseTransformationError {
             | Self::ResponseHandlingFailed { context }
             | Self::UnexpectedResponseError { context }
             | Self::IntegrityCheckFailed { context, .. } => context.http_status_code,
+            Self::ConnectorErrorResponse(error_response) => Some(error_response.status_code),
         }
     }
 
@@ -491,16 +426,22 @@ impl ConnectorResponseTransformationError {
             | Self::ResponseHandlingFailed { context }
             | Self::UnexpectedResponseError { context }
             | Self::IntegrityCheckFailed { context, .. } => context.additional_context.as_deref(),
+            Self::ConnectorErrorResponse(error_response) => error_response.reason.as_deref(),
         }
     }
 
     /// Build a [`ResponseTransformationErrorContext`] for gRPC mapping.
+    /// For `ConnectorErrorResponse`, synthesises a context from the parsed `ErrorResponse`.
     pub fn response_transformation_context(&self) -> ResponseTransformationErrorContext {
         match self {
             Self::ResponseDeserializationFailed { context }
             | Self::ResponseHandlingFailed { context }
             | Self::UnexpectedResponseError { context }
             | Self::IntegrityCheckFailed { context, .. } => context.clone(),
+            Self::ConnectorErrorResponse(error_response) => ResponseTransformationErrorContext {
+                http_status_code: Some(error_response.status_code),
+                additional_context: error_response.reason.clone(),
+            },
         }
     }
 
@@ -599,36 +540,88 @@ impl ConnectorResponseTransformationError {
     }
 }
 
-/// Direct conversion from domain ConnectorResponseTransformationError to proto (lossless).
-impl ErrorSwitch<grpc_api_types::payments::ConnectorResponseTransformationError>
-    for ConnectorResponseTransformationError
-{
-    fn switch(&self) -> grpc_api_types::payments::ConnectorResponseTransformationError {
-        let context = self.response_transformation_context();
-        let base_message = self.to_string();
-        let error_message = combine_error_message_with_context(
-            &base_message,
-            context.additional_context.as_deref(),
-        );
+/// Direct conversion from domain ConnectorError to proto (lossless).
+impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
+    fn switch(&self) -> grpc_api_types::payments::ConnectorError {
+        match self {
+            Self::ConnectorErrorResponse(error_response) => {
+                // Build structured ErrorInfo from available error data
+                let error_info = ForeignFrom::foreign_from(error_response);
 
-        grpc_api_types::payments::ConnectorResponseTransformationError {
-            error_message,
-            error_code: self.as_ref().to_string(),
-            http_status_code: context.http_status_code.map(|code| code as u32),
+                // Structured error data is fully captured in `error_info`.
+                // Use the connector's top-level message directly as error_message.
+                grpc_api_types::payments::ConnectorError {
+                    error_message: error_response.message.clone(),
+                    error_code: self.error_code().to_string(),
+                    http_status_code: Some(error_response.status_code as u32),
+                    error_info,
+                }
+            }
+            _ => {
+                let context = self.response_transformation_context();
+                let base_message = self.to_string();
+                let error_message = combine_error_message_with_context(
+                    &base_message,
+                    context.additional_context.as_deref(),
+                );
+                grpc_api_types::payments::ConnectorError {
+                    error_message,
+                    error_code: self.error_code().to_string(),
+                    http_status_code: context.http_status_code.map(|code| code as u32),
+                    error_info: None,
+                }
+            }
         }
     }
 }
 
-/// **LEGACY:** Lossy conversion to ApplicationErrorResponse to grpc successResponse with error field for gRPC server.
-/// **TODO:** Refactor gRPC server to use `ConnectorFlowError → tonic::Status` directly.
-/// **FFI:** Already uses lossless `ConnectorResponseTransformationError → grpc_api_types::payments::ConnectorResponseTransformationError`.
-impl ErrorSwitch<ApplicationErrorResponse> for ConnectorResponseTransformationError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        ApplicationErrorResponse::InternalServerError(ApiError {
-            sub_code: "INTERNAL_SERVER_ERROR".to_string(),
-            error_identifier: 500,
-            error_message: self.to_string(),
-            error_object: None,
+impl ForeignFrom<&ErrorResponse> for Option<grpc_api_types::payments::ErrorInfo> {
+    fn foreign_from(error_response: &ErrorResponse) -> Self {
+        // Only build ErrorInfo if we have meaningful structured data
+        let has_connector_details = error_response.code != common_utils::consts::NO_ERROR_CODE
+            || error_response.reason.is_some();
+        let has_network_details = error_response.network_decline_code.is_some()
+            || error_response.network_advice_code.is_some()
+            || error_response.network_error_message.is_some();
+
+        if !has_connector_details && !has_network_details {
+            return None;
+        }
+
+        let connector_details =
+            has_connector_details.then(|| grpc_api_types::payments::ConnectorErrorDetails {
+                code: (error_response.code != common_utils::consts::NO_ERROR_CODE)
+                    .then(|| error_response.code.clone()),
+                message: Some(error_response.message.clone()),
+                reason: error_response.reason.clone(),
+                connector_transaction_id: error_response.connector_transaction_id.clone(),
+                status: error_response
+                    .attempt_status
+                    .as_ref()
+                    .map(ForeignFrom::foreign_from),
+            });
+
+        let issuer_details = has_network_details.then(|| {
+            grpc_api_types::payments::IssuerErrorDetails {
+                code: None, // Card scheme not directly available in ErrorResponse
+                message: error_response.network_error_message.clone(),
+                network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                    advice_code: error_response.network_advice_code.clone(),
+                    decline_code: error_response.network_decline_code.clone(),
+                    error_message: error_response.network_error_message.clone(),
+                }),
+            }
+        });
+
+        Some(grpc_api_types::payments::ErrorInfo {
+            unified_details: Some(grpc_api_types::payments::UnifiedErrorDetails {
+                code: Some(error_response.code.clone()),
+                message: Some(error_response.message.clone()),
+                description: error_response.reason.clone(),
+                user_guidance_message: None, // Could be populated from connector config
+            }),
+            issuer_details,
+            connector_details,
         })
     }
 }
@@ -661,77 +654,43 @@ pub enum WebhookError {
     WebhookResourceObjectNotFound,
     #[error("Failed to encode webhook response")]
     WebhookResponseEncodingFailed,
+    #[error("Missing required EventContext field '{field}' for this connector's webhook handling. Pass {field} from your original {origin} request in EventContext.")]
+    WebhookMissingRequiredContext {
+        field: &'static str,
+        origin: &'static str,
+    },
+    #[error("Missing required field '{field}' in webhook request")]
+    WebhookMissingRequiredField { field: &'static str },
+}
+
+impl ErrorSwitch<grpc_api_types::payments::IntegrationError> for WebhookError {
+    fn switch(&self) -> grpc_api_types::payments::IntegrationError {
+        grpc_api_types::payments::IntegrationError {
+            error_message: self.to_string(),
+            error_code: self.as_ref().to_string(),
+            suggested_action: None,
+            doc_url: None,
+        }
+    }
 }
 
 /// Wrapper enum used by `execute_connector_processing_step` (gRPC unified path)
 /// which performs all three phases in one call.
-/// SDK uses `IntegrationError` / `ConnectorResponseTransformationError` directly.
+/// SDK uses `IntegrationError` / `ConnectorError` directly.
+///
+/// `ConnectorFlowError::Response` carries both UCS-side transformation failures
+/// and connector-side 4xx/5xx error responses — distinguished by the
+/// `ConnectorError` variant inside.
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum ConnectorFlowError {
     #[error("Connector Request Transformation error: {0}")]
     Request(#[from] IntegrationError),
     #[error("Client error: {0}")]
     Client(#[from] ApiClientError),
-    #[error("Connector Response Transformation error: {0}")]
-    Response(#[from] ConnectorResponseTransformationError),
-}
-
-impl ErrorSwitch<ApplicationErrorResponse> for ApiClientError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        let (sub_code, error_identifier) = match self {
-            Self::RequestTimeoutReceived | Self::GatewayTimeoutReceived => ("REQUEST_TIMEOUT", 504),
-            _ => ("INTERNAL_SERVER_ERROR", 500),
-        };
-        ApplicationErrorResponse::InternalServerError(ApiError {
-            sub_code: sub_code.to_string(),
-            error_identifier,
-            error_message: self.to_string(),
-            error_object: None,
-        })
-    }
-}
-
-impl ErrorSwitch<ApplicationErrorResponse> for ConnectorFlowError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        match self {
-            Self::Request(e) => e.switch(),
-            Self::Client(e) => e.switch(),
-            Self::Response(e) => e.switch(),
-        }
-    }
-}
-
-impl ErrorSwitch<ApplicationErrorResponse> for WebhookError {
-    fn switch(&self) -> ApplicationErrorResponse {
-        let api_err = |sub_code: &str, id: u16| ApiError {
-            sub_code: sub_code.to_string(),
-            error_identifier: id,
-            error_message: self.to_string(),
-            error_object: None,
-        };
-        match self {
-            Self::WebhookEventTypeNotFound
-            | Self::WebhookSignatureNotFound
-            | Self::WebhookReferenceIdNotFound
-            | Self::WebhookResourceObjectNotFound
-            | Self::WebhookVerificationSecretNotFound => {
-                ApplicationErrorResponse::NotFound(api_err("WEBHOOK_DETAILS_NOT_FOUND", 404))
-            }
-            Self::WebhookBodyDecodingFailed
-            | Self::WebhookSourceVerificationFailed
-            | Self::WebhookVerificationSecretInvalid => {
-                ApplicationErrorResponse::BadRequest(api_err("INVALID_WEBHOOK_DATA", 400))
-            }
-            Self::WebhooksNotImplemented { .. } => {
-                ApplicationErrorResponse::NotImplemented(api_err("NOT_IMPLEMENTED", 501))
-            }
-            Self::WebhookProcessingFailed
-            | Self::WebhookAmountConversionFailed { .. }
-            | Self::WebhookResponseEncodingFailed => {
-                ApplicationErrorResponse::InternalServerError(api_err("INTERNAL_SERVER_ERROR", 500))
-            }
-        }
-    }
+    #[error("Kafka client error: {0}")]
+    KafkaClient(common_enums::KafkaClientError),
+    #[error("Connector error: {0}")]
+    Response(#[from] ConnectorError),
 }
 
 impl From<common_enums::ApiClientError> for ApiClientError {
@@ -782,7 +741,7 @@ pub fn report_connector_request_to_flow(
 
 /// Map a response-phase error report into `ConnectorFlowError::Response`.
 pub fn report_connector_response_to_flow(
-    report: Report<ConnectorResponseTransformationError>,
+    report: Report<ConnectorError>,
 ) -> Report<ConnectorFlowError> {
     let ctx = report.current_context().clone();
     report.change_context(ConnectorFlowError::Response(ctx))
@@ -794,6 +753,14 @@ pub fn report_common_api_client_to_flow(
 ) -> Report<ConnectorFlowError> {
     let ctx: ApiClientError = report.current_context().clone().into();
     report.change_context(ConnectorFlowError::Client(ctx))
+}
+
+/// Map `common_enums::KafkaClientError` reports into `ConnectorFlowError::KafkaClient`.
+pub fn report_kafka_client_to_flow(
+    report: Report<common_enums::KafkaClientError>,
+) -> Report<ConnectorFlowError> {
+    let ctx = report.current_context().clone();
+    report.change_context(ConnectorFlowError::KafkaClient(ctx))
 }
 
 #[derive(Debug, thiserror::Error)]

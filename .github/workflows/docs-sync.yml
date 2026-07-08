@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - docs-review2203
+      - docs-summary-update-v2
     paths:
       - 'docs/**'
       - 'docs-generated/**'
@@ -35,7 +35,7 @@ jobs:
     name: Sync Documentation to Hyperswitch Docs
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout connector-service
+      - name: Checkout prism
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.source_branch || github.ref }}
@@ -48,18 +48,19 @@ jobs:
           token: ${{ secrets.CONNECTOR_SERVICE_DOCS_CI }}
           path: hyperswitch-docs
 
-      - name: Sync documentation
+      - name: Sync documentation files
         run: |
-          # Target: hyperswitch-docs/prism/
-          # This merges /docs and /docs-generated into a unified PRISM section
-          TARGET_DIR="hyperswitch-docs/prism"
+          echo "=== Syncing documentation files ==="
+          TARGET_DIR="hyperswitch-docs/integration-space/prism"
           mkdir -p "$TARGET_DIR"
 
-          # Remove old content
+          # Remove old content in integration-space/prism
+          echo "Removing old content in integration-space/prism/..."
           rm -rf "$TARGET_DIR"/*
 
           # Copy /docs content (excluding patterns from gitbook.yml)
-          rsync -av \
+          echo "Copying docs/ content..."
+          rsync -a \
             --exclude='rules/' \
             --exclude='rfcs/' \
             --exclude='plans/' \
@@ -72,243 +73,94 @@ jobs:
             docs/ "$TARGET_DIR/"
 
           # Copy /docs-generated content (merges with /docs)
-          rsync -av \
+          echo "Copying docs-generated/ content..."
+          rsync -a \
             --exclude='.git/' \
             docs-generated/ "$TARGET_DIR/"
 
-          echo "Synced files structure:"
-          find "$TARGET_DIR" -type d | head -30
-          echo ""
-          echo "Total files synced:"
+          echo "=== Files synced ==="
+          echo "Total files in integration-space/prism/:"
           find "$TARGET_DIR" -type f | wc -l
 
-      - name: Generate SUMMARY.md files
+      - name: Update integration-space SUMMARY.md
         working-directory: hyperswitch-docs
         run: |
-          # Create prism/SUMMARY.md
-          cat > prism/SUMMARY.md << 'EOF'
-          # Summary
+          echo "=== Updating integration-space SUMMARY.md ==="
 
-          ## Getting Started
-          - [Overview](README.md)
-          - [Installation & Configuration](getting-started/installation.md)
-          - [Create Payment Order](getting-started/create-order.md)
-          - [First Payment](getting-started/first-payment.md)
-          - [Extend to More Flows](getting-started/extend-to-more-flows.md)
+          SOURCE_SUMMARY="../docs/SUMMARY.md"
+          TARGET_SUMMARY="integration-space/SUMMARY.md"
 
-          ## Architecture
-          - [Architecture Overview](architecture/README.md)
-          - [PCI Compliance](architecture/compliance/compliance.md)
-          - [Versioning](architecture/versioning.md)
-
-          ### Concepts
-          - [Core Components](architecture/concepts/core-components.md)
-          - [Connector Settings and Overrides](architecture/concepts/connector-settings-and-overrides.md)
-          - [Connectors Services Subservices Methods](architecture/concepts/connectors-services-subservices-methods.md)
-          - [Environment Settings](architecture/concepts/environment-settings.md)
-          - [Error Handling](architecture/concepts/error-handling.md)
-          - [Error Mapping](architecture/concepts/error-mapping.md)
-          - [ID and Object Modelling](architecture/concepts/id-and-object-modelling.md)
-          - [Modes of Usage](architecture/concepts/library-modes-of-usage.md)
-          - [Specs and DSL](architecture/concepts/specs-and-dsl.md)
-
-          ### Autogeneration Frameworks
-          - [Code Generation](architecture/autogeneration-frameworks/code-generation.md)
-          - [Docs Generation](architecture/autogeneration-frameworks/docs-generation.md)
-          - [SDK Generation](architecture/autogeneration-frameworks/sdk-generation.md)
-          - [Test Generation](architecture/autogeneration-frameworks/test-generation.md)
-
-          ### Frameworks
-          - [Integrity and Source Verification](architecture/frameworks/integrity-and-source-verification.md)
-          - [Money Struct](architecture/frameworks/money-struct.md)
-
-          ## API Reference
-          - [API Reference Overview](api-reference/README.md)
-          - [Domain Schema](api-reference/domain-schema/README.md)
-
-          ### Payment Service
-          - [Payment Service Overview](api-reference/services/payment-service/README.md)
-          - [Create Order](api-reference/services/payment-service/create-order.md)
-          - [Authorize](api-reference/services/payment-service/authorize.md)
-          - [Capture](api-reference/services/payment-service/capture.md)
-          - [Void](api-reference/services/payment-service/void.md)
-          - [Refund](api-reference/services/payment-service/refund.md)
-          - [Get](api-reference/services/payment-service/get.md)
-          - [Reverse](api-reference/services/payment-service/reverse.md)
-          - [Setup Recurring](api-reference/services/payment-service/setup-recurring.md)
-          - [Incremental Authorization](api-reference/services/payment-service/incremental-authorization.md)
-          - [Verify Redirect Response](api-reference/services/payment-service/verify-redirect-response.md)
-
-          ### Recurring Payment Service
-          - [Recurring Payment Service Overview](api-reference/services/recurring-payment-service/README.md)
-          - [Charge](api-reference/services/recurring-payment-service/charge.md)
-          - [Revoke](api-reference/services/recurring-payment-service/revoke.md)
-
-          ### Refund Service
-          - [Refund Service Overview](api-reference/services/refund-service/README.md)
-          - [Get](api-reference/services/refund-service/get.md)
-
-          ### Dispute Service
-          - [Dispute Service Overview](api-reference/services/dispute-service/README.md)
-          - [Accept](api-reference/services/dispute-service/accept.md)
-          - [Defend](api-reference/services/dispute-service/defend.md)
-          - [Get](api-reference/services/dispute-service/get.md)
-          - [Submit Evidence](api-reference/services/dispute-service/submit-evidence.md)
-
-          ### Event Service
-          - [Event Service Overview](api-reference/services/event-service/README.md)
-          - [Handle](api-reference/services/event-service/handle.md)
-
-          ### Payment Method Service
-          - [Payment Method Service Overview](api-reference/services/payment-method-service/README.md)
-          - [Tokenize](api-reference/services/payment-method-service/tokenize.md)
-
-          ### Customer Service
-          - [Customer Service Overview](api-reference/services/customer-service/README.md)
-          - [Create](api-reference/services/customer-service/create.md)
-
-          ### Payment Method Authentication Service
-          - [Payment Method Authentication Service Overview](api-reference/services/payment-method-authentication-service/README.md)
-          - [Pre-authenticate](api-reference/services/payment-method-authentication-service/pre-authenticate.md)
-          - [Authenticate](api-reference/services/payment-method-authentication-service/authenticate.md)
-          - [Post-authenticate](api-reference/services/payment-method-authentication-service/post-authenticate.md)
-
-          ### Merchant Authentication Service
-          - [Merchant Authentication Service Overview](api-reference/services/merchant-authentication-service/README.md)
-          - [Create Access Token](api-reference/services/merchant-authentication-service/create-access-token.md)
-          - [Create Session Token](api-reference/services/merchant-authentication-service/create-session-token.md)
-          - [Create SDK Session Token](api-reference/services/merchant-authentication-service/create-sdk-session-token.md)
-
-          ## Connectors
-          - [All Connectors](all_connector.md)
-          - [Connectors Overview](connectors/README.md)
-          - [ACI](connectors/aci.md)
-          - [Adyen](connectors/adyen.md)
-          - [Airwallex](connectors/airwallex.md)
-          - [Authorize.Net](connectors/authorizedotnet.md)
-          - [Authipay](connectors/authipay.md)
-          - [Bambora](connectors/bambora.md)
-          - [Bambora APAC](connectors/bamboraapac.md)
-          - [Bank of America](connectors/bankofamerica.md)
-          - [Barclaycard](connectors/barclaycard.md)
-          - [Billwerk](connectors/billwerk.md)
-          - [Bluesnap](connectors/bluesnap.md)
-          - [Braintree](connectors/braintree.md)
-          - [Calida](connectors/calida.md)
-          - [Celero](connectors/celero.md)
-          - [Checkout.com](connectors/checkout.md)
-          - [Cryptopay](connectors/cryptopay.md)
-          - [Cybersource](connectors/cybersource.md)
-          - [Datatrans](connectors/datatrans.md)
-          - [Dlocal](connectors/dlocal.md)
-          - [Fiserv](connectors/fiserv.md)
-          - [Fiuu](connectors/fiuu.md)
-          - [Noon](connectors/noon.md)
-          - [PayPal](connectors/paypal.md)
-          - [PaySafe](connectors/paysafe.md)
-          - [Paytm](connectors/paytm.md)
-          - [PayU](connectors/payu.md)
-          - [Placetopay](connectors/placetopay.md)
-          - [Powertranz](connectors/powertranz.md)
-          - [Rapyd](connectors/rapyd.md)
-          - [Razorpay](connectors/razorpay.md)
-          - [Razorpay v2](connectors/razorpayv2.md)
-          - [Redsys](connectors/redsys.md)
-          - [Revolut](connectors/revolut.md)
-          - [Revolv3](connectors/revolv3.md)
-          - [Shift4](connectors/shift4.md)
-          - [Silverflow](connectors/silverflow.md)
-          - [Stax](connectors/stax.md)
-          - [Stripe](connectors/stripe.md)
-          - [Trustpay](connectors/trustpay.md)
-          - [TrustPayments](connectors/trustpayments.md)
-          - [Truelayer](connectors/truelayer.md)
-          - [Volt](connectors/volt.md)
-          - [Wells Fargo](connectors/wellsfargo.md)
-          - [Worldpay](connectors/worldpay.md)
-          - [Worldpay Vantiv](connectors/worldpayvantiv.md)
-          - [Worldpay XML](connectors/worldpayxml.md)
-          - [Xendit](connectors/xendit.md)
-          - [Zift](connectors/zift.md)
-
-          ## SDKs
-          - [Node.js SDK](sdks/node/README.md)
-          - [Python SDK](sdks/python/README.md)
-
-          ## Test Suite
-          - [Test Suite Overview](test-suite/README.md)
-          - [Architecture](test-suite/architecture.md)
-          - [Best Practices](test-suite/best-practices.md)
-          - [CI/CD](test-suite/ci-cd.md)
-          - [Configuration](test-suite/configuration.md)
-          - [Global Suites](test-suite/global-suites.md)
-          - [Overrides](test-suite/overrides.md)
-          - [Test Structure](test-suite/test-structure.md)
-          - [Usage](test-suite/usage.md)
-
-          ## Blogs
-          - [Why We Built a Unified Payment Integration Library](blogs/why-we-built-a-unified-payment-integration-library.md)
-
-          ## Additional Resources
-          - [Glossary](glossary.md)
-          - [LLMs.txt](llms.txt)
-          EOF
-
-          echo "Generated prism/SUMMARY.md"
-
-          # Update root SUMMARY.md to include PRISM section with full structure
-          if [ -f "SUMMARY.md" ]; then
-            # Check if PRISM section already exists
-            if grep -q "## PRISM" SUMMARY.md; then
-              echo "PRISM section already exists in root SUMMARY.md - removing old section"
-              # Remove existing PRISM section (from ## PRISM to end of file or next ## at same level)
-              sed -i '/^## PRISM$/,$d' SUMMARY.md
-            fi
-
-            # Generate full PRISM section from local SUMMARY.md with prism/ prefix
-            echo "" >> SUMMARY.md
-            echo "## PRISM" >> SUMMARY.md
-
-            # Copy docs/SUMMARY.md content (skip # Summary header), add prism/ prefix to all links
-            # Also increase heading levels by one (## -> ###, ### -> ####, #### -> #####)
-            # Order matters: process higher levels first to avoid double-replacement
-            tail -n +2 ../docs/SUMMARY.md | \
-              sed 's/^#### /##### /g; s/^### /#### /g; s/^## /### /g; s/](/](prism\//g' >> SUMMARY.md
-
-            echo "Added full PRISM section to root SUMMARY.md"
-            echo ""
-            echo "PRISM section preview (first 30 lines):"
-            grep -A 30 "^## PRISM$" SUMMARY.md | head -30
-          else
-            echo "WARNING: Root SUMMARY.md not found"
+          # Verify source exists
+          if [ ! -f "$SOURCE_SUMMARY" ]; then
+            echo "ERROR: Source SUMMARY.md not found at $SOURCE_SUMMARY"
+            exit 1
           fi
+
+          echo "Source SUMMARY.md found."
+
+          # Check if target SUMMARY.md exists
+          if [ ! -f "$TARGET_SUMMARY" ]; then
+            echo "WARNING: Target SUMMARY.md not found at $TARGET_SUMMARY"
+            echo "Creating new SUMMARY.md from source..."
+            cp "$SOURCE_SUMMARY" "$TARGET_SUMMARY"
+            echo "✓ Created new SUMMARY.md"
+            exit 0
+          fi
+
+          echo "Target SUMMARY.md exists. Appending PRISM section..."
+
+          # Remove old PRISM section from target if it exists
+          # Look for "## PRISM" and remove until end of file or next "## "
+          if grep -q "^## PRISM" "$TARGET_SUMMARY"; then
+            echo "Found existing '## PRISM' section - removing it..."
+            # Remove from "## PRISM" to end of file (we'll re-add it)
+            sed -i '/^## PRISM$/,$d' "$TARGET_SUMMARY"
+          fi
+
+          # Append PRISM section to target SUMMARY.md
+          echo "" >> "$TARGET_SUMMARY"
+          echo "## PRISM" >> "$TARGET_SUMMARY"
+          echo "" >> "$TARGET_SUMMARY"
+
+          # Copy content from source (skip the # PRISM header line)
+          # Add prism/ prefix to all links
+          tail -n +2 "$SOURCE_SUMMARY" | sed 's|](|](prism/|g' >> "$TARGET_SUMMARY"
+
+          echo "✓ Appended PRISM section to $TARGET_SUMMARY"
+          echo ""
+          echo "Updated SUMMARY.md tail:"
+          tail -30 "$TARGET_SUMMARY"
 
       - name: Commit and push changes
         if: ${{ !inputs.dry_run }}
         working-directory: hyperswitch-docs
         run: |
+          echo "=== Committing and pushing changes ==="
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add prism/
-          git add SUMMARY.md
+          git add integration-space/
 
-          # Check if there are any staged changes
+          # Check for changes
           if git diff --cached --quiet; then
             echo "No changes to commit"
             exit 0
           fi
 
-          git commit -m "docs(prism): sync from connector-service@${{ github.sha }}
+          echo "Changes detected:"
+          git diff --cached --stat
 
-          Sync documentation from juspay/connector-service@${{ github.sha }}
+          git commit -m "docs(prism): sync integration-space from hyperswitch-prism@${{ github.sha }}
+
+          Sync integration-space documentation from juspay/hyperswitch-prism@${{ github.sha }}
           Branch: ${{ github.ref_name }}
 
           Changes:
           $(git diff --cached --stat | tail -1)"
 
           git push origin HEAD:main
-          echo "Successfully pushed changes to juspay/hyperswitch-docs"
+          echo "✓ Successfully pushed changes to hyperswitch-docs"
 
       - name: Dry run summary
         if: ${{ inputs.dry_run }}
@@ -317,7 +169,7 @@ jobs:
           echo "## Dry Run Summary"
           echo ""
           echo "Files that would be synced:"
-          git add prism/ 2>/dev/null || true
+          git add integration-space/ 2>/dev/null || true
           git diff --staged --stat || echo "No changes detected"
           echo ""
           echo "This was a dry run. No changes were pushed."

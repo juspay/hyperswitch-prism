@@ -18,15 +18,20 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        paytm=payment_pb2.PaytmConfig(
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            merchant_key=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_KEY"),
+            website=payment_methods_pb2.SecretString(value="YOUR_WEBSITE"),
+            client_id=payment_methods_pb2.SecretString(value="YOUR_CLIENT_ID"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     paytm=payment_pb2.PaytmConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +43,20 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Paytm',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.PAYTM,
+    environment: Environment.SANDBOX,
+    auth: {
+        paytm: {
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            merchantKey: { value: 'YOUR_MERCHANT_KEY' },
+            website: { value: 'YOUR_WEBSITE' },
+            clientId: { value: 'YOUR_CLIENT_ID' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +70,17 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Paytm")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setPaytm(PaytmConfig.newBuilder()
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setMerchantKey(SecretString.newBuilder().setValue("YOUR_MERCHANT_KEY").build())
+                .setWebsite(SecretString.newBuilder().setValue("YOUR_WEBSITE").build())
+                .setClientId(SecretString.newBuilder().setValue("YOUR_CLIENT_ID").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +93,23 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Paytm".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Paytm(PaytmConfig {
+                merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
+                merchant_key: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_KEY".to_string())),  // Authentication credential
+                website: Some(hyperswitch_masking::Secret::new("YOUR_WEBSITE".to_string())),  // Authentication credential
+                client_id: Some(hyperswitch_masking::Secret::new("YOUR_CLIENT_ID".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -97,7 +124,7 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
-| [ConnectorSessionService.CreateSessionToken](#connectorsessionservicecreatesessiontoken) | Authentication | `ConnectorSessionServiceCreateSessionTokenRequest` |
+| [MerchantAuthenticationService.CreateServerSessionAuthenticationToken](#merchantauthenticationservicecreateserversessionauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
 
 ### Payments
@@ -115,21 +142,106 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 | Payment Method | Supported |
 |----------------|:---------:|
-| Card | x |
-| Google Pay | x |
-| Apple Pay | x |
-| SEPA | x |
-| BACS | x |
-| ACH | x |
-| BECS | x |
-| iDEAL | x |
-| PayPal | x |
-| BLIK | x |
-| Klarna | x |
-| Afterpay | x |
-| UPI | ✓ |
-| Affirm | x |
-| Samsung Pay | x |
+| Card | ⚠ |
+| Bancontact | ⚠ |
+| Apple Pay | ⚠ |
+| Apple Pay Dec | ⚠ |
+| Apple Pay SDK | ⚠ |
+| Google Pay | ⚠ |
+| Google Pay Dec | ⚠ |
+| Google Pay SDK | ⚠ |
+| PayPal SDK | ⚠ |
+| Amazon Pay | ⚠ |
+| Cash App | ⚠ |
+| PayPal | ⚠ |
+| WeChat Pay | ⚠ |
+| Alipay | ⚠ |
+| Revolut Pay | ⚠ |
+| MiFinity | ⚠ |
+| Bluecode | ⚠ |
+| Paze | x |
+| Samsung Pay | ⚠ |
+| MB Way | ⚠ |
+| Satispay | ⚠ |
+| Wero | ⚠ |
+| GoPay | ⚠ |
+| GCash | ⚠ |
+| Momo | ⚠ |
+| Dana | ⚠ |
+| Kakao Pay | ⚠ |
+| Touch 'n Go | ⚠ |
+| Twint | ⚠ |
+| Vipps | ⚠ |
+| Swish | ⚠ |
+| Affirm | ⚠ |
+| Afterpay | ⚠ |
+| Klarna | ⚠ |
+| UPI Collect | ✓ |
+| UPI Intent | ✓ |
+| UPI QR | ✓ |
+| Thailand | ⚠ |
+| Czech | ⚠ |
+| Finland | ⚠ |
+| FPX | ⚠ |
+| Poland | ⚠ |
+| Slovakia | ⚠ |
+| UK | ⚠ |
+| PIS | x |
+| Generic | ⚠ |
+| Local | ⚠ |
+| iDEAL | ⚠ |
+| Sofort | ⚠ |
+| Trustly | ⚠ |
+| Giropay | ⚠ |
+| EPS | ⚠ |
+| Przelewy24 | ⚠ |
+| PSE | ⚠ |
+| BLIK | ⚠ |
+| Interac | ⚠ |
+| Bizum | ⚠ |
+| EFT | ⚠ |
+| DuitNow | x |
+| ACH | ⚠ |
+| SEPA | ⚠ |
+| BACS | ⚠ |
+| Multibanco | ⚠ |
+| Instant | ⚠ |
+| Instant FI | ⚠ |
+| Instant PL | ⚠ |
+| Pix | ⚠ |
+| Permata | ⚠ |
+| BCA | ⚠ |
+| BNI VA | ⚠ |
+| BRI VA | ⚠ |
+| CIMB VA | ⚠ |
+| Danamon VA | ⚠ |
+| Mandiri VA | ⚠ |
+| Local | ⚠ |
+| Indonesian | ⚠ |
+| ACH | ⚠ |
+| SEPA | ⚠ |
+| BACS | ⚠ |
+| BECS | ⚠ |
+| SEPA Guaranteed | ⚠ |
+| Crypto | x |
+| Reward | ⚠ |
+| Givex | x |
+| PaySafeCard | ⚠ |
+| E-Voucher | ⚠ |
+| Boleto | ⚠ |
+| Efecty | ⚠ |
+| Pago Efectivo | ⚠ |
+| Red Compra | ⚠ |
+| Red Pagos | ⚠ |
+| Alfamart | ⚠ |
+| Indomaret | ⚠ |
+| Oxxo | ⚠ |
+| 7-Eleven | ⚠ |
+| Lawson | ⚠ |
+| Mini Stop | ⚠ |
+| Family Mart | ⚠ |
+| Seicomart | ⚠ |
+| Pay Easy | ⚠ |
 
 **Payment method objects** — use these in the `payment_method` field of the Authorize request.
 
@@ -137,13 +249,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "upi_collect": {  # UPI Collect
-        "vpa_id": "test@upi"  # Virtual Payment Address
-    }
+  "upi_collect": {
+    "vpa_id": "test@upi"
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/paytm/python/paytm.py) · [JavaScript](../../examples/paytm/javascript/paytm.js) · [Kotlin](../../examples/paytm/kotlin/paytm.kt#L64) · [Rust](../../examples/paytm/rust/paytm.rs#L63)
+**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L76) · [Kotlin](../../examples/paytm/paytm.kt#L78) · [Rust](../../examples/paytm/paytm.rs)
 
 #### PaymentService.Get
 
@@ -154,17 +266,17 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/paytm/python/paytm.py) · [JavaScript](../../examples/paytm/javascript/paytm.js) · [Kotlin](../../examples/paytm/kotlin/paytm.kt#L89) · [Rust](../../examples/paytm/rust/paytm.rs#L87)
+**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L94) · [Kotlin](../../examples/paytm/paytm.kt#L105) · [Rust](../../examples/paytm/paytm.rs)
 
 ### Authentication
 
-#### ConnectorSessionService.CreateSessionToken
+#### MerchantAuthenticationService.CreateServerSessionAuthenticationToken
 
-Create session token for payment processing. Maintains session state across multiple payment operations for improved security and tracking.
+Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
 
 | | Message |
 |---|---------|
-| **Request** | `ConnectorSessionServiceCreateSessionTokenRequest` |
-| **Response** | `ConnectorSessionServiceCreateSessionTokenResponse` |
+| **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
 
-**Examples:** [Python](../../examples/paytm/python/paytm.py) · [JavaScript](../../examples/paytm/javascript/paytm.js) · [Kotlin](../../examples/paytm/kotlin/paytm.kt#L76) · [Rust](../../examples/paytm/rust/paytm.rs#L75)
+**Examples:** [Python](../../examples/paytm/paytm.py) · [TypeScript](../../examples/paytm/paytm.ts#L85) · [Kotlin](../../examples/paytm/paytm.kt#L90) · [Rust](../../examples/paytm/paytm.rs)

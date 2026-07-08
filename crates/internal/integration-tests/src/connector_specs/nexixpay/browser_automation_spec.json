@@ -1,0 +1,41 @@
+{
+  "hooks": [
+    {
+      "suite": "post_authenticate",
+      "scenarios": [
+        "threeds_card_post_authenticate"
+      ],
+      "phase": "before_request",
+      "after_dependency_suite": "pre_authenticate",
+      "after_dependency_scenario": "threeds_card_pre_authenticate",
+      "endpoint_path": "redirection_data.form.endpoint",
+      "method_path": "redirection_data.form.method",
+      "query_params_path": "redirection_data.form.form_fields",
+      "redirect_uri_fallback_request_path": "continue_redirection_url",
+      "final_url_query_param_map": {
+        "redirection_response.payload.PaRes": "PaRes",
+        "redirection_response.payload.paymentId": "paymentId"
+      },
+      "fallback_form_field_map": {
+        "redirection_response.payload.PaRes": "ThreeDsRequest",
+        "redirection_response.payload.paymentId": "transactionId"
+      },
+      "rules": [
+        {
+          "action": "waitFor",
+          "selector": "body",
+          "timeoutMs": 30000
+        },
+        {
+          "action": "waitFor",
+          "urlContains": "{{redirect_uri}}",
+          "timeoutMs": 90000
+        },
+        {
+          "action": "screenshot",
+          "as": "after3ds"
+        }
+      ]
+    }
+  ]
+}

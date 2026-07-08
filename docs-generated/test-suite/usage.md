@@ -3,7 +3,7 @@
 title: Test Suite Usage
 description: Running tests and command reference
 last_updated: 2026-03-12
-generated_from: backend/ucs-connector-tests/src/bin/
+generated_from: backend/integration-tests/src/bin/
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-12
@@ -53,7 +53,7 @@ cargo run --bin run_test -- [OPTIONS]
 | `--connector <name>` | Connector to test | `stripe` |
 | `--suite <name>` | Suite to run | `authorize` |
 | `--scenario <name>` | Scenario to run | First scenario in suite |
-| `--endpoint <host:port>` | gRPC server endpoint | `localhost:50051` |
+| `--endpoint <host:port>` | gRPC server endpoint | `localhost:8000` |
 | `--creds-file <path>` | Credentials file path | `CONNECTOR_AUTH_FILE_PATH` env var |
 | `--merchant-id <id>` | Merchant ID | `test_merchant` |
 | `--tenant-id <id>` | Tenant ID | `default` |
@@ -149,7 +149,7 @@ cargo run --bin suite_run_test -- [COMMAND] [OPTIONS]
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--connector <name>` | Connector to test | All configured connectors |
-| `--endpoint <host:port>` | gRPC server endpoint | `localhost:50051` |
+| `--endpoint <host:port>` | gRPC server endpoint | `localhost:8000` |
 | `--creds-file <path>` | Credentials file path | `CONNECTOR_AUTH_FILE_PATH` env var |
 | `--merchant-id <id>` | Merchant ID | `test_merchant` |
 | `--tenant-id <id>` | Tenant ID | `default` |
@@ -224,13 +224,13 @@ export UCS_DEBUG_EFFECTIVE_REQ=1
 
 | File | Location | Description |
 |------|----------|-------------|
-| `report.json` | `backend/ucs-connector-tests/` | Machine-readable test results |
-| `test_report.md` | `backend/ucs-connector-tests/` | Human-readable markdown summary |
+| `report.json` | `backend/integration-tests/` | Machine-readable test results |
+| `test_report.md` | `backend/integration-tests/` | Human-readable markdown summary |
 
 ### Report Structure
 
 ```
-backend/ucs-connector-tests/
+backend/integration-tests/
 ├── report.json              # Raw test data
 ├── test_report.md           # Markdown report
 └── docs/test-reports/       # Historical reports (optional)
@@ -297,7 +297,7 @@ Output:
 grpcurl -plaintext \
   -H "x-connector: stripe" \
   -H "x-connector-auth: {...}" \
-  -d @ localhost:50051 payment.PaymentService/Authorize <<'JSON'
+  -d @ localhost:8000 payment.PaymentService/Authorize <<'JSON'
 {
   "merchant_transaction_id": {"id": "mti_a1b2c3d4"},
   ...
@@ -322,7 +322,7 @@ Shows the dependency chain for a suite.
 
 1. Edit suite scenario.json:
    ```bash
-   vim backend/ucs-connector-tests/src/global_suites/authorize_suite/scenario.json
+   vim backend/integration-tests/src/global_suites/authorize_suite/scenario.json
    ```
 
 2. Add new scenario:
@@ -348,7 +348,7 @@ Shows the dependency chain for a suite.
 
 1. Create connector spec:
    ```bash
-   cat > backend/ucs-connector-tests/src/connector_specs/mynewconnector.json << 'EOF'
+   cat > backend/integration-tests/src/connector_specs/mynewconnector.json << 'EOF'
    {
      "connector": "mynewconnector",
      "supported_suites": ["authorize", "capture"]
@@ -376,7 +376,7 @@ Shows the dependency chain for a suite.
 
 2. Check the report:
    ```bash
-   cat backend/ucs-connector-tests/test_report.md
+   cat backend/integration-tests/test_report.md
    ```
 
 3. Print grpcurl to test manually:
@@ -415,7 +415,7 @@ cargo run --bin run_test -- --suite authorize --list-scenarios
 **Solution**:
 ```bash
 # Check suite directory exists
-ls backend/ucs-connector-tests/src/global_suites/authorize_suite/
+ls backend/integration-tests/src/global_suites/authorize_suite/
 
 # Should contain: scenario.json, suite_spec.json
 ```

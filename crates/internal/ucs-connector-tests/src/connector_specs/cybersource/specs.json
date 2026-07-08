@@ -1,6 +1,0 @@
-{
-  "connector": "cybersource",
-  "supported_suites": [
-    "authorize"
-  ]
-}

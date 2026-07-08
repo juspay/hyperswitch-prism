@@ -64,7 +64,7 @@ Before starting, determine your current implementation state:
 
 ### Advanced Flows (Priority 2)
 - **CreateOrder**: Multi-step payment initiation
-- **CreateSessionToken**: Secure session management
+- **ServerSessionAuthenticationToken**: Secure session management
 - **SetupMandate**: Recurring payment setup
 - **RepeatPayment**: Process recurring payments using stored mandates
 - **DefendDispute**: Handle chargeback disputes
@@ -148,7 +148,7 @@ impl ConnectorCommon for ConnectorName {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // UCS-specific error handling
     }
 }

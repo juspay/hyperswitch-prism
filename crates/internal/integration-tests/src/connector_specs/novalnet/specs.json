@@ -1,0 +1,14 @@
+{
+  "connector": "novalnet",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/IncrementalAuthorization",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
+  ]
+}

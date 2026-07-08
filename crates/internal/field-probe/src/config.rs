@@ -21,25 +21,39 @@ pub(crate) struct Rule {
     pub(crate) value: Option<String>,
 }
 
+/// A single field patch within a [[multi]] rule.
+#[derive(Debug, Deserialize, Clone)]
+pub(crate) struct MultiPatch {
+    /// JSON path to set (e.g. "address.billing_address.phone_number").
+    pub(crate) path: String,
+    #[serde(rename = "type")]
+    pub(crate) patch_type: String,
+    #[serde(default)]
+    pub(crate) value: Option<String>,
+}
+
+/// A multi-field rule: one error alias triggers multiple simultaneous patches.
+/// Defined as `[[multi]]` in patch-config.toml.
+#[derive(Debug, Deserialize, Clone)]
+pub(crate) struct MultiRule {
+    /// Error strings that trigger all patches at once.
+    pub(crate) aliases: Vec<String>,
+    /// Fields to set simultaneously when the alias matches.
+    pub(crate) patches: Vec<MultiPatch>,
+}
+
 /// Full contents of patch-config.toml.
 /// Uses table-based format:
 ///   - [path] for flow-agnostic rules (e.g., [browser_info])
 ///   - [flow.path] for flow-specific rules (e.g., [capture.amount_to_capture])
+///   - [[multi]] for rules that patch multiple fields at once
 #[derive(Debug, Clone, Default)]
 pub(crate) struct PatchConfig {
     /// All rules indexed by their lookup key.
     /// Key is "path" for flow-agnostic, "flow.path" for flow-specific.
     pub(crate) rules: HashMap<String, Rule>,
-}
-
-impl<'de> Deserialize<'de> for PatchConfig {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let map = HashMap::<String, Rule>::deserialize(deserializer)?;
-        Ok(Self { rules: map })
-    }
+    /// Multi-field rules: one alias → multiple fields patched simultaneously.
+    pub(crate) multi: Vec<MultiRule>,
 }
 
 static PATCH_CONFIG: OnceLock<PatchConfig> = OnceLock::new();
@@ -54,8 +68,7 @@ pub(crate) fn get_patch_config() -> &'static PatchConfig {
         for path in &paths {
             if let Ok(contents) = std::fs::read_to_string(path) {
                 eprintln!("Loaded patch config from: {path}");
-                return toml::from_str(&contents)
-                    .unwrap_or_else(|e| panic!("Failed to parse {path}: {e}"));
+                return parse_patch_config(&contents, path);
             }
         }
         eprintln!("Warning: No patch-config.toml found, using empty patch config");
@@ -63,19 +76,66 @@ pub(crate) fn get_patch_config() -> &'static PatchConfig {
     })
 }
 
+fn parse_patch_config(contents: &str, path: &str) -> PatchConfig {
+    let value: toml::Value =
+        toml::from_str(contents).unwrap_or_else(|e| panic!("Failed to parse {path} as TOML: {e}"));
+
+    let table = value
+        .as_table()
+        .unwrap_or_else(|| panic!("{path}: root is not a table"));
+
+    let multi = table
+        .get("multi")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.clone().try_into().ok())
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let rules = table
+        .iter()
+        .filter_map(|(key, val)| {
+            if key == "multi" {
+                return None;
+            }
+            let rule: Option<Rule> = val.clone().try_into().ok();
+            rule.map(|r| (key.clone(), r))
+        })
+        .collect();
+
+    PatchConfig { rules, multi }
+}
+
 // ── Operational config (probe-config.toml) ────────────────────────────────────
 
 /// Per-connector request field overrides.
 ///
 /// Connectors can override specific base request field values here.
-/// For example, some connectors require `connector_transaction_id` to be
-/// a numeric string (parseable as i64/u64) rather than the default
-/// `"probe_connector_txn_001"`.
+///
+/// Two formats under `[connector_overrides]`:
+///
+/// 1. Scalar connector overrides (keyed by connector name):
+/// ```toml
+/// [connector_overrides.braintree]
+/// connector_transaction_id = "12345"
+/// ```
+///
+/// 2. Flow-specific field pre-sets (keyed by flow first, then connector):
+/// ```toml
+/// [connector_overrides.refund_get.braintree]
+/// "refund_metadata" = '{"merchant_account_id":"probe_merchant_account","merchant_config_currency":"USD","currency":"USD"}'
+/// ```
+///
+/// Fields under `[connector_overrides.<flow>.<connector>]` are pre-applied to the base request
+/// before probing begins, so the probe never gets stuck on connector-specific required fields.
 #[derive(Debug, Deserialize, Clone, Default)]
 pub(crate) struct ConnectorRequestOverrides {
-    /// Override for connector_transaction_id (used by capture/void/get/refund/reverse flows).
-    /// Set to a numeric string (e.g. "12345") for connectors that parse it as an integer.
-    pub(crate) connector_transaction_id: Option<String>,
+    /// Per-flow field pre-sets keyed as [connector_overrides."flow1,flow2".<connector>].
+    /// These are pre-applied to the base request before probing begins.
+    #[serde(flatten)]
+    pub(crate) flow_overrides: HashMap<String, HashMap<String, String>>,
 }
 
 /// Configuration for the field-probe, loaded from probe-config.toml
@@ -198,18 +258,6 @@ pub(crate) fn max_iterations() -> usize {
     get_config().probe.max_iterations
 }
 
-/// Returns an overridden `connector_transaction_id` for connectors that require a
-/// specific format (e.g. a numeric string for connectors that parse it as i64/u64).
-/// Returns `None` if no override is configured — the base request default is used.
-pub(crate) fn connector_transaction_id_override(connector: &ConnectorEnum) -> Option<String> {
-    let config = get_config();
-    let name = format!("{connector:?}").to_lowercase();
-    config
-        .connector_overrides
-        .get(&name)
-        .and_then(|o| o.connector_transaction_id.clone())
-}
-
 /// Get connector-specific metadata JSON for connectors that require it
 pub(crate) fn connector_feature_data_json(connector: &ConnectorEnum) -> Option<String> {
     let config = get_config();
@@ -231,4 +279,31 @@ pub(crate) fn connector_access_token_override(connector: &ConnectorEnum) -> Opti
     let config = get_config();
     let name = format!("{connector:?}").to_lowercase();
     config.access_token.overrides.get(&name).cloned()
+}
+
+/// Returns per-flow field pre-sets for a connector, if any are configured.
+/// These are applied to the base request before probing begins.
+pub(crate) fn connector_flow_overrides(
+    connector: &ConnectorEnum,
+    flow: &str,
+) -> Option<&'static HashMap<String, String>> {
+    let config = get_config();
+    let name = format!("{connector:?}").to_lowercase();
+    // Pass 1: exact flow key  →  [connector_overrides.<flow>.<connector>]
+    // Pass 2: multi-flow key  →  [connector_overrides."get,refund,void".<connector>]
+    //         Find a comma-separated key that includes this flow AND has this connector.
+    config
+        .connector_overrides
+        .get(flow)
+        .and_then(|o| o.flow_overrides.get(&name))
+        .or_else(|| {
+            config
+                .connector_overrides
+                .iter()
+                .find(|(k, o)| {
+                    k.split(',').map(str::trim).any(|f| f == flow)
+                        && o.flow_overrides.contains_key(&name)
+                })
+                .and_then(|(_, o)| o.flow_overrides.get(&name))
+        })
 }

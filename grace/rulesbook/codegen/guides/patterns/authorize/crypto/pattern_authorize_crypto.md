@@ -312,7 +312,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<CryptoPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<CryptoPaymentsResponse, Self>,
@@ -554,7 +554,7 @@ PSync uses the same response structure as authorize. The transformation logic is
 impl<F> TryFrom<ResponseRouterData<CryptoPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<CryptoPaymentsResponse, Self>,
@@ -590,11 +590,11 @@ fn build_error_response(
     &self,
     res: Response,
     event_builder: Option<&mut events::Event>,
-) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
     let response: CryptoErrorResponse = res
         .response
         .parse_struct("CryptoErrorResponse")
-        .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+        .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
     with_error_response_body!(event_builder, response);
 
@@ -702,7 +702,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // Error handling implementation
     }
 }

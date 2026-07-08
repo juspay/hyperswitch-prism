@@ -1,4 +1,4 @@
-use crate::{utils, ConnectorResponseTransformationError};
+use crate::{utils, ConnectorError};
 use bytes::Bytes;
 use serde_json::{Map, Value};
 
@@ -14,7 +14,7 @@ use serde_json::{Map, Value};
 pub fn preprocess_xml_response_bytes(
     xml_data: Bytes,
     http_status: u16,
-) -> Result<Bytes, ConnectorResponseTransformationError> {
+) -> Result<Bytes, ConnectorError> {
     // Log raw bytes for debugging
     tracing::info!(bytes=?xml_data, "Raw XML bytes received for preprocessing");
 

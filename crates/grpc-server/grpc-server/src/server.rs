@@ -1,6 +1,8 @@
 pub mod disputes;
 pub mod events;
+pub mod frm;
 pub mod health_check;
 pub mod payments;
 pub mod payouts;
 pub mod refunds;
+pub mod surcharges;

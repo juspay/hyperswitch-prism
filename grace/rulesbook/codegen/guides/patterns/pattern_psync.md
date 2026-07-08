@@ -116,7 +116,7 @@ This is the current recommended approach using the macro framework for maximum c
 // In the imports section, ensure PSync flow is included:
 use domain_types::{
     connector_flow::{
-        Accept, Authorize, Capture, CreateOrder, CreateSessionToken, DefendDispute, PSync, RSync,
+        Accept, Authorize, Capture, CreateOrder, ServerSessionAuthenticationToken, DefendDispute, PSync, RSync,
         Refund, RepeatPayment, SetupMandate, SubmitEvidence, Void,
     },
     connector_types::{
@@ -1460,13 +1460,13 @@ fn build_error_response(
     &self,
     res: Response,
     event_builder: Option<&mut ConnectorEvent>,
-) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
     let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
         {ConnectorName}ErrorResponse::default()
     } else {
         res.response
             .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
     };
 
     if let Some(i) = event_builder {
@@ -1545,13 +1545,13 @@ fn build_error_response(
     &self,
     res: Response,
     event_builder: Option<&mut ConnectorEvent>,
-) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+) -> CustomResult<ErrorResponse, errors::ConnectorError> {
     let response: {ConnectorName}ErrorResponse = if res.response.is_empty() {
         {ConnectorName}ErrorResponse::default()
     } else {
         res.response
             .parse_struct("ErrorResponse")
-            .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?
     };
 
     if let Some(i) = event_builder {

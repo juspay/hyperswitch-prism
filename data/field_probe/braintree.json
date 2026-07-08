@@ -3,43 +3,48 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for braintree"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       },
-      "Bacs": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
-      },
-      "Becs": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
-      },
-      "Blik": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
-      },
-      "Card": {
+      "ApplePayThirdPartySdk": {
         "status": "supported",
         "proto_request": {
           "merchant_transaction_id": "probe_txn_001",
@@ -48,12 +53,8 @@
             "currency": "USD"
           },
           "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
+            "apple_pay_third_party_sdk": {
+              "token": "probe_apple_pay_third_party_token"
             }
           },
           "capture_method": "AUTOMATIC",
@@ -61,8 +62,7 @@
             "billing_address": {}
           },
           "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
+          "return_url": "https://example.com/return"
         },
         "sample": {
           "url": "https://payments.sandbox.braintree-api.com/graphql",
@@ -73,40 +73,464 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"query\":\"mutation ChargeCreditCard($input: ChargeCreditCardInput!) { chargeCreditCard(input: $input) { transaction { id legacyId createdAt amount { value currencyCode } status } } }\",\"variables\":{\"input\":{\"paymentMethodId\":\"probe_pm_token\",\"transaction\":{\"amount\":\"10.00\",\"merchantAccountId\":\"probe_merchant_acct\",\"channel\":\"HyperSwitchBT_Ecom\",\"orderId\":\"probe_txn_001\"}}}}"
+          "body": "{\"query\":\"mutation ChargeApplepay($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }\",\"variables\":{\"input\":{\"paymentMethodId\":\"probe_apple_pay_third_party_token\",\"transaction\":{\"amount\":\"10.00\",\"merchantAccountId\":\"probe_merchant_acct\",\"orderId\":\"probe_txn_001\"}}}}"
         }
       },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_third_party_sdk": {
+              "token": "probe_google_pay_third_party_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"mutation ChargeGPay($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }\",\"variables\":{\"input\":{\"paymentMethodId\":\"probe_google_pay_third_party_token\",\"transaction\":{\"amount\":\"10.00\",\"merchantAccountId\":\"probe_merchant_acct\",\"orderId\":\"probe_txn_001\"}}}}"
+        }
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "PaypalSdk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_sdk": {
+              "token": "probe_paypal_sdk_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"mutation ChargePaypal($input: ChargePaymentMethodInput!) { chargePaymentMethod(input: $input) { transaction { id status amount { value currencyCode } } } }\",\"variables\":{\"input\":{\"paymentMethodId\":\"probe_paypal_sdk_token\",\"transaction\":{\"amount\":\"10.00\",\"merchantAccountId\":\"probe_merchant_acct\",\"orderId\":\"probe_txn_001\"}}}}"
+        }
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       }
     },
     "capture": {
@@ -133,39 +557,84 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"mutation createClientToken($input: CreateClientTokenInput!) { createClientToken(input: $input) { clientToken}}\",\"variables\":{\"input\":{\"clientToken\":{\"merchantAccountId\":\"probe_merchant_acct\"}}}}"
+        }
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for braintree"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for braintree"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for braintree"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for braintree"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for braintree"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for braintree"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for braintree"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by braintree connector"
       }
     },
     "get": {
@@ -192,36 +661,232 @@
         }
       }
     },
-    "post_authenticate": {
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for braintree"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "bt_signature=dummy_public_key%7Cdummy_signature&bt_payload=PG5vdGlmaWNhdGlvbj48a2luZD5kaXNwdXRlX29wZW5lZDwva2luZD48dGltZXN0YW1wPjIwMjQtMDEtMDFUMDA6MDA6MDBaPC90aW1lc3RhbXA%2BPGRpc3B1dGU%2BPGFtb3VudF9kaXNwdXRlZD4xMDAwPC9hbW91bnRfZGlzcHV0ZWQ%2BPGN1cnJlbmN5X2lzb19jb2RlPlVTRDwvY3VycmVuY3lfaXNvX2NvZGU%2BPGlkPmR1bW15X2Rpc3B1dGVfaWRfMDAxPC9pZD48a2luZD5DSEFSR0VCQUNLPC9raW5kPjxzdGF0dXM%2Bb3Blbjwvc3RhdHVzPjxyZWFzb24%2BZnJhdWQ8L3JlYXNvbj48cmVhc29uX2NvZGU%2BODM8L3JlYXNvbl9jb2RlPjx0cmFuc2FjdGlvbj48YW1vdW50PjEwLjAwPC9hbW91bnQ%2BPGlkPmR1bW15X3R4bl9pZF8wMDE8L2lkPjwvdHJhbnNhY3Rpb24%2BPC9kaXNwdXRlPjwvbm90aWZpY2F0aW9uPg%3D%3D"
+        }
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for braintree"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for braintree"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"mutation  tokenizeCreditCard($input: TokenizeCreditCardInput!) { tokenizeCreditCard(input: $input) { clientMutationId paymentMethod { id } } }\",\"variables\":{\"input\":{\"creditCard\":{\"number\":\"{{$card_number}}\",\"expirationYear\":\"{{$card_exp_year}}\",\"expirationMonth\":\"{{$card_exp_month}}\",\"cvv\":\"{{$card_cvc}}\",\"cardholderName\":\"\"}}}}"
+        }
       }
     },
     "recurring_charge": {
       "default": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through braintree"
+        "error": "This feature is not implemented: mandate_revoke flow for braintree"
       }
     },
     "refund": {
       "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"mutation refundTransaction($input:  RefundTransactionInput!) { refundTransaction(input: $input) {clientMutationId refund { id legacyId amount { value currencyCode } status } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\",\"refund\":{\"amount\":\"10.00\",\"merchantAccountId\":\"probe_merchant_acct\",\"orderId\":\"probe_refund_001\"}}}}"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
         "status": "error",
-        "error": "Invalid Configuration: merchant_account_id"
+        "error": "Stuck on field: currency — Missing required field: currency"
       }
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"mutation voidTransaction($input:  ReverseTransactionInput!) { reverseTransaction(input: $input) { clientMutationId reversal { ...  on Transaction { id legacyId amount { value currencyCode } status } } } }\",\"variables\":{\"input\":{\"transactionId\":\"probe_connector_txn_001\"}}}"
+        }
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://payments.sandbox.braintree-api.com/graphql",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "braintree-version": "2019-01-01",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"query\":\"mutation  tokenizeCreditCard($input: TokenizeCreditCardInput!) { tokenizeCreditCard(input: $input) { clientMutationId paymentMethod { id } } }\",\"variables\":{\"input\":{\"creditCard\":{\"number\":\"4111111111111111\",\"expirationYear\":\"2030\",\"expirationMonth\":\"03\",\"cvv\":\"737\",\"cardholderName\":\"\"}}}}"
+        }
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method through braintree is not supported by Braintree"
       }
     },
     "tokenize": {
@@ -256,6 +921,11 @@
           },
           "body": "{\"query\":\"mutation  tokenizeCreditCard($input: TokenizeCreditCardInput!) { tokenizeCreditCard(input: $input) { clientMutationId paymentMethod { id } } }\",\"variables\":{\"input\":{\"creditCard\":{\"number\":\"4111111111111111\",\"expirationYear\":\"2030\",\"expirationMonth\":\"03\",\"cvv\":\"737\",\"cardholderName\":\"\"}}}}"
         }
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "void": {

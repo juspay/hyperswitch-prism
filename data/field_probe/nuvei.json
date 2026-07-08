@@ -3,41 +3,143 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for nuvei"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach": {
+              "account_number": "000123456789",
+              "routing_number": "110000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/payment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"userTokenId\":\"test@example.com\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_ACH\",\"AccountNumber\":\"000123456789\",\"RoutingNumber\":\"110000000\",\"SECCode\":\"WEB\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
+      },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Stuck on field: metadata for ACH details — Missing required field: metadata for ACH details"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "error": "BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) } is not supported for Nuvei is not supported by nuvei"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "BacsBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Bank redirect method BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) } not supported by Nuvei is not supported by nuvei"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "BcaBankTransfer is not supported for Nuvei is not supported by nuvei"
       },
       "Becs": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "error": "BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) } is not supported for Nuvei is not supported by nuvei"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Bank redirect method Bizum not supported by Nuvei is not supported by nuvei"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "error": "Bank redirect method Blik { blik_code: Some(\"777124\") } not supported by Nuvei is not supported by nuvei"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "BniVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "BriVaBankTransfer is not supported for Nuvei is not supported by nuvei"
       },
       "Card": {
         "status": "supported",
@@ -59,6 +161,7 @@
           "capture_method": "AUTOMATIC",
           "address": {
             "billing_address": {
+              "first_name": "John",
               "last_name": "Doe",
               "country_alpha2_code": "US",
               "email": "test@example.com"
@@ -88,40 +191,520 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"cardHolderName\":\"Doe\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"CVV\":\"737\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"card\":{\"cardNumber\":\"4111111111111111\",\"cardHolderName\":\"John Doe\",\"expirationMonth\":\"03\",\"expirationYear\":\"2030\",\"CVV\":\"737\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\",\"firstName\":\"John\",\"lastName\":\"Doe\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
         }
       },
-      "GooglePay": {
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "CimbVaBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "error": "CimbVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "DanamonVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Bank redirect method Eft { provider: \"ozow\" } not supported by Nuvei is not supported by nuvei"
+      },
+      "Eps": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/payment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_EPS\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Giropay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "giropay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/payment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_Giropay\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Ideal": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ideal": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/payment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_iDeal\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "IndonesianBankTransfer": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "error": "IndonesianBankTransfer { bank_name: None } is not supported for Nuvei is not supported by nuvei"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "InstantBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "InstantBankTransferFinland is not supported for Nuvei is not supported by nuvei"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "InstantBankTransferPoland is not supported for Nuvei is not supported by nuvei"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Bank redirect method Interac { country: None, email: None } not supported by Nuvei is not supported by nuvei"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "LocalBankRedirect": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "error": "Bank redirect method LocalBankRedirect not supported by Nuvei is not supported by nuvei"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "LocalBankTransfer { bank_code: None } is not supported for Nuvei is not supported by nuvei"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "MandiriVaBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "MultibancoBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Bank redirect method Netbanking { issuer: HdfcBank } not supported by Nuvei is not supported by nuvei"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Bank redirect method OnlineBankingCzechRepublic { issuer: CeskaSporitelna } not supported by Nuvei is not supported by nuvei"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Bank redirect method OnlineBankingFinland { email: Some(Email(****@example.com)) } not supported by Nuvei is not supported by nuvei"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Bank redirect method OnlineBankingFpx { issuer: Maybank } not supported by Nuvei is not supported by nuvei"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Bank redirect method OnlineBankingPoland { issuer: BankPekaoSa } not supported by Nuvei is not supported by nuvei"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Bank redirect method OnlineBankingSlovakia { issuer: TatraPay } not supported by Nuvei is not supported by nuvei"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Bank redirect method OnlineBankingThailand { issuer: BangkokBank } not supported by Nuvei is not supported by nuvei"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Bank redirect method OpenBanking not supported by Nuvei is not supported by nuvei"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Bank redirect method OpenBankingUk { issuer: None, country: None } not supported by Nuvei is not supported by nuvei"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Paysera": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "PermataBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None } is not supported for Nuvei is not supported by nuvei"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Bank redirect method Przelewy24 { bank_name: None } not supported by Nuvei is not supported by nuvei"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Pse is not supported for Nuvei is not supported by nuvei"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "error": "SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) } is not supported for Nuvei is not supported by nuvei"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "SepaBankTransfer is not supported for Nuvei is not supported by nuvei"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "SepaGuaranteedBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) } is not supported for Nuvei is not supported by nuvei"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Sofort": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sofort": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "country_alpha2_code": "US",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "session_token": "probe_session_token",
+          "browser_info": {
+            "color_depth": 24,
+            "screen_height": 900,
+            "screen_width": 1440,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "language": "en-US",
+            "time_zone_offset_minutes": -480,
+            "accept_header": "application/json",
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "accept_language": "en-US,en;q=0.9",
+            "ip_address": "1.2.3.4"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/payment.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"sessionToken\":\"probe_session_token\",\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_txn_001\",\"amount\":\"10.00\",\"currency\":\"USD\",\"clientUniqueId\":\"probe_txn_001\",\"paymentOption\":{\"alternativePaymentMethod\":{\"paymentMethod\":\"apmgw_Sofort\"}},\"transactionType\":\"Sale\",\"deviceDetails\":{\"ipAddress\":\"1.2.3.4\"},\"billingAddress\":{\"email\":\"test@example.com\",\"country\":\"US\"},\"urlDetails\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\",\"pendingUrl\":\"https://example.com/return\"},\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Bank redirect method Trustly { country: None } not supported by Nuvei is not supported by nuvei"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Payment method not supported is not supported by nuvei"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       }
     },
     "capture": {
@@ -146,28 +729,69 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/getSessionToken.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientRequestId\":\"probe_sdk_session_001\",\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_session_token": {
-      "default": {
         "status": "supported",
         "proto_request": {
+          "merchant_order_id": "probe_order_001",
           "amount": {
             "minor_amount": 1000,
             "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/openOrder.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientUniqueId\":\"probe_order_001\",\"clientRequestId\":\"probe_order_001\",\"currency\":\"USD\",\"amount\":\"10.00\",\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\",\"transactionType\":\"Auth\"}"
+        }
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by nuvei connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
           }
         },
         "sample": {
@@ -181,19 +805,39 @@
         }
       }
     },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for nuvei"
+      }
+    },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by nuvei connector"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by nuvei connector"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by nuvei connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by nuvei connector"
       }
     },
     "get": {
@@ -218,19 +862,61 @@
         }
       }
     },
-    "post_authenticate": {
+    "handle_event": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by nuvei connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for nuvei"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for nuvei"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: session_token — Missing required field: session_token"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: billing_address.first_name and billing_address.last_name — Missing required field: billing_address.first_name and billing_address.last_name"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: state.access_token — Missing required field: state.access_token"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by nuvei connector"
       }
     },
     "refund": {
@@ -257,17 +943,56 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://ppp-test.nuvei.com/ppp/api/v1/getTransactionDetails.do",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"merchantId\":\"probe_merchant\",\"merchantSiteId\":\"probe_id\",\"clientUniqueId\":\"probe_refund_001\",\"transactionId\":\"probe_connector_txn_001\",\"timeStamp\":\"00000000000000\",\"checksum\":\"a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3\"}"
+        }
+      }
+    },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by nuvei connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: billing_address.first_name and billing_address.last_name — Missing required field: billing_address.first_name and billing_address.last_name"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: session_token — Missing required field: session_token"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "Payment method not supported for SetupMandate is not supported by nuvei"
       }
     },
     "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for nuvei"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }

@@ -3,615 +3,450 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by finix connector"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "ach": {
-              "account_number": "000123456789",
-              "routing_number": "110000000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "Affirm": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "affirm": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "Afterpay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "afterpay_clearpay": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "ApplePay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "apple_pay": {
-              "payment_data": {
-                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
-              },
-              "payment_method": {
-                "display_name": "Visa 1111",
-                "network": "Visa",
-                "type": "debit"
-              },
-              "transaction_identifier": "probe_txn_id"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "ApplePayDecrypted": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "apple_pay": {
-              "payment_data": {
-                "decrypted_data": {
-                  "application_primary_account_number": "4111111111111111",
-                  "application_expiration_month": "03",
-                  "application_expiration_year": "2030",
-                  "payment_data": {
-                    "online_payment_cryptogram": "AAAAAA==",
-                    "eci_indicator": "05"
-                  }
-                }
-              },
-              "payment_method": {
-                "display_name": "Visa 1111",
-                "network": "Visa",
-                "type": "debit"
-              },
-              "transaction_identifier": "probe_txn_id"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "Bacs": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "bacs": {
-              "account_number": "55779911",
-              "sort_code": "200000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "Becs": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "becs": {
-              "account_number": "000123456",
-              "bsb_number": "000000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "Blik": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "blik": {
-              "blik_code": "777124"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "GooglePay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "google_pay": {
-              "type": "CARD",
-              "description": "Visa 1111",
-              "info": {
-                "card_network": "VISA",
-                "card_details": "1111"
-              },
-              "tokenization_data": {
-                "encrypted_data": {
-                  "token_type": "PAYMENT_GATEWAY",
-                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "GooglePayDecrypted": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "google_pay": {
-              "type": "CARD",
-              "description": "Visa 1111",
-              "info": {
-                "card_network": "VISA",
-                "card_details": "1111"
-              },
-              "tokenization_data": {
-                "decrypted_data": {
-                  "card_exp_month": "03",
-                  "card_exp_year": "2030",
-                  "application_primary_account_number": "4111111111111111",
-                  "cryptogram": "AAAAAA==",
-                  "eci_indicator": "05"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "Ideal": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "ideal": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "Klarna": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "klarna": {}
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "PaypalRedirect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "paypal_redirect": {
-              "email": "test@example.com"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "SamsungPay": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "samsung_pay": {
-              "payment_credential": {
-                "method": "3DS",
-                "recurring_payment": false,
-                "card_brand": "VISA",
-                "card_last_four_digits": "1234",
-                "token_data": {
-                  "type": "S",
-                  "version": "100",
-                  "data": "probe_samsung_token_data"
-                }
-              }
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "Sepa": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "sepa": {
-              "iban": "DE89370400440532013000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "UpiCollect": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "upi_collect": {
-              "vpa_id": "test@upi"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "payment_method_token": "probe_pm_token"
-        },
-        "sample": {
-          "url": "https://finix.sandbox-payments-api.com/transfers",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
-            "content-type": "application/json",
-            "via": "HyperSwitch"
-          },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe_pm_token\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_txn_001\"}"
-        }
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       }
     },
     "capture": {
@@ -637,12 +472,31 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by finix connector"
       }
     },
-    "create_customer": {
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by finix connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by finix connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by finix connector"
+      }
+    },
+    "customer_create": {
       "default": {
         "status": "supported",
         "proto_request": {
@@ -659,33 +513,37 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"entity\":{\"phone\":null,\"first_name\":\"John\",\"last_name\":\"Doe\",\"email\":\"test@example.com\",\"personal_address\":null},\"tags\":null,\"type\":\"PERSONAL\"}"
+          "body": "{\"entity\":{\"phone\":null,\"first_name\":null,\"last_name\":null,\"email\":null,\"personal_address\":null},\"tags\":null,\"type\":\"PERSONAL\"}"
         }
-      }
-    },
-    "create_order": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_session_token": {
-      "default": {
-        "status": "not_implemented"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for finix"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for finix"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for finix"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by finix connector"
       }
     },
     "get": {
@@ -711,19 +569,121 @@
         }
       }
     },
-    "post_authenticate": {
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by finix connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by finix connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by finix connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Finix requires an identity — Missing required field: connector_customer_id. Finix requires an identity (connector customer) to create a payment instrument. The identity ID (ID...) must be provided in the 'identity' field."
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/transfers",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"probe-mandate-123\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"\",\"tags\":{\"merchant_reference\":\"\"}}"
+        }
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by finix connector"
       }
     },
     "refund": {
@@ -751,50 +711,81 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://finix.sandbox-payments-api.com/transfers/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for finix"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Finix requires an identity — Missing required field: connector_customer_id. Finix requires an identity (connector customer) to create a payment instrument. The identity ID (ID...) must be provided in the 'identity' field."
       }
     },
-    "tokenize": {
+    "token_authorize": {
       "default": {
         "status": "supported",
         "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
           "amount": {
             "minor_amount": 1000,
             "currency": "USD"
           },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "customer": {
-            "id": "cust_probe_123"
-          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
           "address": {
             "billing_address": {}
-          }
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://finix.sandbox-payments-api.com/payment_instruments",
+          "url": "https://finix.sandbox-payments-api.com/transfers",
           "method": "Post",
           "headers": {
             "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"type\":\"PAYMENT_CARD\",\"name\":\"John Doe\",\"number\":\"4111111111111111\",\"security_code\":\"737\",\"expiration_month\":3,\"expiration_year\":2030,\"identity\":\"cust_probe_123\",\"tags\":null}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"source\":\"pm_1AbcXyzStripeTestToken\",\"merchant\":\"probe_merchant\",\"idempotency_id\":\"probe_tokenized_txn_001\"}"
         }
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id. Finix requires an identity — Missing required field: connector_customer_id. Finix requires an identity (connector customer) to create a payment instrument. The identity ID (ID...) must be provided in the 'identity' field."
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "void": {

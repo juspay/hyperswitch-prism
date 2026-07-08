@@ -3,41 +3,126 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for multisafepay"
       }
     },
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through multisafepay"
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through multisafepay"
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through multisafepay"
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "AliPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ali_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"redirect\",\"order_id\":\"probe_txn_001\",\"gateway\":\"ALIPAY\",\"currency\":\"USD\",\"amount\":1000,\"description\":\"Probe payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/return\",\"cancel_url\":\"https://example.com/return\"},\"customer\":{\"reference\":\"probe_txn_001\",\"email\":\"test@example.com\"},\"delivery\":{},\"days_active\":30,\"seconds_active\":259200}"
+        }
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through multisafepay"
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through multisafepay"
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through multisafepay"
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through multisafepay"
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through multisafepay"
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "Card": {
         "status": "supported",
@@ -77,6 +162,134 @@
           "body": "{\"type\":\"direct\",\"order_id\":\"probe_txn_001\",\"gateway\":\"VISA\",\"currency\":\"USD\",\"amount\":1000,\"description\":\"Probe payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/return\",\"cancel_url\":\"https://example.com/return\"},\"customer\":{\"reference\":\"probe_txn_001\",\"email\":\"test@example.com\"},\"gateway_info\":{\"card_number\":\"4111111111111111\",\"card_expiry_date\":3003,\"card_cvc\":\"737\",\"card_holder_name\":null,\"flexible_3d\":null,\"moto\":null,\"term_url\":null},\"delivery\":{},\"days_active\":30,\"seconds_active\":259200}"
         }
       },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Eps": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"redirect\",\"order_id\":\"probe_txn_001\",\"gateway\":\"EPS\",\"currency\":\"USD\",\"amount\":1000,\"description\":\"Probe payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/return\",\"cancel_url\":\"https://example.com/return\"},\"customer\":{\"reference\":\"probe_txn_001\",\"email\":\"test@example.com\"},\"delivery\":{},\"days_active\":30,\"seconds_active\":259200}"
+        }
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Giropay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "giropay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"redirect\",\"order_id\":\"probe_txn_001\",\"gateway\":\"GIROPAY\",\"currency\":\"USD\",\"amount\":1000,\"description\":\"Probe payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/return\",\"cancel_url\":\"https://example.com/return\"},\"customer\":{\"reference\":\"probe_txn_001\",\"email\":\"test@example.com\"},\"delivery\":{},\"days_active\":30,\"seconds_active\":259200}"
+        }
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
       "GooglePay": {
         "status": "supported",
         "proto_request": {
@@ -86,7 +299,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -131,7 +344,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -170,6 +383,10 @@
           "body": "{\"type\":\"direct\",\"order_id\":\"probe_txn_001\",\"gateway\":\"GOOGLEPAY\",\"currency\":\"USD\",\"amount\":1000,\"description\":\"Probe payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/return\",\"cancel_url\":\"https://example.com/return\"},\"customer\":{\"reference\":\"probe_txn_001\",\"email\":\"test@example.com\"},\"delivery\":{},\"days_active\":30,\"seconds_active\":259200}"
         }
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
       "Ideal": {
         "status": "supported",
         "proto_request": {
@@ -202,9 +419,141 @@
           "body": "{\"type\":\"direct\",\"order_id\":\"probe_txn_001\",\"gateway\":\"IDEAL\",\"currency\":\"USD\",\"amount\":1000,\"description\":\"Probe payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/return\",\"cancel_url\":\"https://example.com/return\"},\"customer\":{\"reference\":\"probe_txn_001\",\"email\":\"test@example.com\"},\"delivery\":{},\"days_active\":30,\"seconds_active\":259200}"
         }
       },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through multisafepay"
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "PaypalRedirect": {
         "status": "supported",
@@ -240,57 +589,296 @@
           "body": "{\"type\":\"redirect\",\"order_id\":\"probe_txn_001\",\"gateway\":\"PAYPAL\",\"currency\":\"USD\",\"amount\":1000,\"description\":\"Probe payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/return\",\"cancel_url\":\"https://example.com/return\"},\"customer\":{\"reference\":\"probe_txn_001\",\"email\":\"test@example.com\"},\"delivery\":{},\"days_active\":30,\"seconds_active\":259200}"
         }
       },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through multisafepay"
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "Sepa": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa": {
+              "iban": "DE89370400440532013000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"direct\",\"order_id\":\"probe_txn_001\",\"gateway\":\"DIRDEB\",\"currency\":\"USD\",\"amount\":1000,\"description\":\"Probe payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/return\",\"cancel_url\":\"https://example.com/return\"},\"customer\":{\"reference\":\"probe_txn_001\",\"email\":\"test@example.com\"},\"gateway_info\":{\"account_id\":\"DE89370400440532013000\",\"account_holder_name\":\"John Doe\",\"account_holder_iban\":\"DE89370400440532013000\"},\"delivery\":{},\"days_active\":30,\"seconds_active\":259200}"
+        }
+      },
+      "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through multisafepay"
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Sofort": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sofort": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"redirect\",\"order_id\":\"probe_txn_001\",\"gateway\":\"SOFORT\",\"currency\":\"USD\",\"amount\":1000,\"description\":\"Probe payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/return\",\"cancel_url\":\"https://example.com/return\"},\"customer\":{\"reference\":\"probe_txn_001\",\"email\":\"test@example.com\"},\"delivery\":{},\"days_active\":30,\"seconds_active\":259200}"
+        }
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Trustly": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "trustly": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "description": "Probe payment"
+        },
+        "sample": {
+          "url": "https://testapi.multisafepay.com/v1/json/orders?api_key=probe_key",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"type\":\"redirect\",\"order_id\":\"probe_txn_001\",\"gateway\":\"TRUSTLY\",\"currency\":\"USD\",\"amount\":1000,\"description\":\"Probe payment\",\"payment_options\":{\"redirect_url\":\"https://example.com/return\",\"cancel_url\":\"https://example.com/return\"},\"customer\":{\"reference\":\"probe_txn_001\",\"email\":\"test@example.com\"},\"delivery\":{},\"days_active\":30,\"seconds_active\":259200}"
+        }
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through multisafepay"
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
       }
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for multisafepay"
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://testapi.multisafepay.com/v1/json/auth/api_token?api_key=probe_key",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for multisafepay"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by multisafepay connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by multisafepay connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by multisafepay connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for multisafepay"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for multisafepay"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for multisafepay"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by multisafepay connector"
       }
     },
     "get": {
@@ -315,19 +903,61 @@
         }
       }
     },
-    "post_authenticate": {
+    "handle_event": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by multisafepay connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for multisafepay"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for multisafepay"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Multisafepay requires a numeric YYMM expiry value; vault token placeholders are not supported for proxy flows is not supported by Multisafepay"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for multisafepay"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for multisafepay"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for multisafepay"
       }
     },
     "refund": {
@@ -354,24 +984,64 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://testapi.multisafepay.com/v1/json/orders/probe_refund_id_001?api_key=probe_key",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for multisafepay"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for multisafepay"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through multisafepay"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for multisafepay"
       }
     },
     "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for multisafepay"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for multisafepay"
       }
     }
   }

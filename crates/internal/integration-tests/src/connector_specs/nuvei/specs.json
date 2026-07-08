@@ -1,0 +1,16 @@
+{
+  "connector": "nuvei",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/CreateOrder",
+    "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
+  ]
+}

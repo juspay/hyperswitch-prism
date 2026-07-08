@@ -1,0 +1,173 @@
+{
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
+    "threeds_card_pre_authenticate": {
+      "grpc_req": {
+        "merchant_order_id": "pay_1234",
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4349940199004549"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/Authenticate": {
+    "threeds_card_authenticate": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4349940199004549"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PostAuthenticate": {
+    "threeds_card_post_authenticate": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4349940199004549"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "redirection_response": {
+          "payload": {
+            "PaRes": "auto_generate",
+            "paymentId": "auto_generate"
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/Authorize": {
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "pay_1234",
+        "merchant_order_id": "pay_1234",
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4349940199004549"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "authentication_data": {
+          "connector_transaction_id": "pay_1234"
+        }
+      }
+    }
+  },
+  "PaymentService/Void": {
+    "void_authorized_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        }
+      }
+    },
+    "void_without_cancellation_reason": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        }
+      }
+    }
+  },
+  "PaymentService/CompleteAuthorize": {
+    "threeds_complete_authorize_credit_card": {
+      "grpc_req": {
+        "merchant_transaction_id": "pay_1234567890",
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4349940199004549"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "authentication_data": {
+          "connector_transaction_id": "auto_generate"
+        },
+        "redirection_response": {
+          "params": "auto_generate",
+          "payload": {
+            "PaRes": "auto_generate",
+            "paymentId": "auto_generate"
+          }
+        }
+      }
+    }
+  }
+}

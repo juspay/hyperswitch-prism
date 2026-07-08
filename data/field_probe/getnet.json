@@ -3,116 +3,450 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Failed to obtain authentication type"
       }
     },
     "authorize": {
       "Ach": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
       },
       "Affirm": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
       },
       "Afterpay": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
       },
       "ApplePay": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
       },
       "ApplePayDecrypted": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
       },
       "Bacs": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
       },
       "Becs": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Bizum requires a Globalgetnet seller account with Bizum enabled. The current sandbox account (country=AR) does not have access. Contact integration support to enable. is not supported by Getnet"
       },
       "Blik": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "Boleto": {
+        "status": "error",
+        "error": "Stuck on field: payment_method_data.voucher.boleto.social_security_number — Missing required field: payment_method_data.voucher.boleto.social_security_number"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "state": {
-            "access_token": {
-              "token": "probe_access_token",
-              "expires_in_seconds": 3600,
-              "token_type": "Bearer"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://api-sbx.globalgetnet.com/dpm/payments-gwproxy/v2/payments",
-          "method": "Post",
-          "headers": {
-            "authorization": "Bearer probe_access_token",
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-transaction-channel-entry": "XX"
-          },
-          "body": "{\"request_id\":\"probe_txn_001\",\"idempotency_key\":\"probe_txn_001\",\"order_id\":\"probe_txn_001\",\"data\":{\"customer_id\":\"cus_default\",\"amount\":1000,\"currency\":\"USD\",\"payment\":{\"payment_id\":\"probe_txn_001\",\"payment_method\":\"CREDIT\",\"transaction_type\":\"FULL\",\"number_installments\":1,\"card\":{\"number\":\"4111111111111111\",\"expiration_month\":\"03\",\"expiration_year\":\"30\",\"cardholder_name\":\"John Doe\",\"security_code\":\"737\"}}}}"
-        }
+        "status": "error",
+        "error": "Stuck on field: merchant_request_id — Missing required field: merchant_request_id"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
       },
       "GooglePay": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
       },
       "GooglePayDecrypted": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
       },
       "Ideal": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
       },
       "Klarna": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
       },
       "PaypalRedirect": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Pix": {
+        "status": "error",
+        "error": "Stuck on field: merchant_request_id — Missing required field: merchant_request_id"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
       },
       "SamsungPay": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
       },
       "Sepa": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "BankTransfer variant is not supported by Getnet"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
       },
       "UpiCollect": {
         "status": "not_supported",
-        "error": "Payment method  is not supported by Getnet"
+        "error": "Payment method is not supported by Getnet"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
       }
     },
     "capture": {
@@ -146,7 +480,19 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by getnet connector"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by getnet connector"
+      }
+    },
+    "create_server_authentication_token": {
       "default": {
         "status": "supported",
         "proto_request": {},
@@ -162,34 +508,45 @@
         }
       }
     },
-    "create_customer": {
+    "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by getnet connector"
       }
     },
-    "create_order": {
+    "customer_create": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_session_token": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for getnet"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by getnet connector"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by getnet connector"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by getnet connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by getnet connector"
       }
     },
     "get": {
@@ -223,19 +580,61 @@
         }
       }
     },
-    "post_authenticate": {
+    "handle_event": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by getnet connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: merchant_request_id — Missing required field: merchant_request_id"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for getnet"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for getnet"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for getnet"
       }
     },
     "refund": {
@@ -271,17 +670,65 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-sbx.globalgetnet.com/dpm/hub-payment-info/v1/payments/info/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-transaction-channel-entry": "XX"
+          },
+          "body": null
+        }
+      }
+    },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for getnet"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for getnet"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Payment method is not supported by Getnet"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for getnet"
       }
     },
     "tokenize": {
+      "default": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }

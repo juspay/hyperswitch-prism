@@ -18,15 +18,29 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        braintree=payment_pb2.BraintreeConfig(
+            public_key=payment_methods_pb2.SecretString(value="YOUR_PUBLIC_KEY"),
+            private_key=payment_methods_pb2.SecretString(value="YOUR_PRIVATE_KEY"),
+            base_url="YOUR_BASE_URL",
+            merchant_account_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ACCOUNT_ID"),
+            merchant_config_currency="YOUR_MERCHANT_CONFIG_CURRENCY",
+            apple_pay_supported_networks=["YOUR_APPLE_PAY_SUPPORTED_NETWORKS"],
+            apple_pay_merchant_capabilities=["YOUR_APPLE_PAY_MERCHANT_CAPABILITIES"],
+            apple_pay_label="YOUR_APPLE_PAY_LABEL",
+            gpay_merchant_name="YOUR_GPAY_MERCHANT_NAME",
+            gpay_merchant_id="YOUR_GPAY_MERCHANT_ID",
+            gpay_allowed_auth_methods=["YOUR_GPAY_ALLOWED_AUTH_METHODS"],
+            gpay_allowed_card_networks=["YOUR_GPAY_ALLOWED_CARD_NETWORKS"],
+            paypal_client_id="YOUR_PAYPAL_CLIENT_ID",
+            gpay_gateway_merchant_id="YOUR_GPAY_GATEWAY_MERCHANT_ID",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     braintree=payment_pb2.BraintreeConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +52,29 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Braintree',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.BRAINTREE,
+    environment: Environment.SANDBOX,
+    auth: {
+        braintree: {
+            publicKey: { value: 'YOUR_PUBLIC_KEY' },
+            privateKey: { value: 'YOUR_PRIVATE_KEY' },
+            baseUrl: 'YOUR_BASE_URL',
+            merchantAccountId: { value: 'YOUR_MERCHANT_ACCOUNT_ID' },
+            merchantConfigCurrency: 'YOUR_MERCHANT_CONFIG_CURRENCY',
+            applePaySupportedNetworks: ['YOUR_APPLE_PAY_SUPPORTED_NETWORKS'],
+            applePayMerchantCapabilities: ['YOUR_APPLE_PAY_MERCHANT_CAPABILITIES'],
+            applePayLabel: 'YOUR_APPLE_PAY_LABEL',
+            gpayMerchantName: 'YOUR_GPAY_MERCHANT_NAME',
+            gpayMerchantId: 'YOUR_GPAY_MERCHANT_ID',
+            gpayAllowedAuthMethods: ['YOUR_GPAY_ALLOWED_AUTH_METHODS'],
+            gpayAllowedCardNetworks: ['YOUR_GPAY_ALLOWED_CARD_NETWORKS'],
+            paypalClientId: 'YOUR_PAYPAL_CLIENT_ID',
+            gpayGatewayMerchantId: 'YOUR_GPAY_GATEWAY_MERCHANT_ID',
+        }
     },
 });
 ```
@@ -59,11 +88,26 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Braintree")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setBraintree(BraintreeConfig.newBuilder()
+                .setPublicKey(SecretString.newBuilder().setValue("YOUR_PUBLIC_KEY").build())
+                .setPrivateKey(SecretString.newBuilder().setValue("YOUR_PRIVATE_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .setMerchantAccountId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ACCOUNT_ID").build())
+                .setMerchantConfigCurrency("YOUR_MERCHANT_CONFIG_CURRENCY")
+                .addAllApplePaySupportedNetworks(listOf("YOUR_APPLE_PAY_SUPPORTED_NETWORKS"))
+                .addAllApplePayMerchantCapabilities(listOf("YOUR_APPLE_PAY_MERCHANT_CAPABILITIES"))
+                .setApplePayLabel("YOUR_APPLE_PAY_LABEL")
+                .setGpayMerchantName("YOUR_GPAY_MERCHANT_NAME")
+                .setGpayMerchantId("YOUR_GPAY_MERCHANT_ID")
+                .addAllGpayAllowedAuthMethods(listOf("YOUR_GPAY_ALLOWED_AUTH_METHODS"))
+                .addAllGpayAllowedCardNetworks(listOf("YOUR_GPAY_ALLOWED_CARD_NETWORKS"))
+                .setPaypalClientId("YOUR_PAYPAL_CLIENT_ID")
+                .setGpayGatewayMerchantId("YOUR_GPAY_GATEWAY_MERCHANT_ID")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +120,32 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Braintree".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Braintree(BraintreeConfig {
+                public_key: Some(hyperswitch_masking::Secret::new("YOUR_PUBLIC_KEY".to_string())),  // Authentication credential
+                private_key: Some(hyperswitch_masking::Secret::new("YOUR_PRIVATE_KEY".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                merchant_account_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ACCOUNT_ID".to_string())),  // Authentication credential
+                merchant_config_currency: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                apple_pay_supported_networks: vec!["value".to_string()],  // Array field
+                apple_pay_merchant_capabilities: vec!["value".to_string()],  // Array field
+                apple_pay_label: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                gpay_merchant_name: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                gpay_merchant_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                gpay_allowed_auth_methods: vec!["value".to_string()],  // Array field
+                gpay_allowed_card_networks: vec!["value".to_string()],  // Array field
+                paypal_client_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                gpay_gateway_merchant_id: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -92,63 +155,20 @@ let config = ConnectorConfig {
 </tr>
 </table>
 
-## Integration Scenarios
-
-Complete, runnable examples for common integration patterns. Each example shows the full flow with status handling. Copy-paste into your app and replace placeholder values.
-
-### Card Payment (Authorize + Capture)
-
-Reserve funds with Authorize, then settle with a separate Capture call. Use for physical goods or delayed fulfillment where capture happens later.
-
-**Response status handling:**
-
-| Status | Recommended action |
-|--------|-------------------|
-| `AUTHORIZED` | Funds reserved — proceed to Capture to settle |
-| `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
-| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
-
-**Examples:** [Python](../../examples/braintree/python/braintree.py#L89) · [JavaScript](../../examples/braintree/javascript/braintree.js#L79) · [Kotlin](../../examples/braintree/kotlin/braintree.kt#L89) · [Rust](../../examples/braintree/rust/braintree.rs#L86)
-
-### Card Payment (Automatic Capture)
-
-Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digital goods or immediate fulfillment.
-
-**Response status handling:**
-
-| Status | Recommended action |
-|--------|-------------------|
-| `AUTHORIZED` | Payment authorized and captured — funds will be settled automatically |
-| `PENDING` | Payment processing — await webhook for final status before fulfilling |
-| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
-
-**Examples:** [Python](../../examples/braintree/python/braintree.py#L114) · [JavaScript](../../examples/braintree/javascript/braintree.js#L105) · [Kotlin](../../examples/braintree/kotlin/braintree.kt#L111) · [Rust](../../examples/braintree/rust/braintree.rs#L109)
-
-### Void a Payment
-
-Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.
-
-**Examples:** [Python](../../examples/braintree/python/braintree.py#L133) · [JavaScript](../../examples/braintree/javascript/braintree.js#L124) · [Kotlin](../../examples/braintree/kotlin/braintree.kt#L127) · [Rust](../../examples/braintree/rust/braintree.rs#L125)
-
-### Get Payment Status
-
-Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
-
-**Examples:** [Python](../../examples/braintree/python/braintree.py#L155) · [JavaScript](../../examples/braintree/javascript/braintree.js#L146) · [Kotlin](../../examples/braintree/kotlin/braintree.kt#L146) · [Rust](../../examples/braintree/rust/braintree.rs#L144)
-
-### Tokenize Payment Method
-
-Store card details in the connector's vault and receive a reusable payment token. Use the returned token for one-click payments and recurring billing without re-collecting card data.
-
-**Examples:** [Python](../../examples/braintree/python/braintree.py#L177) · [JavaScript](../../examples/braintree/javascript/braintree.js#L168) · [Kotlin](../../examples/braintree/kotlin/braintree.kt#L165) · [Rust](../../examples/braintree/rust/braintree.rs#L163)
-
 ## API Reference
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
+| [MerchantAuthenticationService.CreateClientAuthenticationToken](#merchantauthenticationservicecreateclientauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
+| [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
+| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [PaymentService.Reverse](#paymentservicereverse) | Payments | `PaymentServiceReverseRequest` |
+| [PaymentService.SetupRecurring](#paymentservicesetuprecurring) | Payments | `PaymentServiceSetupRecurringRequest` |
 | [PaymentMethodService.Tokenize](#paymentmethodservicetokenize) | Payments | `PaymentMethodServiceTokenizeRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
@@ -167,50 +187,119 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 | Payment Method | Supported |
 |----------------|:---------:|
-| Card | ✓ |
-| Google Pay | ⚠ |
-| Apple Pay | ⚠ |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| ACH | ⚠ |
-| BECS | ⚠ |
-| iDEAL | ⚠ |
-| PayPal | ⚠ |
-| BLIK | ⚠ |
-| Klarna | ⚠ |
-| Afterpay | ⚠ |
-| UPI | ⚠ |
-| Affirm | ⚠ |
-| Samsung Pay | ⚠ |
+| Card | ? |
+| Bancontact | x |
+| Apple Pay | x |
+| Apple Pay Dec | x |
+| Apple Pay SDK | ✓ |
+| Google Pay | x |
+| Google Pay Dec | x |
+| Google Pay SDK | ✓ |
+| PayPal SDK | ✓ |
+| Amazon Pay | x |
+| Cash App | x |
+| PayPal | x |
+| WeChat Pay | x |
+| Alipay | x |
+| Revolut Pay | x |
+| MiFinity | x |
+| Bluecode | x |
+| Paze | x |
+| Samsung Pay | x |
+| MB Way | x |
+| Satispay | x |
+| Wero | x |
+| GoPay | x |
+| GCash | x |
+| Momo | x |
+| Dana | x |
+| Kakao Pay | x |
+| Touch 'n Go | x |
+| Twint | x |
+| Vipps | x |
+| Swish | x |
+| Affirm | x |
+| Afterpay | x |
+| Klarna | x |
+| UPI Collect | x |
+| UPI Intent | x |
+| UPI QR | x |
+| Thailand | x |
+| Czech | x |
+| Finland | x |
+| FPX | x |
+| Poland | x |
+| Slovakia | x |
+| UK | x |
+| PIS | x |
+| Generic | x |
+| Local | x |
+| iDEAL | x |
+| Sofort | x |
+| Trustly | x |
+| Giropay | x |
+| EPS | x |
+| Przelewy24 | x |
+| PSE | x |
+| BLIK | x |
+| Interac | x |
+| Bizum | x |
+| EFT | x |
+| DuitNow | x |
+| ACH | x |
+| SEPA | x |
+| BACS | x |
+| Multibanco | x |
+| Instant | x |
+| Instant FI | x |
+| Instant PL | x |
+| Pix | x |
+| Permata | x |
+| BCA | x |
+| BNI VA | x |
+| BRI VA | x |
+| CIMB VA | x |
+| Danamon VA | x |
+| Mandiri VA | x |
+| Local | x |
+| Indonesian | x |
+| ACH | x |
+| SEPA | x |
+| BACS | x |
+| BECS | x |
+| SEPA Guaranteed | x |
+| Crypto | x |
+| Reward | x |
+| Givex | x |
+| PaySafeCard | x |
+| E-Voucher | x |
+| Boleto | x |
+| Efecty | x |
+| Pago Efectivo | x |
+| Red Compra | x |
+| Red Pagos | x |
+| Alfamart | x |
+| Indomaret | x |
+| Oxxo | x |
+| 7-Eleven | x |
+| Lawson | x |
+| Mini Stop | x |
+| Family Mart | x |
+| Seicomart | x |
+| Pay Easy | x |
 
-**Payment method objects** — use these in the `payment_method` field of the Authorize request.
-
-##### Card (Raw PAN)
-
-```python
-"payment_method": {
-    "card": {  # Generic card payment
-        "card_number": "4111111111111111",  # Card Identification
-        "card_exp_month": "03",
-        "card_exp_year": "2030",
-        "card_cvc": "737",
-        "card_holder_name": "John Doe"  # Cardholder Information
-    }
-}
-```
-
-**Examples:** [Python](../../examples/braintree/python/braintree.py#L211) · [JavaScript](../../examples/braintree/javascript/braintree.js#L196) · [Kotlin](../../examples/braintree/kotlin/braintree.kt#L193) · [Rust](../../examples/braintree/rust/braintree.rs#L192)
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts) · [Kotlin](../../examples/braintree/braintree.kt) · [Rust](../../examples/braintree/braintree.rs)
 
 #### PaymentService.Capture
 
-Finalize an authorized payment transaction. Transfers reserved funds from customer to merchant account, completing the payment lifecycle.
+Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/braintree/python/braintree.py#L220) · [JavaScript](../../examples/braintree/javascript/braintree.js#L205) · [Kotlin](../../examples/braintree/kotlin/braintree.kt#L205) · [Rust](../../examples/braintree/rust/braintree.rs#L204)
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L208) · [Kotlin](../../examples/braintree/braintree.kt#L107) · [Rust](../../examples/braintree/braintree.rs)
 
 #### PaymentService.Get
 
@@ -221,7 +310,51 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/braintree/python/braintree.py#L229) · [JavaScript](../../examples/braintree/javascript/braintree.js#L214) · [Kotlin](../../examples/braintree/kotlin/braintree.kt#L215) · [Rust](../../examples/braintree/rust/braintree.rs#L211)
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L226) · [Kotlin](../../examples/braintree/braintree.kt#L133) · [Rust](../../examples/braintree/braintree.rs)
+
+#### PaymentService.ProxySetupRecurring
+
+Setup recurring mandate using vault-aliased card data.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxySetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L253) · [Kotlin](../../examples/braintree/braintree.kt#L172) · [Rust](../../examples/braintree/braintree.rs)
+
+#### PaymentService.Refund
+
+Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceRefundRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L262) · [Kotlin](../../examples/braintree/braintree.kt#L204) · [Rust](../../examples/braintree/braintree.rs)
+
+#### PaymentService.Reverse
+
+Reverse a captured payment in full. Initiates a complete refund when you need to cancel a settled transaction rather than just an authorization.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceReverseRequest` |
+| **Response** | `PaymentServiceReverseResponse` |
+
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L271) · [Kotlin](../../examples/braintree/braintree.kt#L214) · [Rust](../../examples/braintree/braintree.rs)
+
+#### PaymentService.SetupRecurring
+
+Configure a payment method for recurring billing. Sets up the mandate and payment details needed for future automated charges.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceSetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L280) · [Kotlin](../../examples/braintree/braintree.kt#L222) · [Rust](../../examples/braintree/braintree.rs)
 
 #### PaymentMethodService.Tokenize
 
@@ -232,15 +365,28 @@ Tokenize payment method for secure storage. Replaces raw card details with secur
 | **Request** | `PaymentMethodServiceTokenizeRequest` |
 | **Response** | `PaymentMethodServiceTokenizeResponse` |
 
-**Examples:** [Python](../../examples/braintree/python/braintree.py#L177) · [JavaScript](../../examples/braintree/javascript/braintree.js#L168) · [Kotlin](../../examples/braintree/kotlin/braintree.kt#L223) · [Rust](../../examples/braintree/rust/braintree.rs#L218)
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L289) · [Kotlin](../../examples/braintree/braintree.kt#L261) · [Rust](../../examples/braintree/braintree.rs)
 
 #### PaymentService.Void
 
-Cancel an authorized payment before capture. Releases held funds back to customer, typically used when orders are cancelled or abandoned.
+Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/braintree/python/braintree.py#L238) · [JavaScript](../../examples/braintree/javascript/braintree.js#L223) · [Kotlin](../../examples/braintree/kotlin/braintree.kt#L249) · [Rust](../../examples/braintree/rust/braintree.rs#L245)
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts) · [Kotlin](../../examples/braintree/braintree.kt#L287) · [Rust](../../examples/braintree/braintree.rs)
+
+### Authentication
+
+#### MerchantAuthenticationService.CreateClientAuthenticationToken
+
+Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
+
+| | Message |
+|---|---------|
+| **Request** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse` |
+
+**Examples:** [Python](../../examples/braintree/braintree.py) · [TypeScript](../../examples/braintree/braintree.ts#L217) · [Kotlin](../../examples/braintree/braintree.kt#L117) · [Rust](../../examples/braintree/braintree.rs)

@@ -9,19 +9,16 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authorize, Capture, ClientAuthenticationToken, CreateOrder, DefendDispute,
-        IncrementalAuthorization, MandateRevoke, PSync, RSync, Refund, RepeatPayment,
-        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void,
+        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer, PSync, RSync,
+        Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, DisputeDefendData,
-        DisputeFlowData, DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
-        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
+        RefundsResponseData, RepeatPaymentData, SetupMandateRequestData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -38,30 +35,19 @@ use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
     self as payload, PayloadAuthorizeResponse, PayloadCaptureRequest, PayloadCaptureResponse,
-    PayloadCardsRequestData, PayloadErrorResponse, PayloadPSyncResponse, PayloadPaymentsRequest,
-    PayloadRSyncResponse, PayloadRefundRequest, PayloadRefundResponse, PayloadRepeatPaymentRequest,
-    PayloadRepeatPaymentResponse, PayloadSetupMandateResponse, PayloadVoidRequest,
-    PayloadVoidResponse,
+    PayloadCardsRequestData, PayloadClientAuthRequest, PayloadClientAuthResponse,
+    PayloadCustomerRequest, PayloadCustomerResponse, PayloadErrorResponse, PayloadPSyncResponse,
+    PayloadPaymentsRequest, PayloadRSyncResponse, PayloadRefundRequest, PayloadRefundResponse,
+    PayloadRepeatPaymentRequest, PayloadRepeatPaymentResponse, PayloadSetupMandateResponse,
+    PayloadVoidRequest, PayloadVoidResponse,
 };
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
-
-// Trait implementations with generic type parameters
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Payload<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Payload<T>
@@ -105,13 +91,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Payload<T>
 {
+    /// Enable automatic connector customer creation before payment.
+    /// When enabled, UCS will automatically call CreateConnectorCustomer before
+    /// Authorize, supplying the resulting customer_id downstream.
+    fn should_create_connector_customer(&self) -> bool {
+        true
+    }
 }
+
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Payload<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Payload<T>
+    connector_types::CreateConnectorCustomer for Payload<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -120,42 +109,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Payload<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Payload<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Payload<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Payload<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Payload<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPostAuthenticateV2<T> for Payload<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Payload<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Payload<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Payload<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Payload<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -170,25 +123,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
     for Payload<T>
 {
 }
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Payload<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Payload<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Payload<T>
-{
-}
 pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const X_PAYLOAD_SIGNATURE: &str = "X-PAYLOAD-SIGNATURE";
 }
 
-macros::create_amount_converter_wrapper!(connector_name: Payload, amount_type: FloatMajorUnit);
+macros::create_amount_converter_wrapper!(connector_name: Payload, amount_type: StringMajorUnit);
 macros::create_all_prerequisites!(
     connector_name: Payload,
     generic_type: T,
@@ -238,6 +179,18 @@ macros::create_all_prerequisites!(
             request_body: PayloadRepeatPaymentRequest<T>,
             response_body: PayloadRepeatPaymentResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: ClientAuthenticationToken,
+            request_body: PayloadClientAuthRequest,
+            response_body: PayloadClientAuthResponse,
+            router_data: RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: CreateConnectorCustomer,
+            request_body: PayloadCustomerRequest,
+            response_body: PayloadCustomerResponse,
+            router_data: RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
         )
     ],
     amount_converters: [],
@@ -271,6 +224,13 @@ macros::create_all_prerequisites!(
         ) -> &'a str {
             &req.resource_common_data.connectors.payload.base_url
         }
+
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.payload.base_url
+        }
     }
 );
 
@@ -286,7 +246,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 
     fn common_get_content_type(&self) -> &'static str {
-        "application/x-www-form-urlencoded"
+        "application/json"
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
@@ -324,7 +284,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: PayloadErrorResponse = res
             .response
             .parse_struct("PayloadErrorResponse")
@@ -357,7 +318,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadPaymentsRequest<T>),
+    curl_request: Json(PayloadPaymentsRequest<T>),
     curl_response: PayloadAuthorizeResponse,
     flow_name: Authorize,
     resource_common_data: PaymentFlowData,
@@ -427,7 +388,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadCaptureRequest),
+    curl_request: Json(PayloadCaptureRequest),
     curl_response: PayloadCaptureResponse,
     flow_name: Capture,
     resource_common_data: PaymentFlowData,
@@ -463,7 +424,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadVoidRequest),
+    curl_request: Json(PayloadVoidRequest),
     curl_response: PayloadVoidResponse,
     flow_name: Void,
     resource_common_data: PaymentFlowData,
@@ -497,7 +458,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadRefundRequest),
+    curl_request: Json(PayloadRefundRequest),
     curl_response: PayloadRefundResponse,
     flow_name: Refund,
     resource_common_data: RefundFlowData,
@@ -561,7 +522,7 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadCardsRequestData<T>),
+    curl_request: Json(PayloadCardsRequestData<T>),
     curl_response: PayloadSetupMandateResponse,
     flow_name: SetupMandate,
     resource_common_data: PaymentFlowData,
@@ -586,49 +547,11 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Stub implementations for unsupported flows
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Payload<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Payload<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Payload<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Payload<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Payload<T>
-{
-}
 // RepeatPayment flow implementation
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Payload,
-    curl_request: FormUrlEncoded(PayloadRepeatPaymentRequest<T>),
+    curl_request: Json(PayloadRepeatPaymentRequest<T>),
     curl_response: PayloadRepeatPaymentResponse,
     flow_name: RepeatPayment,
     resource_common_data: PaymentFlowData,
@@ -653,97 +576,86 @@ macros::macro_connector_implementation!(
     }
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Payload<T>
-{
-}
+// ClientAuthenticationToken flow implementation
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_error_response_v2],
+    connector: Payload,
+    curl_request: Json(PayloadClientAuthRequest),
+    curl_response: PayloadClientAuthResponse,
+    flow_name: ClientAuthenticationToken,
+    resource_common_data: MerchantAuthenticationFlowData,
+    flow_request: ClientAuthenticationTokenRequestData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_content_type(&self) -> &'static str {
+            "application/json"
+        }
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let mut header = vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string().into(),
+            )];
+            let mut api_key = self.get_auth_header(&req.connector_config)?;
+            header.append(&mut api_key);
+            Ok(header)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/access_tokens", self.connector_base_url_merchant_auth(req)))
+        }
+    }
+);
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        domain_types::connector_flow::PostAuthenticate,
-        PaymentFlowData,
-        domain_types::connector_types::PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Payload<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        domain_types::connector_flow::Authenticate,
-        PaymentFlowData,
-        domain_types::connector_types::PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Payload<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        domain_types::connector_flow::PreAuthenticate,
-        PaymentFlowData,
-        domain_types::connector_types::PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Payload<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        domain_types::connector_flow::VoidPC,
-        PaymentFlowData,
-        domain_types::connector_types::PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Payload<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        domain_types::connector_flow::PaymentMethodToken,
-        PaymentFlowData,
-        domain_types::connector_types::PaymentMethodTokenizationData<T>,
-        domain_types::connector_types::PaymentMethodTokenResponse,
-    > for Payload<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        domain_types::connector_flow::CreateConnectorCustomer,
-        PaymentFlowData,
-        domain_types::connector_types::ConnectorCustomerData,
-        domain_types::connector_types::ConnectorCustomerResponse,
-    > for Payload<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Payload<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        domain_types::connector_flow::ServerAuthenticationToken,
-        PaymentFlowData,
-        domain_types::connector_types::ServerAuthenticationTokenRequestData,
-        domain_types::connector_types::ServerAuthenticationTokenResponseData,
-    > for Payload<T>
-{
-}
-
-// SourceVerification implementations for all flows
+// CreateConnectorCustomer flow implementation
+// POST {base_url}/customers — body is JSON, headers reuse `build_headers`
+// (Basic-auth Authorization + JSON Content-Type). UCS auto-invokes this
+// ahead of Authorize because `should_create_connector_customer()` returns
+// true; the returned customer id is plumbed through `connector_customer` on
+// the downstream Authorize router data.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_error_response_v2],
+    connector: Payload,
+    curl_request: Json(PayloadCustomerRequest),
+    curl_response: PayloadCustomerResponse,
+    flow_name: CreateConnectorCustomer,
+    resource_common_data: PaymentFlowData,
+    flow_request: ConnectorCustomerData,
+    flow_response: ConnectorCustomerResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_content_type(&self) -> &'static str {
+            "application/json"
+        }
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            let mut header = vec![(
+                headers::CONTENT_TYPE.to_string(),
+                "application/json".to_string().into(),
+            )];
+            let mut api_key = self.get_auth_header(&req.connector_config)?;
+            header.append(&mut api_key);
+            Ok(header)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<CreateConnectorCustomer, PaymentFlowData, ConnectorCustomerData, ConnectorCustomerResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/customers", self.connector_base_url_payments(req)))
+        }
+    }
+);
 
 // Webhook implementation
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -797,11 +709,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"object":"transaction","trigger":"payment","webhook_id":"probe_wh_001","triggered_at":"2024-01-01T00:00:00Z","triggered_on":{"id":"probe_txn_001","object":"transaction"},"url":"https://example.com/webhook"}"#
+    }
+
     fn get_event_type(
         &self,
         request: domain_types::connector_types::RequestDetails,
-        _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<domain_types::connector_types::EventType, error_stack::Report<WebhookError>> {
         let webhook_body: transformers::PayloadWebhookEvent = request
             .body
@@ -827,3 +741,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(resource)
     }
 }
+
+macros::macro_connector_flow_status_impls!(
+    connector: Payload,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        PaymentMethodToken,
+    ],
+    not_supported: [
+        VoidPostRefund,
+        IncrementalAuthorization,
+        CreateOrder,
+        SubmitEvidence,
+        DefendDispute,
+        Accept,
+        MandateRevoke,
+        ServerSessionAuthenticationToken,
+        PostAuthenticate,
+        Authenticate,
+        PreAuthenticate,
+        VoidPC,
+        ServerAuthenticationToken,
+    ],
+);

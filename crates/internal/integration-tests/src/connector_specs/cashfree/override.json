@@ -1,0 +1,48 @@
+{
+  "PaymentService/CreateOrder": {
+    "create_order_basic": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 60000,
+          "currency": "INR"
+        }
+      },
+      "assert": {
+        "status": { "one_of": ["INITIATED", "REQUIRES_CUSTOMER_ACTION", "PENDING"] }
+      }
+    }
+  },
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_upi_collect": {
+      "grpc_req": {
+        "payment_method": {
+          "upi_collect": {
+            "vpa_id": { "value": "testsuccess@gocash" }
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/Get": {
+    "sync_upi_collect": {
+      "pre_request_http": {
+        "url": "https://sandbox.cashfree.com/pg/view/simulate",
+        "method": "POST",
+        "body": "{\"entity\":\"PAYMENTS\",\"entity_id\":\"{{dep_res.1.merchantTransactionId}}\",\"entity_simulation\":{\"payment_status\":\"SUCCESS\",\"payment_error_code\":\"\"}}"
+      },
+      "assert": {
+        "status": { "one_of": ["CHARGED", "AUTHORIZED"] }
+      }
+    },
+    "sync_upi_intent": {
+      "assert": {
+        "status": { "one_of": ["CHARGED", "AUTHORIZED"] }
+      }
+    },
+    "sync_upi_qr": {
+      "assert": {
+        "status": { "one_of": ["CHARGED", "AUTHORIZED"] }
+      }
+    }
+  }
+}

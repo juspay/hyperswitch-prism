@@ -6,33 +6,29 @@ use std::{
 
 use common_utils::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
+    crypto::VerifySignature,
     errors::CustomResult,
     events,
     ext_traits::ByteSliceExt,
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
-        SubmitEvidence, Void, VoidPC,
+        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
+        IncrementalAuthorization, PSync, PaymentMethodToken, RSync, Refund, RepeatPayment,
+        SetupMandate, Void,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
+        ConnectorWebhookSecrets, DisputeWebhookDetailsResponse, EventContext, EventType,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
+        RefundsResponseData, RepeatPaymentData, RequestDetails, SetupMandateRequestData,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, WebhookError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -40,7 +36,7 @@ use domain_types::{
     types::Connectors,
 };
 
-use error_stack::ResultExt;
+use error_stack::{report, Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
@@ -89,14 +85,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Stripe<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Stripe<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::CreateConnectorCustomer for Stripe<T>
 {
 }
@@ -108,20 +96,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentVoidV2 for Stripe<T>
 {
 }
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Stripe<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Stripe<T>
-{
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Stripe<T>
 {
@@ -139,22 +113,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Stripe<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentIncrementalAuthorization for Stripe<T>
 {
 }
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Stripe<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Stripe<T>
-{
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Stripe<T>
 {
@@ -166,28 +127,132 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPostAuthenticateV2<T> for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::IncomingWebhook for Stripe<T>
 {
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, Report<WebhookError>> {
+        let mut security_header_kvs = stripe::get_signature_elements_from_header(&request.headers)?;
+
+        let signature = security_header_kvs
+            .remove("v1")
+            .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
+
+        hex::decode(signature).change_context(WebhookError::WebhookSignatureNotFound)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, Report<WebhookError>> {
+        let mut security_header_kvs = stripe::get_signature_elements_from_header(&request.headers)?;
+
+        let timestamp = security_header_kvs
+            .remove("t")
+            .ok_or_else(|| report!(WebhookError::WebhookSignatureNotFound))?;
+
+        // Byte-exact reproduction of HS: "{timestamp}.{raw_body}". The raw request body is used
+        // verbatim (never re-serialized) so the HMAC matches Stripe's.
+        Ok(format!(
+            "{}.{}",
+            String::from_utf8_lossy(&timestamp),
+            String::from_utf8_lossy(&request.body)
+        )
+        .into_bytes())
+    }
+
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, Report<WebhookError>> {
+        let connector_webhook_secrets = match connector_webhook_secret {
+            Some(secrets) => secrets,
+            None => return Ok(false),
+        };
+
+        let algorithm = common_utils::crypto::HmacSha256;
+
+        let signature =
+            self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
+        let message =
+            self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
+
+        algorithm
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .change_context(WebhookError::WebhookSourceVerificationFailed)
+    }
+
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"id":"evt_probe_001","type":"payment_intent.succeeded","data":{"object":{"id":"pi_probe_001","object":"payment_intent","amount":1000,"currency":"usd","created":1700000000,"status":"succeeded"}}}"#
+    }
+
+    fn get_event_type(&self, request: RequestDetails) -> Result<EventType, Report<WebhookError>> {
+        // `get_event_type` decodes the lighter `WebhookEventTypeBody` (it exposes
+        // `payment_method_details`, needed for the `charge.succeeded` sub-mapping), so it keeps
+        // its own decode/error variant rather than sharing `get_webhook_object_from_body`.
+        let details: stripe::WebhookEventTypeBody = request
+            .body
+            .parse_struct("WebhookEventTypeBody")
+            .change_context(WebhookError::WebhookEventTypeNotFound)?;
+        Ok(stripe::map_webhook_event_type(&details))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, Report<WebhookError>> {
+        let details = stripe::get_webhook_object_from_body(&request.body)
+            .change_context(WebhookError::WebhookReferenceIdNotFound)?;
+        stripe::get_webhook_reference(&details)
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, Report<WebhookError>> {
+        let details = stripe::get_webhook_object_from_body(&request.body)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        stripe::build_webhook_payment_response(&details, &request.body)
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, Report<WebhookError>> {
+        let details = stripe::get_webhook_object_from_body(&request.body)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        stripe::build_webhook_refund_response(&details, &request.body)
+    }
+
+    fn process_dispute_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<DisputeWebhookDetailsResponse, Report<WebhookError>> {
+        let details = stripe::get_webhook_object_from_body(&request.body)
+            .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+        stripe::build_webhook_dispute_response(&details, &request.body)
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, Report<WebhookError>> {
+        let details = stripe::get_webhook_object_from_body(&request.body)
+            .change_context(WebhookError::WebhookResourceObjectNotFound)?;
+        Ok(Box::new(details.event_data.event_object))
+    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -222,10 +287,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 Some(common_enums::PaymentMethodType::GooglePay)
             )
     }
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Stripe<T>
-{
 }
 
 macros::create_amount_converter_wrapper!(connector_name: Stripe, amount_type: MinorUnit);
@@ -301,7 +362,7 @@ macros::create_all_prerequisites!(
             flow: ClientAuthenticationToken,
             request_body: StripeClientAuthRequest,
             response_body: StripeClientAuthResponse,
-            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            router_data: RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         )
     ],
     amount_converters: [],
@@ -329,6 +390,13 @@ macros::create_all_prerequisites!(
         pub fn connector_base_url_refunds<'a, F, Req, Res>(
             &self,
             req: &'a RouterDataV2<F, RefundFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.stripe.base_url
+        }
+
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
         ) -> &'a str {
             &req.resource_common_data.connectors.stripe.base_url
         }
@@ -376,7 +444,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: stripe::ErrorResponse =
             res.response.parse_struct("ErrorResponse").change_context(
                 crate::utils::response_handling_fail_for_connector(res.status_code, "stripe"),
@@ -444,7 +513,7 @@ macros::macro_connector_implementation!(
             let stripe_split_payment_metadata = stripe::StripeSplitPaymentRequest::try_from(req)?;
 
             // if the request has split payment object, then append the transfer account id in headers in charge_type is Direct
-            if let Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(
+            if let Some(domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(
                 stripe_split_payment,
             )) = &req.request.split_payments
             {
@@ -520,10 +589,14 @@ macros::macro_connector_implementation!(
                 .request
                 .split_payments
                 .as_ref()
-                .map(|split_payments| {
-                    let domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) =
-                        split_payments;
-                    stripe_split_payment
+                .and_then(|split_payments| {
+                    if let domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment) =
+                        split_payments
+                    {
+                        Some(stripe_split_payment)
+                    } else {
+                        None
+                    }
                 })
                 .filter(|stripe_split_payment| {
                     matches!(stripe_split_payment.charge_type, common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct))
@@ -579,10 +652,14 @@ macros::macro_connector_implementation!(
                 .request
                 .split_payments
                 .as_ref()
-                .map(|split_payments| {
-                    let domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) =
-                        split_payments;
-                    stripe_split_payment
+                .and_then(|split_payments| {
+                    if let domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment) =
+                        split_payments
+                    {
+                        Some(stripe_split_payment)
+                    } else {
+                        None
+                    }
                 })
                 .filter(|stripe_split_payment| {
                     matches!(stripe_split_payment.charge_type, common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct))
@@ -605,19 +682,11 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PaymentMethodToken, PaymentFlowData, PaymentMethodTokenizationData<T>, PaymentMethodTokenResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            if matches!(
-                req.request.split_payments,
-                Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(_))
-            ) {
-                Ok(format!(
-                    "{}{}",
-                    self.connector_base_url_payments(req),
-                    "v1/payment_methods"
-                ))
-            }
-            else {
-                Ok(format!("{}{}", self.connector_base_url_payments(req), "v1/tokens"))
-            }
+            Ok(format!(
+                "{}{}",
+                self.connector_base_url_payments(req),
+                "v1/payment_methods"
+            ))
         }
     }
 );
@@ -687,10 +756,14 @@ macros::macro_connector_implementation!(
                 .request
                 .split_payments
                 .as_ref()
-                .map(|split_payments| {
-                    let domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment) =
-                        split_payments;
-                    stripe_split_payment
+                .and_then(|split_payments| {
+                    if let domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment) =
+                        split_payments
+                    {
+                        Some(stripe_split_payment)
+                    } else {
+                        None
+                    }
                 })
                 .filter(|stripe_split_payment| {
                     matches!(stripe_split_payment.charge_type, common_enums::PaymentChargeType::Stripe(common_enums::StripeChargeType::Direct))
@@ -741,7 +814,7 @@ macros::macro_connector_implementation!(
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
 
-            if let Some(domain_types::connector_types::SplitPaymentsRequest::StripeSplitPayment(
+            if let Some(domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(
                 stripe_split_payment,
             )) = &req.request.split_payments
             {
@@ -801,6 +874,16 @@ macros::macro_connector_implementation!(
                 Self::common_get_content_type(self).to_string().into(),
             )];
             let mut api_key = self.get_auth_header(&req.connector_config)?;
+            if let Some(domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(
+                stripe_split_payment,
+            )) = &req.request.split_payments
+            {
+                transformers::transform_headers_for_connect_platform(
+                    stripe_split_payment.charge_type.clone(),
+                    Secret::new(stripe_split_payment.transfer_account_id.clone()),
+                    &mut header,
+                );
+            }
             header.append(&mut api_key);
             Ok(header)
         }
@@ -842,6 +925,16 @@ macros::macro_connector_implementation!(
                 self.common_get_content_type().to_string().into(),
             )];
             let mut api_key = self.get_auth_header(&req.connector_config)?;
+            if let Some(domain_types::connector_types::SplitPaymentsDetails::StripeSplitPayment(
+            stripe_split_payment,
+            )) = &req.request.split_payments
+            {
+                transformers::transform_headers_for_connect_platform(
+                    stripe_split_payment.charge_type.clone(),
+                    Secret::new(stripe_split_payment.transfer_account_id.clone()),
+                    &mut header,
+                );
+            }
             header.append(&mut api_key);
             Ok(header)
         }
@@ -917,7 +1010,7 @@ macros::macro_connector_implementation!(
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
 
-            if let Some(domain_types::connector_types::SplitRefundsRequest::StripeSplitRefund(ref stripe_split_refund)) =
+            if let Some(domain_types::connector_types::SplitRefundsDetails::StripeSplitRefund(ref stripe_split_refund)) =
                 req.request.split_refunds.as_ref()
             {
                 match &stripe_split_refund.charge_type {
@@ -969,7 +1062,7 @@ macros::macro_connector_implementation!(
             let mut api_key = self.get_auth_header(&req.connector_config)?;
             header.append(&mut api_key);
 
-            if let Some(domain_types::connector_types::SplitRefundsRequest::StripeSplitRefund(ref stripe_refund)) =
+            if let Some(domain_types::connector_types::SplitRefundsDetails::StripeSplitRefund(ref stripe_refund)) =
                 req.request.split_refunds.as_ref()
             {
                 transformers::transform_headers_for_connect_platform(
@@ -996,7 +1089,7 @@ macros::macro_connector_implementation!(
     curl_request: FormUrlEncoded(StripeClientAuthRequest),
     curl_response: StripeClientAuthResponse,
     flow_name: ClientAuthenticationToken,
-    resource_common_data: PaymentFlowData,
+    resource_common_data: MerchantAuthenticationFlowData,
     flow_request: ClientAuthenticationTokenRequestData,
     flow_response: PaymentsResponseData,
     http_method: Post,
@@ -1005,104 +1098,41 @@ macros::macro_connector_implementation!(
     other_functions: {
         fn get_headers(
             &self,
-            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
             self.build_headers(req)
         }
         fn get_url(
             &self,
-            req: &RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            req: &RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}{}",
-                self.connector_base_url_payments(req),
+                self.connector_base_url_merchant_auth(req),
                 "v1/payment_intents"
             ))
         }
     }
 );
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Stripe<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Stripe<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Stripe<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Stripe<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
+macros::macro_connector_flow_status_impls!(
+    connector: Stripe,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        Accept,
+        SubmitEvidence,
+        DefendDispute,
         ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerAuthenticationToken,
-        PaymentFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Stripe<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
+    ],
+    not_supported: [
+        VoidPostRefund,
+        VoidPC,
         MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Stripe<T>
-{
-}
-// SourceVerification implementations for all flows
+        CreateOrder,
+        ServerAuthenticationToken,
+    ],
+);

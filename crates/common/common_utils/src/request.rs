@@ -59,6 +59,25 @@ pub struct Request {
     pub ca_certificate: Option<Secret<String>>,
 }
 
+/// Kafka request payload for pushing payments to a Kafka queue.
+/// Contains only per-message data (topic, key, headers, payload).
+#[derive(Debug)]
+pub struct KafkaRecord {
+    pub topic: String,
+    pub key: Option<String>,
+    pub headers: Headers,
+    pub payload: Option<RequestContent>,
+}
+
+/// Enum representing different connector request transport formats.
+#[derive(Debug)]
+pub enum TransportType {
+    /// Standard HTTP request to a connector API.
+    Http,
+    /// Push payment message to a Kafka queue.
+    Kafka,
+}
+
 impl std::fmt::Debug for RequestContent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(match self {
@@ -241,7 +260,7 @@ impl Request {
     }
 
     pub fn add_certificate_key(&mut self, certificate_key: Option<Secret<String>>) {
-        self.certificate = certificate_key;
+        self.certificate_key = certificate_key;
     }
 }
 
@@ -333,6 +352,75 @@ impl RequestBuilder {
 }
 
 impl Default for RequestBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct KafkaRecordBuilder {
+    pub topic: String,
+    pub key: Option<String>,
+    pub headers: Headers,
+    pub payload: Option<RequestContent>,
+}
+
+impl KafkaRecordBuilder {
+    pub fn new() -> Self {
+        Self {
+            topic: String::with_capacity(1024),
+            key: None,
+            headers: std::collections::HashSet::new(),
+            payload: None,
+        }
+    }
+
+    pub fn topic(mut self, topic: &str) -> Self {
+        self.topic = topic.into();
+        self
+    }
+
+    pub fn key(mut self, key: impl Into<String>) -> Self {
+        self.key = Some(key.into());
+        self
+    }
+
+    pub fn attach_default_headers(mut self) -> Self {
+        self.headers.extend(default_request_headers());
+        self
+    }
+
+    pub fn header(mut self, header: &str, value: &str) -> Self {
+        self.headers.insert((header.into(), value.into()));
+        self
+    }
+
+    pub fn headers(mut self, headers: Vec<(String, Maskable<String>)>) -> Self {
+        self.headers.extend(headers);
+        self
+    }
+
+    pub fn set_payload<T: Into<RequestContent>>(mut self, payload: T) -> Self {
+        self.payload.replace(payload.into());
+        self
+    }
+
+    pub fn set_optional_payload<T: Into<RequestContent>>(mut self, payload: Option<T>) -> Self {
+        payload.map(|payload| self.payload.replace(payload.into()));
+        self
+    }
+
+    pub fn build(self) -> KafkaRecord {
+        KafkaRecord {
+            topic: self.topic,
+            key: self.key,
+            headers: self.headers,
+            payload: self.payload,
+        }
+    }
+}
+
+impl Default for KafkaRecordBuilder {
     fn default() -> Self {
         Self::new()
     }

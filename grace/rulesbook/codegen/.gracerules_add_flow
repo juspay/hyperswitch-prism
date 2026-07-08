@@ -23,7 +23,6 @@
 #
 # This file defines the workflow for adding SPECIFIC FLOWS to EXISTING connectors.
 # Use this when a connector already exists and you need to add one or more missing flows.
-
 # ============================================================================
 # MAIN WORKFLOW CONTROLLER
 # ============================================================================
@@ -89,6 +88,19 @@ This workflow adds specific flows to an existing connector implementation.
 **IF CONNECTOR EXISTS:**
 - Skip Phase 0 and proceed directly to Phase 1
 
+### PHASE 1.0: TECH SPEC DISCOVERY & RECOVERY (MANDATORY)
+
+The tech spec at `grace/rulesbook/codegen/references/{connector_name}/technical_specification.md` is a hard dependency for every downstream subagent (Prerequisite Validation, Flow Implementation). If the file is missing at this point, recover via the Links → Tech Spec dependency chain — do NOT hard-stop on the PHASE 2 availability check.
+
+Procedure:
+
+1. **Check** for the spec at `grace/rulesbook/codegen/references/{connector_name}/technical_specification.md`. If present, proceed to PHASE 1 below.
+2. **If missing — recover**:
+   - **(Re-)spawn the Links Agent** via the Task tool with workflow file `grace/workflow/2.1_links.md`. Skip this step if `data/integration-source-links.json` already has a non-empty array under `"{Connector_Name}"` or `"{connector_name}"`.
+   - **(Re-)spawn the Tech Spec Agent** via the Task tool with workflow file `grace/workflow/2.2_techspec.md`. The Tech Spec Agent picks Path A (`grace techspec` CLI when `grace/.env` is configured) or Path B (Claude-native, following `.skills/generate-tech-spec/references/techspec-generation-native.md`) based on its internal environment check.
+   - **Re-check** the canonical path.
+3. **Hard stop** only if the spec is still missing after recovery. Capture the failure reason from whichever recovery subagent returned FAILED so the report names the root cause.
+
 ### PHASE 1: TECH SPEC READING & CONNECTOR STATE ANALYSIS
 1. **MANDATORY**: Read tech spec from grace/rulesbook/codegen/references/{connector_name}/technical_specification.md
 2. **MANDATORY**: Extract flow-specific requirements from tech spec
@@ -100,7 +112,7 @@ This workflow adds specific flows to an existing connector implementation.
 ### PHASE 2: PREREQUISITE VALIDATION
 1. **MANDATORY**: Verify connector foundation exists (confirm Phase 0 result)
 2. **MANDATORY**: Confirm prerequisite flows are implemented
-3. **MANDATORY**: Validate tech spec availability
+3. **MANDATORY**: Confirm tech spec is present after PHASE 1.0 Discovery & Recovery; treat missing-after-recovery as a hard error
 4. **MANDATORY**: Extract flow-specific requirements from tech spec
 
 ### PHASE 3: FLOW IMPLEMENTATION (Sequential Subagent Delegation)
@@ -140,11 +152,85 @@ Some flows have dependencies that must be implemented first:
 | PSync | Authorize |
 | Capture | Authorize |
 | Void | Authorize |
+| VoidPC | Authorize |
 | Refund | Authorize (needs captured payment) |
 | RSync | Refund |
 | SetupMandate | Authorize |
 | RepeatPayment | SetupMandate |
+| MandateRevoke | SetupMandate |
+| IncrementalAuthorization | Authorize |
 | IncomingWebhook | PSync (for fallback polling) |
+| VerifyWebhookSource | IncomingWebhook |
+| CreateOrder | - |
+| SessionToken | - |
+| ServerAuthenticationToken | - |
+| ServerSessionAuthenticationToken | ServerAuthenticationToken |
+| ClientAuthenticationToken | ServerAuthenticationToken |
+| CreateConnectorCustomer | - |
+| PaymentMethodToken | - |
+| PreAuthenticate | - |
+| Authenticate | PreAuthenticate |
+| PostAuthenticate | Authenticate |
+| AcceptDispute | - |
+| SubmitEvidence | AcceptDispute |
+| DefendDispute | - |
+| DSync | - |
+| PayoutCreate | - |
+| PayoutTransfer | PayoutCreate |
+| PayoutGet | PayoutCreate |
+| PayoutVoid | PayoutCreate |
+| PayoutStage | PayoutCreate |
+| PayoutCreateLink | PayoutCreate |
+| PayoutCreateRecipient | - |
+| PayoutEnrollDisburseAccount | PayoutCreateRecipient |
+
+## FLOW-MARKER → PATTERN MAP (Authoritative)
+
+Every flow marker in `crates/types-traits/domain_types/src/connector_flow.rs`
+(both `pub struct` markers and `FlowName` enum variants) maps to exactly one
+pattern file below. Subagents MUST read the listed pattern before
+implementing the flow.
+
+| connector_flow.rs Marker              | Pattern File                                                    |
+|---------------------------------------|-----------------------------------------------------------------|
+| `Authorize`                           | `guides/patterns/pattern_authorize.md`                          |
+| `PSync`                               | `guides/patterns/pattern_psync.md`                              |
+| `Capture`                             | `guides/patterns/pattern_capture.md`                            |
+| `Void`                                | `guides/patterns/pattern_void.md`                               |
+| `VoidPC`                              | `guides/patterns/pattern_void_pc.md`                            |
+| `Refund`                              | `guides/patterns/pattern_refund.md`                             |
+| `RSync`                               | `guides/patterns/pattern_rsync.md`                              |
+| `SetupMandate`                        | `guides/patterns/pattern_setup_mandate.md`                      |
+| `RepeatPayment` / `FlowName::RepeatPayment` | `guides/patterns/pattern_repeat_payment_flow.md`          |
+| `MandateRevoke`                       | `guides/patterns/pattern_mandate_revoke.md`                     |
+| `IncrementalAuthorization`            | `guides/patterns/pattern_IncrementalAuthorization_flow.md`      |
+| `CreateOrder`                         | `guides/patterns/pattern_createorder.md`                        |
+| `CreateConnectorCustomer`             | `guides/patterns/pattern_create_connector_customer.md`          |
+| `PaymentMethodToken`                  | `guides/patterns/pattern_payment_method_token.md`               |
+| _(SessionToken; FlowName-only)_       | `guides/patterns/pattern_server_session_authentication_token.md` |
+| `ServerSessionAuthenticationToken`    | `guides/patterns/pattern_server_session_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section in `pattern_server_authentication_token.md`) |
+| `ServerAuthenticationToken`           | `guides/patterns/pattern_server_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section) |
+| `ClientAuthenticationToken`           | `guides/patterns/pattern_server_authentication_token.md` — canonical source (see "Mapping to connector_flow.rs token markers" section); companion: `guides/patterns/pattern_client_authentication_token.md` |
+| `PreAuthenticate`                     | `guides/patterns/pattern_preauthenticate.md`                    |
+| `Authenticate`                        | `guides/patterns/pattern_authenticate.md`                       |
+| `PostAuthenticate`                    | `guides/patterns/pattern_postauthenticate.md`                   |
+| `Accept` / `FlowName::AcceptDispute`  | `guides/patterns/pattern_accept_dispute.md`                     |
+| `SubmitEvidence`                      | `guides/patterns/pattern_submit_evidence.md`                    |
+| `DefendDispute`                       | `guides/patterns/pattern_defend_dispute.md`                     |
+| _(FlowName::Dsync)_                   | `guides/patterns/pattern_dsync.md`                              |
+| _(FlowName::IncomingWebhook)_         | `guides/patterns/pattern_IncomingWebhook_flow.md`               |
+| `VerifyWebhookSource`                 | `guides/patterns/pattern_verify_webhook_source.md`              |
+| `PayoutCreate`                        | `guides/patterns/pattern_payout_create.md`                      |
+| `PayoutTransfer`                      | `guides/patterns/pattern_payout_transfer.md`                    |
+| `PayoutGet`                           | `guides/patterns/pattern_payout_get.md`                         |
+| `PayoutVoid`                          | `guides/patterns/pattern_payout_void.md`                        |
+| `PayoutStage`                         | `guides/patterns/pattern_payout_stage.md`                       |
+| `PayoutCreateLink`                    | `guides/patterns/pattern_payout_create_link.md`                 |
+| `PayoutCreateRecipient`               | `guides/patterns/pattern_payout_create_recipient.md`            |
+| `PayoutEnrollDisburseAccount`         | `guides/patterns/pattern_payout_enroll_disburse_account.md`     |
+
+**Coverage:** 33/33 `FlowName` enum variants covered; additionally the
+`VerifyWebhookSource` `pub struct` marker (not in `FlowName`) is mapped.
 
 ## MULTIPLE FLOW PARSING & DEPENDENCY RESOLUTION
 
@@ -182,11 +268,37 @@ FLOW_DEPENDENCIES = {
     "PSync": ["Authorize"],
     "Capture": ["Authorize"],
     "Void": ["Authorize"],
+    "VoidPC": ["Authorize"],
     "Refund": ["Capture"],
     "RSync": ["Refund"],
     "SetupMandate": ["Authorize"],
     "RepeatPayment": ["SetupMandate"],
-    "IncomingWebhook": ["PSync"]
+    "MandateRevoke": ["SetupMandate"],
+    "IncrementalAuthorization": ["Authorize"],
+    "IncomingWebhook": ["PSync"],
+    "VerifyWebhookSource": ["IncomingWebhook"],
+    "CreateOrder": [],
+    "SessionToken": [],
+    "ServerAuthenticationToken": [],
+    "ServerSessionAuthenticationToken": ["ServerAuthenticationToken"],
+    "ClientAuthenticationToken": ["ServerAuthenticationToken"],
+    "CreateConnectorCustomer": [],
+    "PaymentMethodToken": [],
+    "PreAuthenticate": [],
+    "Authenticate": ["PreAuthenticate"],
+    "PostAuthenticate": ["Authenticate"],
+    "AcceptDispute": [],
+    "SubmitEvidence": ["AcceptDispute"],
+    "DefendDispute": [],
+    "DSync": [],
+    "PayoutCreate": [],
+    "PayoutTransfer": ["PayoutCreate"],
+    "PayoutGet": ["PayoutCreate"],
+    "PayoutVoid": ["PayoutCreate"],
+    "PayoutStage": ["PayoutCreate"],
+    "PayoutCreateLink": ["PayoutCreate"],
+    "PayoutCreateRecipient": [],
+    "PayoutEnrollDisburseAccount": ["PayoutCreateRecipient"],
 }
 
 function resolve_dependencies(requested_flows):
@@ -538,7 +650,7 @@ impl<T: PaymentMethodDataTypes + ...> TryFrom<{ConnectorName}RouterData<RouterDa
 impl<T: PaymentMethodDataTypes + ...> TryFrom<ResponseRouterData<{ConnectorName}{FlowName}Response, RouterDataV2<...>>>
     for RouterDataV2<{FlowName}, ...>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<...>) -> Result<Self, Self::Error> {
         // Map response to RouterDataV2

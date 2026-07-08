@@ -1,12 +1,13 @@
 use common_utils::{
-    consts::{self, X_ENVIRONMENT, X_SHADOW_MODE},
+    consts::{self, X_ENVIRONMENT, X_PROXY_NAME, X_SHADOW_MODE},
     errors::CustomResult,
     fp_utils,
     lineage::LineageIds,
+    request_metrics::ConnectorLatencyTracker,
 };
 use domain_types::{
     connector_types,
-    errors::{ApiError, ApplicationErrorResponse},
+    errors::{IntegrationError, IntegrationErrorContext},
     router_data::ConnectorSpecificConfig,
 };
 use error_stack::Report;
@@ -27,7 +28,7 @@ pub struct MetadataPayload {
     pub tenant_id: String,
     pub request_id: String,
     pub merchant_id: String,
-    pub connector: connector_types::ConnectorEnum,
+    pub connector: connector_types::ConnectorVariant,
     pub lineage_ids: LineageIds<'static>,
     /// Typed connector integration config extracted from request metadata.
     ///
@@ -39,12 +40,17 @@ pub struct MetadataPayload {
     pub resource_id: Option<String>,
     /// Environment dimension for superposition config resolution (e.g., "production", "sandbox")
     pub environment: Option<String>,
+    /// Named proxy to use for this request — matches a key in [proxy.proxies.*] config.
+    /// If absent, resolved from shadow_mode: true → "shadow", false → "primary".
+    pub proxy_name: Option<String>,
+    /// Request-scoped accumulator for outbound connector call latency.
+    pub connector_latency: ConnectorLatencyTracker,
 }
 
 pub fn get_metadata_payload(
     metadata: &metadata::MetadataMap,
     server_config: Arc<configs::Config>,
-) -> CustomResult<MetadataPayload, ApplicationErrorResponse> {
+) -> CustomResult<MetadataPayload, IntegrationError> {
     // Resolve connector and config: try x-connector-config header first,
     // then fall back to legacy x-connector and x-auth headers.
     let (connector, connector_config) = connector_and_config_from_metadata(metadata)?;
@@ -57,6 +63,7 @@ pub fn get_metadata_payload(
     let resource_id = resource_id_from_metadata(metadata)?;
     let shadow_mode = shadow_mode_from_metadata(metadata);
     let environment = environment_from_metadata(metadata);
+    let proxy_name = proxy_name_from_metadata(metadata);
 
     Ok(MetadataPayload {
         tenant_id,
@@ -69,6 +76,8 @@ pub fn get_metadata_payload(
         shadow_mode,
         resource_id,
         environment,
+        proxy_name,
+        connector_latency: ConnectorLatencyTracker::default(),
     })
 }
 
@@ -103,24 +112,128 @@ pub fn extract_lineage_fields_from_metadata(
         .to_owned()
 }
 
+pub fn connector_variant_from_metadata(
+    metadata: &metadata::MetadataMap,
+) -> CustomResult<connector_types::ConnectorVariant, IntegrationError> {
+    // Priority 1: Check x-connector header first
+    if let Some(value) = metadata.get(consts::X_CONNECTOR_NAME) {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid x-connector header value: {e}")),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector = connector_types::ConnectorEnum::from_str(connector_str).map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid connector: {e}")),
+                    ..Default::default()
+                },
+            })
+        })?;
+        Ok(connector_types::ConnectorVariant::Payment(connector))
+    } else if let Some(value) = metadata.get(consts::X_SURCHARGE_CONNECTOR_NAME)
+    // Priority 2: Check x-surcharge-connector header
+    {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-surcharge-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Invalid x-surcharge-connector header value: {e}"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector =
+            connector_types::SurchargeConnectorEnum::from_str(connector_str).map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-surcharge-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid surcharge connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Surcharge(connector))
+    } else if let Some(value) = metadata.get(consts::X_PAYOUT_CONNECTOR_NAME)
+    // Priority 3: Check x-payout-connector header
+    {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-payout-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Invalid x-payout-connector header value: {e}"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector =
+            connector_types::PayoutConnectorEnum::from_str(connector_str).map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-payout-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid payout connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Payout(connector))
+    } else if let Some(value) = metadata.get(consts::X_FRM_CONNECTOR_NAME) {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-frm-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid x-frm-connector header value: {e}")),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector =
+            connector_types::FrmConnectorEnum::from_str(connector_str).map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-frm-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid FRM connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Frm(connector))
+    } else {
+        // Neither header found
+        Err(Report::new(IntegrationError::MissingRequiredField {
+            field_name: "x-connector",
+            context: IntegrationErrorContext::default(),
+        }))
+    }
+}
+
 pub fn connector_from_metadata(
     metadata: &metadata::MetadataMap,
-) -> CustomResult<connector_types::ConnectorEnum, ApplicationErrorResponse> {
+) -> CustomResult<connector_types::ConnectorEnum, IntegrationError> {
     parse_metadata(metadata, consts::X_CONNECTOR_NAME).and_then(|inner| {
         connector_types::ConnectorEnum::from_str(inner).map_err(|e| {
-            Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "INVALID_CONNECTOR".to_string(),
-                error_identifier: 400,
-                error_message: format!("Invalid connector: {e}"),
-                error_object: None,
-            }))
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid connector: {e}")),
+                    ..Default::default()
+                },
+            })
         })
     })
 }
-
 pub fn merchant_id_from_metadata(
     metadata: &metadata::MetadataMap,
-) -> CustomResult<String, ApplicationErrorResponse> {
+) -> CustomResult<String, IntegrationError> {
     Ok(common_utils::metadata::merchant_id_or_default(
         metadata
             .get(consts::X_MERCHANT_ID)
@@ -130,7 +243,7 @@ pub fn merchant_id_from_metadata(
 
 pub fn request_id_from_metadata(
     metadata: &metadata::MetadataMap,
-) -> CustomResult<String, ApplicationErrorResponse> {
+) -> CustomResult<String, IntegrationError> {
     parse_metadata(metadata, consts::X_REQUEST_ID)
         .map(|inner| inner.to_string())
         .or_else(|_| {
@@ -145,21 +258,21 @@ pub fn request_id_from_metadata(
 
 pub fn tenant_id_from_metadata(
     metadata: &metadata::MetadataMap,
-) -> CustomResult<String, ApplicationErrorResponse> {
+) -> CustomResult<String, IntegrationError> {
     parse_metadata(metadata, consts::X_TENANT_ID)
         .map(|s| s.to_string())
-        .or_else(|_| Ok("DefaultTenantId".to_string()))
+        .or_else(|_| Ok("public".to_string()))
 }
 
 pub fn reference_id_from_metadata(
     metadata: &metadata::MetadataMap,
-) -> CustomResult<Option<String>, ApplicationErrorResponse> {
+) -> CustomResult<Option<String>, IntegrationError> {
     parse_optional_metadata(metadata, consts::X_REFERENCE_ID).map(|s| s.map(|s| s.to_string()))
 }
 
 pub fn resource_id_from_metadata(
     metadata: &metadata::MetadataMap,
-) -> CustomResult<Option<String>, ApplicationErrorResponse> {
+) -> CustomResult<Option<String>, IntegrationError> {
     parse_optional_metadata(metadata, consts::X_RESOURCE_ID).map(|s| s.map(|s| s.to_string()))
 }
 
@@ -169,6 +282,16 @@ pub fn shadow_mode_from_metadata(metadata: &metadata::MetadataMap) -> bool {
         .flatten()
         .map(|value| value.to_lowercase() == "true")
         .unwrap_or(false)
+}
+
+/// Extracts the named proxy key from `x-proxy-name` header.
+/// Caller decides which proxy to use; UCS does a pure lookup in [proxy.proxies.*].
+pub fn proxy_name_from_metadata(metadata: &metadata::MetadataMap) -> Option<String> {
+    parse_optional_metadata(metadata, X_PROXY_NAME)
+        .ok()
+        .flatten()
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.trim().to_string())
 }
 
 /// Extracts environment from the x-environment header for superposition config resolution.
@@ -181,45 +304,45 @@ pub fn environment_from_metadata(metadata: &metadata::MetadataMap) -> Option<Str
 
 pub fn parse_metadata<'a>(
     metadata: &'a metadata::MetadataMap,
-    key: &str,
-) -> CustomResult<&'a str, ApplicationErrorResponse> {
+    key: &'static str,
+) -> CustomResult<&'a str, IntegrationError> {
     metadata
         .get(key)
         .ok_or_else(|| {
-            Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_METADATA".to_string(),
-                error_identifier: 400,
-                error_message: format!("Missing {key} in request metadata"),
-                error_object: None,
-            }))
+            Report::new(IntegrationError::MissingRequiredField {
+                field_name: key,
+                context: IntegrationErrorContext::default(),
+            })
         })
         .and_then(|value| {
             value.to_str().map_err(|e| {
-                Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                    sub_code: "INVALID_METADATA".to_string(),
-                    error_identifier: 400,
-                    error_message: format!("Invalid {key} in request metadata: {e}"),
-                    error_object: None,
-                }))
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: key,
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid {key} in request metadata: {e}")),
+                        ..Default::default()
+                    },
+                })
             })
         })
 }
 
 pub fn parse_optional_metadata<'a>(
     metadata: &'a metadata::MetadataMap,
-    key: &str,
-) -> CustomResult<Option<&'a str>, ApplicationErrorResponse> {
+    key: &'static str,
+) -> CustomResult<Option<&'a str>, IntegrationError> {
     metadata
         .get(key)
         .map(|value| value.to_str())
         .transpose()
         .map_err(|e| {
-            Report::new(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "INVALID_METADATA".to_string(),
-                error_identifier: 400,
-                error_message: format!("Invalid {key} in request metadata: {e}"),
-                error_object: None,
-            }))
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: key,
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid {key} in request metadata: {e}")),
+                    ..Default::default()
+                },
+            })
         })
 }
 #[cfg(test)]
@@ -266,7 +389,7 @@ mod tests {
     fn tenant_id_defaults_when_missing() {
         let metadata = MetadataMap::new();
         let tenant_id = tenant_id_from_metadata(&metadata).expect("should not fail");
-        assert_eq!(tenant_id, "DefaultTenantId");
+        assert_eq!(tenant_id, "public");
     }
 
     #[test]

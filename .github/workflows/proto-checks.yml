@@ -1,0 +1,63 @@
+name: Proto checks
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+    paths:
+      - '**.proto'
+
+concurrency:
+  group: proto-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  proto-checks:
+    name: Proto checks (lint + breaking)
+    if: "!github.event.pull_request.draft"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install buf
+        uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+
+      - name: buf lint
+        run: buf lint
+
+      - name: buf breaking change check
+        id: buf-breaking
+        continue-on-error: true
+        run: |
+          BASE_REF="${GITHUB_BASE_REF:?GITHUB_BASE_REF is not set — this job must run on pull_request events only}"
+          git fetch origin "refs/heads/${BASE_REF}:refs/heads/${BASE_REF}"
+          buf breaking --against ".git#branch=${BASE_REF}" --against-config scripts/ci/buf-breaking-baseline.yaml
+
+      - name: Breaking change approved via label
+        if: steps.buf-breaking.outcome == 'failure' && contains(github.event.pull_request.labels.*.name, 'proto-breaking-approved')
+        run: |
+          echo "::warning::Breaking proto changes approved via 'proto-breaking-approved' label. Checklist: (1) PR description links the consumer migration PR (HS / Euler). (2) Migration PR is already merged and deployed to all active envs. (3) Removed field numbers are listed under 'reserved' in the proto."
+
+      - name: Fail on unapproved breaking change
+        if: steps.buf-breaking.outcome == 'failure' && !contains(github.event.pull_request.labels.*.name, 'proto-breaking-approved')
+        run: |
+          echo "::error::Breaking proto changes detected and not approved."
+          echo ""
+          echo "Options:"
+          echo "  1. Keep changes backward-compatible:"
+          echo "       Add the new field alongside the old one; mark old as [deprecated=true]."
+          echo "       Remove it in a follow-up PR once consumers have migrated."
+          echo ""
+          echo "  2. Intentional removal (consumers already migrated):"
+          echo "       Add the 'proto-breaking-approved' label to this PR."
+          echo "       Use 'proto!:' as the PR title type."
+          echo "       Link the consumer migration PR in the PR description."
+          echo "       Ensure removed field numbers appear under 'reserved'."
+          exit 1

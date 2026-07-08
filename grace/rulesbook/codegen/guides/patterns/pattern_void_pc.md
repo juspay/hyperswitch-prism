@@ -255,12 +255,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         res: Response,
     ) -> CustomResult<
         RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         let response: {ConnectorName}VoidPcResponse = res
             .response
             .parse_struct("{ConnectorName}VoidPcResponse")
-            .change_context(ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+            .change_context(ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         if let Some(i) = event_builder {
             i.set_response_body(&response);
@@ -271,14 +271,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             router_data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(ConnectorResponseTransformationError::ResponseHandlingFailed)
+        .change_context(ConnectorError::ResponseHandlingFailed)
     }
 
     fn get_error_response_v2(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 
@@ -495,7 +495,7 @@ pub enum {ConnectorName}VoidPcStatus {
 impl TryFrom<ResponseRouterData<{ConnectorName}VoidPcResponse, RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>>>
     for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}VoidPcResponse, RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>>,

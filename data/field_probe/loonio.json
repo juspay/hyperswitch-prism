@@ -3,117 +3,549 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by loonio connector"
       }
     },
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
       },
       "Blik": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "Bluecode": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Card": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Ideal": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "Indomaret": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Interac": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "interac": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "connector_customer_id": "cust_probe_123"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "last_name": "Doe",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://integration.loonio.ca/api/v1/transactions/incoming/payment_form",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "merchantid": "probe_merchant",
+            "merchanttoken": "probe_key",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"currency_code\":\"USD\",\"customer_profile\":{\"first_name\":\"John\",\"last_name\":\"Doe\",\"email\":\"test@example.com\"},\"amount\":10.0,\"customer_id\":\"cust_probe_123\",\"transaction_id\":\"probe_txn_001\",\"payment_method_type\":\"INTERAC_ETRANSFER\",\"locale\":\"EN\",\"redirect_url\":{\"success_url\":\"https://example.com/return\",\"failed_url\":\"https://example.com/return\"},\"webhook_url\":\"https://example.com/webhook\"}"
+        }
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Selected payment method through Loonio is not supported by Loonio"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through Loonio"
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
       }
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "capture flow not supported by loonio connector"
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by loonio connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by loonio connector"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by loonio connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by loonio connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by loonio connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by loonio connector"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by loonio connector"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by loonio connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by loonio connector"
       }
     },
     "get": {
@@ -140,44 +572,114 @@
         }
       }
     },
-    "post_authenticate": {
+    "handle_event": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by loonio connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by loonio connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by loonio connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for loonio"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for loonio"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by loonio connector"
       }
     },
     "refund": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for loonio"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for loonio"
       }
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by loonio connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for loonio"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Loonio"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for loonio"
       }
     },
     "tokenize": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by loonio connector"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void flow not supported by loonio connector"
       }
     }
   }

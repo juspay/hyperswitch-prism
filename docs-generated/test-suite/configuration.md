@@ -3,7 +3,7 @@
 title: Test Configuration
 description: Test data, credentials, and environment setup
 last_updated: 2026-03-12
-generated_from: backend/ucs-connector-tests/src/harness/credentials.rs
+generated_from: backend/integration-tests/src/harness/credentials.rs
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-12
@@ -70,7 +70,7 @@ The framework searches for credentials in this order:
 
 1. `CONNECTOR_AUTH_FILE_PATH` environment variable
 2. `UCS_CREDS_PATH` environment variable
-3. Default: `backend/.github/test/creds.json`
+3. Default: `creds.json` in the repo root
 
 ### Credentials File Format
 

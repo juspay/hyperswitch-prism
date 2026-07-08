@@ -1,0 +1,18 @@
+{
+  "success": false,
+  "failedStep": 2,
+  "error": "Element is not visible: #login",
+  "data": {},
+  "steps": [
+    { "index": 0, "action": "fill", "status": "ok", "durationMs": 220 },
+    { "index": 1, "action": "fill", "status": "ok", "durationMs": 205 },
+    {
+      "index": 2,
+      "action": "click",
+      "status": "failed",
+      "error": "Element is not visible: #login",
+      "durationMs": 10012
+    }
+  ],
+  "durationMs": 10640
+}

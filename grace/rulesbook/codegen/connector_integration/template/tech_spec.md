@@ -66,7 +66,7 @@ impl ConnectorCommon for {{connector_name}} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // UCS-specific error handling
     }
 }
@@ -114,7 +114,7 @@ impl ConnectorIntegrationV2<Flow, Request, Response> for {{connector_name}} {
         data: &RouterDataV2<Flow, Request, Response>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RouterDataV2<Flow, Request, Response>, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<RouterDataV2<Flow, Request, Response>, errors::ConnectorError> {
         // UCS response handling
     }
     
@@ -122,7 +122,7 @@ impl ConnectorIntegrationV2<Flow, Request, Response> for {{connector_name}} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // UCS error handling
     }
 }
@@ -137,7 +137,7 @@ All flows that should be implemented:
 - **PSync**: Payment status sync
 - **RSync**: Refund status sync
 - **CreateOrder**: Multi-step payment initiation (if supported)
-- **CreateSessionToken**: Session token creation (if supported)
+- **ServerSessionAuthenticationToken**: Session token creation (if supported)
 - **SetupMandate**: Recurring payment setup (if supported)
 - **IncomingWebhook**: Webhook handling (if supported)
 - **DefendDispute**: Dispute handling (if supported)
@@ -231,7 +231,7 @@ Generate the technical specification using the following structure:
 | Operation | Method | Endpoint | UCS Flow |
 |-----------|---------|----------|----------|
 | Create Order | POST | /v1/orders | CreateOrder |
-| Session Token | POST | /v1/sessions | CreateSessionToken |
+| Session Token | POST | /v1/sessions | ServerSessionAuthenticationToken |
 | Setup Mandate | POST | /v1/mandates | SetupMandate |
 
 ## 3. UCS Data Models
@@ -390,7 +390,7 @@ impl ConnectorCommon for {{connector_name}} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // Parse connector error response
         // Map to UCS ErrorResponse
         // Include all required fields

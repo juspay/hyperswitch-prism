@@ -690,7 +690,7 @@ fn map_adyen_refund_status(status: &str) -> RefundStatus {
 impl TryFrom<ResponseRouterData<{ConnectorName}RefundResponse, RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<{ConnectorName}RefundResponse, RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>>,

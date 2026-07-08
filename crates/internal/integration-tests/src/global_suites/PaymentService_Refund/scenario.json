@@ -1,0 +1,115 @@
+{
+  "refund_full_amount": {
+    "grpc_req": {
+      "merchant_refund_id": "auto_generate",
+      "connector_transaction_id": "auto_generate",
+      "payment_amount": 6000,
+      "refund_amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "state": {
+        "connector_customer_id": "",
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        }
+      }
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "REFUND_SUCCESS",
+          "PENDING",
+          "REFUND_PENDING"
+        ]
+      },
+      "connector_refund_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "is_default": true,
+    "display_name": "Refund | Full Amount"
+  },
+  "refund_partial_amount": {
+    "grpc_req": {
+      "merchant_refund_id": "auto_generate",
+      "connector_transaction_id": "auto_generate",
+      "payment_amount": 6000,
+      "refund_amount": {
+        "minor_amount": 3000,
+        "currency": "USD"
+      },
+      "state": {
+        "connector_customer_id": "",
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        }
+      }
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "REFUND_SUCCESS",
+          "PENDING",
+          "REFUND_PENDING"
+        ]
+      },
+      "connector_refund_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Refund | Partial Amount"
+  },
+  "refund_with_reason": {
+    "grpc_req": {
+      "merchant_refund_id": "auto_generate",
+      "connector_transaction_id": "auto_generate",
+      "payment_amount": 6000,
+      "refund_amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "state": {
+        "connector_customer_id": "",
+        "access_token": {
+          "token": {
+            "value": ""
+          },
+          "token_type": "",
+          "expires_in_seconds": 0
+        }
+      },
+      "reason": "customer_requested"
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "REFUND_SUCCESS",
+          "PENDING",
+          "REFUND_PENDING"
+        ]
+      },
+      "connector_refund_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Refund | Reason"
+  }
+}

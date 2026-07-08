@@ -12,7 +12,7 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         BankDebitData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
@@ -591,13 +591,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 }));
                             Ok((p_source, None, Some(false), store_for_future_use))
                         }
-                        None => Err(IntegrationError::not_implemented(
+                        None => Err(IntegrationError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("checkout"),
+                            Default::default(),
                         )),
                     }
                 }
-                _ => Err(IntegrationError::not_implemented(
+                _ => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("checkout"),
+                    Default::default(),
                 )),
             },
             PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
@@ -655,8 +657,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 };
                 Ok((payment_source, None, Some(false), store_for_future))
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
+                Default::default(),
             )),
         }?;
 
@@ -927,7 +930,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         };
                         Ok((
                             payment_source,
-                            Some(network_transaction_id.clone()),
+                            Some(network_transaction_id.network_transaction_id.clone()),
                             Some(true),
                             p_type,
                             None,
@@ -977,19 +980,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                         Ok((
                             payment_source,
-                            Some(network_transaction_id.clone()),
+                            Some(network_transaction_id.network_transaction_id.clone()),
                             Some(true),
                             p_type,
                             None,
                         ))
                     }
-                    _ => Err(IntegrationError::not_implemented(
+                    _ => Err(IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("checkout"),
+                        Default::default(),
                     )),
                 }
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
+                Default::default(),
             )),
         }?;
 
@@ -1265,8 +1270,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 });
                 Ok((payment_source, None, Some(false), payment_type, Some(true)))
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("checkout"),
+                Default::default(),
             )),
         }?;
 
@@ -1561,6 +1567,8 @@ pub struct PaymentsResponse {
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Deserialize, Serialize)]
 pub struct PaymentProcessingDetails {
+    /// A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
+    pub scheme_transaction_link_id: Option<String>,
     /// The Merchant Advice Code (MAC) provided by Mastercard, which contains additional information about the transaction.
     pub partner_merchant_advice_code: Option<String>,
     /// The original authorization response code sent by the scheme.
@@ -1581,7 +1589,7 @@ pub struct Balances {
 fn get_connector_meta(
     capture_method: common_enums::CaptureMethod,
     http_status: u16,
-) -> CustomResult<serde_json::Value, ConnectorResponseTransformationError> {
+) -> CustomResult<serde_json::Value, ConnectorError> {
     match capture_method {
         common_enums::CaptureMethod::Automatic
         | common_enums::CaptureMethod::SequentialAutomatic => Ok(serde_json::json!(CheckoutMeta {
@@ -1602,7 +1610,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<PaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let status = get_attempt_status_cap((
             item.response.status,
@@ -1659,6 +1667,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                    mandate_metadata: None,
                 })
         } else {
             None
@@ -1674,11 +1683,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: item
+                .response
+                .processing
+                .clone()
+                .and_then(|processing| processing.scheme_transaction_link_id.clone()),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         let (amount_captured, minor_amount_capturable) =
@@ -1715,7 +1730,7 @@ impl<
     > TryFrom<ResponseRouterData<PaymentsResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let status = get_attempt_status_cap((
             item.response.status,
@@ -1773,6 +1788,7 @@ impl<
                         connector_mandate_id: Some(id),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                        mandate_metadata: None,
                     });
 
                 let additional_information =
@@ -1787,11 +1803,13 @@ impl<
                     mandate_reference: mandate_reference.map(Box::new),
                     connector_metadata: Some(connector_meta),
                     network_txn_id: item.response.scheme_id.clone(),
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(
                         item.response.reference.unwrap_or(item.response.id),
                     ),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 };
 
                 let (amount_captured, minor_amount_capturable) =
@@ -1836,7 +1854,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let connector_meta = get_connector_meta(
             item.router_data.request.capture_method.unwrap_or_default(),
@@ -1894,6 +1912,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_mandate_id: Some(id),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                mandate_metadata: None,
             });
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -1902,11 +1921,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: item
+                .response
+                .processing
+                .and_then(|processing| processing.scheme_transaction_link_id.clone()),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -1922,7 +1946,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let redirection_data = item
             .response
@@ -1946,13 +1970,11 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
                 );
             }
             None => {
-                return Err(
-                    ConnectorResponseTransformationError::response_handling_failed_with_context(
-                        item.http_code,
-                        Some("Checkout PSync: capture_method absent on payment intent".to_string()),
-                    )
-                    .into(),
-                );
+                return Err(ConnectorError::response_handling_failed_with_context(
+                    item.http_code,
+                    Some("Checkout PSync: capture_method absent on payment intent".to_string()),
+                )
+                .into());
             }
         };
 
@@ -1989,6 +2011,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                    mandate_metadata: None,
                 })
         } else {
             None
@@ -2004,11 +2027,16 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
             mandate_reference: mandate_reference.map(Box::new),
             connector_metadata: None,
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: item
+                .response
+                .processing
+                .and_then(|processing| processing.scheme_transaction_link_id.clone()),
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2025,7 +2053,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<PaymentsResponseEnum, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<PaymentsResponseEnum, Self>) -> Result<Self, Self::Error> {
         let capture_sync_response_list = match item.response {
             PaymentsResponseEnum::PaymentResponse(payments_response) => {
@@ -2040,6 +2068,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponseEnum, Self>>
         Ok(Self {
             response: Ok(PaymentsResponseData::MultipleCaptureResponse {
                 capture_sync_response_list,
+                status_code: item.http_code,
             }),
             ..item.router_data
         })
@@ -2068,7 +2097,7 @@ fn http_code_to_attempt_status_for_void_flow(http_code: u16) -> common_enums::At
 impl<F> TryFrom<ResponseRouterData<PaymentVoidResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<PaymentVoidResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
@@ -2079,9 +2108,11 @@ impl<F> TryFrom<ResponseRouterData<PaymentVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: item.response.scheme_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: http_code_to_attempt_status_for_void_flow(item.http_code),
@@ -2175,7 +2206,7 @@ pub struct PaymentCaptureResponse {
 impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<PaymentCaptureResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -2215,9 +2246,11 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: item.response.scheme_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -2272,7 +2305,7 @@ fn http_code_to_refund_status(http_code: u16) -> common_enums::RefundStatus {
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         let refund_status = http_code_to_refund_status(item.http_code);
         Ok(Self {
@@ -2392,7 +2425,7 @@ pub type RSyncResponse = Vec<ActionResponse>;
 impl<F> TryFrom<ResponseRouterData<RSyncResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RSyncResponse, Self>) -> Result<Self, Self::Error> {
         let refund_action_id = item.router_data.request.connector_refund_id.clone();
         let action_response = item

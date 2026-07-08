@@ -23,3 +23,8 @@ examples/ @juspay/connector-service-framework
 config/ @juspay/connector-service-framework
 
 grace/ @juspay/connector-service-grace
+
+crates/types-traits/domain_types/src/payouts/ @juspay/connector-service-payouts-maintainers
+crates/grpc-server/grpc-server/src/server/payouts.rs @juspay/connector-service-payouts-maintainers
+crates/types-traits/grpc-api-types/proto/payouts.proto @juspay/connector-service-payouts-maintainers
+crates/types-traits/domain_types/src/payouts.rs @juspay/connector-service-payouts-maintainers

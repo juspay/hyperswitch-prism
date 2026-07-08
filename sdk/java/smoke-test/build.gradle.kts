@@ -14,15 +14,24 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")
     // Depend on published SDK to avoid Gradle circular dependency (root :jar -> :classes -> :compileKotlin).
     // CI and Makefile run publishToMavenLocal (or equivalent) before running smoke-test.
-    implementation("com.hyperswitch:payments-client:0.1.0")
+    val prismVersion = System.getenv("VERSION") ?: "0.0.0-dev"
+    implementation("io.hyperswitch:prism:$prismVersion")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }
 
 sourceSets {
     main {
-        // Include generated connector examples so process* functions are available via reflection
-        // for the FFI smoke test (test-package target). Examples are not needed for gRPC test.
-        kotlin.srcDir(file("../../../examples/stripe"))
+        // Include ALL connector examples directly so process* functions are available via
+        // reflection for the FFI smoke test. Each connector dir becomes a source root.
+        val examplesDir = file("../../../examples")
+        if (examplesDir.exists()) {
+            examplesDir.listFiles()
+                ?.filter { it.isDirectory }
+                ?.forEach { kotlin.srcDir(it) }
+        }
+        // Exclude the legacy generated/ subdirectory to avoid duplicate declarations
+        // (examples/ is already included above as individual source roots).
+        kotlin.exclude("**/generated/**")
         resources.srcDir(file("src/main/resources"))
     }
 }
@@ -47,21 +56,58 @@ tasks.register<JavaExec>("runGrpc") {
     environment("FORCE_COLOR", "1")
 
     // Suppress JNA "restricted method" warning (Java 17+) and protobuf Unsafe warning (Java 21+)
+    // -XX:+IgnoreUnrecognizedVMOptions allows this to work on both Java 17 and 21+
     jvmArgs(
+        "-XX:+IgnoreUnrecognizedVMOptions",
         "--enable-native-access=ALL-UNNAMED",
         "--sun-misc-unsafe-memory-access=allow",
     )
 
     // Pass through all project properties as system properties
     systemProperty("jna.library.path", file("../src/main/resources/native").absolutePath)
+    // Determine library extension based on OS
+    val osName = System.getProperty("os.name").lowercase()
+    val libExt = when {
+        osName.contains("mac") || osName.contains("darwin") -> "dylib"
+        osName.contains("win") -> "dll"
+        else -> "so"
+    }
     systemProperty("hyperswitch.grpc.lib.path",
-        file("src/main/resources/native/libhyperswitch_grpc_ffi.dylib").absolutePath)
+        file("src/main/resources/native/libhyperswitch_grpc_ffi.$libExt").absolutePath)
 
     // Forward any args passed to this task
     args = project.properties["args"]?.toString()?.split(" ") ?: emptyList()
 }
 
 tasks.named<JavaExec>("run") {
+    systemProperty("jna.library.path",
+        file("../src/main/resources/native").absolutePath)
+}
+
+// Task to run the composite smoke test (direct SDK calls, no reflection)
+tasks.register<JavaExec>("runComposite") {
+    group = "application"
+    description = "Run the composite smoke test (typed exception contract validation)"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("SmokeTestCompositeKt")
+
+    environment("FORCE_COLOR", "1")
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    systemProperty("jna.library.path",
+        file("../src/main/resources/native").absolutePath)
+
+    args = project.properties["args"]?.toString()?.split(" ") ?: emptyList()
+}
+
+// Task to run the webhook smoke test (connector identity only — no API creds, no secret)
+tasks.register<JavaExec>("runWebhookSmokeTest") {
+    group = "application"
+    description = "Run webhook smoke test — Adyen AUTHORISATION, zero external dependencies"
+    classpath = sourceSets["main"].runtimeClasspath
+    mainClass.set("SmokeTestWebhookKt")
+
+    environment("FORCE_COLOR", "1")
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
     systemProperty("jna.library.path",
         file("../src/main/resources/native").absolutePath)
 }

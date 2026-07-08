@@ -2,65 +2,73 @@
 
 In the next few steps you will authorize the payment, handle errors, capture funds, and process refunds. And then you will be ready to send payment to any payment processor, without writing specialized code for each.
 
-You will have a `payment_method_id` if you depend on your processor for PCI compliance. Use this to [Authorize with Payment Method ID](#authorize-with-payment-method-id).
+If you are **not PCI compliant**, first create a Stripe client authentication token on your backend, use the returned `client_secret` to initialize Stripe.js / Stripe Elements on the frontend, tokenize the payment method in the browser, and then use the resulting `payment_method_id` to authorize the payment.
 
-Alternatively if your Payment processor API keys are enabled to accept PCI compliant raw card data, that will suffice to make the first payment. Jump to [Authorize with Raw Card Details](#authorize-with-raw-card-details-pci-compliant).
+If your payment processor API keys are enabled to accept PCI compliant raw card data directly, jump to [Authorize with Raw Card Details](#authorize-with-raw-card-details-pci-compliant).
 
-## Authorize with Payment Method ID
+## Non-PCI Stripe flow: get the `payment_method_id` first
 
-Use the `payment_method_id` from [Quick Start](./quick-start.md) to authorize the payment:
+### 1. Create a client authentication token on your backend
+
+Use Prism's client authentication token flow to fetch the Stripe `client_secret` required by Stripe.js.
 
 {% tabs %}
 
 {% tab title="Node.js" %}
 
 ```javascript
-const { ConnectorClient, Currency, CaptureMethod } = require('@juspay/connector-service-node');
+const {
+  MerchantAuthenticationClient,
+  IntegrationError,
+  ConnectorError,
+  NetworkError,
+  types,
+} = require("hyperswitch-prism");
 
-async function authorizePayment(paymentMethodId) {
-    const client = new ConnectorClient({
-        connectors: {
-            stripe: { apiKey: process.env.STRIPE_API_KEY }
-        }
+// Reuse stripeConfig from installation.md
+const authClient = new MerchantAuthenticationClient(stripeConfig);
+
+async function createClientAuthenticationToken() {
+  try {
+    const response = await authClient.createClientAuthenticationToken({
+      merchantClientSessionId: "client_session_001",
+      payment: {
+        amount: {
+          minorAmount: 1000,
+          currency: types.Currency.USD,
+        },
+      },
+      testMode: true,
     });
 
-    try {
-        // Authorize using the payment_method_id from Stripe or Adyen
-        const auth = await client.payments.authorize({
-            amount: { minorAmount: 1000, currency: Currency.USD },
-            merchantOrderId: 'order-456',
-            paymentMethod: {
-                paymentMethodId: paymentMethodId  // e.g., 'pm_1234...'
-            },
-            captureMethod: CaptureMethod.AUTOMATIC  // Authorize only, capture later
-        });
+    const clientSecret =
+      response.sessionData?.connectorSpecific?.stripe?.clientSecret?.value;
 
-        console.log('Authorized:', auth.paymentId, auth.status);  // AUTHORIZED
-        return auth;
-
-    } catch (error) {
-        handlePaymentError(error);
+    console.log("Client secret:", clientSecret);
+    return clientSecret;
+  } catch (error) {
+    if (error instanceof IntegrationError) {
+      console.error(
+        "Integration error:",
+        error.errorCode,
+        error.message,
+      );
+    } else if (error instanceof ConnectorError) {
+      console.error(
+        "Connector error:",
+        error.errorCode,
+        error.message,
+      );
+    } else if (error instanceof NetworkError) {
+      console.error("Network error:", error.errorCode, error.message);
+    } else {
+      console.error(
+        "Client auth token creation failed:",
+        error.message || error,
+      );
     }
-}
-
-function handlePaymentError(error) {
-    switch (error.code) {
-        case 'PAYMENT_DECLINED':
-            console.error('Card declined:', error.message);
-            break;
-        case 'EXPIRED_CARD':
-            console.error('Card expired:', error.message);
-            break;
-        case 'INSUFFICIENT_FUNDS':
-            console.error('Insufficient funds:', error.message);
-            break;
-        case 'NETWORK_TIMEOUT':
-            console.error('Network issue:', error.message);
-            break;
-        default:
-            console.error('Payment failed:', error.message);
-            console.error('Request ID:', error.requestId);
-    }
+    throw error;
+  }
 }
 ```
 
@@ -69,33 +77,41 @@ function handlePaymentError(error) {
 {% tab title="Python" %}
 
 ```python
-import os
-from connector_service import ConnectorClient, Currency, CaptureMethod
-from connector_service.errors import PaymentDeclinedError, NetworkTimeoutError
-
-client = ConnectorClient(
-    connectors={"stripe": {"api_key": os.environ["STRIPE_API_KEY"]}}
+from hyperswitch_prism import (
+    MerchantAuthenticationClient,
+    IntegrationError,
+    ConnectorError,
+    NetworkError,
 )
 
-def authorize_payment(payment_method_id):
-    try:
-        auth = client.payments.authorize(
-            amount={"minor_amount": 1000, "currency": Currency.USD},
-            merchant_order_id="order-456",
-            payment_method={
-                "payment_method_id": payment_method_id  # e.g., 'pm_1234...'
-            },
-            capture_method=CaptureMethod.MANUAL
-        )
-        print(f"Authorized: {auth.payment_id}, {auth.status}")
-        return auth
+# Reuse stripe_config from installation.md
+auth_client = MerchantAuthenticationClient(stripe_config)
 
-    except PaymentDeclinedError as e:
-        print(f"Card declined: {e.message}")
-    except NetworkTimeoutError as e:
-        print(f"Network issue: {e.message}")
-    except Exception as e:
-        print(f"Payment failed: {e}")
+def create_client_authentication_token():
+    try:
+        response = auth_client.create_client_authentication_token({
+            "merchant_client_session_id": "client_session_001",
+            "payment": {
+                "amount": {
+                    "minor_amount": 1000,
+                    "currency": "USD"
+                }
+            },
+            "test_mode": True
+        })
+
+        client_secret = response.session_data.connector_specific.stripe.client_secret.value
+        print(f"Client secret: {client_secret}")
+        return client_secret
+    except IntegrationError as error:
+        print(f"Integration error: {error.error_code} - {error.error_message}")
+        raise
+    except ConnectorError as error:
+        print(f"Connector error: {error.error_code} - {error.error_message}")
+        raise
+    except NetworkError as error:
+        print(f"Network error: {error.error_code} - {error}")
+        raise
 ```
 
 {% endtab %}
@@ -103,36 +119,47 @@ def authorize_payment(payment_method_id):
 {% tab title="Java" %}
 
 ```java
-import com.juspay.connectorservice.*;
-import com.juspay.connectorservice.errors.*;
+import payments.ConnectorError;
+import payments.IntegrationError;
+import payments.MerchantAuthenticationClient;
+import payments.MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest;
+import payments.NetworkError;
 
-public class FirstPayment {
-    public ConnectorClient client = ConnectorClient.builder()
-        .connector("stripe", StripeConfig.builder()
-            .apiKey(System.getenv("STRIPE_API_KEY"))
-            .build())
-        .build();
+// Reuse stripeConfig from installation.md
+MerchantAuthenticationClient authClient = new MerchantAuthenticationClient(stripeConfig);
 
-    public void authorizePayment(String paymentMethodId) {
-        try {
-            AuthorizeResponse auth = client.payments().authorize(
-                AuthorizeRequest.builder()
-                    .amount(Amount.of(1000, Currency.USD))
-                    .merchantOrderId("order-456")
-                    .paymentMethod(PaymentMethod.byId(paymentMethodId))
-                    .captureMethod(CaptureMethod.MANUAL)
-                    .build()
-            );
-            System.out.println("Authorized: " + auth.getPaymentId());
+public String createClientAuthenticationToken() {
+    try {
+        MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest request =
+            MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest.newBuilder()
+                .setMerchantClientSessionId("client_session_001")
+                .setPayment(types.Payment.PaymentClientAuthenticationContext.newBuilder()
+                    .setAmount(payments.Money.newBuilder()
+                        .setMinorAmount(1000L)
+                        .setCurrency(payments.Currency.USD)
+                        .build())
+                    .build())
+                .setTestMode(true)
+                .build();
 
-        } catch (PaymentDeclinedError e) {
-            System.err.println("Card declined: " + e.getMessage());
-        } catch (NetworkTimeoutError e) {
-            System.err.println("Network issue: " + e.getMessage());
-        } catch (PaymentError e) {
-            System.err.println("Payment failed: " + e.getMessage());
-            System.err.println("Request ID: " + e.getRequestId());
-        }
+        var response = authClient.create_client_authentication_token(request);
+        String clientSecret = response.getSessionData()
+            .getConnectorSpecific()
+            .getStripe()
+            .getClientSecret()
+            .getValue();
+
+        System.out.println("Client secret: " + clientSecret);
+        return clientSecret;
+    } catch (IntegrationError error) {
+        System.err.println("Integration error: " + error.getErrorCode() + " - " + error.getMessage());
+        throw error;
+    } catch (ConnectorError error) {
+        System.err.println("Connector error: " + error.getErrorCode() + " - " + error.getMessage());
+        throw error;
+    } catch (NetworkError error) {
+        System.err.println("Network error: " + error.getErrorCode() + " - " + error.getMessage());
+        throw error;
     }
 }
 ```
@@ -143,35 +170,258 @@ public class FirstPayment {
 
 ```php
 <?php
-use ConnectorService\ConnectorClient;
-use ConnectorService\Enum\Currency;
-use ConnectorService\Enum\CaptureMethod;
+use HyperswitchPrism\MerchantAuthenticationClient;
 
-$client = new ConnectorClient([
-    'connectors' => [
-        'stripe' => ['api_key' => $_ENV['STRIPE_API_KEY']]
-    ]
-]);
+// Reuse $stripeConfig from installation.md
+$authClient = new MerchantAuthenticationClient($stripeConfig);
 
-function authorizePayment($paymentMethodId) use ($client) {
+function createClientAuthenticationToken($authClient) {
     try {
-        $auth = $client->payments()->authorize([
-            'amount' => ['minor_amount' => 1000, 'currency' => Currency::USD],
-            'merchant_order_id' => 'order-456',
-            'payment_method' => [
-                'payment_method_id' => $paymentMethodId  // e.g., 'pm_1234...'
+        $response = $authClient->createClientAuthenticationToken([
+            'merchantClientSessionId' => 'client_session_001',
+            'payment' => [
+                'amount' => [
+                    'minorAmount' => 1000,
+                    'currency' => 'USD'
+                ]
             ],
-            'capture_method' => CaptureMethod::MANUAL
+            'testMode' => true
         ]);
-        echo "Authorized: " . $auth->getPaymentId() . "\n";
-        return $auth;
 
-    } catch (PaymentDeclinedException $e) {
-        echo "Card declined: " . $e->getMessage() . "\n";
-    } catch (NetworkTimeoutException $e) {
-        echo "Network issue: " . $e->getMessage() . "\n";
-    } catch (Exception $e) {
-        echo "Payment failed: " . $e->getMessage() . "\n";
+        $clientSecret = $response->getSessionData()
+            ->getConnectorSpecific()
+            ->getStripe()
+            ->getClientSecret()
+            ->getValue();
+
+        echo "Client secret: " . $clientSecret . "\n";
+        return $clientSecret;
+    } catch (\Throwable $error) {
+        echo "Client auth token creation failed: " . $error->getMessage() . "\n";
+        throw $error;
+    }
+}
+```
+
+{% endtab %}
+
+{% endtabs %}
+
+### 2. Use the `client_secret` in Stripe.js / Stripe Elements
+
+Initialize Stripe Elements on the frontend, collect the card details there, and let Stripe return a tokenized `payment_method_id`.
+
+```html
+<script src="https://js.stripe.com/v3/"></script>
+<div id="card-element"></div>
+<button id="submit">Pay</button>
+
+<script>
+  const stripe = Stripe(window.STRIPE_PUBLISHABLE_KEY); // pk_test_xxx
+  const elements = stripe.elements({ clientSecret });
+  const cardElement = elements.create("card");
+  cardElement.mount("#card-element");
+
+  document.getElementById("submit").addEventListener("click", async () => {
+    const { error, paymentMethod } = await stripe.createPaymentMethod({
+      type: "card",
+      card: cardElement,
+    });
+
+    if (error) {
+      console.error(error.message);
+      return;
+    }
+
+    // Send paymentMethod.id to your backend
+    console.log(paymentMethod.id); // pm_1234...
+  });
+</script>
+```
+
+## Authorize with Payment Method ID
+
+Use the `payment_method_id` returned by Stripe.js / Stripe Elements to authorize the payment:
+
+{% tabs %}
+
+{% tab title="Node.js" %}
+
+```javascript
+const {
+  IntegrationError,
+  ConnectorError,
+  NetworkError,
+} = require("hyperswitch-prism");
+
+async function authorizePayment(paymentMethodId) {
+  try {
+    const auth = await stripeClient.tokenAuthorize({
+      merchantTransactionId: "txn_tokenized_001",
+      merchantOrderId: "order-456",
+      amount: {
+        minorAmount: 1000,
+        currency: "USD",
+      },
+      connectorToken: {
+        value: paymentMethodId, // e.g. pm_1234...
+      },
+      address: {
+        billingAddress: {},
+      },
+      captureMethod: "MANUAL",
+      description: "First tokenized payment",
+      testMode: true,
+    });
+
+    console.log("Authorized:", auth.connectorTransactionId, auth.status);
+    return auth;
+  } catch (error) {
+    if (error instanceof IntegrationError) {
+      console.error(
+        "Integration error:",
+        error.errorCode,
+        error.message,
+      );
+    } else if (error instanceof ConnectorError) {
+      console.error(
+        "Connector error:",
+        error.errorCode,
+        error.message,
+      );
+    } else if (error instanceof NetworkError) {
+      console.error("Network error:", error.errorCode, error.message);
+    } else {
+      console.error("Authorization failed:", error.message || error);
+    }
+    throw error;
+  }
+}
+```
+
+{% endtab %}
+
+{% tab title="Python" %}
+
+```python
+from hyperswitch_prism import (
+    IntegrationError,
+    ConnectorError,
+    NetworkError,
+)
+
+def authorize_payment(payment_method_id):
+    try:
+        auth = stripe_client.token_authorize({
+            "merchant_transaction_id": "txn_tokenized_001",
+            "merchant_order_id": "order-456",
+            "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+            },
+            "connector_token": {
+                "value": payment_method_id  # e.g. pm_1234...
+            },
+            "address": {
+                "billing_address": {}
+            },
+            "capture_method": "MANUAL",
+            "description": "First tokenized payment",
+            "test_mode": True
+        })
+
+        print(f"Authorized: {auth.connector_transaction_id}, {auth.status}")
+        return auth
+    except IntegrationError as error:
+        print(f"Integration error: {error.error_code} - {error.error_message}")
+        raise
+    except ConnectorError as error:
+        print(f"Connector error: {error.error_code} - {error.error_message}")
+        raise
+    except NetworkError as error:
+        print(f"Network error: {error.error_code} - {error}")
+        raise
+```
+
+{% endtab %}
+
+{% tab title="Java" %}
+
+```java
+import payments.Address;
+import payments.CaptureMethod;
+import payments.ConnectorError;
+import payments.Currency;
+import payments.IntegrationError;
+import payments.NetworkError;
+import payments.PaymentAddress;
+import payments.PaymentServiceTokenAuthorizeRequest;
+import payments.SecretString;
+
+public void authorizePayment(String paymentMethodId) {
+    try {
+        PaymentServiceTokenAuthorizeRequest request = PaymentServiceTokenAuthorizeRequest.newBuilder()
+            .setMerchantTransactionId("txn_tokenized_001")
+            .setMerchantOrderId("order-456")
+            .setAmount(payments.Money.newBuilder()
+                .setMinorAmount(1000L)
+                .setCurrency(Currency.USD)
+                .build())
+            .setConnectorToken(SecretString.newBuilder().setValue(paymentMethodId).build())
+            .setAddress(PaymentAddress.newBuilder()
+                .setBillingAddress(Address.newBuilder().build())
+                .build())
+            .setCaptureMethod(CaptureMethod.MANUAL)
+            .setDescription("First tokenized payment")
+            .setTestMode(true)
+            .build();
+
+        var auth = stripeClient.token_authorize(request);
+        System.out.println("Authorized: " + auth.getConnectorTransactionId() + ", " + auth.getStatus());
+    } catch (IntegrationError error) {
+        System.err.println("Integration error: " + error.getErrorCode() + " - " + error.getMessage());
+        throw error;
+    } catch (ConnectorError error) {
+        System.err.println("Connector error: " + error.getErrorCode() + " - " + error.getMessage());
+        throw error;
+    } catch (NetworkError error) {
+        System.err.println("Network error: " + error.getErrorCode() + " - " + error.getMessage());
+        throw error;
+    }
+}
+```
+
+{% endtab %}
+
+{% tab title="PHP" %}
+
+```php
+<?php
+function authorizePayment($paymentMethodId, $stripeClient) {
+    try {
+        $auth = $stripeClient->tokenAuthorize([
+            'merchantTransactionId' => 'txn_tokenized_001',
+            'merchantOrderId' => 'order-456',
+            'amount' => [
+                'minorAmount' => 1000,
+                'currency' => 'USD'
+            ],
+            'connectorToken' => [
+                'value' => $paymentMethodId // e.g. pm_1234...
+            ],
+            'address' => [
+                'billingAddress' => []
+            ],
+            'captureMethod' => 'MANUAL',
+            'description' => 'First tokenized payment',
+            'testMode' => true
+        ]);
+
+        echo "Authorized: " . $auth->getConnectorTransactionId() . ", " . $auth->getStatus() . "\n";
+        return $auth;
+    } catch (\Throwable $error) {
+        echo "Authorization failed: " . $error->getMessage() . "\n";
+        throw $error;
     }
 }
 ```
@@ -189,18 +439,27 @@ If you're PCI compliant and collect card details directly:
 {% tab title="Node.js" %}
 
 ```javascript
-const auth = await client.payments.authorize({
-    amount: { minorAmount: 1000, currency: Currency.USD },
-    merchantOrderId: 'order-456',
-    paymentMethod: {
-        card: {
-            cardNumber: '4242424242424242',
-            expiryMonth: '12',
-            expiryYear: '2027',
-            cardHolderName: 'Jane Doe'
-        }
+// Reuse stripeClient from installation.md
+const auth = await stripeClient.authorize({
+  merchantTransactionId: "txn_raw_card_001",
+  merchantOrderId: "order-456",
+  amount: {
+    minorAmount: 1000,
+    currency: "USD",
+  },
+  paymentMethod: {
+    card: {
+      cardNumber: { value: "4242424242424242" },
+      cardExpMonth: { value: "12" },
+      cardExpYear: { value: "2027" },
+      cardCvc: { value: "123" },
+      cardHolderName: { value: "Jane Doe" },
     },
-    captureMethod: CaptureMethod.AUTOMATIC  // Charge immediately
+  },
+  authType: "NO_THREE_DS",
+  address: {},
+  captureMethod: "AUTOMATIC",
+  testMode: true,
 });
 ```
 
@@ -209,19 +468,28 @@ const auth = await client.payments.authorize({
 {% tab title="Python" %}
 
 ```python
-auth = client.payments.authorize(
-    amount={"minor_amount": 1000, "currency": Currency.USD},
-    merchant_order_id="order-456",
-    payment_method={
+# Reuse stripe_client from installation.md
+auth = stripe_client.authorize({
+    "merchant_transaction_id": "txn_raw_card_001",
+    "merchant_order_id": "order-456",
+    "amount": {
+        "minor_amount": 1000,
+        "currency": "USD"
+    },
+    "payment_method": {
         "card": {
-            "card_number": "4242424242424242",
-            "expiry_month": "12",
-            "expiry_year": "2027",
-            "card_holder_name": "Jane Doe"
+            "card_number": {"value": "4242424242424242"},
+            "card_exp_month": {"value": "12"},
+            "card_exp_year": {"value": "2027"},
+            "card_cvc": {"value": "123"},
+            "card_holder_name": {"value": "Jane Doe"}
         }
     },
-    capture_method=CaptureMethod.AUTOMATIC
-)
+    "auth_type": "NO_THREE_DS",
+    "address": {},
+    "capture_method": "AUTOMATIC",
+    "test_mode": True
+})
 ```
 
 {% endtab %}
@@ -229,15 +497,27 @@ auth = client.payments.authorize(
 {% tab title="Java" %}
 
 ```java
-AuthorizeResponse auth = client.payments().authorize(
-    AuthorizeRequest.builder()
-        .amount(Amount.of(1000, Currency.USD))
-        .merchantOrderId("order-456")
-        .paymentMethod(PaymentMethod.card(
-            "4242424242424242", "12", "2027", "Jane Doe"))
-        .captureMethod(CaptureMethod.AUTOMATIC)
-        .build()
-);
+import payments.AuthenticationType;
+import payments.CaptureMethod;
+import payments.Currency;
+import payments.PaymentServiceAuthorizeRequest;
+
+// Reuse stripeClient from installation.md
+PaymentServiceAuthorizeRequest.Builder requestBuilder = PaymentServiceAuthorizeRequest.newBuilder();
+requestBuilder.setMerchantTransactionId("txn_raw_card_001");
+requestBuilder.setMerchantOrderId("order-456");
+requestBuilder.getAmountBuilder().setMinorAmount(1000L).setCurrency(Currency.USD);
+requestBuilder.getPaymentMethodBuilder().getCardBuilder().getCardNumberBuilder().setValue("4242424242424242");
+requestBuilder.getPaymentMethodBuilder().getCardBuilder().getCardExpMonthBuilder().setValue("12");
+requestBuilder.getPaymentMethodBuilder().getCardBuilder().getCardExpYearBuilder().setValue("2027");
+requestBuilder.getPaymentMethodBuilder().getCardBuilder().getCardCvcBuilder().setValue("123");
+requestBuilder.getPaymentMethodBuilder().getCardBuilder().getCardHolderNameBuilder().setValue("Jane Doe");
+requestBuilder.getAddressBuilder().getBillingAddressBuilder();
+requestBuilder.setAuthType(AuthenticationType.NO_THREE_DS);
+requestBuilder.setCaptureMethod(CaptureMethod.AUTOMATIC);
+requestBuilder.setTestMode(true);
+
+var auth = stripeClient.authorize(requestBuilder.build());
 ```
 
 {% endtab %}
@@ -245,18 +525,28 @@ AuthorizeResponse auth = client.payments().authorize(
 {% tab title="PHP" %}
 
 ```php
-$auth = $client->payments()->authorize([
-    'amount' => ['minor_amount' => 1000, 'currency' => Currency::USD],
-    'merchant_order_id' => 'order-456',
-    'payment_method' => [
+<?php
+// Reuse $stripeClient from installation.md
+$auth = $stripeClient->authorize([
+    'merchantTransactionId' => 'txn_raw_card_001',
+    'merchantOrderId' => 'order-456',
+    'amount' => [
+        'minorAmount' => 1000,
+        'currency' => 'USD'
+    ],
+    'paymentMethod' => [
         'card' => [
-            'card_number' => '4242424242424242',
-            'expiry_month' => '12',
-            'expiry_year' => '2027',
-            'card_holder_name' => 'Jane Doe'
+            'cardNumber' => ['value' => '4242424242424242'],
+            'cardExpMonth' => ['value' => '12'],
+            'cardExpYear' => ['value' => '2027'],
+            'cardCvc' => ['value' => '123'],
+            'cardHolderName' => ['value' => 'Jane Doe']
         ]
     ],
-    'capture_method' => CaptureMethod::AUTOMATIC
+    'authType' => 'NO_THREE_DS',
+    'address' => [],
+    'captureMethod' => 'AUTOMATIC',
+    'testMode' => true
 ]);
 ```
 
@@ -274,25 +564,29 @@ After authorization, capture funds and handle refunds:
 
 ```javascript
 // 1. Check payment status
-const status = await client.payments.get({
-    paymentId: auth.paymentId
+const status = await stripeClient.get({
+  connectorTransactionId: auth.connectorTransactionId,
+  testMode: true,
 });
-console.log('Current status:', status.status);
+console.log("Current status:", status.status);
 
 // 2. Capture the funds (when order ships)
-const capture = await client.payments.capture({
-    paymentId: auth.paymentId,
-    amount: { minorAmount: 1000, currency: Currency.USD }
+const capture = await stripeClient.capture({
+  merchantCaptureId: "capture_001",
+  connectorTransactionId: auth.connectorTransactionId,
+  amountToCapture: { minorAmount: 1000, currency: "USD" },
+  testMode: true,
 });
-console.log('Captured:', capture.status);  // CAPTURED
+console.log("Captured:", capture.status);
 
 // 3. Process a partial refund (customer returns item)
-const refund = await client.payments.refund({
-    paymentId: auth.paymentId,
-    amount: { minorAmount: 500, currency: Currency.USD },  // Refund $5
-    reason: 'Customer return'
+const refund = await stripeClient.refund({
+  merchantRefundId: "refund_001",
+  connectorTransactionId: auth.connectorTransactionId,
+  refundAmount: { minorAmount: 500, currency: "USD" },
+  reason: "Customer return",
 });
-console.log('Refund ID:', refund.refundId);
+console.log("Refund ID:", refund.connectorRefundId);
 ```
 
 {% endtab %}
@@ -301,23 +595,28 @@ console.log('Refund ID:', refund.refundId);
 
 ```python
 # 1. Check payment status
-status = client.payments.get(payment_id=auth.payment_id)
+status = stripe_client.get({
+    "merchant_transaction_id": "txn_tokenized_001",
+    "connector_transaction_id": auth.connector_transaction_id
+})
 print(f"Current status: {status.status}")
 
 # 2. Capture the funds
-capture = client.payments.capture(
-    payment_id=auth.payment_id,
-    amount={"minor_amount": 1000, "currency": Currency.USD}
-)
+capture = stripe_client.capture({
+    "merchant_transaction_id": "txn_tokenized_001",
+    "connector_transaction_id": auth.connector_transaction_id,
+    "amount": {"minor_amount": 1000, "currency": "USD"}
+})
 print(f"Captured: {capture.status}")
 
 # 3. Process a partial refund
-refund = client.payments.refund(
-    payment_id=auth.payment_id,
-    amount={"minor_amount": 500, "currency": Currency.USD},
-    reason="Customer return"
-)
-print(f"Refund ID: {refund.refund_id}")
+refund = stripe_client.refund({
+    "merchant_refund_id": "refund_001",
+    "connector_transaction_id": auth.connector_transaction_id,
+    "amount": {"minor_amount": 500, "currency": "USD"},
+    "reason": "Customer return"
+})
+print(f"Refund ID: {refund.connector_refund_id}")
 ```
 
 {% endtab %}
@@ -325,32 +624,37 @@ print(f"Refund ID: {refund.refund_id}")
 {% tab title="Java" %}
 
 ```java
+import payments.PaymentServiceCaptureRequest;
+import payments.PaymentServiceGetRequest;
+import payments.PaymentServiceRefundRequest;
+
 // 1. Check payment status
-PaymentResponse status = client.payments().get(
-    GetPaymentRequest.builder()
-        .paymentId(auth.getPaymentId())
-        .build()
-);
+PaymentServiceGetRequest getRequest = PaymentServiceGetRequest.newBuilder()
+    .setMerchantTransactionId("txn_tokenized_001")
+    .setConnectorTransactionId(auth.getConnectorTransactionId())
+    .build();
+var status = stripeClient.get(getRequest);
 System.out.println("Status: " + status.getStatus());
 
 // 2. Capture the funds
-CaptureResponse capture = client.payments().capture(
-    CaptureRequest.builder()
-        .paymentId(auth.getPaymentId())
-        .amount(Amount.of(1000, Currency.USD))
-        .build()
-);
+PaymentServiceCaptureRequest captureRequest = PaymentServiceCaptureRequest.newBuilder()
+    .setMerchantCaptureId("capture_001")
+    .setConnectorTransactionId(auth.getConnectorTransactionId())
+    .setAmountToCapture(payments.Money.newBuilder().setMinorAmount(1000L).setCurrency(payments.Currency.USD).build())
+    .build();
+var capture = stripeClient.capture(captureRequest);
 System.out.println("Captured: " + capture.getStatus());
 
 // 3. Process a partial refund
-RefundResponse refund = client.payments().refund(
-    RefundRequest.builder()
-        .paymentId(auth.getPaymentId())
-        .amount(Amount.of(500, Currency.USD))
-        .reason("Customer return")
-        .build()
-);
-System.out.println("Refund ID: " + refund.getRefundId());
+PaymentServiceRefundRequest refundRequest = PaymentServiceRefundRequest.newBuilder()
+    .setMerchantRefundId("refund_001")
+    .setConnectorTransactionId(auth.getConnectorTransactionId())
+    .setPaymentAmount(1000L)
+    .setRefundAmount(payments.Money.newBuilder().setMinorAmount(500L).setCurrency(payments.Currency.USD).build())
+    .setReason("Customer return")
+    .build();
+var refund = stripeClient.refund(refundRequest);
+System.out.println("Refund ID: " + refund.getConnectorRefundId());
 ```
 
 {% endtab %}
@@ -359,23 +663,28 @@ System.out.println("Refund ID: " + refund.getRefundId());
 
 ```php
 // 1. Check payment status
-$status = $client->payments()->get(['payment_id' => $auth->getPaymentId()]);
+$status = $stripeClient->get([
+    'merchantTransactionId' => 'txn_tokenized_001',
+    'connectorTransactionId' => $auth->getConnectorTransactionId()
+]);
 echo "Status: " . $status->getStatus() . "\n";
 
 // 2. Capture the funds
-$capture = $client->payments()->capture([
-    'payment_id' => $auth->getPaymentId(),
-    'amount' => ['minor_amount' => 1000, 'currency' => Currency::USD]
+$capture = $stripeClient->capture([
+    'merchantCaptureId' => 'capture_001',
+    'connectorTransactionId' => $auth->getConnectorTransactionId(),
+    'amountToCapture' => ['minorAmount' => 1000, 'currency' => 'USD']
 ]);
-echo "Captured: " . $capture->getStatus() . "\n";
+echo "Captured: " . $capture->status . "\n";
 
 // 3. Process a partial refund
-$refund = $client->payments()->refund([
-    'payment_id' => $auth->getPaymentId(),
-    'amount' => ['minor_amount' => 500, 'currency' => Currency::USD],
+$refund = $stripeClient->refund([
+    'merchantRefundId' => 'refund_001',
+    'connectorTransactionId' => $auth->getConnectorTransactionId(),
+    'refundAmount' => ['minorAmount' => 500, 'currency' => 'USD'],
     'reason' => 'Customer return'
 ]);
-echo "Refund ID: " . $refund->getRefundId() . "\n";
+echo "Refund ID: " . $refund->getConnectorRefundId() . "\n";
 ```
 
 {% endtab %}
@@ -388,22 +697,37 @@ echo "Refund ID: " . $refund->getRefundId() . "\n";
 
 ```javascript
 // Using test card: 4000000000000002 (declined)
-const auth = await client.payments.authorize({
-    paymentMethod: { paymentMethodId: 'pm_declined' }
+const auth = await stripeClient.authorize({
+  merchantTransactionId: "txn_declined_001",
+  amount: { minorAmount: 1000, currency: "USD" },
+  paymentMethod: {
+    card: {
+      cardNumber: { value: "4000000000000002" },
+      cardExpMonth: { value: "12" },
+      cardExpYear: { value: "2027" },
+      cardCvc: { value: "123" },
+      cardHolderName: { value: "Jane Doe" },
+    },
+  },
+  authType: "NO_THREE_DS",
+  address: {},
+  captureMethod: "MANUAL",
+  testMode: true,
 });
-// Throws: PaymentDeclinedError with code 'PAYMENT_DECLINED'
 ```
 
 ### Network Timeout
 
 ```javascript
+const { NetworkError } = require('hyperswitch-prism');
+
 try {
-    const auth = await client.payments.authorize({...});
+  const auth = await stripeClient.authorize(request);
 } catch (error) {
-    if (error.code === 'NETWORK_TIMEOUT') {
-        // Retry with exponential backoff
-        await retryWithBackoff(() => client.payments.authorize(request));
-    }
+  if (error.errorCode === "CONNECT_TIMEOUT_EXCEEDED") {
+    // Retry with exponential backoff
+    await retryWithBackoff(() => stripeClient.authorize(request));
+  }
 }
 ```
 
@@ -414,16 +738,21 @@ try {
 Authorize at checkout. Capture when you ship.
 
 ```javascript
-// Checkout: authorize only
-const auth = await client.payments.authorize({
-    amount: { minorAmount: 9999, currency: Currency.USD },
-    captureMethod: CaptureMethod.MANUAL
+// Assume paymentMethodId came from Stripe.js
+const auth = await stripeClient.tokenAuthorize({
+  merchantTransactionId: "txn_checkout_001",
+  amount: { minorAmount: 9999, currency: "USD" },
+  connectorToken: { value: paymentMethodId },
+  address: { billingAddress: {} },
+  captureMethod: "MANUAL",
+  testMode: true,
 });
 
 // Later: when order ships
-await client.payments.capture({
-    paymentId: auth.paymentId,
-    amount: { minorAmount: 9999, currency: Currency.USD }
+await stripeClient.capture({
+  merchantCaptureId: "capture_checkout_001",
+  connectorTransactionId: auth.connectorTransactionId,
+  amountToCapture: { minorAmount: 9999, currency: "USD" },
 });
 ```
 
@@ -432,11 +761,16 @@ await client.payments.capture({
 For digital goods, capture immediately.
 
 ```javascript
-const payment = await client.payments.authorize({
-    amount: { minorAmount: 2900, currency: Currency.USD },
-    captureMethod: CaptureMethod.AUTOMATIC
+// Assume paymentMethodId came from Stripe.js
+const payment = await stripeClient.tokenAuthorize({
+  merchantTransactionId: "txn_saas_001",
+  amount: { minorAmount: 2900, currency: "USD" },
+  connectorToken: { value: paymentMethodId },
+  address: { billingAddress: {} },
+  captureMethod: "AUTOMATIC",
+  testMode: true,
 });
-// Status: CAPTURED
+// Status: CAPTURED or AUTHORIZED based on connector behavior
 ```
 
 ### Marketplace: Partial Refund
@@ -444,10 +778,11 @@ const payment = await client.payments.authorize({
 Customer returns one item from a multi-item order.
 
 ```javascript
-await client.payments.refund({
-    paymentId: 'pay_abc123',
-    amount: { minorAmount: 2500, currency: Currency.USD },
-    reason: 'Item damaged in shipping'
+await stripeClient.refund({
+  merchantRefundId: "refund_marketplace_001",
+  connectorTransactionId: "pi_abc123",
+  refundAmount: { minorAmount: 2500, currency: "USD" },
+  reason: "Item damaged in shipping",
 });
 ```
 
@@ -455,7 +790,7 @@ await client.payments.refund({
 
 - **One error handler** works for all connectors
 - **Unified error codes** tell you exactly what happened
-- **Request IDs** enable support to trace issues
+- **connectorTransactionId** is the key identifier for all operations
 - **Same code** works for Stripe, Adyen, PayPal, and 50+ more
 
-See [extending payment flows](./extending-to-more-flows.md) for subscriptions, 3D Secure, and more.
+See [extending payment flows](./extend-to-more-flows.md) for subscriptions, 3D Secure, and more.

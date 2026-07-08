@@ -94,8 +94,9 @@ pub(crate) fn becs_payment_method() -> PaymentMethod {
 
 pub(crate) fn google_pay_decrypted_method() -> PaymentMethod {
     use proto::google_wallet::{tokenization_data::TokenizationData as TD, TokenizationData};
+    // Decrypted format - provides card data directly for connectors that support it
     PaymentMethod {
-        payment_method: Some(PmVariant::GooglePay(proto::GoogleWallet {
+        payment_method: Some(PmVariant::GooglePaySdk(proto::GoogleWallet {
             r#type: "CARD".to_string(),
             description: "Visa 1111".to_string(),
             info: Some(proto::google_wallet::PaymentMethodInfo {
@@ -125,7 +126,7 @@ pub(crate) fn google_pay_encrypted_method() -> PaymentMethod {
     // Stripe parses this as StripeGpayToken { id: String } — provide a minimal JSON.
     let encrypted_token = r#"{"id":"tok_probe_gpay","object":"token","type":"card"}"#;
     PaymentMethod {
-        payment_method: Some(PmVariant::GooglePay(proto::GoogleWallet {
+        payment_method: Some(PmVariant::GooglePaySdk(proto::GoogleWallet {
             r#type: "CARD".to_string(),
             description: "Visa 1111".to_string(),
             info: Some(proto::google_wallet::PaymentMethodInfo {
@@ -155,7 +156,7 @@ pub(crate) fn google_pay_method() -> PaymentMethod {
 pub(crate) fn apple_pay_encrypted_method() -> PaymentMethod {
     use proto::apple_wallet::{payment_data::PaymentData as PD, PaymentData};
     PaymentMethod {
-        payment_method: Some(PmVariant::ApplePay(proto::AppleWallet {
+        payment_method: Some(PmVariant::ApplePaySdk(proto::AppleWallet {
             payment_data: Some(PaymentData {
                 payment_data: Some(PD::EncryptedData(
                     // Valid base64 encoding of a minimal Apple Pay token JSON stub.
@@ -224,9 +225,21 @@ pub(crate) fn affirm_payment_method() -> PaymentMethod {
 }
 
 pub(crate) fn samsung_pay_payment_method() -> PaymentMethod {
+    use base64::Engine;
     use proto::samsung_wallet::{payment_credential::TokenData, PaymentCredential};
+
+    // SamsungPay token data must be a valid JWT with header containing "kid" field
+    // Format: base64url(header).base64url(payload).signature (no padding)
+    // Header: {"alg":"RS256","typ":"JWT","kid":"samsung_probe_key_123"}
+    let jwt_header = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(r#"{"alg":"RS256","typ":"JWT","kid":"samsung_probe_key_123"}"#);
+    let jwt_payload = base64::engine::general_purpose::URL_SAFE_NO_PAD
+        .encode(r#"{"paymentMethodToken":"probe_samsung_token"}"#);
+    let jwt_signature = base64::engine::general_purpose::URL_SAFE_NO_PAD.encode("dummy_signature");
+    let jwt_token = format!("{}.{}.{}", jwt_header, jwt_payload, jwt_signature);
+
     PaymentMethod {
-        payment_method: Some(PmVariant::SamsungPay(proto::SamsungWallet {
+        payment_method: Some(PmVariant::SamsungPaySdk(proto::SamsungWallet {
             payment_credential: Some(PaymentCredential {
                 method: Some("3DS".to_string()),
                 recurring_payment: Some(false),
@@ -236,7 +249,7 @@ pub(crate) fn samsung_pay_payment_method() -> PaymentMethod {
                 token_data: Some(TokenData {
                     r#type: Some("S".to_string()),
                     version: "100".to_string(),
-                    data: Some(Secret::new("probe_samsung_token_data".to_string())),
+                    data: Some(Secret::new(jwt_token)),
                 }),
             }),
         })),
@@ -322,7 +335,7 @@ pub(crate) fn revolut_pay_method() -> PaymentMethod {
 
 pub(crate) fn mifinity_method() -> PaymentMethod {
     PaymentMethod {
-        payment_method: Some(PmVariant::Mifinity(proto::MifinityWallet {
+        payment_method: Some(PmVariant::MifinityRedirect(proto::MifinityRedirectWallet {
             date_of_birth: Some(Secret::new("1990-01-01".to_string())),
             language_preference: Some("en".to_string()),
         })),
@@ -331,14 +344,16 @@ pub(crate) fn mifinity_method() -> PaymentMethod {
 
 pub(crate) fn bluecode_method() -> PaymentMethod {
     PaymentMethod {
-        payment_method: Some(PmVariant::Bluecode(proto::Bluecode::default())),
+        payment_method: Some(PmVariant::BluecodeRedirect(
+            proto::BluecodeRedirectWallet::default(),
+        )),
     }
 }
 
 pub(crate) fn paze_method() -> PaymentMethod {
     use proto::paze_wallet::PazeData;
     PaymentMethod {
-        payment_method: Some(PmVariant::Paze(proto::PazeWallet {
+        payment_method: Some(PmVariant::PazeSdk(proto::PazeWallet {
             paze_data: Some(PazeData::CompleteResponse(Secret::new(
                 "probe_paze_complete_response".to_string(),
             ))),
@@ -361,6 +376,150 @@ pub(crate) fn satispay_method() -> PaymentMethod {
 pub(crate) fn wero_method() -> PaymentMethod {
     PaymentMethod {
         payment_method: Some(PmVariant::Wero(proto::Wero::default())),
+    }
+}
+
+pub(crate) fn gopay_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::GoPayRedirect(
+            proto::GoPayRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn gcash_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::GcashRedirect(
+            proto::GcashRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn momo_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::MomoRedirect(proto::MomoRedirectWallet::default())),
+    }
+}
+
+pub(crate) fn dana_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::DanaRedirect(proto::DanaRedirectWallet::default())),
+    }
+}
+
+pub(crate) fn kakaopay_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::KakaoPayRedirect(
+            proto::KakaoPayRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn touchn_go_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::TouchNGoRedirect(
+            proto::TouchNGoRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn twint_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::TwintRedirect(
+            proto::TwintRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn vipps_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::VippsRedirect(
+            proto::VippsRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn swish_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::SwishQr(proto::SwishQrWallet::default())),
+    }
+}
+
+pub(crate) fn mobile_pay_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::MobilePayRedirect(
+            proto::MobilePayRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn skrill_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::SkrillRedirect(
+            proto::SkrillRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn paysera_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::PayseraRedirect(
+            proto::PayseraRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn lazypay_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::LazypayRedirect(
+            proto::LazyPayRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn phonepe_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::PhonepeRedirect(
+            proto::PhonePeRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn billdesk_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::BilldeskRedirect(
+            proto::BillDeskRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn cashfree_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::CashfreeRedirect(
+            proto::CashfreeRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn payu_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::PayuRedirect(proto::PayURedirectWallet::default())),
+    }
+}
+
+pub(crate) fn easebuzz_redirect_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::EasebuzzRedirect(
+            proto::EaseBuzzRedirectWallet::default(),
+        )),
+    }
+}
+
+pub(crate) fn netbanking_method() -> PaymentMethod {
+    PaymentMethod {
+        payment_method: Some(PmVariant::Netbanking(proto::NetbankingPayment {
+            issuer: proto::BankNames::HdfcBank as i32,
+        })),
     }
 }
 
@@ -508,7 +667,7 @@ pub(crate) fn bizum_method() -> PaymentMethod {
 
 pub(crate) fn eft_method() -> PaymentMethod {
     PaymentMethod {
-        payment_method: Some(PmVariant::Eft(proto::Eft {
+        payment_method: Some(PmVariant::EftBankRedirect(proto::EftBankRedirect {
             provider: "ozow".to_string(),
         })),
     }
@@ -782,7 +941,7 @@ pub(crate) fn apple_pay_method() -> PaymentMethod {
     // the request using card-like data without needing real decryption.
     // Connectors that require the encrypted path will fall through to their own error.
     PaymentMethod {
-        payment_method: Some(PmVariant::ApplePay(proto::AppleWallet {
+        payment_method: Some(PmVariant::ApplePaySdk(proto::AppleWallet {
             payment_data: Some(PaymentData {
                 payment_data: Some(PD::DecryptedData(proto::ApplePayDecryptedData {
                     application_primary_account_number: Some(

@@ -10,12 +10,12 @@ use domain_types::{
         PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     mandates::MandateDataType,
     payment_method_data::{
         GooglePayWalletData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -356,9 +356,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::RevolutPay(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
-                | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Noon"),
-                )),
+                | WalletData::Wero(_)
+                | WalletData::LazyPayRedirect(_)
+                | WalletData::PhonePeRedirect(_)
+                | WalletData::BillDeskRedirect(_)
+                | WalletData::CashfreeRedirect(_)
+                | WalletData::PayURedirect(_)
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("Noon"),
+                        connector: "Noon",
+                        context: Default::default(),
+                    }))
+                }
             },
             PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
@@ -374,13 +386,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Noon"),
-                ))
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Noon"),
+                    connector: "Noon",
+                    context: Default::default(),
+                }))
             }
         }?;
 
@@ -459,7 +473,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_amount_data.map(|amount_data| {
                         data.connector
                             .amount_converter
-                            .convert(amount_data.amount, amount_data.currency)
+                            .convert(amount_data.amount.amount, amount_data.amount.currency)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),
@@ -609,7 +623,7 @@ pub struct NoonPaymentsResponse {
 impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<NoonPaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let order = item.response.result.order;
         let status = get_payment_status(order.status);
@@ -625,6 +639,7 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                 connector_mandate_id: Some(subscription_data.identifier.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
         Ok(Self {
@@ -638,7 +653,7 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(order.id.to_string()),
                     network_advice_code: None,
                     network_decline_code: None,
@@ -653,9 +668,11 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 }
             },
@@ -866,7 +883,7 @@ impl TryFrom<ResponseRouterData<NoonRevokeMandateResponse, Self>>
         MandateRevokeResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<NoonRevokeMandateResponse, Self>,
@@ -927,7 +944,7 @@ pub struct RefundResponse {
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
@@ -985,7 +1002,7 @@ pub struct RefundSyncResponse {
 impl<F> TryFrom<ResponseRouterData<RefundSyncResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<RefundSyncResponse, Self>) -> Result<Self, Self::Error> {
         let noon_transaction: &NoonRefundResponseTransactions = item
@@ -1241,9 +1258,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::RevolutPay(_)
                         | WalletData::MbWay(_)
                         | WalletData::Satispay(_)
-                        | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
-                            utils::get_unimplemented_payment_method_error_message("Noon"),
-                        )),
+                        | WalletData::Wero(_)
+                        | WalletData::LazyPayRedirect(_)
+                        | WalletData::PhonePeRedirect(_)
+                        | WalletData::BillDeskRedirect(_)
+                        | WalletData::CashfreeRedirect(_)
+                        | WalletData::PayURedirect(_)
+                        | WalletData::EaseBuzzRedirect(_)
+                        | WalletData::QwikcilverWalletDirect(_)
+                        | WalletData::Skrill(_) => {
+                            Err(error_stack::report!(IntegrationError::NotSupported {
+                                message: utils::get_unimplemented_payment_method_error_message(
+                                    "Noon"
+                                ),
+                                connector: "Noon",
+                                context: Default::default(),
+                            }))
+                        }
                     },
                     PaymentMethodData::CardRedirect(_)
                     | PaymentMethodData::PayLater(_)
@@ -1259,13 +1290,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::GiftCard(_)
                     | PaymentMethodData::OpenBanking(_)
-                    | PaymentMethodData::CardToken(_)
+                    | PaymentMethodData::PaymentMethodToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                        Err(IntegrationError::not_implemented(
-                            utils::get_unimplemented_payment_method_error_message("Noon"),
-                        ))
+                        Err(error_stack::report!(IntegrationError::NotSupported {
+                            message: utils::get_unimplemented_payment_method_error_message("Noon"),
+                            connector: "Noon",
+                            context: Default::default(),
+                        }))
                     }
                 }?,
                 Some(item.request.currency),
@@ -1329,7 +1362,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     mandate_amount_data.map(|amount_data| {
                         data.connector
                             .amount_converter
-                            .convert(amount_data.amount, amount_data.currency)
+                            .convert(amount_data.amount.amount, amount_data.amount.currency)
                             .map(|max_amount| NoonSubscriptionData {
                                 subscription_type: NoonSubscriptionType::Unscheduled,
                                 name: name.clone(),
@@ -1402,7 +1435,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<SetupMandateResponse, Self>) -> Result<Self, Self::Error> {
         let order = item.response.result.order;
         let status = get_payment_status(order.status);
@@ -1418,6 +1451,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 connector_mandate_id: Some(subscription_data.identifier.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
         Ok(Self {
@@ -1431,7 +1465,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(order.id.to_string()),
                     network_advice_code: None,
                     network_decline_code: None,
@@ -1446,9 +1480,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id,
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     })
                 }
             },
@@ -1521,8 +1557,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "Only connector mandate ID is supported for Noon repeat payments".to_string(),
+                    Default::default(),
                 )
                 .into())
             }
@@ -1606,7 +1643,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<NoonRepeatPaymentResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<NoonRepeatPaymentResponse, Self>,
@@ -1638,6 +1675,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(subscription_data.identifier.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })
             });
         Ok(Self {
@@ -1651,7 +1689,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(order.id.to_string()),
                     network_advice_code: None,
                     network_decline_code: None,
@@ -1666,9 +1704,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         mandate_reference,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id,
                         incremental_authorization_allowed: None,
                         status_code: http_code,
+                        splits: None,
                     })
                 }
             },

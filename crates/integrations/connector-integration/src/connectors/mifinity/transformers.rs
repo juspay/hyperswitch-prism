@@ -5,7 +5,7 @@ use domain_types::{
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -225,8 +225,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::RevolutPay(_)
                 | WalletData::MbWay(_)
                 | WalletData::Satispay(_)
-                | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
+                | WalletData::Wero(_)
+                | WalletData::LazyPayRedirect(_)
+                | WalletData::PhonePeRedirect(_)
+                | WalletData::BillDeskRedirect(_)
+                | WalletData::CashfreeRedirect(_)
+                | WalletData::PayURedirect(_)
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Mifinity"),
+                    Default::default(),
                 )
                 .into()),
             },
@@ -245,12 +254,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
+                Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Mifinity"),
+                    Default::default(),
                 )
                 .into())
             }
@@ -303,7 +313,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     TryFrom<ResponseRouterData<MifinityPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<MifinityPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -321,9 +331,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(trace_id),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: enums::AttemptStatus::AuthenticationPending,
@@ -339,9 +351,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: enums::AttemptStatus::AuthenticationPending,
@@ -387,7 +401,7 @@ pub enum MifinityPaymentStatus {
 impl<F> TryFrom<ResponseRouterData<MifinityPsyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<MifinityPsyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -411,9 +425,11 @@ impl<F> TryFrom<ResponseRouterData<MifinityPsyncResponse, Self>>
                                 mandate_reference: None,
                                 connector_metadata: None,
                                 network_txn_id: None,
+                                network_txn_link_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 status_code: item.http_code,
+                                splits: None,
                             }),
                             resource_common_data: PaymentFlowData {
                                 status: enums::AttemptStatus::from(status),
@@ -429,9 +445,11 @@ impl<F> TryFrom<ResponseRouterData<MifinityPsyncResponse, Self>>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             status: enums::AttemptStatus::from(status),
@@ -448,9 +466,11 @@ impl<F> TryFrom<ResponseRouterData<MifinityPsyncResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: enums::AttemptStatus::Unspecified,

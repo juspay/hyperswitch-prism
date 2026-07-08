@@ -1,0 +1,12 @@
+{
+  "connector": "aci",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "PaymentService/Get",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge"
+  ]
+}

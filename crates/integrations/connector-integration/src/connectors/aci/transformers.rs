@@ -6,12 +6,12 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{
         BankRedirectData, Card, NetworkTokenData, PayLaterData, PaymentMethodData,
         PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -217,8 +217,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => Err(IntegrationError::not_implemented(
+            | WalletData::Wero(_)
+            | WalletData::LazyPayRedirect(_)
+            | WalletData::PhonePeRedirect(_)
+            | WalletData::BillDeskRedirect(_)
+            | WalletData::CashfreeRedirect(_)
+            | WalletData::PayURedirect(_)
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 "Payment method".to_string(),
+                Default::default(),
             ))?,
         };
         Ok(payment_data)
@@ -413,8 +422,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | BankRedirectData::OnlineBankingThailand { .. }
             | BankRedirectData::LocalBankRedirect {}
             | BankRedirectData::OpenBankingUk { .. }
-            | BankRedirectData::OpenBanking {} => Err(IntegrationError::not_implemented(
+            | BankRedirectData::OpenBanking {}
+            | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
                 "Payment method".to_string(),
+                Default::default(),
             ))?,
         };
         Ok(payment_data)
@@ -746,11 +757,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::Upi(_)
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
+                Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
+                    Default::default(),
                 ))?
             }
         }
@@ -1244,7 +1256,7 @@ fn map_aci_attempt_status(
 }
 
 impl FromStr for AciPaymentStatus {
-    type Err = error_stack::Report<ConnectorResponseTransformationError>;
+    type Err = error_stack::Report<ConnectorError>;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if FAILURE_CODES.contains(&s) {
             Ok(Self::Failed)
@@ -1254,8 +1266,7 @@ impl FromStr for AciPaymentStatus {
             Ok(Self::Succeeded)
         } else {
             Err(error_stack::Report::from(
-                ConnectorResponseTransformationError::unexpected_response_error_http_status_unknown(
-                ),
+                ConnectorError::unexpected_response_error_http_status_unknown(),
             )
             .attach_printable(s.to_owned()))
         }
@@ -1326,7 +1337,7 @@ impl<F, Req> TryFrom<ResponseRouterData<AciPaymentsResponse, Self>>
 where
     Req: GetCaptureMethod,
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<AciPaymentsResponse, Self>) -> Result<Self, Self::Error> {
         let redirection_data = item.response.redirect.map(|data| {
             let mut form_fields = std::collections::HashMap::<_, _>::from_iter(
@@ -1362,6 +1373,7 @@ where
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             });
 
         let auto_capture = matches!(
@@ -1384,7 +1396,7 @@ where
                 message: item.response.result.description.clone(),
                 reason: Some(item.response.result.description),
                 status_code: item.http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1397,9 +1409,11 @@ where
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -1505,7 +1519,7 @@ pub enum AciStatus {
 }
 
 impl FromStr for AciStatus {
-    type Err = error_stack::Report<ConnectorResponseTransformationError>;
+    type Err = error_stack::Report<ConnectorError>;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if FAILURE_CODES.contains(&s) {
             Ok(Self::Failed)
@@ -1515,8 +1529,7 @@ impl FromStr for AciStatus {
             Ok(Self::Succeeded)
         } else {
             Err(error_stack::Report::from(
-                ConnectorResponseTransformationError::unexpected_response_error_http_status_unknown(
-                ),
+                ConnectorError::unexpected_response_error_http_status_unknown(),
             )
             .attach_printable(s.to_owned()))
         }
@@ -1534,7 +1547,7 @@ fn map_aci_capture_status(item: AciStatus) -> common_enums::AttemptStatus {
 impl<F, T> TryFrom<ResponseRouterData<AciCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<AciCaptureResponse, Self>) -> Result<Self, Self::Error> {
         let status = map_aci_capture_status(AciStatus::from_str(&item.response.result.code)?);
         let response = if status == common_enums::AttemptStatus::Failure {
@@ -1543,7 +1556,7 @@ impl<F, T> TryFrom<ResponseRouterData<AciCaptureResponse, Self>>
                 message: item.response.result.description.clone(),
                 reason: Some(item.response.result.description),
                 status_code: item.http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1556,9 +1569,11 @@ impl<F, T> TryFrom<ResponseRouterData<AciCaptureResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
         Ok(Self {
@@ -1599,7 +1614,7 @@ fn map_aci_void_status(item: AciStatus) -> common_enums::AttemptStatus {
 impl<F, T> TryFrom<ResponseRouterData<AciVoidResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<AciVoidResponse, Self>) -> Result<Self, Self::Error> {
         let status = map_aci_void_status(AciStatus::from_str(&item.response.result.code)?);
         let response = if status == common_enums::AttemptStatus::Failure {
@@ -1608,7 +1623,7 @@ impl<F, T> TryFrom<ResponseRouterData<AciVoidResponse, Self>>
                 message: item.response.result.description.clone(),
                 reason: Some(item.response.result.description),
                 status_code: item.http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 ..Default::default()
             })
@@ -1619,9 +1634,11 @@ impl<F, T> TryFrom<ResponseRouterData<AciVoidResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
         Ok(Self {
@@ -1688,7 +1705,7 @@ pub enum AciRefundStatus {
 }
 
 impl FromStr for AciRefundStatus {
-    type Err = error_stack::Report<ConnectorResponseTransformationError>;
+    type Err = error_stack::Report<ConnectorError>;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if FAILURE_CODES.contains(&s) {
             Ok(Self::Failed)
@@ -1698,8 +1715,7 @@ impl FromStr for AciRefundStatus {
             Ok(Self::Succeeded)
         } else {
             Err(error_stack::Report::from(
-                ConnectorResponseTransformationError::unexpected_response_error_http_status_unknown(
-                ),
+                ConnectorError::unexpected_response_error_http_status_unknown(),
             )
             .attach_printable(s.to_owned()))
         }
@@ -1730,7 +1746,7 @@ pub struct AciRefundResponse {
 impl<F> TryFrom<ResponseRouterData<AciRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<AciRefundResponse, Self>) -> Result<Self, Self::Error> {
         let refund_status = common_enums::RefundStatus::from(AciRefundStatus::from_str(
@@ -1766,12 +1782,13 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<AciMandateResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<AciMandateResponse, Self>) -> Result<Self, Self::Error> {
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         });
 
         let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {
@@ -1788,7 +1805,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 message: item.response.result.description.clone(),
                 reason: Some(item.response.result.description),
                 status_code: item.http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1801,9 +1818,11 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 

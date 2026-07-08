@@ -1,0 +1,11 @@
+{
+  "connector": "truelayer",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentService/Void"
+  ]
+}

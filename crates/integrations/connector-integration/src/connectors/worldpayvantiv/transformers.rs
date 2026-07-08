@@ -3,15 +3,18 @@ use std::borrow::Cow;
 use common_enums::{self, CountryAlpha2, Currency};
 use common_utils::{id_type::CustomerId, types::MinorUnit, StringMajorUnit};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
+    connector_flow::{
+        Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void, VoidPC,
+    },
     connector_types::{
         PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     ResponseTransformationErrorContext,
 };
@@ -187,15 +190,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         &item.router_data.resource_common_data.customer_id,
                     )
                     .map(Secret::new),
-                    order_id: merchant_txn_id.clone(),
+                    cnp_txn_id: None,
+                    order_id: Some(merchant_txn_id.clone()),
                     amount,
-                    order_source,
+                    order_source: Some(order_source),
                     bill_to_address,
                     ship_to_address,
-                    payment_info,
+                    payment_info: Some(payment_info),
                     enhanced_data: None,
                     processing_instructions: None,
                     cardholder_authentication: None,
+                    auth_indicator: None,
                 };
                 (Some(authorization), None)
             };
@@ -218,7 +223,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 pub(super) mod worldpayvantiv_constants {
-    pub const WORLDPAYVANTIV_VERSION: &str = "12.23";
+    pub const WORLDPAYVANTIV_VERSION: &str = "12.30";
     #[allow(dead_code)]
     pub const XML_VERSION: &str = "1.0";
     #[allow(dead_code)]
@@ -312,21 +317,37 @@ pub struct Authorization<T: PaymentMethodDataTypes> {
     pub report_group: String,
     #[serde(rename = "@customerId", skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<Secret<String>>,
-    pub order_id: String,
+    // For incremental auth, use cnp_txn_id referencing the original auth.
+    // Vantiv requires this to come BEFORE order_id in XML serialization order.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cnp_txn_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_id: Option<String>,
     pub amount: MinorUnit,
-    pub order_source: OrderSource,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub order_source: Option<OrderSource>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bill_to_address: Option<BillToAddress>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ship_to_address: Option<ShipToAddress>,
-    #[serde(flatten)]
-    pub payment_info: PaymentInfo<T>,
+    #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    pub payment_info: Option<PaymentInfo<T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enhanced_data: Option<EnhancedData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_instructions: Option<ProcessingInstructions>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cardholder_authentication: Option<CardholderAuthentication>,
+    /// Indicates the type of authorization: "Estimated" or "Incremental".
+    /// Required for incremental auth flow.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub auth_indicator: Option<VantivAuthIndicator>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq)]
+pub enum VantivAuthIndicator {
+    Estimated,
+    Incremental,
 }
 
 #[derive(Debug, Serialize)]
@@ -1249,7 +1270,7 @@ pub enum WorldpayvantivPaymentFlow {
 // Helper function to determine payment flow type from merchant transaction ID
 fn get_payment_flow_type(
     merchant_txn_id: &str,
-) -> Result<WorldpayvantivPaymentFlow, Report<ConnectorResponseTransformationError>> {
+) -> Result<WorldpayvantivPaymentFlow, Report<ConnectorError>> {
     let merchant_txn_id_lower = merchant_txn_id.to_lowercase();
     if merchant_txn_id_lower.contains("auth") {
         Ok(WorldpayvantivPaymentFlow::Auth)
@@ -1262,7 +1283,7 @@ fn get_payment_flow_type(
     } else if merchant_txn_id_lower.contains("capture") {
         Ok(WorldpayvantivPaymentFlow::Capture)
     } else {
-        Err(Report::new(ConnectorResponseTransformationError::UnexpectedResponseError {
+        Err(Report::new(ConnectorError::UnexpectedResponseError {
             context: ResponseTransformationErrorContext {
                 http_status_code: None,
                 additional_context: Some(format!(
@@ -1278,7 +1299,7 @@ fn determine_attempt_status_for_psync(
     payment_status: PaymentStatus,
     merchant_txn_id: &str,
     current_status: common_enums::AttemptStatus,
-) -> Result<common_enums::AttemptStatus, Report<ConnectorResponseTransformationError>> {
+) -> Result<common_enums::AttemptStatus, Report<ConnectorError>> {
     let flow_type = get_payment_flow_type(merchant_txn_id)?;
 
     match payment_status {
@@ -1323,7 +1344,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         match (
             item.response.sale_response.as_ref(),
@@ -1339,7 +1360,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         message: sale_response.message.clone(),
                         reason: Some(sale_response.message.clone()),
                         status_code: item.http_code,
-                        attempt_status: Some(status),
+                        attempt_status: Some(FlowStatus::Payment(status)),
                         connector_transaction_id: Some(sale_response.cnp_txn_id.clone()),
                         network_decline_code: None,
                         network_advice_code: None,
@@ -1366,9 +1387,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .network_transaction_id
                             .clone()
                             .map(|id| id.expose()),
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(sale_response.order_id.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     };
 
                     Ok(Self {
@@ -1391,7 +1414,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         message: auth_response.message.clone(),
                         reason: Some(auth_response.message.clone()),
                         status_code: item.http_code,
-                        attempt_status: Some(status),
+                        attempt_status: Some(FlowStatus::Payment(status)),
                         connector_transaction_id: Some(auth_response.cnp_txn_id.clone()),
                         network_decline_code: None,
                         network_advice_code: None,
@@ -1418,9 +1441,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .network_transaction_id
                             .clone()
                             .map(|id| id.expose()),
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(auth_response.order_id.clone()),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     };
 
                     Ok(Self {
@@ -1439,7 +1464,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: item.response.message.clone(),
                     reason: Some(item.response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1479,7 +1504,6 @@ where
 #[allow(dead_code)]
 fn get_payment_info<T: PaymentMethodDataTypes>(
     payment_method_data: &PaymentMethodData<T>,
-    _payment_method_token: Option<PaymentMethodToken>,
 ) -> Result<PaymentInfo<T>, Report<IntegrationError>>
 where
     T::Inner: From<String> + Clone,
@@ -1725,7 +1749,7 @@ fn get_valid_transaction_id(
 impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<VantivSyncResponse, Self>) -> Result<Self, Self::Error> {
         let status = if let Some(merchant_txn_id) = item
             .response
@@ -1758,6 +1782,7 @@ impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: item
                 .response
                 .payment_detail
@@ -1765,6 +1790,7 @@ impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
                 .and_then(|detail| detail.merchant_txn_id.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -2046,7 +2072,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         if let Some(credit_response) = item.response.credit_response {
             let status = match credit_response.response {
@@ -2077,7 +2103,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 message: item.response.message.clone(),
                 reason: Some(item.response.message.clone()),
                 status_code: item.http_code,
-                attempt_status: Some(common_enums::AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -2100,7 +2126,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
 impl TryFrom<ResponseRouterData<VantivSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<VantivSyncResponse, Self>) -> Result<Self, Self::Error> {
         let status = match item.response.payment_status {
             PaymentStatus::ProcessedSuccessfully => common_enums::RefundStatus::Success,
@@ -2195,7 +2221,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         if let Some(capture_response) = item.response.capture_response {
             let status = get_attempt_status(
@@ -2209,7 +2235,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     message: capture_response.message.clone(),
                     reason: Some(capture_response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(capture_response.cnp_txn_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2233,9 +2259,11 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(capture_response.id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 };
 
                 Ok(Self {
@@ -2253,7 +2281,9 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 message: item.response.message.clone(),
                 reason: Some(item.response.message.clone()),
                 status_code: item.http_code,
-                attempt_status: Some(common_enums::AttemptStatus::CaptureFailed),
+                attempt_status: Some(FlowStatus::Payment(
+                    common_enums::AttemptStatus::CaptureFailed,
+                )),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -2330,7 +2360,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         // Check for AuthReversal response first (pre-capture void)
         if let Some(auth_reversal_response) = item.response.auth_reversal_response {
@@ -2345,7 +2375,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     message: auth_reversal_response.message.clone(),
                     reason: Some(auth_reversal_response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(auth_reversal_response.cnp_txn_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2369,9 +2399,11 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(auth_reversal_response.id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 };
 
                 Ok(Self {
@@ -2394,7 +2426,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     message: void_response.message.clone(),
                     reason: Some(void_response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(void_response.cnp_txn_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2418,9 +2450,11 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(void_response.id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 };
 
                 Ok(Self {
@@ -2438,7 +2472,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 message: item.response.message.clone(),
                 reason: Some(item.response.message.clone()),
                 status_code: item.http_code,
-                attempt_status: Some(common_enums::AttemptStatus::VoidFailed),
+                attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -2461,7 +2495,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
 impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
         if let Some(void_response) = item.response.void_response {
             let status =
@@ -2473,7 +2507,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     message: void_response.message.clone(),
                     reason: Some(void_response.message.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: Some(void_response.cnp_txn_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2489,16 +2523,14 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                     ..item.router_data
                 })
             } else {
-                let payments_response = PaymentsResponseData::TransactionResponse {
-                    resource_id: ResponseId::ConnectorTransactionId(
-                        void_response.cnp_txn_id.clone(),
-                    ),
-                    redirection_data: None,
-                    mandate_reference: None,
-                    connector_metadata: None,
-                    network_txn_id: None,
-                    connector_response_reference_id: Some(void_response.id.clone()),
-                    incremental_authorization_allowed: None,
+                let post_capture_void_status = get_post_capture_void_status(void_response.response);
+                let description = post_capture_void_status
+                    .is_post_capture_void_failure()
+                    .then(|| void_response.message.clone());
+                let payments_response = PaymentsResponseData::PostCaptureVoidResponse {
+                    post_capture_void_status,
+                    connector_reference_id: Some(void_response.cnp_txn_id.clone()),
+                    description,
                     status_code: item.http_code,
                 };
 
@@ -2517,7 +2549,7 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
                 message: item.response.message.clone(),
                 reason: Some(item.response.message.clone()),
                 status_code: item.http_code,
-                attempt_status: Some(common_enums::AttemptStatus::VoidFailed),
+                attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::VoidFailed)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -2536,11 +2568,192 @@ impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
     }
 }
 
+// TryFrom for IncrementalAuthorization request
+// Worldpay Vantiv incremental auth sends a new authorization referencing the
+// original transaction via originalNetworkTransactionId with the updated total amount.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        WorldpayvantivRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for WorldpayvantivPaymentsRequest<T>
+{
+    type Error = Report<IntegrationError>;
+
+    fn try_from(
+        item: WorldpayvantivRouterData<
+            RouterDataV2<
+                IncrementalAuthorization,
+                PaymentFlowData,
+                PaymentsIncrementalAuthorizationData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let auth = WorldpayvantivAuthType::try_from(&item.router_data.connector_config)?;
+
+        let authentication = Authentication {
+            user: auth.user,
+            password: auth.password,
+        };
+
+        let connector_transaction_id = item
+            .router_data
+            .request
+            .connector_transaction_id
+            .get_connector_transaction_id()
+            .change_context(IntegrationError::MissingConnectorTransactionID {
+                context: Default::default(),
+            })?;
+
+        let merchant_txn_id = item
+            .router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let report_group = extract_report_group(&item.router_data.connector_config)
+            .unwrap_or_else(|| "rtpGrp".to_string());
+
+        // Vantiv CNP schema requires id attribute to be <= 36 characters.
+        // Prefer a short prefix + merchant_txn_id (truncate as needed).
+        let id_prefix = "IA_";
+        let max_txn_id_len = 36usize.saturating_sub(id_prefix.len());
+        let truncated_txn = if merchant_txn_id.len() > max_txn_id_len {
+            merchant_txn_id[..max_txn_id_len].to_string()
+        } else {
+            merchant_txn_id.clone()
+        };
+        // Worldpay Vantiv Incremental Auth schema (12.30+):
+        // Requires only cnpTxnId, amount, and authIndicator=Incremental.
+        // The `amount` is the INCREMENT (delta) to add, not the new total.
+        let incremental_auth = Authorization {
+            id: format!("{}{}", id_prefix, truncated_txn),
+            report_group,
+            customer_id: None,
+            cnp_txn_id: Some(connector_transaction_id),
+            order_id: None,
+            amount: item.router_data.request.minor_amount,
+            order_source: None,
+            bill_to_address: None,
+            ship_to_address: None,
+            payment_info: None,
+            enhanced_data: None,
+            processing_instructions: None,
+            cardholder_authentication: None,
+            auth_indicator: Some(VantivAuthIndicator::Incremental),
+        };
+
+        let cnp_request = CnpOnlineRequest {
+            version: worldpayvantiv_constants::WORLDPAYVANTIV_VERSION.to_string(),
+            xmlns: worldpayvantiv_constants::XMLNS.to_string(),
+            merchant_id: auth.merchant_id,
+            authentication,
+            authorization: Some(incremental_auth),
+            sale: None,
+            capture: None,
+            auth_reversal: None,
+            void: None,
+            credit: None,
+        };
+
+        Ok(Self { cnp_request })
+    }
+}
+
+// TryFrom for IncrementalAuthorization response
+// Re-uses the CnpOnlineResponse which contains an authorization_response field.
+// Unlike regular Authorize, this returns PaymentsResponseData::IncrementalAuthorizationResponse.
+impl TryFrom<ResponseRouterData<CnpOnlineResponse, Self>>
+    for RouterDataV2<
+        IncrementalAuthorization,
+        PaymentFlowData,
+        PaymentsIncrementalAuthorizationData,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(item: ResponseRouterData<CnpOnlineResponse, Self>) -> Result<Self, Self::Error> {
+        if let Some(auth_response) = item.response.authorization_response {
+            let attempt_status =
+                get_attempt_status(WorldpayvantivPaymentFlow::Auth, auth_response.response)?;
+
+            if is_payment_failure(attempt_status) {
+                let error_response = ErrorResponse {
+                    code: auth_response.response.to_string(),
+                    message: auth_response.message.clone(),
+                    reason: Some(auth_response.message.clone()),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(attempt_status)),
+                    connector_transaction_id: Some(auth_response.cnp_txn_id.clone()),
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                };
+
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status: attempt_status,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Err(error_response),
+                    ..item.router_data
+                })
+            } else {
+                let payments_response = PaymentsResponseData::IncrementalAuthorizationResponse {
+                    status: common_enums::AuthorizationStatus::Success,
+                    connector_authorization_id: Some(auth_response.cnp_txn_id.clone()),
+                    status_code: item.http_code,
+                };
+
+                Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status: attempt_status,
+                        ..item.router_data.resource_common_data
+                    },
+                    response: Ok(payments_response),
+                    ..item.router_data
+                })
+            }
+        } else {
+            let error_response = ErrorResponse {
+                code: item.response.response_code,
+                message: item.response.message.clone(),
+                reason: Some(item.response.message.clone()),
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(
+                    common_enums::AttemptStatus::AuthorizationFailed,
+                )),
+                connector_transaction_id: None,
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            };
+
+            Ok(Self {
+                resource_common_data: PaymentFlowData {
+                    status: common_enums::AttemptStatus::AuthorizationFailed,
+                    ..item.router_data.resource_common_data
+                },
+                response: Err(error_response),
+                ..item.router_data
+            })
+        }
+    }
+}
+
 // Status mapping functions
 fn get_attempt_status(
     flow: WorldpayvantivPaymentFlow,
     response: WorldpayvantivResponseCode,
-) -> Result<common_enums::AttemptStatus, Report<ConnectorResponseTransformationError>> {
+) -> Result<common_enums::AttemptStatus, Report<ConnectorError>> {
     match response {
         WorldpayvantivResponseCode::Approved
         | WorldpayvantivResponseCode::PartiallyApproved
@@ -2679,4 +2892,125 @@ fn is_payment_failure(status: common_enums::AttemptStatus) -> bool {
             | common_enums::AttemptStatus::CaptureFailed
             | common_enums::AttemptStatus::VoidFailed
     )
+}
+
+fn get_post_capture_void_status(
+    response: WorldpayvantivResponseCode,
+) -> common_enums::PostCaptureVoidStatus {
+    match response {
+        WorldpayvantivResponseCode::Approved
+        | WorldpayvantivResponseCode::PartiallyApproved
+        | WorldpayvantivResponseCode::OfflineApproval
+        | WorldpayvantivResponseCode::TransactionReceived => {
+            common_enums::PostCaptureVoidStatus::Succeeded
+        }
+        WorldpayvantivResponseCode::InsufficientFunds
+        | WorldpayvantivResponseCode::CallIssuer
+        | WorldpayvantivResponseCode::ExceedsApprovalAmountLimit
+        | WorldpayvantivResponseCode::ExceedsActivityAmountLimit
+        | WorldpayvantivResponseCode::InvalidEffectiveDate
+        | WorldpayvantivResponseCode::InvalidAccountNumber
+        | WorldpayvantivResponseCode::AccountNumberDoesNotMatchPaymentType
+        | WorldpayvantivResponseCode::InvalidExpirationDate
+        | WorldpayvantivResponseCode::InvalidCVV
+        | WorldpayvantivResponseCode::InvalidCardValidationNum
+        | WorldpayvantivResponseCode::ExpiredCard
+        | WorldpayvantivResponseCode::InvalidPin
+        | WorldpayvantivResponseCode::InvalidTransactionType
+        | WorldpayvantivResponseCode::AccountNumberNotOnFile
+        | WorldpayvantivResponseCode::AccountNumberLocked
+        | WorldpayvantivResponseCode::InvalidLocation
+        | WorldpayvantivResponseCode::InvalidMerchantId
+        | WorldpayvantivResponseCode::InvalidLocation2
+        | WorldpayvantivResponseCode::InvalidMerchantClassCode
+        | WorldpayvantivResponseCode::InvalidExpirationDate2
+        | WorldpayvantivResponseCode::InvalidData
+        | WorldpayvantivResponseCode::InvalidPin2
+        | WorldpayvantivResponseCode::ExceedsNumberofPINEntryTries
+        | WorldpayvantivResponseCode::InvalidCryptoBox
+        | WorldpayvantivResponseCode::InvalidRequestFormat
+        | WorldpayvantivResponseCode::InvalidApplicationData
+        | WorldpayvantivResponseCode::InvalidMerchantCategoryCode
+        | WorldpayvantivResponseCode::TransactionCannotBeCompleted
+        | WorldpayvantivResponseCode::TransactionTypeNotSupportedForCard
+        | WorldpayvantivResponseCode::TransactionTypeNotAllowedAtTerminal
+        | WorldpayvantivResponseCode::GenericDecline
+        | WorldpayvantivResponseCode::DeclineByCard
+        | WorldpayvantivResponseCode::DoNotHonor
+        | WorldpayvantivResponseCode::InvalidMerchant
+        | WorldpayvantivResponseCode::PickUpCard
+        | WorldpayvantivResponseCode::CardOk
+        | WorldpayvantivResponseCode::CallVoiceOperator
+        | WorldpayvantivResponseCode::StopRecurring
+        | WorldpayvantivResponseCode::NoChecking
+        | WorldpayvantivResponseCode::NoCreditAccount
+        | WorldpayvantivResponseCode::NoCreditAccountType
+        | WorldpayvantivResponseCode::InvalidCreditPlan
+        | WorldpayvantivResponseCode::InvalidTransactionCode
+        | WorldpayvantivResponseCode::TransactionNotPermittedToCardholderAccount
+        | WorldpayvantivResponseCode::TransactionNotPermittedToMerchant
+        | WorldpayvantivResponseCode::PINTryExceeded
+        | WorldpayvantivResponseCode::SecurityViolation
+        | WorldpayvantivResponseCode::HardCapturePickUpCard
+        | WorldpayvantivResponseCode::ResponseReceivedTooLate
+        | WorldpayvantivResponseCode::SoftDecline
+        | WorldpayvantivResponseCode::ContactCardIssuer
+        | WorldpayvantivResponseCode::CallVoiceCenter
+        | WorldpayvantivResponseCode::InvalidMerchantTerminal
+        | WorldpayvantivResponseCode::InvalidAmount
+        | WorldpayvantivResponseCode::ResubmitTransaction
+        | WorldpayvantivResponseCode::InvalidTransaction
+        | WorldpayvantivResponseCode::MerchantNotFound
+        | WorldpayvantivResponseCode::PickUpCard2
+        | WorldpayvantivResponseCode::ExpiredCard2
+        | WorldpayvantivResponseCode::SuspectedFraud
+        | WorldpayvantivResponseCode::ContactCardIssuer2
+        | WorldpayvantivResponseCode::DoNotHonor2
+        | WorldpayvantivResponseCode::InvalidMerchant2
+        | WorldpayvantivResponseCode::InsufficientFunds2
+        | WorldpayvantivResponseCode::AccountNumberNotOnFile2
+        | WorldpayvantivResponseCode::InvalidAmount2
+        | WorldpayvantivResponseCode::InvalidCardNumber
+        | WorldpayvantivResponseCode::InvalidExpirationDate3
+        | WorldpayvantivResponseCode::InvalidCVV2
+        | WorldpayvantivResponseCode::InvalidCardValidationNum2
+        | WorldpayvantivResponseCode::InvalidPin3
+        | WorldpayvantivResponseCode::CardRestricted
+        | WorldpayvantivResponseCode::OverCreditLimit
+        | WorldpayvantivResponseCode::AccountClosed
+        | WorldpayvantivResponseCode::AccountFrozen
+        | WorldpayvantivResponseCode::InvalidTransactionType2
+        | WorldpayvantivResponseCode::InvalidMerchantId2
+        | WorldpayvantivResponseCode::ProcessorNotAvailable
+        | WorldpayvantivResponseCode::NetworkTimeOut
+        | WorldpayvantivResponseCode::SystemError
+        | WorldpayvantivResponseCode::DuplicateTransaction
+        | WorldpayvantivResponseCode::VoiceAuthRequired
+        | WorldpayvantivResponseCode::AuthenticationRequired
+        | WorldpayvantivResponseCode::SecurityCodeRequired
+        | WorldpayvantivResponseCode::SecurityCodeNotMatch
+        | WorldpayvantivResponseCode::ZipCodeNotMatch
+        | WorldpayvantivResponseCode::AddressNotMatch
+        | WorldpayvantivResponseCode::AVSFailure
+        | WorldpayvantivResponseCode::CVVFailure
+        | WorldpayvantivResponseCode::ServiceNotAllowed
+        | WorldpayvantivResponseCode::CreditNotSupported
+        | WorldpayvantivResponseCode::InvalidCreditAmount
+        | WorldpayvantivResponseCode::CreditAmountExceedsDebitAmount
+        | WorldpayvantivResponseCode::RefundNotSupported
+        | WorldpayvantivResponseCode::InvalidRefundAmount
+        | WorldpayvantivResponseCode::RefundAmountExceedsOriginalAmount
+        | WorldpayvantivResponseCode::VoidNotSupported
+        | WorldpayvantivResponseCode::VoidNotAllowed
+        | WorldpayvantivResponseCode::CaptureNotSupported
+        | WorldpayvantivResponseCode::CaptureNotAllowed
+        | WorldpayvantivResponseCode::InvalidCaptureAmount
+        | WorldpayvantivResponseCode::CaptureAmountExceedsAuthAmount
+        | WorldpayvantivResponseCode::TransactionAlreadySettled
+        | WorldpayvantivResponseCode::TransactionAlreadyVoided
+        | WorldpayvantivResponseCode::TransactionAlreadyCaptured
+        | WorldpayvantivResponseCode::TransactionNotFound => {
+            common_enums::PostCaptureVoidStatus::Failed
+        }
+    }
 }

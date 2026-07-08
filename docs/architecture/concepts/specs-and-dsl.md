@@ -58,7 +58,7 @@ impl ConnectorIntegration<Authorize, AuthorizeRequest, AuthorizeResponse> for St
         data: &AuthorizeRequest,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsResponseData, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<PaymentsResponseData, errors::ConnectorError> {
         // Parse Stripe response into unified format
         let response: StripeAuthorizeResponse = res.response?.parse_struct("StripeAuthorizeResponse")?;
         Ok(PaymentsResponseData {
@@ -71,7 +71,7 @@ impl ConnectorIntegration<Authorize, AuthorizeRequest, AuthorizeResponse> for St
     fn build_error_response(
         &self,
         res: Response,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // Transform Stripe error into unified error format
         let error: StripeErrorResponse = res.response?.parse_struct("StripeErrorResponse")?;
         Ok(ErrorResponse {

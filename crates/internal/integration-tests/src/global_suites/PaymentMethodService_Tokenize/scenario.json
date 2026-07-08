@@ -1,0 +1,276 @@
+{
+  "tokenize_credit_card": {
+    "grpc_req": {
+      "merchant_payment_method_id": "auto_generate",
+      "amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "payment_method": {
+        "card": {
+          "card_number": {
+            "value": "4242424242424242"
+          },
+          "card_exp_month": {
+            "value": "12"
+          },
+          "card_exp_year": {
+            "value": "2030"
+          },
+          "card_cvc": {
+            "value": "123"
+          },
+          "card_holder_name": {
+            "value": "John Doe"
+          }
+        }
+      },
+      "customer": {
+        "id": "auto_generate",
+        "name": "auto_generate",
+        "email": {
+          "value": "auto_generate"
+        },
+        "connector_customer_id": ""
+      },
+      "address": {
+        "billing_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "CA"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "US"
+        }
+      },
+      "test_mode": true
+    },
+    "assert": {
+      "payment_method_token": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "is_default": true,
+    "display_name": "Tokenize Payment Method | Tokenize Credit Card"
+  },
+  "tokenize_debit_card": {
+    "grpc_req": {
+      "merchant_payment_method_id": "auto_generate",
+      "amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "payment_method": {
+        "card": {
+          "card_number": {
+            "value": "5555555555554444"
+          },
+          "card_exp_month": {
+            "value": "10"
+          },
+          "card_exp_year": {
+            "value": "2028"
+          },
+          "card_cvc": {
+            "value": "456"
+          },
+          "card_holder_name": {
+            "value": "Jane Smith"
+          }
+        }
+      },
+      "customer": {
+        "id": "auto_generate",
+        "name": "auto_generate",
+        "email": {
+          "value": "auto_generate"
+        },
+        "connector_customer_id": ""
+      },
+      "address": {
+        "billing_address": {
+          "first_name": {
+            "value": "auto_generate"
+          },
+          "last_name": {
+            "value": "auto_generate"
+          },
+          "line1": {
+            "value": "auto_generate"
+          },
+          "city": {
+            "value": "auto_generate"
+          },
+          "state": {
+            "value": "NY"
+          },
+          "zip_code": {
+            "value": "auto_generate"
+          },
+          "country_alpha2_code": "US"
+        }
+      },
+      "test_mode": true
+    },
+    "assert": {
+      "payment_method_token": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Tokenize Payment Method | Tokenize Debit Card"
+  },
+  "tokenize_with_metadata": {
+    "grpc_req": {
+      "merchant_payment_method_id": "auto_generate",
+      "amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "payment_method": {
+        "card": {
+          "card_number": {
+            "value": "4242424242424242"
+          },
+          "card_exp_month": {
+            "value": "08"
+          },
+          "card_exp_year": {
+            "value": "2029"
+          },
+          "card_cvc": {
+            "value": "789"
+          },
+          "card_holder_name": {
+            "value": "Test User"
+          }
+        }
+      },
+      "customer": {
+        "id": "auto_generate",
+        "name": "auto_generate",
+        "email": {
+          "value": "auto_generate"
+        },
+        "connector_customer_id": ""
+      },
+      "metadata": {
+        "value": "{\"source\":\"mobile\",\"device_id\":\"test-device-123\"}"
+      },
+      "test_mode": true
+    },
+    "assert": {
+      "payment_method_token": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Tokenize Payment Method | Tokenize With Metadata"
+  },
+  "tokenize_fail_invalid_card_number": {
+    "grpc_req": {
+      "merchant_payment_method_id": "auto_generate",
+      "amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "payment_method": {
+        "card": {
+          "card_number": {
+            "value": "1234567890123456"
+          },
+          "card_exp_month": {
+            "value": "12"
+          },
+          "card_exp_year": {
+            "value": "2030"
+          },
+          "card_cvc": {
+            "value": "123"
+          },
+          "card_holder_name": {
+            "value": "Invalid Card"
+          }
+        }
+      },
+      "customer": {
+        "id": "auto_generate",
+        "name": "auto_generate",
+        "email": {
+          "value": "auto_generate"
+        },
+        "connector_customer_id": ""
+      },
+      "test_mode": true
+    },
+    "assert": {
+      "error": {
+        "must_exist": true
+      }
+    },
+    "display_name": "Tokenize Payment Method | Tokenize Fail Invalid Card Number"
+  },
+  "tokenize_fail_expired_card": {
+    "grpc_req": {
+      "merchant_payment_method_id": "auto_generate",
+      "amount": {
+        "minor_amount": 6000,
+        "currency": "USD"
+      },
+      "payment_method": {
+        "card": {
+          "card_number": {
+            "value": "4242424242424242"
+          },
+          "card_exp_month": {
+            "value": "01"
+          },
+          "card_exp_year": {
+            "value": "2020"
+          },
+          "card_cvc": {
+            "value": "123"
+          },
+          "card_holder_name": {
+            "value": "Expired Card"
+          }
+        }
+      },
+      "customer": {
+        "id": "auto_generate",
+        "name": "auto_generate",
+        "email": {
+          "value": "auto_generate"
+        },
+        "connector_customer_id": ""
+      },
+      "test_mode": true
+    },
+    "assert": {
+      "error": {
+        "must_exist": true
+      }
+    },
+    "display_name": "Tokenize Payment Method | Tokenize Fail Expired Card"
+  }
+}

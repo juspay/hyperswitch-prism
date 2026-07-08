@@ -10,9 +10,9 @@ use domain_types::{
     connector_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, WalletData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use error_stack::ResultExt;
@@ -243,7 +243,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     })?,
                 })
             }
-            _ => Err(IntegrationError::not_implemented("Payment method".to_string()).into()),
+            _ => Err(IntegrationError::NotImplemented(
+                "Payment method".to_string(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -301,7 +305,7 @@ impl<F, T> TryFrom<ResponseRouterData<CalidaPaymentsResponse, Self>>
 where
     T: Clone,
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<CalidaPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -316,9 +320,11 @@ where
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(item.response.payment_request_id),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         });
 
         Ok(Self {
@@ -335,7 +341,7 @@ where
 impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<CalidaSyncResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
             response,
@@ -348,7 +354,7 @@ impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
                 code: NO_ERROR_CODE.to_string(),
                 message: NO_ERROR_MESSAGE.to_string(),
                 reason: Some(NO_ERROR_MESSAGE.to_string()),
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(response.order_id.clone()),
                 status_code: http_code,
                 network_advice_code: None,
@@ -362,9 +368,11 @@ impl<F> TryFrom<ResponseRouterData<CalidaSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             })
         };
         Ok(Self {
@@ -411,6 +419,10 @@ pub fn sort_and_minify_json(value: &Value) -> Result<String, IntegrationError> {
     }
 
     let sorted_value = sort_value(value);
-    serde_json::to_string(&sorted_value)
-        .map_err(|_| IntegrationError::not_implemented("webhook body decoding failed".to_string()))
+    serde_json::to_string(&sorted_value).map_err(|_| {
+        IntegrationError::NotImplemented(
+            "webhook body decoding failed".to_string(),
+            Default::default(),
+        )
+    })
 }

@@ -3,37 +3,78 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by trustpay connector"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Bacs": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "BancontactCard": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Becs": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Bizum": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "error": "This feature is not implemented: Selected payment method through trustpay"
       },
       "Blik": {
         "status": "supported",
@@ -81,6 +122,22 @@
           },
           "body": "{\"paymentMethod\":\"Blik\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"},\"Debtor\":{\"Name\":\"John\",\"Email\":\"test@example.com\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
         }
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Card": {
         "status": "supported",
@@ -137,13 +194,165 @@
           "body": "amount=10.00&currency=USD&pan=4111111111111111&cvv=737&exp=03%2F30&cardholder=John&reference=probe_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&billing%5Bcity%5D=Seattle&billing%5Bcountry%5D=US&billing%5Bstreet1%5D=123+Main+St&billing%5Bpostcode%5D=98101&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1&browser%5BpaymentType%5D=Plain"
         }
       },
-      "GooglePay": {
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Eft": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "Eps": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"EPS\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Giropay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "giropay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"Giropay\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Ideal": {
         "status": "supported",
@@ -187,51 +396,479 @@
           "body": "{\"paymentMethod\":\"IDeal\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
         }
       },
-      "Klarna": {
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "InstantBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"Wire\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"},\"Debtor\":{\"Name\":\"John\",\"Email\":\"test@example.com\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "InstantBankTransferFinland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer_finland": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"InstantBankTransferFI\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"},\"Debtor\":{\"Name\":\"John\",\"Email\":\"test@example.com\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "InstantBankTransferPoland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer_poland": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"InstantBankTransferPL\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"},\"Debtor\":{\"Name\":\"John\",\"Email\":\"test@example.com\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "Interac": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Przelewy24": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "Sepa": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "SepaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"SepaCreditTransfer\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"},\"Debtor\":{\"Name\":\"John\",\"Email\":\"test@example.com\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Sofort": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sofort": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/Payments/Payment",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"paymentMethod\":\"Sofort\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
+        }
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Trustly": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Selected payment method through trustpay"
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       }
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "capture flow not supported by trustpay connector"
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "supported",
-        "proto_request": {},
-        "sample": {
-          "url": "https://aapi.trustpay.eu/api/oauth2/token",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfaWQ6cHJvYmVfc2VjcmV0",
-            "content-type": "application/x-www-form-urlencoded",
-            "via": "HyperSwitch"
-          },
-          "body": "grant_type=client_credentials"
-        }
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by trustpay connector"
       }
     },
     "create_order": {
@@ -263,24 +900,61 @@
         }
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {},
+        "sample": {
+          "url": "https://aapi.trustpay.eu/api/oauth2/token",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfaWQ6cHJvYmVfc2VjcmV0",
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "grant_type=client_credentials"
+        }
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by trustpay connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by trustpay connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by trustpay connector"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by trustpay connector"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by trustpay connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by trustpay connector"
       }
     },
     "get": {
@@ -313,19 +987,178 @@
         }
       }
     },
-    "post_authenticate": {
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by trustpay connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"PaymentInformation\":{\"CreditDebitIndicator\":\"CRDT\",\"References\":{\"EndToEndId\":\"probe_txn_001\"},\"Status\":\"Paid\",\"Amount\":{\"InstructedAmount\":10.00,\"Currency\":\"EUR\"}},\"Signature\":\"probe_sig\"}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by trustpay connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by trustpay connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "customer": {
+            "email": "test@example.com"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "line1": "123 Main St",
+              "city": "Seattle",
+              "zip_code": "98101",
+              "country_alpha2_code": "US"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "browser_info": {
+            "user_agent": "Mozilla/5.0 (probe-bot)",
+            "ip_address": "1.2.3.4"
+          },
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://test-tpgw.trustpay.eu/api/v1/purchase",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "amount=10.00&currency=USD&pan=%7B%7B%24card_number%7D%7D&cvv=%7B%7B%24card_cvc%7D%7D&exp=%7B%7B%24card_exp_month%7D%7D%2F%7B%7B%24card_exp_year%7D%7D&cardholder=John&reference=probe_proxy_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&billing%5Bcity%5D=Seattle&billing%5Bcountry%5D=US&billing%5Bstreet1%5D=123+Main+St&billing%5Bpostcode%5D=98101&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1&browser%5BpaymentType%5D=Plain"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: billing.address.city — Missing required field: billing.address.city"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true,
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://test-tpgw.trustpay.eu/api/v1/purchase",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "amount=10.00&currency=USD&InstanceId=probe-mandate-123&reference=&PaymentType=RecurringSubsequent"
+        }
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by trustpay connector"
       }
     },
     "refund": {
@@ -360,24 +1193,72 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://test-tpgw.trustpay.eu/api/v1/instance/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": null
+        }
+      }
+    },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by trustpay connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: billing.address.city — Missing required field: billing.address.city"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay SetupMandate is not supported by trustpay"
       }
     },
     "tokenize": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by trustpay connector"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void flow not supported by trustpay connector"
       }
     }
   }

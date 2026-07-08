@@ -1,0 +1,15 @@
+{
+  "connector": "finix",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "CustomerService/Create",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentMethodService/Tokenize",
+    "PaymentService/Void"
+  ]
+}

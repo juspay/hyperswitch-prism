@@ -3,41 +3,98 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for shift4"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Bacs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "BancontactCard": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "BankRedirect type BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) } is not supported by Shift4 is not supported by Shift4"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Becs": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Bizum": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "BankRedirect type Bizum is not supported by Shift4 is not supported by Shift4"
       },
       "Blik": {
         "status": "not_supported",
         "error": "BankRedirect type Blik { blik_code: Some(\"777124\") } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Card": {
         "status": "supported",
@@ -76,13 +133,114 @@
           "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
         }
       },
-      "GooglePay": {
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Crypto": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "BankRedirect type Eft { provider: \"ozow\" } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Eps": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"paymentMethod\":{\"type\":\"eps\",\"billing\":{\"name\":null,\"email\":null,\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"state\":null,\"zip\":null,\"country\":null}}},\"flow\":{\"returnUrl\":\"https://example.com/return\"}}"
+        }
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "BankRedirect type Giropay { bank_account_bic: None, bank_account_iban: None, country: None } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Ideal": {
         "status": "supported",
@@ -113,25 +271,265 @@
           "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"paymentMethod\":{\"type\":\"ideal\",\"billing\":{\"name\":null,\"email\":null,\"address\":{\"line1\":null,\"line2\":null,\"city\":null,\"state\":null,\"zip\":null,\"country\":null}}},\"flow\":{\"returnUrl\":\"https://example.com/return\"}}"
         }
       },
-      "Klarna": {
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Interac": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "BankRedirect type Interac { country: None, email: None } is not supported by Shift4 is not supported by Shift4"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "BankRedirect type LocalBankRedirect is not supported by Shift4 is not supported by Shift4"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "BankRedirect type Netbanking { issuer: HdfcBank } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "BankRedirect type OnlineBankingCzechRepublic { issuer: CeskaSporitelna } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "BankRedirect type OnlineBankingFinland { email: Some(Email(****@example.com)) } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "BankRedirect type OnlineBankingFpx { issuer: Maybank } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "BankRedirect type OnlineBankingPoland { issuer: BankPekaoSa } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "BankRedirect type OnlineBankingSlovakia { issuer: TatraPay } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "BankRedirect type OnlineBankingThailand { issuer: BangkokBank } is not supported by Shift4 is not supported by Shift4"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "BankRedirect type OpenBanking is not supported by Shift4 is not supported by Shift4"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "BankRedirect type OpenBankingUk { issuer: None, country: None } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Paysera": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "BankRedirect type Przelewy24 { bank_name: None } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Sepa": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Sofort": {
         "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "error": "BankRedirect type Sofort { country: None, preferred_language: None } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "BankRedirect type Trustly { country: None } is not supported by Shift4 is not supported by Shift4"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Payment method is not supported by Shift4"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       }
     },
     "capture": {
@@ -156,39 +554,98 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api.shift4.com/checkout-sessions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"lineItems\":[{\"product\":{\"name\":\"Payment\",\"amount\":1000,\"currency\":\"USD\"},\"quantity\":1}]}"
+        }
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for shift4"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by shift4 connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by shift4 connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_customer_id": "cust_probe_123",
+          "customer_name": "John Doe",
+          "email": "test@example.com",
+          "phone_number": "4155552671"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/customers",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"email\":\"test@example.com\"}"
+        }
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for shift4"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for shift4"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for shift4"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by shift4 connector"
       }
     },
     "get": {
@@ -213,19 +670,177 @@
         }
       }
     },
-    "post_authenticate": {
+    "handle_event": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_authorization_id": "probe_auth_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1100,
+            "currency": "USD"
+          },
+          "reason": "incremental_auth_probe"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges/probe_connector_txn_001/incremental-authorization",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1100}"
+        }
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for shift4"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for shift4"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"{{$card_exp_month}}\",\"expYear\":\"{{$card_exp_year}}\",\"cardholderName\":\"John\"}}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":{\"number\":\"{{$card_number}}\",\"expMonth\":\"{{$card_exp_month}}\",\"expYear\":\"{{$card_exp_year}}\",\"cardholderName\":\"John\"}}"
+        }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":\"probe-mandate-123\",\"type\":\"merchant_initiated\",\"customerId\":\"cust_probe_123\"}"
+        }
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for shift4"
       }
     },
     "refund": {
@@ -253,24 +868,166 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/refunds/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "via": "HyperSwitch"
+          },
+          "body": "{}"
+        }
+      }
+    },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by shift4 connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":{\"number\":\"4111111111111111\",\"expMonth\":\"03\",\"expYear\":\"2030\",\"cardholderName\":\"John\"}}"
+        }
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"captured\":true,\"card\":\"pm_1AbcXyzStripeTestToken\"}"
+        }
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_tokenized_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 0,
+            "online_mandate_details": {
+              "ip_address": "127.0.0.1",
+              "user_agent": "Mozilla/5.0"
+            }
+          },
+          "setup_mandate_details": {
+            "mandate_type": {
+              "multi_use": {
+                "amount": 0,
+                "currency": "USD",
+                "amount_money": {
+                  "minor_amount": 0,
+                  "currency": "USD"
+                }
+              }
+            }
+          },
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.shift4.com/charges",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":0,\"currency\":\"USD\",\"captured\":false,\"card\":\"pm_1AbcXyzStripeTestToken\"}"
+        }
       }
     },
     "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for shift4"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void flow not supported by shift4 connector"
       }
     }
   }

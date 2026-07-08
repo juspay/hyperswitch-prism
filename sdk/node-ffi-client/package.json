@@ -7,14 +7,20 @@
     "node": ">= 10"
   },
   "keywords": [
+    "hyperswitch",
+    "prism",
+    "payments",
+    "payment-processing",
+    "credit-cards",
+    "juspay",
     "connector-service",
     "ffi",
     "napi",
-    "payments",
-    "native"
+    "native",
+    "payment-gateway"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "scripts": {
     "build": "sh build.sh",
     "test": "node tests/test_node.js"

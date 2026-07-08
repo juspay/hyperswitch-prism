@@ -13,6 +13,7 @@ structure:
 ignore:
   - rules/**
   - rfcs/**
+  - plans/**
   - CODE_OF_CONDUCT.md
   - specs-self-managing-documentation-system.md
   - docs-strategy.md

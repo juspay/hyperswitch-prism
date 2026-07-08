@@ -3,7 +3,7 @@
 title: Test Suite Overview
 description: Comprehensive test framework for validating connector functionality across all payment processors with scenario-driven testing and automated reporting
 last_updated: 2026-03-12
-generated_from: backend/ucs-connector-tests/
+generated_from: backend/integration-tests/
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-12

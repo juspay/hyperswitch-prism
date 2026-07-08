@@ -9,22 +9,27 @@ use common_utils::{
 use crate::{connectors::billwerk::BillwerkRouterData, types::ResponseRouterData, utils};
 
 use domain_types::{
-    connector_flow::{Authorize, Capture, PaymentMethodToken, RSync, RepeatPayment, SetupMandate},
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, PaymentMethodToken, RSync, RepeatPayment,
+        SetupMandate,
+    },
     connector_types::{
-        MandateReference, MandateReferenceId, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        BillwerkClientAuthenticationResponse as BillwerkClientAuthenticationResponseDomain,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse, MandateReference, MandateReferenceId,
+        PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        SetupMandateRequestData,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{
-        ConnectorSpecificConfig, ErrorResponse, PaymentMethodToken as PaymentMethodTokenFlow,
-    },
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
 
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use serde::{Deserialize, Serialize};
 
@@ -231,12 +236,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
+                Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("billwerk"),
+                    Default::default(),
                 )
                 .into())
             }
@@ -271,15 +277,27 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         if item.router_data.resource_common_data.is_three_ds() {
-            return Err(IntegrationError::not_implemented(
+            return Err(IntegrationError::NotImplemented(
                 "Three_ds payments through Billwerk".to_string(),
+                Default::default(),
             )
             .into());
         };
-        let PaymentMethodTokenFlow::Token(source) = item
-            .router_data
-            .resource_common_data
-            .get_payment_method_token()?;
+        let source = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted.".to_string(),
+                    connector: "billwerk",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Ensure a payment method token is obtained via PaymentMethodService.Tokenize before initiating a Billwerk payment.".to_string()),
+                        doc_url: Some("https://optimize.billwerk.com/reference/create-session".to_string()),
+                        additional_context: Some("Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted.".to_string()),
+                    },
+                }
+                .into())
+            }
+        };
         let recurring = if item.router_data.request.setup_future_usage.is_some() {
             Some(true)
         } else {
@@ -337,7 +355,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BillwerkTokenResponse
         PaymentMethodTokenResponse,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BillwerkTokenResponse, Self>,
@@ -354,7 +372,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<BillwerkTokenResponse
 impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<BillwerkPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -389,6 +407,7 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
                 connector_mandate_id: Some(rpm.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
         let payments_response = PaymentsResponseData::TransactionResponse {
@@ -397,9 +416,11 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
             mandate_reference,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.handle),
             incremental_authorization_allowed: None,
             status_code: http_code,
+            splits: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -499,7 +520,7 @@ impl From<RefundState> for common_enums::RefundStatus {
 impl<F> TryFrom<RefundsResponseRouterData<F, RefundResponse>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: RefundsResponseRouterData<F, RefundResponse>) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -515,7 +536,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, RefundResponse>>
 impl TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -556,10 +577,21 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        let PaymentMethodTokenFlow::Token(source) = item
-            .router_data
-            .resource_common_data
-            .get_payment_method_token()?;
+        let source = match &item.router_data.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
+            _ => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted.".to_string(),
+                    connector: "billwerk",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some("Ensure a payment method token is obtained via PaymentMethodService.Tokenize before initiating a Billwerk payment.".to_string()),
+                        doc_url: Some("https://optimize.billwerk.com/reference/create-session".to_string()),
+                        additional_context: Some("Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted.".to_string()),
+                    },
+                }
+                .into())
+            }
+        };
         let amount = item
             .router_data
             .request
@@ -650,8 +682,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             MandateReferenceId::NetworkMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => {
-                return Err(IntegrationError::not_implemented(
-                    "Network mandate ID is not supported for Billwerk",
+                return Err(IntegrationError::NotImplemented(
+                    ("Network mandate ID is not supported for Billwerk").into(),
+                    Default::default(),
                 )
                 .into())
             }
@@ -671,6 +704,168 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .as_ref()
                 .map(|id| id.get_string_repr().to_owned()),
             settle: router_data.request.is_auto_capture(),
+        })
+    }
+}
+
+// ---- ClientAuthenticationToken flow types ----
+
+/// Creates a Billwerk checkout session for client-side SDK initialization.
+/// The session id is returned to the frontend for Billwerk Checkout window initialization.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct BillwerkClientAuthRequest {
+    pub order: BillwerkSessionOrder,
+    pub accept_url: Option<String>,
+    pub cancel_url: Option<String>,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct BillwerkSessionOrder {
+    pub handle: String,
+    pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
+    pub customer: BillwerkSessionCustomer,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct BillwerkSessionCustomer {
+    pub handle: String,
+    pub email: Option<String>,
+    pub first_name: Option<String>,
+    pub last_name: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        BillwerkRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for BillwerkClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: BillwerkRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+
+        let handle = router_data
+            .resource_common_data
+            .connector_request_reference_id
+            .clone();
+
+        let return_url = router_data
+            .resource_common_data
+            .return_url
+            .clone()
+            .unwrap_or_else(|| "https://hyperswitch.io".to_string());
+
+        let customer_handle = router_data
+            .request
+            .customer_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_owned())
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "customer_id",
+                    context: IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Provide a `customer_id` when creating the client authentication \
+                             token. Billwerk uses it as the customer handle for the checkout \
+                             session."
+                                .to_owned(),
+                        ),
+                        doc_url: Some(
+                            "https://optimize.billwerk.com/reference/create-session".to_owned(),
+                        ),
+                        additional_context: Some(
+                            "Billwerk checkout sessions require a customer handle to associate \
+                             the session with a customer record."
+                                .to_owned(),
+                        ),
+                    },
+                })
+            })?;
+
+        let customer = BillwerkSessionCustomer {
+            handle: customer_handle,
+            email: router_data
+                .request
+                .email
+                .as_ref()
+                .map(|e| e.peek().to_string()),
+            first_name: router_data
+                .request
+                .customer_name
+                .as_ref()
+                .map(|n| n.peek().to_string()),
+            last_name: None,
+        };
+
+        Ok(Self {
+            order: BillwerkSessionOrder {
+                handle,
+                amount: router_data.request.amount,
+                currency: router_data.request.currency,
+                customer,
+            },
+            accept_url: Some(return_url.clone()),
+            cancel_url: Some(return_url),
+        })
+    }
+}
+
+/// Billwerk checkout session response containing the session id for SDK initialization.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct BillwerkClientAuthResponse {
+    pub id: String,
+    pub url: Option<String>,
+}
+
+impl TryFrom<ResponseRouterData<BillwerkClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<BillwerkClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Billwerk(
+                BillwerkClientAuthenticationResponseDomain {
+                    session_id: response.id,
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
         })
     }
 }

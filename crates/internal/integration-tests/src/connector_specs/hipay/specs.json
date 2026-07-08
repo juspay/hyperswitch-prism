@@ -1,0 +1,11 @@
+{
+  "connector": "hipay",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "PaymentService/Get",
+    "PaymentMethodService/Tokenize"
+  ]
+}

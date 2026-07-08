@@ -3,11 +3,16 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by paybox connector"
       }
     },
     "authorize": {
       "Ach": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "AchBankTransfer": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
@@ -19,6 +24,18 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "ApplePay": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
@@ -27,7 +44,23 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "Bacs": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "BcaBankTransfer": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
@@ -35,7 +68,31 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "Blik": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "BriVaBankTransfer": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
@@ -70,8 +127,80 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_txn_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=737&ACTIVITE=024"
+          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_txn_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=737&ACTIVITE=024"
         }
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -81,7 +210,39 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "Ideal": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "KakaoPay": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
@@ -89,7 +250,155 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "RevolutPay": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
@@ -97,11 +406,75 @@
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "Sepa": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
       "UpiCollect": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      },
+      "Wero": {
         "status": "not_supported",
         "error": "Only card payments are supported is not supported by Paybox"
       }
@@ -124,43 +497,67 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00002&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_capture_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001"
+          "body": "VERSION=00104&TYPE=00002&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_capture_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001"
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by paybox connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by paybox connector"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by paybox connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by paybox connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by paybox connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by paybox connector"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by paybox connector"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by paybox connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by paybox connector"
       }
     },
     "get": {
@@ -185,19 +582,122 @@
         }
       }
     },
-    "post_authenticate": {
+    "handle_event": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by paybox connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by paybox connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by paybox connector"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://preprod-ppps.paybox.com/PPPS.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "VERSION=00104&TYPE=00003&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_proxy_txn_001&DATEQ=00000000000000&PORTEUR=%7B%7B%24card_number%7D%7D&DATEVAL=%7B%7B%24card_exp_month%7D%7D%7B%7B%24card_exp_year%7D%7D&CVV=%7B%7B%24card_cvc%7D%7D&ACTIVITE=024"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://preprod-ppps.paybox.com/PPPS.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "VERSION=00104&TYPE=00056&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=0&DEVISE=840&REFERENCE=probe_proxy_mandate_001&DATEQ=00000000000000&PORTEUR=%7B%7B%24card_number%7D%7D&DATEVAL=%7B%7B%24card_exp_month%7D%7D%7B%7B%24card_exp_year%7D%7D&CVV=%7B%7B%24card_cvc%7D%7D&REFABONNE=probe_proxy_mandate_001&ACTIVITE=024"
+        }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Invalid data format: connector_mandate_id. Expected format 'PORTEUR::DATEVAL' from Paybox SetupMandate"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for paybox"
       }
     },
     "refund": {
@@ -220,21 +720,96 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00014&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_refund_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001&ACTIVITE=024"
+          "body": "VERSION=00104&TYPE=00014&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_refund_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001&ACTIVITE=024"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://preprod-ppps.paybox.com/PPPS.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "VERSION=00104&TYPE=00017&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&DATEQ=00000000000000&NUMTRANS=probe_refund_id_001&NUMAPPEL=probe_connector_txn_001"
         }
       }
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for paybox"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://preprod-ppps.paybox.com/PPPS.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "VERSION=00104&TYPE=00056&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=0&DEVISE=840&REFERENCE=probe_mandate_001&DATEQ=00000000000000&PORTEUR=4111111111111111&DATEVAL=0330&CVV=737&REFABONNE=probe_mandate_001&ACTIVITE=024"
+        }
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Only card payments are supported is not supported by Paybox"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "Only card payments are supported for SetupMandate is not supported by Paybox"
       }
     },
     "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paybox"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }
@@ -257,7 +832,7 @@
             "content-type": "application/x-www-form-urlencoded",
             "via": "HyperSwitch"
           },
-          "body": "VERSION=00104&TYPE=00005&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=USD&REFERENCE=probe_void_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001"
+          "body": "VERSION=00104&TYPE=00005&SITE=probe_site&RANG=probe_rank&CLE=probe_key&NUMQUESTION=000000000&MONTANT=1000&DEVISE=840&REFERENCE=probe_void_001&DATEQ=00000000000000&NUMTRANS=probe_req_001&NUMAPPEL=probe_connector_txn_001"
         }
       }
     }

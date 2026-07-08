@@ -3,16 +3,23 @@ use common_utils::{
     pii::Email,
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, PaymentMethodToken, RSync, Refund, Void},
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
+        Void,
+    },
     connector_types::{
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse,
+        MollieClientAuthenticationResponse as MollieClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         ResponseId,
     },
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
+    payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -100,6 +107,58 @@ pub struct MolliePaymentsRequest {
 pub enum MolliePaymentMethodData {
     #[serde(rename = "creditcard")]
     CreditCard(Box<CreditCardMethodData>),
+    Klarna(Box<KlarnaMethodData>),
+}
+
+// Klarna (PayLater) Method Data
+// For Klarna pay-later, Mollie requires a billing address and order lines.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct KlarnaMethodData {
+    pub billing_address: MollieKlarnaAddress,
+    pub lines: Vec<MollieLineItem>,
+}
+
+// Mollie Klarna billing address structure
+// Klarna requires name + email in addition to the postal address fields.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieKlarnaAddress {
+    pub street_and_number: Secret<String>,
+    pub postal_code: Secret<String>,
+    pub city: String,
+    pub region: Option<Secret<String>>,
+    pub country: common_enums::CountryAlpha2,
+    pub given_name: Secret<String>,
+    pub family_name: Secret<String>,
+    pub email: Email,
+}
+
+// Mollie order line item type (Klarna risk assessment).
+// Mollie accepts: physical, digital, shipping_fee, discount, store_credit,
+// gift_card, surcharge. See https://docs.mollie.com/reference/extra-payment-parameters
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MollieLineItemType {
+    Physical,
+    Digital,
+    ShippingFee,
+    Discount,
+    StoreCredit,
+    GiftCard,
+    Surcharge,
+}
+
+// Mollie order line item (required by Klarna)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieLineItem {
+    #[serde(rename = "type")]
+    pub line_type: MollieLineItemType,
+    pub description: String,
+    pub quantity: i32,
+    pub unit_price: MollieAmount,
+    pub total_amount: MollieAmount,
 }
 
 // Credit Card Method Data
@@ -177,14 +236,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Extract payment method data based on payment method type
         let payment_method_data = match &item.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => {
+                MolliePaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
+                    card_token: Some(t.token.clone()),
+                    billing_address: None,
+                    shipping_address: None,
+                }))
+            }
             PaymentMethodData::Card(_card_data) => {
-                // Extract card token from payment_method_token
-                // Following Hyperswitch pattern: ALL tokens (cst_ and tkn_) go to cardToken field
-                let card_token = item.resource_common_data.payment_method_token.as_ref().map(
-                    |token| match token {
-                        domain_types::router_data::PaymentMethodToken::Token(t) => t.clone(),
-                    },
-                );
+                let card_token = None;
 
                 // Extract billing address if available
                 // Match Hyperswitch format: comma separator, no region
@@ -215,12 +275,182 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     shipping_address: None,
                 }))
             }
+            PaymentMethodData::PayLater(PayLaterData::KlarnaRedirect {}) => {
+                // Klarna pay-later requires a billing address (name + email + postal
+                // address) and order line items. Build the billing address from the
+                // payment-method billing details and the email from the request.
+                let billing = item
+                    .resource_common_data
+                    .address
+                    .get_payment_method_billing()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "billing_address",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Mollie Klarna (PayLater) requires billing details (name, email and postal address). Provide payment_method_billing in the request."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    })?;
+                let address =
+                    billing
+                        .address
+                        .as_ref()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "billing_address.address",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires a postal address (line1, city, postal_code, country) in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        })?;
+
+                let line1 = address
+                    .line1
+                    .as_ref()
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "billing_address.line1",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Mollie Klarna requires the street address (line1) in the billing address."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    })?
+                    .peek()
+                    .to_string();
+                let street_and_number = match address.line2.as_ref() {
+                    Some(line2) => format!("{},{}", line1, line2.peek().as_str()),
+                    None => line1,
+                };
+
+                let email = billing
+                    .email
+                    .clone()
+                    .or_else(|| item.request.email.clone())
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "email",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Mollie Klarna requires the customer email. Provide it in billing.email or the payment request email."
+                                    .to_string(),
+                            ),
+                            ..Default::default()
+                        },
+                    })?;
+
+                let billing_address = MollieKlarnaAddress {
+                    street_and_number: Secret::new(street_and_number),
+                    postal_code: Secret::new(
+                        address
+                            .zip
+                            .as_ref()
+                            .ok_or(IntegrationError::MissingRequiredField {
+                                field_name: "billing_address.zip",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "Mollie Klarna requires the postal code (zip) in the billing address."
+                                            .to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
+                            })?
+                            .peek()
+                            .to_string(),
+                    ),
+                    city: address
+                        .city
+                        .as_ref()
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "billing_address.city",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires the city in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        })?
+                        .peek()
+                        .to_string(),
+                    region: None,
+                    country: address
+                        .country
+                        .ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "billing_address.country",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires the country in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        })?,
+                    given_name: address.first_name.clone().ok_or(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "billing_address.first_name",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires the customer's given name (first_name) in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        },
+                    )?,
+                    family_name: address.last_name.clone().ok_or(
+                        IntegrationError::MissingRequiredField {
+                            field_name: "billing_address.last_name",
+                            context: IntegrationErrorContext {
+                                additional_context: Some(
+                                    "Mollie Klarna requires the customer's family name (last_name) in the billing address."
+                                        .to_string(),
+                                ),
+                                ..Default::default()
+                            },
+                        },
+                    )?,
+                    email,
+                };
+
+                // Mollie requires at least one order line for Klarna. Per-product
+                // line details (and their goods type) are not available in
+                // PaymentsAuthorizeData, so build a single line for the full payment
+                // amount and default its type to `Physical` — the most general type
+                // Klarna accepts for a generic goods purchase. This can be refined
+                // once line-item/product-type data is plumbed through the request.
+                let line = MollieLineItem {
+                    line_type: MollieLineItemType::Physical,
+                    description: item
+                        .resource_common_data
+                        .description
+                        .clone()
+                        .unwrap_or_else(|| "Payment".to_string()),
+                    quantity: 1,
+                    unit_price: MollieAmount {
+                        currency: item.request.currency,
+                        value: amount_value.clone(),
+                    },
+                    total_amount: MollieAmount {
+                        currency: item.request.currency,
+                        value: amount_value.clone(),
+                    },
+                };
+
+                MolliePaymentMethodData::Klarna(Box::new(KlarnaMethodData {
+                    billing_address,
+                    lines: vec![line],
+                }))
+            }
             _ => {
-                return Err(IntegrationError::NotSupported {
-                    message: "Payment method ".to_string(),
-                    connector: "mollie",
-                    context: Default::default(),
-                }
+                return Err(IntegrationError::NotImplemented(
+                    "Payment method not yet implemented for Mollie".to_string(),
+                    Default::default(),
+                )
                 .into());
             }
         };
@@ -344,7 +574,7 @@ impl MolliePaymentStatus {
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<MolliePaymentsResponse, Self>,
@@ -369,9 +599,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MolliePaymentsRespons
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -386,7 +618,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MolliePaymentsRespons
 impl TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<MolliePaymentsResponse, Self>,
@@ -411,9 +643,11 @@ impl TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -527,7 +761,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<MollieRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MollieRefundResponse, Self>) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -545,7 +779,7 @@ impl TryFrom<ResponseRouterData<MollieRefundResponse, Self>>
 impl TryFrom<ResponseRouterData<MollieRefundResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<MollieRefundResponse, Self>) -> Result<Self, Self::Error> {
         Ok(Self {
@@ -566,7 +800,7 @@ impl TryFrom<ResponseRouterData<MollieRefundResponse, Self>>
 impl TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<MolliePaymentsResponse, Self>,
@@ -582,9 +816,11 @@ impl TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -673,9 +909,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract card data from payment method
         let card_data = match &item.request.payment_method_data {
             PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(IntegrationError::not_implemented(
-                "Only card payment method is supported for tokenization".to_string(),
-            )),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Only card payment method is supported for tokenization".to_string(),
+                connector: "Mollie",
+                context: Default::default(),
+            })),
         }?;
 
         // Get profile token from auth
@@ -735,7 +973,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MollieCardTokenRespon
         PaymentMethodTokenResponse,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<MollieCardTokenResponse, Self>,
@@ -809,7 +1047,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<MolliePaymentsResponse, Self>,
@@ -824,9 +1062,11 @@ impl TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -842,3 +1082,154 @@ pub type MollieCaptureResponse = MolliePaymentsResponse;
 pub type MolliePSyncResponse = MolliePaymentsResponse;
 pub type MollieVoidResponse = MolliePaymentsResponse;
 pub type MollieRSyncResponse = MollieRefundResponse;
+
+// ---- ClientAuthenticationToken flow types ----
+
+/// Creates a Mollie payment for client-side SDK initialization.
+/// The checkout URL is returned to the frontend for client-side redirect
+/// to complete payment via Mollie's hosted checkout page.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieClientAuthRequest {
+    pub amount: MollieAmount,
+    pub description: String,
+    pub redirect_url: String,
+    pub metadata: serde_json::Value,
+}
+
+/// Mollie payment response for ClientAuthenticationToken flow.
+/// Reuses the same response format as the Authorize flow.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MollieClientAuthResponse {
+    pub id: String,
+    pub resource: String,
+    pub mode: String,
+    pub status: MolliePaymentStatus,
+    pub amount: MollieAmount,
+    pub description: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub method: Option<String>,
+    pub created_at: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<String>,
+    #[serde(rename = "_links")]
+    pub links: MollieLinks,
+}
+
+// ClientAuthenticationToken Request Transformation
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        MollieRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for MollieClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: MollieRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = item.router_data;
+
+        // Convert amount to string major unit format (e.g., "10.00" for $10.00)
+        let converter = StringMajorUnitForConnector;
+        let amount_value = converter
+            .convert(router_data.request.amount, router_data.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })
+            .attach_printable("Failed to convert amount to string major unit")?;
+
+        // Build metadata with orderId
+        let mut metadata_map = serde_json::Map::new();
+        metadata_map.insert(
+            "orderId".to_string(),
+            serde_json::Value::String(
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+        );
+
+        Ok(Self {
+            amount: MollieAmount {
+                currency: router_data.request.currency,
+                value: amount_value,
+            },
+            description: format!(
+                "Payment {}",
+                router_data
+                    .resource_common_data
+                    .connector_request_reference_id
+            ),
+            redirect_url: router_data
+                .resource_common_data
+                .return_url
+                .clone()
+                .unwrap_or_else(|| "https://example.com/return".to_string()),
+            metadata: serde_json::Value::Object(metadata_map),
+        })
+    }
+}
+
+// ClientAuthenticationToken Response Transformation
+impl TryFrom<ResponseRouterData<MollieClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<MollieClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        // Extract checkout URL from _links — this is the client-side redirect URL
+        let checkout_url = response
+            .links
+            .checkout
+            .as_ref()
+            .map(|link| Secret::new(link.href.clone()))
+            .ok_or(ConnectorError::ResponseDeserializationFailed {
+                context: Default::default(),
+            })?;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Mollie(
+                MollieClientAuthenticationResponseDomain {
+                    payment_id: response.id,
+                    checkout_url,
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
+}

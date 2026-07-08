@@ -1,0 +1,17 @@
+{
+  "url": "https://www.sandbox.paypal.com/webapps/helios?action=verify&flow=3ds&cart_id=REPLACE_WITH_CART_ID&redirect_uri=https%3A%2F%2Fexample.com%2Fpayment%2Fcomplete",
+  "rules": [
+    { "action": "waitFor", "selector": "button", "timeoutMs": 15000 },
+    { "action": "extractAll", "selector": "button", "as": "buttonTexts" },
+    { "action": "click", "selector": "button" },
+    { "action": "waitFor", "urlContains": "example.com/payment/complete", "timeoutMs": 20000 },
+    { "action": "extract", "selector": "h1", "as": "headline" },
+    { "action": "screenshot", "as": "after3ds" }
+  ],
+  "options": {
+    "headless": true,
+    "slowMoMs": 0,
+    "defaultTimeoutMs": 12000,
+    "navigationTimeoutMs": 25000
+  }
+}

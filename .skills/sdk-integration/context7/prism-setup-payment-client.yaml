@@ -1,0 +1,65 @@
+name: "prism-setup-payment-client"
+version: "1.0.0"
+description: "Initialize and configure the Hyperswitch Prism PaymentClient for your chosen connector"
+author: "Hyperswitch Prism Team"
+tags:
+  - payments
+  - sdk
+  - setup
+  - initialization
+
+parameters:
+  - name: language
+    type: string
+    required: true
+    description: "Programming language"
+    enum:
+      - python
+      - node
+      - java
+      - php
+      - rust
+  
+  - name: connector
+    type: string
+    required: true
+    description: "Payment provider (stripe, adyen, braintree, paypal, etc.)"
+  
+  - name: environment
+    type: string
+    required: false
+    default: "sandbox"
+    description: "Environment to configure"
+    enum:
+      - sandbox
+      - production
+
+prompt: |
+  Create a complete PaymentClient setup for {{connector}} in {{language}}.
+
+  Requirements:
+  1. Import/require the necessary modules
+  2. Configure the connector with environment variables
+  3. Initialize the PaymentClient
+  4. Include error handling for missing credentials
+  5. Add comments explaining each configuration option
+
+  For {{connector}}, include:
+  - Required credentials (API keys, merchant account, etc.)
+  - Optional configuration options
+  - Environment-specific settings ({{environment}})
+
+  Output format: Complete, runnable code snippet with imports and comments.
+
+examples:
+  - parameters:
+      language: "node"
+      connector: "stripe"
+      environment: "sandbox"
+    description: "Setup Stripe client in Node.js for sandbox testing"
+  
+  - parameters:
+      language: "python"
+      connector: "adyen"
+      environment: "production"
+    description: "Setup Adyen client in Python for production"

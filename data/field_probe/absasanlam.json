@@ -1,0 +1,663 @@
+{
+  "connector": "absasanlam",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for absa_sanlam"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Affirm": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Afterpay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "ApplePay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "ApplePayDecrypted": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Bacs": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Becs": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Blik": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Card": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "GooglePay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "GooglePayDecrypted": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Ideal": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Klarna": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "PaypalRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "SamsungPay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Sepa": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "UpiCollect": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for absa_sanlam"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by absa_sanlam connector"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by absa_sanlam connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by absa_sanlam connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by absa_sanlam connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by absa_sanlam connector"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by absa_sanlam connector"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by absa_sanlam connector"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by absa_sanlam connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by absa_sanlam connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_sync flow for absa_sanlam"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{}"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by absa_sanlam connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for absa_sanlam"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for absa_sanlam"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for absa_sanlam"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for absa_sanlam"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for absa_sanlam"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for absa_sanlam"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for absa_sanlam"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by absa_sanlam connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for absa_sanlam"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "authorize flow not supported by absa_sanlam connector"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for absa_sanlam"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for absa_sanlam"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_supported",
+        "error": "void flow not supported by absa_sanlam connector"
+      }
+    }
+  }
+}

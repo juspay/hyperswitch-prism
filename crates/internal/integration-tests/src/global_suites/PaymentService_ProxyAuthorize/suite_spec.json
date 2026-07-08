@@ -1,0 +1,10 @@
+{
+  "suite": "PaymentService/ProxyAuthorize",
+  "suite_type": "dependent",
+  "depends_on": [
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "CustomerService/Create"
+  ],
+  "dependency_scope": "scenario",
+  "strict_dependencies": false
+}

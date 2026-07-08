@@ -1,0 +1,405 @@
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "26"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "26"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "26"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "26"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          }
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548817212493017"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "49"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          }
+        },
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480,
+          "language": "en"
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 60000,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548812049400004"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "26"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            },
+            "card_cvc": {
+              "value": "123"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": [
+            "FAILURE",
+            "AUTHORIZATION_FAILED",
+            "AUTHENTICATION_FAILED"
+          ]
+        },
+        "error.connector_details.message": {
+          "must_exist": true
+        }
+      }
+    }
+  },
+  "PaymentService/Void": {
+    "void_authorized_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        }
+      }
+    },
+    "void_without_cancellation_reason": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 2500,
+          "currency": "EUR"
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/PreAuthenticate": {
+    "threeds_card_pre_authenticate": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548817212493017"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "49"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          }
+        },
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480,
+          "language": "en"
+        }
+      }
+    }
+  },
+  "PaymentMethodAuthenticationService/Authenticate": {
+    "threeds_card_authenticate": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "EUR"
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4548817212493017"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "49"
+            },
+            "card_cvc": {
+              "value": "123"
+            },
+            "card_holder_name": {
+              "value": "joseph Doe"
+            }
+          }
+        },
+        "address": {
+          "billing_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          },
+          "shipping_address": {
+            "state": {
+              "value": "Ceuta"
+            },
+            "country_alpha2_code": "ES"
+          }
+        },
+        "browser_info": {
+          "ip_address": "127.0.0.1",
+          "accept_header": "application/json",
+          "user_agent": "Mozilla/5.0 (integration-tests)",
+          "accept_language": "en-US",
+          "color_depth": 24,
+          "screen_height": 1080,
+          "screen_width": 1920,
+          "java_enabled": false,
+          "java_script_enabled": true,
+          "time_zone_offset_minutes": -480,
+          "language": "en"
+        }
+      }
+    }
+  }
+}

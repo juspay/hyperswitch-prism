@@ -11,9 +11,10 @@ pub struct PaysafePaymentsRequest {
     pub settle_with_auth: bool,
     pub payment_handle_token: Secret<String>,
     pub currency_code: common_enums::Currency,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    // customer_ip and stored_credential serialize as explicit nulls when absent,
+    // mirroring hyperswitch's PaysafePaymentsRequest wire shape byte-for-byte
+    // (verified via shadow-mode body comparison).
     pub customer_ip: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub stored_credential: Option<PaysafeStoredCredential>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub account_id: Option<Secret<String>>,
@@ -43,6 +44,27 @@ pub enum PaysafeStoredCredentialType {
     Topup,
 }
 
+/// CreateConnectorCustomer request body (`POST v1/customers`).
+///
+/// Registers a Paysafe customer profile so a reusable (MULTI_USE) payment handle
+/// can later be minted under `v1/customers/{customerId}/paymenthandles`. Mirrors
+/// hyperswitch's `PaysafeCustomerDetails`: `merchantCustomerId` is mandatory; the
+/// name/email/phone fields are optional and sourced from the customer/billing
+/// details the caller supplies.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeCustomerRequest {
+    pub merchant_customer_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<common_utils::pii::Email>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phone: Option<Secret<String>>,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PaysafeCaptureRequest {
@@ -69,7 +91,10 @@ pub struct PaysafeRefundRequest {
 pub struct PaysafeSetupMandateRequest<T: PaymentMethodDataTypes> {
     pub merchant_ref_num: String,
     pub amount: MinorUnit,
-    pub settle_with_auth: bool,
+    // Omitted for redirect wallets (e.g. Skrill) whose verified payment-handle body
+    // does not include settleWithAuth.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub settle_with_auth: Option<bool>,
     #[serde(flatten)]
     pub payment_method: PaysafePaymentMethod<T>,
     pub currency_code: common_enums::Currency,
@@ -77,12 +102,13 @@ pub struct PaysafeSetupMandateRequest<T: PaymentMethodDataTypes> {
     pub transaction_type: TransactionType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub return_links: Option<Vec<ReturnLink>>,
-    pub account_id: Secret<String>,
+    // Skrill must omit accountId entirely (sending the card accountId returns error 5068).
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_id: Option<Secret<String>>,
+    // threeDs/profile/billingDetails serialize as explicit nulls when absent,
+    // mirroring hyperswitch's PaysafePaymentHandleRequest wire shape.
     pub three_ds: Option<ThreeDs>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub profile: Option<PaysafeProfile>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub billing_details: Option<PaysafeBillingDetails>,
 }
 
@@ -90,8 +116,237 @@ pub struct PaysafeSetupMandateRequest<T: PaymentMethodDataTypes> {
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 pub enum PaysafePaymentMethod<T: PaymentMethodDataTypes> {
-    Card { card: PaysafeCard<T> },
-    Ach { ach: PaysafeAch },
+    Card {
+        card: PaysafeCard<T>,
+    },
+    Ach {
+        ach: PaysafeAch,
+    },
+    GooglePay {
+        #[serde(rename = "googlePay")]
+        google_pay: PaysafeGooglePay,
+    },
+    ApplePay {
+        #[serde(rename = "applePay")]
+        apple_pay: Box<PaysafeApplePay>,
+    },
+    Skrill {
+        skrill: PaysafeSkrill,
+    },
+    InteracEtransfer {
+        #[serde(rename = "interacEtransfer")]
+        interac_etransfer: PaysafeInterac,
+    },
+    Paysafecard {
+        paysafecard: PaysafePaysafecard,
+    },
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeSkrill {
+    /// Skrill consumer email address.
+    pub consumer_id: common_utils::pii::Email,
+    /// Consumer billing country (hyperswitch parity: sent when billing
+    /// country is available).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country_code: Option<common_enums::CountryAlpha2>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeInterac {
+    /// Interac e-Transfer consumer email address.
+    pub consumer_id: common_utils::pii::Email,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafePaysafecard {
+    /// paysafecard consumer identifier. REQUIRED. Mapped from the merchant
+    /// customer id (a stable, non-PII identifier). paysafecard's consumerId has
+    /// a restricted format (alphanumeric + limited specials), so a raw billing
+    /// email (containing '@') is not a valid value. Mirrors hyperswitch, which
+    /// maps this field from get_customer_id() (id_type::CustomerId), reserving
+    /// billing email for Skrill/Interac only.
+    pub consumer_id: common_utils::id_type::CustomerId,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeGooglePay {
+    pub google_pay_payment_token: PaysafeGooglePayPaymentToken,
+}
+
+/// Apple Pay payment-handle body. Paysafe expects the full (encrypted) Apple Pay
+/// PKPaymentToken forwarded under `applePay.applePayPaymentToken.token`.
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePay {
+    /// User-facing label. Hyperswitch sends an explicit null here (parity), so
+    /// this serializes even when absent.
+    pub label: Option<String>,
+    /// Hyperswitch always sends `requestBillingAddress: false`.
+    pub request_billing_address: Option<bool>,
+    pub apple_pay_payment_token: PaysafeApplePayPaymentToken,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayPaymentToken {
+    pub token: PaysafeApplePayToken,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub billing_contact: Option<PaysafeApplePayBillingContact>,
+}
+
+/// Apple Pay billing contact forwarded alongside the token, mirroring
+/// hyperswitch's `PaysafeApplePayBillingContact` field-for-field.
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayBillingContact {
+    pub address_lines: Vec<Option<Secret<String>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    pub country_code: common_enums::CountryAlpha2,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub family_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub given_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locality: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phonetic_family_name: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub phonetic_given_name: Option<Secret<String>>,
+    pub postal_code: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sub_administrative_area: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sub_locality: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayToken {
+    pub payment_data: PaysafeApplePayPaymentData,
+    pub payment_method: PaysafeApplePayPaymentMethod,
+    pub transaction_identifier: String,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(untagged)]
+pub enum PaysafeApplePayPaymentData {
+    Encrypted(serde_json::Value),
+    Decrypted(PaysafeApplePayDecryptedDataWrapper),
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayDecryptedDataWrapper {
+    pub decrypted_data: PaysafeApplePayDecryptedData,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayDecryptedData {
+    pub application_primary_account_number: Secret<String>,
+    /// PAN expiry in YYMM format (Apple's native representation).
+    pub application_expiration_date: Secret<String>,
+    /// ISO 4217 alphabetic currency code.
+    pub currency_code: String,
+    // The optional fields below serialize as explicit nulls when absent,
+    // mirroring hyperswitch's decryptedData wire shape.
+    pub transaction_amount: Option<MinorUnit>,
+    pub cardholder_name: Option<Secret<String>>,
+    pub device_manufacturer_identifier: Option<String>,
+    pub payment_data_type: Option<String>,
+    pub payment_data: PaysafeApplePayDecryptedPaymentData,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayDecryptedPaymentData {
+    pub online_payment_cryptogram: Secret<String>,
+    pub eci_indicator: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeApplePayPaymentMethod {
+    pub display_name: String,
+    pub network: String,
+    #[serde(rename = "type")]
+    pub pm_type: String,
+}
+
+/// The full Google Pay SDK response object that Paysafe expects
+/// inside `googlePay.googlePayPaymentToken`
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeGooglePayPaymentToken {
+    pub api_version: i32,
+    pub api_version_minor: i32,
+    pub payment_method_data: PaysafeGooglePayPaymentMethodData,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeGooglePayPaymentMethodData {
+    /// The type of payment method, e.g. "CARD"
+    #[serde(rename = "type")]
+    pub pm_type: String,
+    /// User-facing description, e.g. "Mastercard **** 1021"
+    pub description: String,
+    /// Card info (network + last 4)
+    pub info: PaysafeGooglePayCardInfo,
+    /// Tokenization data containing the decryptedToken block
+    pub tokenization_data: PaysafeGooglePayTokenizationData,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeGooglePayCardInfo {
+    pub card_network: String,
+    pub card_details: String,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeGooglePayTokenizationData {
+    /// Always "PAYMENT_GATEWAY"
+    #[serde(rename = "type")]
+    pub token_type: String,
+    /// The decrypted Google Pay token data
+    pub decrypted_token: PaysafeGooglePayDecryptedToken,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeGooglePayDecryptedToken {
+    pub message_id: String,
+    pub message_expiration: String,
+    pub payment_method_details: PaysafeGooglePayPaymentMethodDetails,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PaysafeGooglePayPaymentMethodDetails {
+    pub auth_method: PaysafeGooglePayAuthMethod,
+    pub pan: Secret<String>,
+    pub expiration_month: u8,
+    pub expiration_year: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cryptogram: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Clone, PartialEq)]
+pub enum PaysafeGooglePayAuthMethod {
+    #[serde(rename = "PAN_ONLY")]
+    PanOnly,
+    #[serde(rename = "CRYPTOGRAM_3DS")]
+    Cryptogram3Ds,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -125,6 +380,10 @@ pub struct PaysafeCardExpiry {
 pub enum PaysafePaymentType {
     Card,
     Ach,
+    Skrill,
+    #[serde(rename = "INTERAC_ETRANSFER")]
+    InteracEtransfer,
+    Paysafecard,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
@@ -217,6 +476,20 @@ pub struct PaysafeBillingDetails {
     pub state: Secret<String>,
     pub zip: Secret<String>,
     pub country: common_enums::CountryAlpha2,
+}
+
+/// Authorize-flow request.
+///
+/// Non-redirect payment methods settle an existing payment handle via
+/// `v1/payments` (`Payment`). Redirect APMs (Skrill, Interac e-Transfer,
+/// paysafecard) instead create a payment handle via `v1/paymenthandles`
+/// (`PaymentHandle`) so Paysafe returns the customer redirect link. `untagged`
+/// so each variant serialises as its bare JSON body (no discriminant wrapper).
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum PaysafeAuthorizeRequest<T: PaymentMethodDataTypes> {
+    Payment(Box<PaysafePaymentsRequest>),
+    PaymentHandle(Box<PaysafeSetupMandateRequest<T>>),
 }
 
 // Type aliases for flows

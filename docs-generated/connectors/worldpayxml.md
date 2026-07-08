@@ -18,15 +18,19 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        worldpayxml=payment_pb2.WorldpayxmlConfig(
+            api_username=payment_methods_pb2.SecretString(value="YOUR_API_USERNAME"),
+            api_password=payment_methods_pb2.SecretString(value="YOUR_API_PASSWORD"),
+            merchant_code=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_CODE"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     worldpayxml=payment_pb2.WorldpayxmlConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +42,19 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Worldpayxml',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.WORLDPAYXML,
+    environment: Environment.SANDBOX,
+    auth: {
+        worldpayxml: {
+            apiUsername: { value: 'YOUR_API_USERNAME' },
+            apiPassword: { value: 'YOUR_API_PASSWORD' },
+            merchantCode: { value: 'YOUR_MERCHANT_CODE' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +68,16 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Worldpayxml")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setWorldpayxml(WorldpayxmlConfig.newBuilder()
+                .setApiUsername(SecretString.newBuilder().setValue("YOUR_API_USERNAME").build())
+                .setApiPassword(SecretString.newBuilder().setValue("YOUR_API_PASSWORD").build())
+                .setMerchantCode(SecretString.newBuilder().setValue("YOUR_MERCHANT_CODE").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +90,22 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Worldpayxml".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Worldpayxml(WorldpayxmlConfig {
+                api_username: Some(hyperswitch_masking::Secret::new("YOUR_API_USERNAME".to_string())),  // Authentication credential
+                api_password: Some(hyperswitch_masking::Secret::new("YOUR_API_PASSWORD".to_string())),  // Authentication credential
+                merchant_code: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_CODE".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -96,23 +119,9 @@ let config = ConnectorConfig {
 
 Complete, runnable examples for common integration patterns. Each example shows the full flow with status handling. Copy-paste into your app and replace placeholder values.
 
-### Card Payment (Authorize + Capture)
+### One-step Payment (Authorize + Capture)
 
-Reserve funds with Authorize, then settle with a separate Capture call. Use for physical goods or delayed fulfillment where capture happens later.
-
-**Response status handling:**
-
-| Status | Recommended action |
-|--------|-------------------|
-| `AUTHORIZED` | Funds reserved — proceed to Capture to settle |
-| `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
-| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
-
-**Examples:** [Python](../../examples/worldpayxml/python/worldpayxml.py#L87) · [JavaScript](../../examples/worldpayxml/javascript/worldpayxml.js#L78) · [Kotlin](../../examples/worldpayxml/kotlin/worldpayxml.kt#L100) · [Rust](../../examples/worldpayxml/rust/worldpayxml.rs#L98)
-
-### Card Payment (Automatic Capture)
-
-Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digital goods or immediate fulfillment.
+Simple payment that authorizes and captures in one call. Use for immediate charges.
 
 **Response status handling:**
 
@@ -122,25 +131,39 @@ Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digi
 | `PENDING` | Payment processing — await webhook for final status before fulfilling |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/worldpayxml/python/worldpayxml.py#L112) · [JavaScript](../../examples/worldpayxml/javascript/worldpayxml.js#L104) · [Kotlin](../../examples/worldpayxml/kotlin/worldpayxml.kt#L122) · [Rust](../../examples/worldpayxml/rust/worldpayxml.rs#L121)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L128) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L120) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L166)
 
-### Refund a Payment
+### Card Payment (Authorize + Capture)
 
-Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
+Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
 
-**Examples:** [Python](../../examples/worldpayxml/python/worldpayxml.py#L131) · [JavaScript](../../examples/worldpayxml/javascript/worldpayxml.js#L123) · [Kotlin](../../examples/worldpayxml/kotlin/worldpayxml.kt#L138) · [Rust](../../examples/worldpayxml/rust/worldpayxml.rs#L137)
+**Response status handling:**
 
-### Void a Payment
+| Status | Recommended action |
+|--------|-------------------|
+| `AUTHORIZED` | Funds reserved — proceed to Capture to settle |
+| `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
+| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L147) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L136) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L182)
 
-**Examples:** [Python](../../examples/worldpayxml/python/worldpayxml.py#L168) · [JavaScript](../../examples/worldpayxml/javascript/worldpayxml.js#L158) · [Kotlin](../../examples/worldpayxml/kotlin/worldpayxml.kt#L160) · [Rust](../../examples/worldpayxml/rust/worldpayxml.rs#L160)
+### Refund
+
+Return funds to the customer for a completed payment.
+
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L172) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L158) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L205)
+
+### Void Payment
+
+Cancel an authorized but not-yet-captured payment.
+
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L197) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L180) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L228)
 
 ### Get Payment Status
 
-Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
+Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/worldpayxml/python/worldpayxml.py#L190) · [JavaScript](../../examples/worldpayxml/javascript/worldpayxml.js#L180) · [Kotlin](../../examples/worldpayxml/kotlin/worldpayxml.kt#L179) · [Rust](../../examples/worldpayxml/rust/worldpayxml.rs#L179)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py#L219) · [JavaScript](../../examples/worldpayxml/worldpayxml.js) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L199) · [Rust](../../examples/worldpayxml/worldpayxml.rs#L247)
 
 ## API Reference
 
@@ -149,7 +172,10 @@ Authorize a payment, then poll the connector for its current status using Get. U
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.Reverse](#paymentservicereverse) | Payments | `PaymentServiceReverseRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -168,20 +194,105 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Payment Method | Supported |
 |----------------|:---------:|
 | Card | ✓ |
-| Google Pay | x |
+| Bancontact | x |
 | Apple Pay | x |
+| Apple Pay Dec | x |
+| Apple Pay SDK | x |
+| Google Pay | x |
+| Google Pay Dec | x |
+| Google Pay SDK | x |
+| PayPal SDK | x |
+| Amazon Pay | x |
+| Cash App | x |
+| PayPal | x |
+| WeChat Pay | x |
+| Alipay | x |
+| Revolut Pay | x |
+| MiFinity | x |
+| Bluecode | x |
+| Paze | x |
+| Samsung Pay | x |
+| MB Way | x |
+| Satispay | x |
+| Wero | x |
+| GoPay | x |
+| GCash | x |
+| Momo | x |
+| Dana | x |
+| Kakao Pay | x |
+| Touch 'n Go | x |
+| Twint | x |
+| Vipps | x |
+| Swish | x |
+| Affirm | x |
+| Afterpay | x |
+| Klarna | x |
+| UPI Collect | x |
+| UPI Intent | x |
+| UPI QR | x |
+| Thailand | x |
+| Czech | x |
+| Finland | x |
+| FPX | x |
+| Poland | x |
+| Slovakia | x |
+| UK | x |
+| PIS | x |
+| Generic | x |
+| Local | x |
+| iDEAL | x |
+| Sofort | x |
+| Trustly | x |
+| Giropay | x |
+| EPS | x |
+| Przelewy24 | x |
+| PSE | x |
+| BLIK | x |
+| Interac | x |
+| Bizum | x |
+| EFT | x |
+| DuitNow | x |
+| ACH | x |
 | SEPA | x |
 | BACS | x |
+| Multibanco | x |
+| Instant | x |
+| Instant FI | x |
+| Instant PL | x |
+| Pix | x |
+| Permata | x |
+| BCA | x |
+| BNI VA | x |
+| BRI VA | x |
+| CIMB VA | x |
+| Danamon VA | x |
+| Mandiri VA | x |
+| Local | x |
+| Indonesian | x |
 | ACH | x |
+| SEPA | x |
+| BACS | x |
 | BECS | x |
-| iDEAL | x |
-| PayPal | x |
-| BLIK | x |
-| Klarna | x |
-| Afterpay | x |
-| UPI | x |
-| Affirm | x |
-| Samsung Pay | x |
+| SEPA Guaranteed | x |
+| Crypto | x |
+| Reward | x |
+| Givex | x |
+| PaySafeCard | x |
+| E-Voucher | x |
+| Boleto | x |
+| Efecty | x |
+| Pago Efectivo | x |
+| Red Compra | x |
+| Red Pagos | x |
+| Alfamart | x |
+| Indomaret | x |
+| Oxxo | x |
+| 7-Eleven | x |
+| Lawson | x |
+| Mini Stop | x |
+| Family Mart | x |
+| Seicomart | x |
+| Pay Easy | x |
 
 **Payment method objects** — use these in the `payment_method` field of the Authorize request.
 
@@ -189,28 +300,28 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment
-        "card_number": "4111111111111111",  # Card Identification
-        "card_exp_month": "03",
-        "card_exp_year": "2030",
-        "card_cvc": "737",
-        "card_holder_name": "John Doe"  # Cardholder Information
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/worldpayxml/python/worldpayxml.py#L212) · [JavaScript](../../examples/worldpayxml/javascript/worldpayxml.js#L201) · [Kotlin](../../examples/worldpayxml/kotlin/worldpayxml.kt#L197) · [Rust](../../examples/worldpayxml/rust/worldpayxml.rs#L197)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L253) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L217) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 #### PaymentService.Capture
 
-Finalize an authorized payment transaction. Transfers reserved funds from customer to merchant account, completing the payment lifecycle.
+Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/python/worldpayxml.py#L221) · [JavaScript](../../examples/worldpayxml/javascript/worldpayxml.js#L210) · [Kotlin](../../examples/worldpayxml/kotlin/worldpayxml.kt#L209) · [Rust](../../examples/worldpayxml/rust/worldpayxml.rs#L209)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L262) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L229) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 #### PaymentService.Get
 
@@ -221,26 +332,61 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/python/worldpayxml.py#L230) · [JavaScript](../../examples/worldpayxml/javascript/worldpayxml.js#L219) · [Kotlin](../../examples/worldpayxml/kotlin/worldpayxml.kt#L219) · [Rust](../../examples/worldpayxml/rust/worldpayxml.rs#L216)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L271) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L239) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+
+#### PaymentService.ProxyAuthorize
+
+Authorize using vault-aliased card data. Proxy substitutes before connector.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxyAuthorizeRequest` |
+| **Response** | `PaymentServiceAuthorizeResponse` |
+
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L280) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L247) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 #### PaymentService.Refund
 
-Initiate a refund to customer's payment method. Returns funds for returns, cancellations, or service adjustments after original payment.
+Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/python/worldpayxml.py#L131) · [JavaScript](../../examples/worldpayxml/javascript/worldpayxml.js#L123) · [Kotlin](../../examples/worldpayxml/kotlin/worldpayxml.kt#L227) · [Rust](../../examples/worldpayxml/rust/worldpayxml.rs#L223)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L289) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L276) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+
+#### PaymentService.Reverse
+
+Reverse a captured payment in full. Initiates a complete refund when you need to cancel a settled transaction rather than just an authorization.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceReverseRequest` |
+| **Response** | `PaymentServiceReverseResponse` |
+
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L307) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L298) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
 
 #### PaymentService.Void
 
-Cancel an authorized payment before capture. Releases held funds back to customer, typically used when orders are cancelled or abandoned.
+Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/worldpayxml/python/worldpayxml.py#L239) · [JavaScript](../../examples/worldpayxml/javascript/worldpayxml.js#L228) · [Kotlin](../../examples/worldpayxml/kotlin/worldpayxml.kt#L237) · [Rust](../../examples/worldpayxml/rust/worldpayxml.rs#L230)
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L306) · [Rust](../../examples/worldpayxml/worldpayxml.rs)
+
+### Refunds
+
+#### RefundService.Get
+
+Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+
+| | Message |
+|---|---------|
+| **Request** | `RefundServiceGetRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/worldpayxml/worldpayxml.py) · [TypeScript](../../examples/worldpayxml/worldpayxml.ts#L298) · [Kotlin](../../examples/worldpayxml/worldpayxml.kt#L286) · [Rust](../../examples/worldpayxml/worldpayxml.rs)

@@ -1,0 +1,134 @@
+{
+  "create_order_basic": {
+    "grpc_req": {
+      "merchant_order_id": "auto_generate",
+      "amount": {
+        "minor_amount": 10000,
+        "currency": "USD"
+      },
+      "webhook_url": "https://example.com/payment/webhook",
+      "test_mode": true
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "INITIATED",
+          "REQUIRES_CUSTOMER_ACTION"
+        ]
+      },
+      "connector_order_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "is_default": true,
+    "display_name": "Create Order | Basic"
+  },
+  "create_order_with_metadata": {
+    "grpc_req": {
+      "merchant_order_id": "auto_generate",
+      "amount": {
+        "minor_amount": 15000,
+        "currency": "USD"
+      },
+      "webhook_url": "https://example.com/payment/webhook",
+      "metadata": {
+        "value": "{\"custom_field\":\"test_value\",\"order_source\":\"mobile_app\"}"
+      },
+      "test_mode": true
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "INITIATED",
+          "REQUIRES_CUSTOMER_ACTION"
+        ]
+      },
+      "connector_order_id": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Create Order | Metadata"
+  },
+  "create_order_with_payment_method_type": {
+    "grpc_req": {
+      "merchant_order_id": "auto_generate",
+      "amount": {
+        "minor_amount": 12000,
+        "currency": "USD"
+      },
+      "webhook_url": "https://example.com/payment/webhook",
+      "payment_method_type": "APPLE_PAY",
+      "test_mode": true
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "INITIATED",
+          "REQUIRES_CUSTOMER_ACTION"
+        ]
+      },
+      "connector_order_id": {
+        "must_exist": true
+      },
+      "session_token": {
+        "must_exist": true
+      },
+      "error": {
+        "must_not_exist": true
+      }
+    },
+    "display_name": "Create Order | Payment Method Type"
+  },
+  "create_order_fail_invalid_currency": {
+    "grpc_req": {
+      "merchant_order_id": "auto_generate",
+      "amount": {
+        "minor_amount": 10000,
+        "currency": "XXX"
+      },
+      "webhook_url": "https://example.com/payment/webhook",
+      "test_mode": true
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "FAILED",
+          "PROCESSING_ERROR"
+        ]
+      },
+      "error": {
+        "must_exist": true
+      }
+    },
+    "display_name": "Create Order | Fail Invalid Currency"
+  },
+  "create_order_fail_zero_amount": {
+    "grpc_req": {
+      "merchant_order_id": "auto_generate",
+      "amount": {
+        "minor_amount": 0,
+        "currency": "USD"
+      },
+      "webhook_url": "https://example.com/payment/webhook",
+      "test_mode": true
+    },
+    "assert": {
+      "status": {
+        "one_of": [
+          "FAILED",
+          "PROCESSING_ERROR"
+        ]
+      },
+      "error": {
+        "must_exist": true
+      }
+    },
+    "display_name": "Create Order | Fail Zero Amount"
+  }
+}

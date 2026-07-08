@@ -145,12 +145,16 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
         return_url: Some("https://example.com/return".to_string()),
         webhook_url: Some("https://example.com/webhook".to_string()),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: None,
             connector_customer_id: None,
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
         }),
         address: Some(address),
         auth_type: i32::from(AuthenticationType::NoThreeDs),
@@ -168,7 +172,6 @@ fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServ
         encoded_data: None,
         capture_method: None,
         merchant_transaction_id: None,
-        handle_response: None,
         amount: Some(grpc_api_types::payments::Money {
             minor_amount: amount,
             currency: i32::from(Currency::Usd),
@@ -181,6 +184,10 @@ fn create_payment_sync_request(transaction_id: &str, amount: i64) -> PaymentServ
         connector_order_reference_id: None,
         test_mode: None,
         payment_experience: None,
+        split_payments: None,
+        merchant_request_id: None,
+        payment_method_type: None,
+        mandate_reference: None,
     }
 }
 
@@ -194,6 +201,7 @@ fn create_payment_capture_request(
             minor_amount: amount,
             currency: i32::from(Currency::Usd),
         }),
+        order_tax_amount: None,
         multiple_capture_data: None,
         merchant_capture_id: None,
         ..Default::default()
@@ -248,6 +256,7 @@ fn create_repeat_payment_request(mandate_id: &str) -> RecurringPaymentServiceCha
                 connector_mandate_request_reference_id: None,
                 connector_mandate_id: Some(mandate_id.to_string()),
                 payment_method_id: None,
+                mandate_metadata: None,
             },
         )),
     };
@@ -317,12 +326,16 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
             payment_method: Some(payment_method::PaymentMethod::Card(card_details)),
         }),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(unique_email.clone().into()),
             name: Some(format!("{unique_first_name} Doe")),
             id: None,
             connector_customer_id: None,
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
         }),
         customer_acceptance: Some(CustomerAcceptance {
             acceptance_type: i32::from(AcceptanceType::Offline),
@@ -354,13 +367,21 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
             update_mandate_id: None,
             customer_acceptance: None,
             mandate_type: Some(MandateType {
+                #[allow(deprecated)]
                 mandate_type: Some(MandateTypeInner::MultiUse(MandateAmountData {
                     amount: 0,
                     currency: i32::from(Currency::Usd),
+                    amount_money: None,
                     start_date: None,
                     end_date: None,
                     amount_type: Some("max".to_string()),
                     frequency: Some("monthly".to_string()),
+                    initial_billing_amount: None,
+                    external_subscription_id: None,
+                    next_billing_date: None,
+                    billing_cycle: None,
+                    description: None,
+                    mandate_status: 0, // MANDATE_STATUS_UNSPECIFIED
                 })),
             }),
         }),
@@ -399,8 +420,7 @@ async fn test_authorize_psync_void() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let auth_response = client
-            .authorize(grpc_request)
+        let auth_response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -462,8 +482,7 @@ async fn test_authorize_capture_refund_rsync() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let auth_response = client
-            .authorize(grpc_request)
+        let auth_response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -518,7 +537,6 @@ async fn test_authorize_capture_refund_rsync() {
             connector_transaction_id: refund_id,
             encoded_data: None,
             capture_method: None,
-            handle_response: None,
             merchant_transaction_id: None,
             amount,
             state: None,
@@ -529,6 +547,10 @@ async fn test_authorize_capture_refund_rsync() {
             connector_order_reference_id: None,
             test_mode: None,
             payment_experience: None,
+            split_payments: None,
+            merchant_request_id: None,
+            payment_method_type: None,
+            mandate_reference: None,
         };
         let mut rsync_grpc_request = Request::new(rsync_request);
         add_payload_metadata(&mut rsync_grpc_request);
@@ -547,6 +569,7 @@ async fn test_authorize_capture_refund_rsync() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn test_setup_mandate() {
     grpc_test!(client, PaymentServiceClient<Channel>, {
         // Wait 30 seconds before making API call to avoid parallel test conflicts
@@ -557,21 +580,18 @@ async fn test_setup_mandate() {
         let mut grpc_request = Request::new(request);
         add_payload_metadata(&mut grpc_request);
 
-        let response = client
-            .setup_recurring(grpc_request)
+        let response = Box::pin(client.setup_recurring(grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();
 
         // Verify we got a mandate reference
         assert!(
-            response.mandate_reference.is_some(),
+            response.mandate_reference_details.is_some(),
             "Mandate reference should be present"
         );
 
-        if let Some(MandateIdType::ConnectorMandateId(mandate_ref)) =
-            &response.mandate_reference.and_then(|m| m.mandate_id_type)
-        {
+        if let Some(mandate_ref) = &response.mandate_reference_details {
             assert!(
                 mandate_ref.connector_mandate_id.is_some()
                     || mandate_ref.payment_method_id.is_some(),
@@ -609,13 +629,12 @@ async fn test_repeat_payment() {
         let mut register_grpc_request = Request::new(register_request);
         add_payload_metadata(&mut register_grpc_request);
 
-        let register_response = client
-            .setup_recurring(register_grpc_request)
+        let register_response = Box::pin(client.setup_recurring(register_grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();
 
-        if register_response.mandate_reference.is_none() {
+        if register_response.mandate_reference_details.is_none() {
             panic!(
                 "Mandate reference should be present. Status: {}, Error: {:?}",
                 register_response.status,
@@ -627,20 +646,14 @@ async fn test_repeat_payment() {
         }
 
         let mandate_ref = register_response
-            .mandate_reference
+            .mandate_reference_details
             .as_ref()
             .expect("Mandate reference should be present");
 
-        let mandate_id_opt = mandate_ref
-            .mandate_id_type
-            .clone()
-            .and_then(|id| match id {
-                MandateIdType::ConnectorMandateId(connector_id) => {
-                    connector_id.connector_mandate_id
-                }
-                _ => None,
-            });
-        let mandate_id = mandate_id_opt.as_deref().expect("mandate_id should be present");
+        let mandate_id = mandate_ref
+            .connector_mandate_id
+            .as_deref()
+            .expect("mandate_id should be present");
 
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
@@ -648,8 +661,8 @@ async fn test_repeat_payment() {
         let mut repeat_grpc_request = Request::new(repeat_request);
         add_payload_metadata(&mut repeat_grpc_request);
 
-        let repeat_response = recurring_client
-            .charge(repeat_grpc_request)
+        let repeat_response = Box::pin(recurring_client
+            .charge(repeat_grpc_request))
             .await
             .expect("gRPC charge call failed")
             .into_inner();

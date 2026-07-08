@@ -1,0 +1,7 @@
+{
+  "connector": "trustly",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Refund"
+  ]
+}

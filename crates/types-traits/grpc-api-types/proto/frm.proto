@@ -1,0 +1,166 @@
+// Copyright (c) Juspay Technologies. All rights reserved.
+//
+// Package: ucs.v2
+// File: frm.proto
+//
+// Overview:
+//   This file defines the data types and request/response messages for the
+//   FraudAndRiskManagementService API. It enables evaluation of transaction
+//   fraud risk before and after payment processing.
+//
+// Related Files:
+//   - services.proto       — gRPC service definitions
+//   - payment.proto        — Shared types (Money, ErrorInfo, etc.)
+//   - payment_methods.proto — Payment method types
+
+syntax = "proto3";
+
+package types;
+
+import "payment.proto";
+import "payment_methods.proto";
+
+option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
+
+// Request for FrmService.PreRiskCheck
+message FrmServicePreRiskCheckRequest {
+  // Transaction details
+  Money amount = 1;
+
+  // Customer information
+  optional Customer customer_info = 2;
+
+  // Payment method details
+  optional PaymentMethod payment_method = 3;
+
+  // Browser/device information for risk scoring
+  optional BrowserInformation browser_info = 4;
+
+  // Merchant transaction identifier
+  optional string merchant_transaction_id = 5;
+
+  // Order details
+  repeated OrderDetailsWithAmount order_details = 6;
+
+  // Address information
+  optional Address address = 7;
+
+  // Additional metadata for the connector
+  optional SecretString metadata = 8;
+
+  // Connector-specific feature data for the transaction
+  optional SecretString connector_feature_data = 9;
+
+  // Sandbox/test mode flag
+  optional bool test_mode = 10;
+
+  // State Information
+  optional ConnectorState state = 11;
+
+  // Recurring / mandate details for subscription risk scoring. Reuses the shared
+  // MandateAmountData (from payment.proto): `amount` is the per-period billing
+  // amount, `frequency` the billing period. 
+  optional MandateAmountData mandate_details = 12;
+
+  // Merchant details (id + MCC) for risk scoring.
+  optional MerchantDetails merchant_details = 13;
+}
+
+// Response for FrmService.PreRiskCheck
+message FrmServicePreRiskCheckResponse {
+  // Risk assessment outcome
+  optional FrmDecision frm_decision = 1;
+
+  // Risk score (higher = riskier)
+  optional int32 risk_score = 2;
+
+  // Reason for the decision
+  optional string reason = 3;
+
+  // FRM transaction identifier
+  optional string frm_transaction_id = 4;
+
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+
+  // Error information if the request failed
+  optional ErrorInfo error = 6;
+
+  // Raw request sent to the connector for debugging
+  optional SecretString raw_connector_request = 7;
+
+  // Raw response from the connector for debugging
+  optional SecretString raw_connector_response = 8;
+
+  // Response headers from the connector
+  map<string, string> response_headers = 9;
+}
+
+// Request for FrmService.PostRiskCheck
+message FrmServicePostRiskCheckRequest {
+  // Transaction details
+  Money amount = 1;
+
+  // Customer information
+  optional Customer customer_info = 2;
+
+  // Payment method details
+  optional PaymentMethod payment_method = 3;
+
+  // Merchant transaction identifier
+  optional string merchant_transaction_id = 4;
+
+  // Order details
+  repeated OrderDetailsWithAmount order_details = 5;
+
+  // Additional metadata for the connector
+  optional SecretString metadata = 6;
+
+  // Connector-specific feature data for the transaction
+  optional SecretString connector_feature_data = 7;
+
+  // Sandbox/test mode flag
+  optional bool test_mode = 8;
+
+  // Payment status after processing
+  optional PaymentStatus payment_status = 9;
+
+  // Connector transaction identifier from the payment
+  optional string connector_transaction_id = 10;
+
+  // Payment connector that processed the transaction
+  optional Connector payment_connector = 11;
+
+  // State Information
+  optional ConnectorState state = 12;
+}
+
+// Response for FrmService.PostRiskCheck
+message FrmServicePostRiskCheckResponse {
+  // Risk assessment outcome
+  optional FrmDecision frm_decision = 1;
+
+  // Risk score (higher = riskier)
+  optional int32 risk_score = 2;
+
+  // Reason for the decision
+  optional string reason = 3;
+
+  // FRM transaction identifier
+  optional string frm_transaction_id = 4;
+
+  // HTTP status code from the connector
+  uint32 status_code = 5;
+
+  // Error information if the request failed
+  optional ErrorInfo error = 6;
+
+  // Raw request sent to the connector for debugging
+  optional SecretString raw_connector_request = 7;
+
+  // Raw response from the connector for debugging
+  optional SecretString raw_connector_response = 8;
+
+  // Response headers from the connector
+  map<string, string> response_headers = 9;
+}

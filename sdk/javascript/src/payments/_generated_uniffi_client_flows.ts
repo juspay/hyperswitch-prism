@@ -89,23 +89,6 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('charge', responseBytes, requestBytes, optionsBytes);
   }
 
-  /** Build connector HTTP request for create flow. */
-  createReq(
-    requestBytes: Buffer | Uint8Array,
-    optionsBytes: Buffer | Uint8Array
-  ): Buffer {
-    return this.callReq('create', requestBytes, optionsBytes);
-  }
-
-  /** Parse connector HTTP response for create flow. */
-  createRes(
-    responseBytes: Buffer | Uint8Array,
-    requestBytes: Buffer | Uint8Array,
-    optionsBytes: Buffer | Uint8Array
-  ): Buffer {
-    return this.callRes('create', responseBytes, requestBytes, optionsBytes);
-  }
-
   /** Build connector HTTP request for create_client_authentication_token flow. */
   createClientAuthenticationTokenReq(
     requestBytes: Buffer | Uint8Array,
@@ -174,6 +157,23 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('create_server_session_authentication_token', responseBytes, requestBytes, optionsBytes);
   }
 
+  /** Build connector HTTP request for customer_create flow. */
+  customerCreateReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('customer_create', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for customer_create flow. */
+  customerCreateRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('customer_create', responseBytes, requestBytes, optionsBytes);
+  }
+
   /** Build connector HTTP request for defend flow. */
   defendReq(
     requestBytes: Buffer | Uint8Array,
@@ -191,6 +191,23 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('defend', responseBytes, requestBytes, optionsBytes);
   }
 
+  /** Build connector HTTP request for eligibility flow. */
+  eligibilityReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('eligibility', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for eligibility flow. */
+  eligibilityRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('eligibility', responseBytes, requestBytes, optionsBytes);
+  }
+
   /** Build connector HTTP request for get flow. */
   getReq(
     requestBytes: Buffer | Uint8Array,
@@ -206,6 +223,23 @@ export class UniffiClient extends _UniffiClientBase {
     optionsBytes: Buffer | Uint8Array
   ): Buffer {
     return this.callRes('get', responseBytes, requestBytes, optionsBytes);
+  }
+
+  /** Build connector HTTP request for incremental_authorization flow. */
+  incrementalAuthorizationReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('incremental_authorization', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for incremental_authorization flow. */
+  incrementalAuthorizationRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('incremental_authorization', responseBytes, requestBytes, optionsBytes);
   }
 
   /** Build connector HTTP request for payout_create flow. */
@@ -361,6 +395,23 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('post_authenticate', responseBytes, requestBytes, optionsBytes);
   }
 
+  /** Build connector HTTP request for post_risk_check flow. */
+  postRiskCheckReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('post_risk_check', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for post_risk_check flow. */
+  postRiskCheckRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('post_risk_check', responseBytes, requestBytes, optionsBytes);
+  }
+
   /** Build connector HTTP request for pre_authenticate flow. */
   preAuthenticateReq(
     requestBytes: Buffer | Uint8Array,
@@ -376,6 +427,23 @@ export class UniffiClient extends _UniffiClientBase {
     optionsBytes: Buffer | Uint8Array
   ): Buffer {
     return this.callRes('pre_authenticate', responseBytes, requestBytes, optionsBytes);
+  }
+
+  /** Build connector HTTP request for pre_risk_check flow. */
+  preRiskCheckReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('pre_risk_check', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for pre_risk_check flow. */
+  preRiskCheckRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('pre_risk_check', responseBytes, requestBytes, optionsBytes);
   }
 
   /** Build connector HTTP request for proxy_authorize flow. */
@@ -412,6 +480,23 @@ export class UniffiClient extends _UniffiClientBase {
     return this.callRes('proxy_setup_recurring', responseBytes, requestBytes, optionsBytes);
   }
 
+  /** Build connector HTTP request for recurring_revoke flow. */
+  recurringRevokeReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('recurring_revoke', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for recurring_revoke flow. */
+  recurringRevokeRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('recurring_revoke', responseBytes, requestBytes, optionsBytes);
+  }
+
   /** Build connector HTTP request for refund flow. */
   refundReq(
     requestBytes: Buffer | Uint8Array,
@@ -427,6 +512,23 @@ export class UniffiClient extends _UniffiClientBase {
     optionsBytes: Buffer | Uint8Array
   ): Buffer {
     return this.callRes('refund', responseBytes, requestBytes, optionsBytes);
+  }
+
+  /** Build connector HTTP request for refund_get flow. */
+  refundGetReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('refund_get', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for refund_get flow. */
+  refundGetRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('refund_get', responseBytes, requestBytes, optionsBytes);
   }
 
   /** Build connector HTTP request for reverse flow. */
@@ -478,6 +580,23 @@ export class UniffiClient extends _UniffiClientBase {
     optionsBytes: Buffer | Uint8Array
   ): Buffer {
     return this.callRes('submit_evidence', responseBytes, requestBytes, optionsBytes);
+  }
+
+  /** Build connector HTTP request for surcharge_calculate flow. */
+  surchargeCalculateReq(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callReq('surcharge_calculate', requestBytes, optionsBytes);
+  }
+
+  /** Parse connector HTTP response for surcharge_calculate flow. */
+  surchargeCalculateRes(
+    responseBytes: Buffer | Uint8Array,
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callRes('surcharge_calculate', responseBytes, requestBytes, optionsBytes);
   }
 
   /** Build connector HTTP request for token_authorize flow. */
@@ -554,6 +673,22 @@ export class UniffiClient extends _UniffiClientBase {
     optionsBytes: Buffer | Uint8Array
   ): Buffer {
     return this.callDirect('handle_event', requestBytes, optionsBytes);
+  }
+
+  /** Direct single-step transform for parse_event (no HTTP round-trip). */
+  parseEventDirect(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callDirect('parse_event', requestBytes, optionsBytes);
+  }
+
+  /** Direct single-step transform for verify_redirect_response (no HTTP round-trip). */
+  verifyRedirectResponseDirect(
+    requestBytes: Buffer | Uint8Array,
+    optionsBytes: Buffer | Uint8Array
+  ): Buffer {
+    return this.callDirect('verify_redirect_response', requestBytes, optionsBytes);
   }
 
 }

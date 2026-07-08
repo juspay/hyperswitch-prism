@@ -1,0 +1,14 @@
+{
+  "connector": "braintree",
+  "supported_suites": [
+    "PaymentService/Capture",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentMethodService/Tokenize",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
+  ]
+}

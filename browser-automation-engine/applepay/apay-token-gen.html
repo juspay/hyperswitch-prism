@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apple Pay Token Generator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; padding: 24px; background: #f5f5f5; }
+    h1 { font-size: 20px; margin-bottom: 16px; color: #333; }
+    .config-summary { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 16px; font-size: 13px; }
+    .config-summary dt { font-weight: 600; color: #555; display: inline; }
+    .config-summary dd { display: inline; margin-left: 4px; margin-right: 16px; color: #222; }
+    #apay-container { margin: 16px 0; min-height: 48px; }
+    apple-pay-button { --apple-pay-button-width: 100%; --apple-pay-button-height: 48px; --apple-pay-button-border-radius: 8px; --apple-pay-button-padding: 0; --apple-pay-button-box-sizing: border-box; }
+    #apay-btn-fallback {
+      display: none; width: 100%; height: 48px; border-radius: 8px;
+      background: #000; color: #fff; font-size: 16px;
+      border: none; cursor: pointer; letter-spacing: 0.02em;
+    }
+    #status { margin: 16px 0; padding: 12px; border-radius: 8px; font-size: 13px; display: none; }
+    #status.info    { display: block; background: #e3f2fd; border: 1px solid #90caf9; color: #1565c0; }
+    #status.success { display: block; background: #e8f5e9; border: 1px solid #a5d6a7; color: #2e7d32; }
+    #status.error   { display: block; background: #ffebee; border: 1px solid #ef9a9a; color: #c62828; }
+    #status.waiting { display: block; background: #fff8e1; border: 1px solid #ffe082; color: #f57f17; }
+    #apay-result-container { display: none; margin-top: 16px; }
+    #apay-result-container.visible { display: block; }
+    #apay-result-container h2 { font-size: 16px; margin-bottom: 8px; color: #333; }
+    pre#apay-result {
+      background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 8px;
+      font-size: 12px; line-height: 1.5; overflow-x: auto; max-height: 600px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .token-only { margin-top: 12px; }
+    .token-only h3 { font-size: 14px; margin-bottom: 4px; color: #555; }
+    pre#apay-token {
+      background: #263238; color: #80cbc4; padding: 12px; border-radius: 8px;
+      font-size: 12px; line-height: 1.5; overflow-x: auto; max-height: 300px; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+  <h1>Apple Pay Token Generator</h1>
+
+  <div class="config-summary" id="config-summary"></div>
+
+  <div id="apay-container">
+    <button id="apay-btn-fallback">Pay with Apple Pay</button>
+  </div>
+
+  <div id="status"></div>
+
+  <div id="apay-result-container">
+    <h2>Full Apple Pay Token Response</h2>
+    <pre id="apay-result"></pre>
+    <div class="token-only">
+      <h3>Payment Token (for connector API)</h3>
+      <pre id="apay-token"></pre>
+    </div>
+  </div>
+
+  <script>
+    // ── Global state (read by Playwright) ────────────────────────────────────
+    window.__apayResult = null;
+    window.__apayError  = null;
+    window.__apayDone   = false;
+    window.__apayReady  = false;
+
+    // ── Parse config from URL query params ──────────────────────────────────
+    var params = new URLSearchParams(window.location.search);
+
+    var config = {
+      merchantId:          params.get("merchantId")         || "merchant.com.example",
+      merchantName:        params.get("merchantName")       || "Test Merchant",
+      amount:              params.get("amount")             || "10.00",
+      currency:            params.get("currency")           || "USD",
+      countryCode:         params.get("countryCode")        || "US",
+      supportedNetworks:  (params.get("supportedNetworks")  || "visa,masterCard,amex,discover").split(","),
+      merchantCapabilities:(params.get("merchantCapabilities") || "supports3DS").split(","),
+      // URL of the local merchant validation server (our Node.js server)
+      validationUrl:       params.get("validationUrl")      || "",
+      // initiative context = registered Apple Pay domain
+      initiativeContext:   params.get("initiativeContext")  || window.location.hostname,
+    };
+
+    // ── Render config summary (using textContent to avoid XSS) ─────────────
+    (function renderConfigSummary() {
+      var el = document.getElementById("config-summary");
+      el.innerHTML = "";
+      var dl = document.createElement("dl");
+
+      function addRow(label, value) {
+        var dt = document.createElement("dt");
+        dt.textContent = label;
+        var dd = document.createElement("dd");
+        dd.textContent = value;
+        dl.appendChild(dt);
+        dl.appendChild(dd);
+        dl.appendChild(document.createElement("br"));
+      }
+
+      addRow("Merchant ID:", config.merchantId);
+      addRow("Merchant:",    config.merchantName);
+      addRow("Amount:",      config.amount + " " + config.currency);
+      addRow("Country:",     config.countryCode);
+      addRow("Networks:",    config.supportedNetworks.join(", "));
+      addRow("Capabilities:", config.merchantCapabilities.join(", "));
+      addRow("Domain:",      config.initiativeContext);
+
+      el.appendChild(dl);
+    })();
+
+    // ── Status helper ────────────────────────────────────────────────────────
+    function setStatus(message, type) {
+      var el = document.getElementById("status");
+      el.textContent = message;
+      el.className = type;
+    }
+
+    // ── Check Apple Pay availability ─────────────────────────────────────────
+    function checkApplePayAvailability() {
+      if (!window.ApplePaySession) {
+        setStatus("ApplePaySession is not available in this browser. Use Safari on macOS/iOS.", "error");
+        window.__apayError = "ApplePaySession not available";
+        window.__apayDone  = true;
+        return false;
+      }
+      if (!ApplePaySession.canMakePayments()) {
+        setStatus("Apple Pay cannot make payments on this device. Check Wallet setup.", "error");
+        window.__apayError = "canMakePayments() returned false";
+        window.__apayDone  = true;
+        return false;
+      }
+      return true;
+    }
+
+    // ── Build Apple Pay payment request ──────────────────────────────────────
+    function buildPaymentRequest() {
+      return {
+        countryCode:          config.countryCode,
+        currencyCode:         config.currency,
+        supportedNetworks:    config.supportedNetworks,
+        merchantCapabilities: config.merchantCapabilities,
+        total: {
+          label:  config.merchantName,
+          amount: config.amount
+        }
+      };
+    }
+
+    // ── Run Apple Pay session ─────────────────────────────────────────────────
+    function startApplePaySession() {
+      if (!checkApplePayAvailability()) return;
+
+      setStatus("Starting Apple Pay session...", "info");
+
+      var session = new ApplePaySession(3, buildPaymentRequest());
+
+      // ── Merchant validation ───────────────────────────────────────────────
+      // Apple calls this with a validationURL; we proxy it to our local server
+      // which signs the request using the merchant cert + key.
+      session.onvalidatemerchant = function(event) {
+        setStatus("Validating merchant with Apple...", "info");
+        var validationURL = config.validationUrl || "/applepay/validate";
+        fetch(validationURL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            validationURL:     event.validationURL,
+            merchantId:        config.merchantId,
+            displayName:       config.merchantName,
+            initiativeContext: config.initiativeContext,
+          })
+        })
+        .then(function(res) {
+          if (!res.ok) throw new Error("Validation server returned HTTP " + res.status);
+          return res.json();
+        })
+        .then(function(merchantSession) {
+          session.completeMerchantValidation(merchantSession);
+          setStatus("Merchant validated — approve the payment on your device.", "waiting");
+        })
+        .catch(function(err) {
+          setStatus("Merchant validation failed: " + err.message, "error");
+          window.__apayError = "Merchant validation failed: " + err.message;
+          window.__apayDone  = true;
+          session.abort();
+        });
+      };
+
+      // ── Payment authorized ────────────────────────────────────────────────
+      session.onpaymentauthorized = function(event) {
+        var payment = event.payment;
+
+        // Build connector-service-friendly output
+        var result = {
+          payment_method: {
+            apple_pay: {
+              payment_data: {
+                encrypted_data: btoa(JSON.stringify(payment.token.paymentData))
+              },
+              payment_method: {
+                display_name: (payment.token.paymentMethod && payment.token.paymentMethod.displayName) || "",
+                network:      (payment.token.paymentMethod && payment.token.paymentMethod.network)      || "",
+                type:         (payment.token.paymentMethod && payment.token.paymentMethod.type)         || ""
+              },
+              transaction_identifier: payment.token.transactionIdentifier || ""
+            }
+          },
+          // Full raw token for reference
+          raw_token: payment.token
+        };
+
+        window.__apayResult = result;
+        window.__apayDone   = true;
+
+        session.completePayment(ApplePaySession.STATUS_SUCCESS);
+
+        setStatus("Token generated successfully!", "success");
+        document.getElementById("apay-result-container").className = "visible";
+        document.getElementById("apay-result").textContent = JSON.stringify(result, null, 2);
+        document.getElementById("apay-token").textContent  = JSON.stringify(result.payment_method.apple_pay, null, 2);
+      };
+
+      // ── Cancellation ─────────────────────────────────────────────────────
+      session.oncancel = function() {
+        setStatus("Apple Pay cancelled by user.", "info");
+        window.__apayError = null; // cancellation is not a hard error
+        window.__apayDone  = true;
+      };
+
+      session.begin();
+    }
+
+    // ── Wire up button ────────────────────────────────────────────────────────
+    function setupButton() {
+      // Try native <apple-pay-button> web component first
+      if (window.ApplePaySession && ApplePaySession.canMakePayments()) {
+        // Show native button via web component if supported
+        var container = document.getElementById("apay-container");
+
+        // Check if <apple-pay-button> custom element is available
+        if (window.customElements && customElements.get("apple-pay-button")) {
+          var apBtn = document.createElement("apple-pay-button");
+          apBtn.setAttribute("buttonstyle", "black");
+          apBtn.setAttribute("type", "buy");
+          apBtn.setAttribute("locale", "en-US");
+          apBtn.addEventListener("click", startApplePaySession);
+          container.appendChild(apBtn);
+        } else {
+          // Fall back to styled button
+          var fallback = document.getElementById("apay-btn-fallback");
+          fallback.style.display = "block";
+          fallback.addEventListener("click", startApplePaySession);
+        }
+
+        setStatus("Apple Pay is ready. Click the button to generate a token.", "info");
+        window.__apayReady = true;
+      } else {
+        // Not available — show fallback for debugging / error state
+        var fallback2 = document.getElementById("apay-btn-fallback");
+        fallback2.style.display = "block";
+        fallback2.textContent = "Apple Pay (unavailable — see status)";
+        fallback2.disabled = true;
+
+        if (!window.ApplePaySession) {
+          setStatus("ApplePaySession not available — must use Safari on macOS or iOS.", "error");
+          window.__apayError = "ApplePaySession not available";
+        } else {
+          setStatus("Apple Pay not available on this device (no cards in Wallet?).", "error");
+          window.__apayError = "canMakePayments() returned false";
+        }
+        window.__apayDone = true;
+      }
+    }
+
+    // Load Apple Pay JS SDK then set up button
+    (function() {
+      if (window.ApplePaySession) {
+        // ApplePaySession is a native browser API — no script to load
+        setupButton();
+        return;
+      }
+      // If not available (non-Safari), still set up to show error state
+      setupButton();
+    })();
+  </script>
+</body>
+</html>

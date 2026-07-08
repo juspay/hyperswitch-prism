@@ -1,0 +1,12 @@
+{
+  "connector": "imerchantsolutions",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "RecurringPaymentService/Charge"
+  ]
+}

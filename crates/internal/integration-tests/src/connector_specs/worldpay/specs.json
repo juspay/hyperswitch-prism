@@ -1,0 +1,15 @@
+{
+  "connector": "worldpay",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/IncrementalAuthorization",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Void"
+  ]
+}

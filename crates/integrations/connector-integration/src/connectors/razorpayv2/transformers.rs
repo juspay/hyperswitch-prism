@@ -14,7 +14,7 @@ use domain_types::{
     },
     payment_address::Address,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, UpiData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
 };
@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::connectors::razorpay::transformers::ForeignTryFrom;
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 
 // ============ Authentication Types ============
@@ -378,7 +378,7 @@ impl<U: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
                 UpiData::UpiIntent(_) | UpiData::UpiQr(_) => (Some(UpiFlow::Intent), None),
                 // UpiData::UpiQr(_) => {
-                //     return Err(errors::IntegrationError::not_implemented("UPI QR flow not supported by RazorpayV2".to_string()).into());
+                //     return Err(errors::IntegrationError::NotImplemented(("UPI QR flow not supported by RazorpayV2".to_string()).into(), Default::default()).into());
                 // }
             },
             _ => (None, None),
@@ -491,7 +491,7 @@ impl
         Vec<u8>, // raw_response
     )> for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
 
     fn foreign_try_from(
         (response, data, _status_code, _raw_response): (
@@ -534,7 +534,7 @@ impl
         Vec<u8>, // raw_response
     )> for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
 
     fn foreign_try_from(
         (response, data, _status_code, _raw_response): (
@@ -577,7 +577,7 @@ impl
         Vec<u8>, // raw_response
     )> for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
 
     fn foreign_try_from(
         (sync_response, data, _status_code, _raw_response): (
@@ -611,9 +611,11 @@ impl
                 connector_metadata: None,
                 mandate_reference: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: payment_response.order_id,
                 incremental_authorization_allowed: None,
                 status_code: _status_code,
+                splits: None,
             }),
             RazorpayStatus::Failed => Err(ErrorResponse {
                 code: payment_response
@@ -624,7 +626,7 @@ impl
                     .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 reason: payment_response.error_reason,
                 status_code: _status_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: Some(payment_response.id),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -652,7 +654,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     )>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
 
     fn foreign_try_from(
         (upi_response, data, _status_code, _raw_response): (
@@ -697,9 +699,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
-            connector_response_reference_id: data.resource_common_data.reference_id.clone(),
+            network_txn_link_id: None,
+            connector_response_reference_id: data.resource_common_data.connector_order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -722,7 +726,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     )>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = ConnectorResponseTransformationError;
+    type Error = ConnectorError;
 
     fn foreign_try_from(
         (response, data, _status_code, __raw_response): (
@@ -738,9 +742,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_metadata: None,
             mandate_reference: None,
             network_txn_id: None,
-            connector_response_reference_id: data.resource_common_data.reference_id.clone(),
+            network_txn_link_id: None,
+            connector_response_reference_id: data.resource_common_data.connector_order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,
+            splits: None,
         };
 
         Ok(Self {

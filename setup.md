@@ -324,24 +324,105 @@ level = "DEBUG"
 log_format = "default"
 ```
 
+## Running Connector Integration Tests
+
+UCS includes a full connector integration test suite driven by `test-prism`.
+The suite covers payment flows (authorize, capture, void, refund, etc.) across
+all supported connectors and optionally includes Google Pay / Apple Pay
+scenarios.
+
+### One-time setup
+
+Run the setup script once before running any connector tests:
+
+```bash
+make setup-connector-tests
+```
+
+This will:
+1. Install Node.js dependencies for the browser automation engine
+2. Download Playwright browser binaries (Chromium + WebKit)
+3. Install `grpcurl` if not already present
+4. Deploy Google Pay token-generator pages to Netlify *(optional — see below)*
+5. Verify your credentials file is present
+6. Install the `test-prism` launcher to your PATH
+
+### Google Pay / Apple Pay setup (optional)
+
+Google Pay tests require a static HTML page hosted on HTTPS (Google's
+`pay.js` refuses to load from `localhost`). The setup script handles this
+automatically — no manual steps needed.
+
+When the setup script reaches the Netlify step it will:
+
+1. Print a one-time authorization URL in the terminal
+2. You open that URL in your browser and click **"Authorize"** — one click,
+   no forms if you are already logged in to netlify.com
+3. The script detects authorization automatically and continues
+4. A Netlify site is created, the pages are deployed, and the URL is saved
+   to `.env.connector-tests` — all future runs skip this step entirely
+
+```
+[setup] Netlify login required for Google Pay test setup.
+
+  Open this URL in your browser to authorize (one click):
+
+    https://app.netlify.com/authorize?response_type=ticket&ticket=xxxx
+
+  Waiting for authorization...........
+[setup] Netlify authorization successful.
+[setup] Netlify site created: ucs-gpay-myhostname-1234567890
+[setup] Netlify deploy successful: https://ucs-gpay-xxx.netlify.app/gpay/gpay-token-gen.html
+```
+
+**If you already have `NETLIFY_AUTH_TOKEN` set**, the browser step is skipped
+entirely and the deploy runs fully headlessly — useful for CI/CD.
+
+**To skip Google Pay tests entirely** (no Netlify account needed):
+
+```bash
+SKIP_NETLIFY_DEPLOY=1 make setup-connector-tests
+```
+
+> For full details on the Google Pay flow, see
+> [`browser-automation-engine/gpay/README.md`](browser-automation-engine/gpay/README.md).
+
+### Running tests
+
+```bash
+# Run all connector tests
+test-prism
+
+# Run tests for a specific connector
+test-prism --connector stripe
+
+# Run a specific scenario
+test-prism --connector stripe --suite authorize --scenario no3ds_auto_capture_credit_card
+
+# Interactive wizard
+test-prism --interactive
+```
+
+---
+
 ## Running Payment Flow Tests
 
 UCS includes comprehensive integration tests for payment processors with centralized credential management.
 
 ### Test Credential Configuration
 
-UCS tests require actual payment processor credentials to run successfully. These credentials are loaded from `.github/test/creds.json`.
+UCS tests require actual payment processor credentials to run successfully. At runtime, tests load credentials from `creds.json` in the repo root. A starter template is kept at `.github/test/template_creds.json`.
 
 #### Setting Up Your Credentials
 
-1. **Copy the template file**:
+1. **Copy the template into the runtime location**:
    ```bash
-   cp .github/test/template_creds.json .github/test/creds.json
+   cp .github/test/template_creds.json creds.json
    ```
 
 2. **Replace placeholder values with real credentials**:
    
-   Edit `.github/test/creds.json` and replace the `test_*` placeholder values with your actual sandbox/test credentials from each payment processor.
+   Edit `creds.json` and replace the `test_*` placeholder values with your actual sandbox/test credentials from each payment processor.
 
    **Example for Authorize.Net**:
    ```json

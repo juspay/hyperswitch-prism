@@ -18,15 +18,19 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        noon=payment_pb2.NoonConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            application_identifier=payment_methods_pb2.SecretString(value="YOUR_APPLICATION_IDENTIFIER"),
+            business_identifier=payment_methods_pb2.SecretString(value="YOUR_BUSINESS_IDENTIFIER"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     noon=payment_pb2.NoonConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +42,19 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Noon',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.NOON,
+    environment: Environment.SANDBOX,
+    auth: {
+        noon: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            applicationIdentifier: { value: 'YOUR_APPLICATION_IDENTIFIER' },
+            businessIdentifier: { value: 'YOUR_BUSINESS_IDENTIFIER' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +68,16 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Noon")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setNoon(NoonConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setApplicationIdentifier(SecretString.newBuilder().setValue("YOUR_APPLICATION_IDENTIFIER").build())
+                .setBusinessIdentifier(SecretString.newBuilder().setValue("YOUR_BUSINESS_IDENTIFIER").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +90,22 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Noon".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Noon(NoonConfig {
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
+                application_identifier: Some(hyperswitch_masking::Secret::new("YOUR_APPLICATION_IDENTIFIER".to_string())),  // Authentication credential
+                business_identifier: Some(hyperswitch_masking::Secret::new("YOUR_BUSINESS_IDENTIFIER".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -96,9 +119,23 @@ let config = ConnectorConfig {
 
 Complete, runnable examples for common integration patterns. Each example shows the full flow with status handling. Copy-paste into your app and replace placeholder values.
 
+### One-step Payment (Authorize + Capture)
+
+Simple payment that authorizes and captures in one call. Use for immediate charges.
+
+**Response status handling:**
+
+| Status | Recommended action |
+|--------|-------------------|
+| `AUTHORIZED` | Payment authorized and captured — funds will be settled automatically |
+| `PENDING` | Payment processing — await webhook for final status before fulfilling |
+| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
+
+**Examples:** [Python](../../examples/noon/noon.py#L195) · [JavaScript](../../examples/noon/noon.js) · [Kotlin](../../examples/noon/noon.kt#L121) · [Rust](../../examples/noon/noon.rs#L256)
+
 ### Card Payment (Authorize + Capture)
 
-Reserve funds with Authorize, then settle with a separate Capture call. Use for physical goods or delayed fulfillment where capture happens later.
+Two-step card payment. First authorize, then capture. Use when you need to verify funds before finalizing.
 
 **Response status handling:**
 
@@ -108,53 +145,25 @@ Reserve funds with Authorize, then settle with a separate Capture call. Use for 
 | `PENDING` | Awaiting async confirmation — wait for webhook before capturing |
 | `FAILED` | Payment declined — surface error to customer, do not retry without new details |
 
-**Examples:** [Python](../../examples/noon/python/noon.py#L90) · [JavaScript](../../examples/noon/javascript/noon.js#L80) · [Kotlin](../../examples/noon/kotlin/noon.kt#L106) · [Rust](../../examples/noon/rust/noon.rs#L100)
+**Examples:** [Python](../../examples/noon/noon.py#L214) · [JavaScript](../../examples/noon/noon.js) · [Kotlin](../../examples/noon/noon.kt#L137) · [Rust](../../examples/noon/noon.rs#L272)
 
-### Card Payment (Automatic Capture)
+### Refund
 
-Authorize and capture in one call using `capture_method=AUTOMATIC`. Use for digital goods or immediate fulfillment.
+Return funds to the customer for a completed payment.
 
-**Response status handling:**
+**Examples:** [Python](../../examples/noon/noon.py#L239) · [JavaScript](../../examples/noon/noon.js) · [Kotlin](../../examples/noon/noon.kt#L159) · [Rust](../../examples/noon/noon.rs#L295)
 
-| Status | Recommended action |
-|--------|-------------------|
-| `AUTHORIZED` | Payment authorized and captured — funds will be settled automatically |
-| `PENDING` | Payment processing — await webhook for final status before fulfilling |
-| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
+### Void Payment
 
-**Examples:** [Python](../../examples/noon/python/noon.py#L115) · [JavaScript](../../examples/noon/javascript/noon.js#L106) · [Kotlin](../../examples/noon/kotlin/noon.kt#L128) · [Rust](../../examples/noon/rust/noon.rs#L123)
+Cancel an authorized but not-yet-captured payment.
 
-### Wallet Payment (Google Pay / Apple Pay)
-
-Wallet payments pass an encrypted token from the browser/device SDK. Pass the token blob directly — do not decrypt client-side.
-
-**Response status handling:**
-
-| Status | Recommended action |
-|--------|-------------------|
-| `AUTHORIZED` | Payment authorized and captured — funds will be settled automatically |
-| `PENDING` | Payment processing — await webhook for final status before fulfilling |
-| `FAILED` | Payment declined — surface error to customer, do not retry without new details |
-
-**Examples:** [Python](../../examples/noon/python/noon.py#L134) · [JavaScript](../../examples/noon/javascript/noon.js#L125) · [Kotlin](../../examples/noon/kotlin/noon.kt#L144) · [Rust](../../examples/noon/rust/noon.rs#L139)
-
-### Refund a Payment
-
-Authorize with automatic capture, then refund the captured amount. `connector_transaction_id` from the Authorize response is reused for the Refund call.
-
-**Examples:** [Python](../../examples/noon/python/noon.py#L187) · [JavaScript](../../examples/noon/javascript/noon.js#L175) · [Kotlin](../../examples/noon/kotlin/noon.kt#L191) · [Rust](../../examples/noon/rust/noon.rs#L188)
-
-### Void a Payment
-
-Authorize funds with a manual capture flag, then cancel the authorization with Void before any capture occurs. Releases the hold on the customer's funds.
-
-**Examples:** [Python](../../examples/noon/python/noon.py#L224) · [JavaScript](../../examples/noon/javascript/noon.js#L210) · [Kotlin](../../examples/noon/kotlin/noon.kt#L213) · [Rust](../../examples/noon/rust/noon.rs#L211)
+**Examples:** [Python](../../examples/noon/noon.py#L264) · [JavaScript](../../examples/noon/noon.js) · [Kotlin](../../examples/noon/noon.kt#L181) · [Rust](../../examples/noon/noon.rs#L318)
 
 ### Get Payment Status
 
-Authorize a payment, then poll the connector for its current status using Get. Use this to sync payment state when webhooks are unavailable or delayed.
+Retrieve current payment status from the connector.
 
-**Examples:** [Python](../../examples/noon/python/noon.py#L246) · [JavaScript](../../examples/noon/javascript/noon.js#L232) · [Kotlin](../../examples/noon/kotlin/noon.kt#L232) · [Rust](../../examples/noon/rust/noon.rs#L230)
+**Examples:** [Python](../../examples/noon/noon.py#L286) · [JavaScript](../../examples/noon/noon.js) · [Kotlin](../../examples/noon/noon.kt#L200) · [Rust](../../examples/noon/noon.rs#L337)
 
 ## API Reference
 
@@ -163,8 +172,14 @@ Authorize a payment, then poll the connector for its current status using Get. U
 | [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
 | [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
+| [PaymentService.ProxyAuthorize](#paymentserviceproxyauthorize) | Payments | `PaymentServiceProxyAuthorizeRequest` |
+| [PaymentService.ProxySetupRecurring](#paymentserviceproxysetuprecurring) | Payments | `PaymentServiceProxySetupRecurringRequest` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
+| [RecurringPaymentService.Revoke](#recurringpaymentservicerevoke) | Mandates | `RecurringPaymentServiceRevokeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
 | [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
@@ -183,20 +198,105 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 | Payment Method | Supported |
 |----------------|:---------:|
 | Card | ✓ |
-| Google Pay | ✓ |
+| Bancontact | x |
 | Apple Pay | ? |
-| SEPA | ⚠ |
-| BACS | ⚠ |
-| ACH | ⚠ |
-| BECS | ⚠ |
-| iDEAL | ⚠ |
+| Apple Pay Dec | ? |
+| Apple Pay SDK | x |
+| Google Pay | ✓ |
+| Google Pay Dec | ✓ |
+| Google Pay SDK | x |
+| PayPal SDK | x |
+| Amazon Pay | x |
+| Cash App | x |
 | PayPal | ✓ |
-| BLIK | ⚠ |
-| Klarna | ⚠ |
-| Afterpay | ⚠ |
-| UPI | ⚠ |
-| Affirm | ⚠ |
-| Samsung Pay | ⚠ |
+| WeChat Pay | x |
+| Alipay | x |
+| Revolut Pay | x |
+| MiFinity | x |
+| Bluecode | x |
+| Paze | x |
+| Samsung Pay | x |
+| MB Way | x |
+| Satispay | x |
+| Wero | x |
+| GoPay | x |
+| GCash | x |
+| Momo | x |
+| Dana | x |
+| Kakao Pay | x |
+| Touch 'n Go | x |
+| Twint | x |
+| Vipps | x |
+| Swish | x |
+| Affirm | x |
+| Afterpay | x |
+| Klarna | x |
+| UPI Collect | x |
+| UPI Intent | x |
+| UPI QR | x |
+| Thailand | x |
+| Czech | x |
+| Finland | x |
+| FPX | x |
+| Poland | x |
+| Slovakia | x |
+| UK | x |
+| PIS | x |
+| Generic | x |
+| Local | x |
+| iDEAL | x |
+| Sofort | x |
+| Trustly | x |
+| Giropay | x |
+| EPS | x |
+| Przelewy24 | x |
+| PSE | x |
+| BLIK | x |
+| Interac | x |
+| Bizum | x |
+| EFT | x |
+| DuitNow | x |
+| ACH | x |
+| SEPA | x |
+| BACS | x |
+| Multibanco | x |
+| Instant | x |
+| Instant FI | x |
+| Instant PL | x |
+| Pix | x |
+| Permata | x |
+| BCA | x |
+| BNI VA | x |
+| BRI VA | x |
+| CIMB VA | x |
+| Danamon VA | x |
+| Mandiri VA | x |
+| Local | x |
+| Indonesian | x |
+| ACH | x |
+| SEPA | x |
+| BACS | x |
+| BECS | x |
+| SEPA Guaranteed | x |
+| Crypto | x |
+| Reward | x |
+| Givex | x |
+| PaySafeCard | x |
+| E-Voucher | x |
+| Boleto | x |
+| Efecty | x |
+| Pago Efectivo | x |
+| Red Compra | x |
+| Red Pagos | x |
+| Alfamart | x |
+| Indomaret | x |
+| Oxxo | x |
+| 7-Eleven | x |
+| Lawson | x |
+| Mini Stop | x |
+| Family Mart | x |
+| Seicomart | x |
+| Pay Easy | x |
 
 **Payment method objects** — use these in the `payment_method` field of the Authorize request.
 
@@ -204,13 +304,13 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "card": {  # Generic card payment
-        "card_number": "4111111111111111",  # Card Identification
-        "card_exp_month": "03",
-        "card_exp_year": "2030",
-        "card_cvc": "737",
-        "card_holder_name": "John Doe"  # Cardholder Information
-    }
+  "card": {
+    "card_number": "4111111111111111",
+    "card_exp_month": "03",
+    "card_exp_year": "2030",
+    "card_cvc": "737",
+    "card_holder_name": "John Doe"
+  }
 }
 ```
 
@@ -218,20 +318,20 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "google_pay": {  # Google Pay
-        "type": "CARD",  # Type of payment method
-        "description": "Visa 1111",  # User-facing description of the payment method
-        "info": {
-            "card_network": "VISA",  # Card network name
-            "card_details": "1111"  # Card details (usually last 4 digits)
-        },
-        "tokenization_data": {
-            "encrypted_data": {  # Encrypted Google Pay payment data
-                "token_type": "PAYMENT_GATEWAY",  # The type of the token
-                "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"  # Token generated for the wallet
-            }
-        }
+  "google_pay_sdk": {
+    "type": "CARD",
+    "description": "Visa 1111",
+    "info": {
+      "card_network": "VISA",
+      "card_details": "1111"
+    },
+    "tokenization_data": {
+      "encrypted_data": {
+        "token_type": "PAYMENT_GATEWAY",
+        "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+      }
     }
+  }
 }
 ```
 
@@ -239,24 +339,24 @@ Authorize a payment amount on a payment method. This reserves funds without capt
 
 ```python
 "payment_method": {
-    "paypal_redirect": {  # PayPal
-        "email": "test@example.com"  # PayPal's email address
-    }
+  "paypal_redirect": {
+    "email": "test@example.com"
+  }
 }
 ```
 
-**Examples:** [Python](../../examples/noon/python/noon.py#L268) · [JavaScript](../../examples/noon/javascript/noon.js#L253) · [Kotlin](../../examples/noon/kotlin/noon.kt#L250) · [Rust](../../examples/noon/rust/noon.rs#L248)
+**Examples:** [Python](../../examples/noon/noon.py) · [TypeScript](../../examples/noon/noon.ts#L333) · [Kotlin](../../examples/noon/noon.kt#L218) · [Rust](../../examples/noon/noon.rs)
 
 #### PaymentService.Capture
 
-Finalize an authorized payment transaction. Transfers reserved funds from customer to merchant account, completing the payment lifecycle.
+Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/noon/python/noon.py#L277) · [JavaScript](../../examples/noon/javascript/noon.js#L262) · [Kotlin](../../examples/noon/kotlin/noon.kt#L262) · [Rust](../../examples/noon/rust/noon.rs#L260)
+**Examples:** [Python](../../examples/noon/noon.py) · [TypeScript](../../examples/noon/noon.ts#L342) · [Kotlin](../../examples/noon/noon.kt#L230) · [Rust](../../examples/noon/noon.rs)
 
 #### PaymentService.Get
 
@@ -267,29 +367,64 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/noon/python/noon.py#L286) · [JavaScript](../../examples/noon/javascript/noon.js#L271) · [Kotlin](../../examples/noon/kotlin/noon.kt#L272) · [Rust](../../examples/noon/rust/noon.rs#L267)
+**Examples:** [Python](../../examples/noon/noon.py) · [TypeScript](../../examples/noon/noon.ts#L351) · [Kotlin](../../examples/noon/noon.kt#L240) · [Rust](../../examples/noon/noon.rs)
+
+#### PaymentService.ProxyAuthorize
+
+Authorize using vault-aliased card data. Proxy substitutes before connector.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxyAuthorizeRequest` |
+| **Response** | `PaymentServiceAuthorizeResponse` |
+
+**Examples:** [Python](../../examples/noon/noon.py) · [TypeScript](../../examples/noon/noon.ts#L378) · [Kotlin](../../examples/noon/noon.kt#L279) · [Rust](../../examples/noon/noon.rs)
+
+#### PaymentService.ProxySetupRecurring
+
+Setup recurring mandate using vault-aliased card data.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceProxySetupRecurringRequest` |
+| **Response** | `PaymentServiceSetupRecurringResponse` |
+
+**Examples:** [Python](../../examples/noon/noon.py) · [TypeScript](../../examples/noon/noon.ts#L387) · [Kotlin](../../examples/noon/noon.kt#L310) · [Rust](../../examples/noon/noon.rs)
 
 #### PaymentService.Refund
 
-Initiate a refund to customer's payment method. Returns funds for returns, cancellations, or service adjustments after original payment.
+Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/noon/python/noon.py#L187) · [JavaScript](../../examples/noon/javascript/noon.js#L175) · [Kotlin](../../examples/noon/kotlin/noon.kt#L308) · [Rust](../../examples/noon/rust/noon.rs#L301)
+**Examples:** [Python](../../examples/noon/noon.py) · [TypeScript](../../examples/noon/noon.ts#L414) · [Kotlin](../../examples/noon/noon.kt#L387) · [Rust](../../examples/noon/noon.rs)
 
 #### PaymentService.Void
 
-Cancel an authorized payment before capture. Releases held funds back to customer, typically used when orders are cancelled or abandoned.
+Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
 
 | | Message |
 |---|---------|
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/noon/python/noon.py#L329) · [JavaScript](../../examples/noon/javascript/noon.js#L310) · [Kotlin](../../examples/noon/kotlin/noon.kt#L318) · [Rust](../../examples/noon/rust/noon.rs#L308)
+**Examples:** [Python](../../examples/noon/noon.py) · [TypeScript](../../examples/noon/noon.ts) · [Kotlin](../../examples/noon/noon.kt#L409) · [Rust](../../examples/noon/noon.rs)
+
+### Refunds
+
+#### RefundService.Get
+
+Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+
+| | Message |
+|---|---------|
+| **Request** | `RefundServiceGetRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/noon/noon.py) · [TypeScript](../../examples/noon/noon.ts#L423) · [Kotlin](../../examples/noon/noon.kt#L397) · [Rust](../../examples/noon/noon.rs)
 
 ### Mandates
 
@@ -302,4 +437,15 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/noon/python/noon.py#L295) · [JavaScript](../../examples/noon/javascript/noon.js#L280) · [Kotlin](../../examples/noon/kotlin/noon.kt#L280) · [Rust](../../examples/noon/rust/noon.rs#L274)
+**Examples:** [Python](../../examples/noon/noon.py) · [TypeScript](../../examples/noon/noon.ts#L396) · [Kotlin](../../examples/noon/noon.kt#L343) · [Rust](../../examples/noon/noon.rs)
+
+#### RecurringPaymentService.Revoke
+
+Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
+
+| | Message |
+|---|---------|
+| **Request** | `RecurringPaymentServiceRevokeRequest` |
+| **Response** | `RecurringPaymentServiceRevokeResponse` |
+
+**Examples:** [Python](../../examples/noon/noon.py) · [TypeScript](../../examples/noon/noon.ts#L405) · [Kotlin](../../examples/noon/noon.kt#L375) · [Rust](../../examples/noon/noon.rs)

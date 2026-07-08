@@ -188,14 +188,19 @@ Some payment processors may have the secrets as optional configuration/ implemen
 An example configuration for Stripe as below.
 
 ```javascript
-const client = new ConnectorServiceClient({
-  connector: 'stripe',
-  webhookSecrets: {
-    secret: process.env.STRIPE_WEBHOOK_SECRET,
-    // Some connectors like Stripe use additional secrets
-    additionalSecret: process.env.STRIPE_ADDITIONAL_SECRET
-  }
-});
+const { PaymentClient } = require('hyperswitch-prism');
+
+// Webhook secrets are configured per-connector in connectorConfig
+// Note: Webhook verification is done at the application level
+// by comparing signatures using the webhook secret
+const config = {
+    connectorConfig: {
+        stripe: {
+            apiKey: { value: process.env.STRIPE_API_KEY }
+        }
+    }
+};
+const paymentClient = new PaymentClient(config);
 ```
 
 ## Next Steps

@@ -1,10 +1,10 @@
 use common_utils::metadata::MaskedMetadata;
-use domain_types::{connector_types::ConnectorEnum, router_data::ConnectorSpecificConfig};
+use domain_types::{connector_types::ConnectorVariant, router_data::ConnectorSpecificConfig};
 
 #[derive(Clone, Debug)]
 pub struct FfiMetadataPayload {
-    pub connector: ConnectorEnum,
-    pub connector_config: ConnectorSpecificConfig,
+    pub connector: ConnectorVariant,
+    pub connector_config: Option<ConnectorSpecificConfig>,
 }
 
 #[derive(Debug)]

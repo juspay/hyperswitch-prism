@@ -7,11 +7,11 @@ import { types } from "./generated/proto";
 
 export class CustomerClient extends _ConnectorClientBase {
   /** CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information. */
-  async create(
+  async customerCreate(
     requestMsg: types.ICustomerServiceCreateRequest,
     options?: types.IRequestConfig | null
   ): Promise<types.CustomerServiceCreateResponse> {
-    return this._executeFlow('create', requestMsg, options, 'CustomerServiceCreateRequest', 'CustomerServiceCreateResponse') as Promise<types.CustomerServiceCreateResponse>;
+    return this._executeFlow('customer_create', requestMsg, options, 'CustomerServiceCreateRequest', 'CustomerServiceCreateResponse') as Promise<types.CustomerServiceCreateResponse>;
   }
 
 }
@@ -44,12 +44,39 @@ export class DisputeClient extends _ConnectorClientBase {
 }
 
 export class EventClient extends _ConnectorClientBase {
-  /** EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates. */
+  /** EventService.HandleEvent — Verify webhook source and return a unified typed response. Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get. */
   async handleEvent(
     requestMsg: types.IEventServiceHandleRequest,
     options?: types.IRequestConfig | null
   ): Promise<types.EventServiceHandleResponse> {
     return this._executeDirect('handle_event', requestMsg, options, 'EventServiceHandleRequest', 'EventServiceHandleResponse') as Promise<types.EventServiceHandleResponse>;
+  }
+
+  /** EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit. */
+  async parseEvent(
+    requestMsg: types.IEventServiceParseRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.EventServiceParseResponse> {
+    return this._executeDirect('parse_event', requestMsg, options, 'EventServiceParseRequest', 'EventServiceParseResponse') as Promise<types.EventServiceParseResponse>;
+  }
+
+}
+
+export class FraudAndRiskManagementClient extends _ConnectorClientBase {
+  /** FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud. */
+  async postRiskCheck(
+    requestMsg: types.IFrmServicePostRiskCheckRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.FrmServicePostRiskCheckResponse> {
+    return this._executeFlow('post_risk_check', requestMsg, options, 'FrmServicePostRiskCheckRequest', 'FrmServicePostRiskCheckResponse') as Promise<types.FrmServicePostRiskCheckResponse>;
+  }
+
+  /** FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review. */
+  async preRiskCheck(
+    requestMsg: types.IFrmServicePreRiskCheckRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.FrmServicePreRiskCheckResponse> {
+    return this._executeFlow('pre_risk_check', requestMsg, options, 'FrmServicePreRiskCheckRequest', 'FrmServicePreRiskCheckResponse') as Promise<types.FrmServicePreRiskCheckResponse>;
   }
 
 }
@@ -109,6 +136,14 @@ export class PaymentMethodAuthenticationClient extends _ConnectorClientBase {
 }
 
 export class PaymentMethodClient extends _ConnectorClientBase {
+  /** PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check) */
+  async eligibility(
+    requestMsg: types.IPaymentMethodServiceEligibilityRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentMethodServiceEligibilityResponse> {
+    return this._executeFlow('eligibility', requestMsg, options, 'PaymentMethodServiceEligibilityRequest', 'PaymentMethodServiceEligibilityResponse') as Promise<types.PaymentMethodServiceEligibilityResponse>;
+  }
+
   /** PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing. */
   async tokenize(
     requestMsg: types.IPaymentMethodServiceTokenizeRequest,
@@ -150,6 +185,14 @@ export class PaymentClient extends _ConnectorClientBase {
     options?: types.IRequestConfig | null
   ): Promise<types.PaymentServiceGetResponse> {
     return this._executeFlow('get', requestMsg, options, 'PaymentServiceGetRequest', 'PaymentServiceGetResponse') as Promise<types.PaymentServiceGetResponse>;
+  }
+
+  /** PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization. */
+  async incrementalAuthorization(
+    requestMsg: types.IPaymentServiceIncrementalAuthorizationRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceIncrementalAuthorizationResponse> {
+    return this._executeFlow('incremental_authorization', requestMsg, options, 'PaymentServiceIncrementalAuthorizationRequest', 'PaymentServiceIncrementalAuthorizationResponse') as Promise<types.PaymentServiceIncrementalAuthorizationResponse>;
   }
 
   /** PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector. */
@@ -214,6 +257,14 @@ export class PaymentClient extends _ConnectorClientBase {
     options?: types.IRequestConfig | null
   ): Promise<types.PaymentServiceVoidResponse> {
     return this._executeFlow('void', requestMsg, options, 'PaymentServiceVoidRequest', 'PaymentServiceVoidResponse') as Promise<types.PaymentServiceVoidResponse>;
+  }
+
+  /** PaymentService.VerifyRedirectResponse — Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly. */
+  async verifyRedirectResponse(
+    requestMsg: types.IPaymentServiceVerifyRedirectResponseRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.PaymentServiceVerifyRedirectResponseResponse> {
+    return this._executeDirect('verify_redirect_response', requestMsg, options, 'PaymentServiceVerifyRedirectResponseRequest', 'PaymentServiceVerifyRedirectResponseResponse') as Promise<types.PaymentServiceVerifyRedirectResponseResponse>;
   }
 
 }
@@ -292,6 +343,36 @@ export class RecurringPaymentClient extends _ConnectorClientBase {
     options?: types.IRequestConfig | null
   ): Promise<types.RecurringPaymentServiceChargeResponse> {
     return this._executeFlow('charge', requestMsg, options, 'RecurringPaymentServiceChargeRequest', 'RecurringPaymentServiceChargeResponse') as Promise<types.RecurringPaymentServiceChargeResponse>;
+  }
+
+  /** RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations. */
+  async recurringRevoke(
+    requestMsg: types.IRecurringPaymentServiceRevokeRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.RecurringPaymentServiceRevokeResponse> {
+    return this._executeFlow('recurring_revoke', requestMsg, options, 'RecurringPaymentServiceRevokeRequest', 'RecurringPaymentServiceRevokeResponse') as Promise<types.RecurringPaymentServiceRevokeResponse>;
+  }
+
+}
+
+export class RefundClient extends _ConnectorClientBase {
+  /** RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication. */
+  async refundGet(
+    requestMsg: types.IRefundServiceGetRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.RefundResponse> {
+    return this._executeFlow('refund_get', requestMsg, options, 'RefundServiceGetRequest', 'RefundResponse') as Promise<types.RefundResponse>;
+  }
+
+}
+
+export class SurchargeClient extends _ConnectorClientBase {
+  /** SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing. */
+  async surchargeCalculate(
+    requestMsg: types.ISurchargeServiceCalculateRequest,
+    options?: types.IRequestConfig | null
+  ): Promise<types.SurchargeServiceCalculateResponse> {
+    return this._executeFlow('surcharge_calculate', requestMsg, options, 'SurchargeServiceCalculateRequest', 'SurchargeServiceCalculateResponse') as Promise<types.SurchargeServiceCalculateResponse>;
   }
 
 }

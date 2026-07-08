@@ -120,7 +120,7 @@ CreateOrder flow always works in conjunction with Authorize flow. The CreateOrde
 ```rust
 // CreateOrder Response: Store order identifier
 impl TryFrom<ResponseRouterData<ConnectorOrderResponse, Self>> for CreateOrderRouterData {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<ConnectorOrderResponse, Self>) -> Result<Self, Self::Error> {
         let mut router_data = item.router_data;
@@ -323,7 +323,7 @@ pub struct CashfreeOrderCreateResponse {
 
 // Response Transformation
 impl TryFrom<ResponseRouterData<CashfreeOrderCreateResponse, Self>> for CreateOrderRouterData {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<CashfreeOrderCreateResponse, Self>) -> Result<Self, Self::Error> {
         let response = item.response;
@@ -388,7 +388,7 @@ pub struct AirwallexIntentResponse {
 
 // Response Transformation
 impl TryFrom<ResponseRouterData<AirwallexIntentResponse, Self>> for CreateOrderRouterData {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<AirwallexIntentResponse, Self>) -> Result<Self, Self::Error> {
         let mut router_data = item.router_data;

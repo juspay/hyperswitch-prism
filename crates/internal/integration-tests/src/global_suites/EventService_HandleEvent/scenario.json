@@ -1,0 +1,107 @@
+{
+  "payment_succeeded": {
+    "description": "Webhook event for successful payment/authorization",
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {},
+        "body": ""
+      },
+      "merchant_event_id": ""
+    },
+    "assert": {
+      "source_verified": {
+        "equals": true
+      },
+      "event_type": {
+        "one_of": [
+          "PAYMENT_INTENT_SUCCESS",
+          "PAYMENT_INTENT_AUTHORIZATION_SUCCESS"
+        ]
+      },
+      "event_status": {
+        "one_of": [
+          "EVENT_STATUS_COMPLETE"
+        ]
+      }
+    },
+    "is_default": true,
+    "display_name": "Handle Event | Payment Succeeded"
+  },
+  "payment_failed": {
+    "description": "Webhook event for failed payment due to decline or error",
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {},
+        "body": ""
+      },
+      "merchant_event_id": ""
+    },
+    "assert": {
+      "source_verified": {
+        "equals": true
+      },
+      "event_type": {
+        "one_of": [
+          "PAYMENT_INTENT_FAILURE"
+        ]
+      },
+      "event_status": {
+        "one_of": [
+          "EVENT_STATUS_COMPLETE"
+        ]
+      }
+    },
+    "display_name": "Handle Event | Payment Failed"
+  },
+  "refund_succeeded": {
+    "description": "Webhook event for successful refund",
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {},
+        "body": ""
+      },
+      "merchant_event_id": ""
+    },
+    "assert": {
+      "source_verified": {
+        "equals": true
+      },
+      "event_type": {
+        "one_of": [
+          "WEBHOOK_REFUND_SUCCESS"
+        ]
+      },
+      "event_status": {
+        "one_of": [
+          "EVENT_STATUS_COMPLETE"
+        ]
+      }
+    },
+    "display_name": "Handle Event | Refund Succeeded"
+  },
+  "invalid_signature": {
+    "description": "Webhook with invalid signature should fail verification",
+    "grpc_req": {
+      "request_details": {
+        "method": "HTTP_METHOD_POST",
+        "headers": {},
+        "body": ""
+      },
+      "merchant_event_id": ""
+    },
+    "assert": {
+      "source_verified": {
+        "must_not_exist": true
+      },
+      "event_status": {
+        "one_of": [
+          "EVENT_STATUS_COMPLETE"
+        ]
+      }
+    },
+    "display_name": "Handle Event | Invalid Signature Test"
+  }
+}

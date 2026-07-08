@@ -18,15 +18,18 @@ Use this config for all flows in this connector. Replace `YOUR_API_KEY` with you
 <details><summary>Python</summary>
 
 ```python
-from payments.generated import sdk_config_pb2, payment_pb2
+from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        payu=payment_pb2.PayuConfig(
+            api_key=payment_methods_pb2.SecretString(value="YOUR_API_KEY"),
+            api_secret=payment_methods_pb2.SecretString(value="YOUR_API_SECRET"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     payu=payment_pb2.PayuConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +41,18 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Payu',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.PAYU,
+    environment: Environment.SANDBOX,
+    auth: {
+        payu: {
+            apiKey: { value: 'YOUR_API_KEY' },
+            apiSecret: { value: 'YOUR_API_SECRET' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +66,15 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Payu")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setPayu(PayuConfig.newBuilder()
+                .setApiKey(SecretString.newBuilder().setValue("YOUR_API_KEY").build())
+                .setApiSecret(SecretString.newBuilder().setValue("YOUR_API_SECRET").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +87,21 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Payu".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Payu(PayuConfig {
+                api_key: Some(hyperswitch_masking::Secret::new("YOUR_API_KEY".to_string())),  // Authentication credential
+                api_secret: Some(hyperswitch_masking::Secret::new("YOUR_API_SECRET".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -96,53 +115,25 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
+| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
+| [MerchantAuthenticationService.CreateServerSessionAuthenticationToken](#merchantauthenticationservicecreateserversessionauthenticationtoken) | Authentication | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
 
-#### PaymentService.Authorize
+#### PaymentService.Capture
 
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
+Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
 
 | | Message |
 |---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+| **Request** | `PaymentServiceCaptureRequest` |
+| **Response** | `PaymentServiceCaptureResponse` |
 
-**Supported payment method types:**
-
-| Payment Method | Supported |
-|----------------|:---------:|
-| Card | x |
-| Google Pay | x |
-| Apple Pay | x |
-| SEPA | x |
-| BACS | x |
-| ACH | x |
-| BECS | x |
-| iDEAL | x |
-| PayPal | x |
-| BLIK | x |
-| Klarna | x |
-| Afterpay | x |
-| UPI | ✓ |
-| Affirm | x |
-| Samsung Pay | x |
-
-**Payment method objects** — use these in the `payment_method` field of the Authorize request.
-
-##### UPI Collect
-
-```python
-"payment_method": {
-    "upi_collect": {  # UPI Collect
-        "vpa_id": "test@upi"  # Virtual Payment Address
-    }
-}
-```
-
-**Examples:** [Python](../../examples/payu/python/payu.py) · [JavaScript](../../examples/payu/javascript/payu.js) · [Kotlin](../../examples/payu/kotlin/payu.kt#L68) · [Rust](../../examples/payu/rust/payu.rs#L69)
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L90) · [Kotlin](../../examples/payu/payu.kt#L83) · [Rust](../../examples/payu/payu.rs)
 
 #### PaymentService.Get
 
@@ -153,4 +144,52 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/payu/python/payu.py) · [JavaScript](../../examples/payu/javascript/payu.js) · [Kotlin](../../examples/payu/kotlin/payu.kt#L80) · [Rust](../../examples/payu/rust/payu.rs#L81)
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L108) · [Kotlin](../../examples/payu/payu.kt#L108) · [Rust](../../examples/payu/payu.rs)
+
+#### PaymentService.Refund
+
+Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceRefundRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L117) · [Kotlin](../../examples/payu/payu.kt#L116) · [Rust](../../examples/payu/payu.rs)
+
+#### PaymentService.Void
+
+Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceVoidRequest` |
+| **Response** | `PaymentServiceVoidResponse` |
+
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts) · [Kotlin](../../examples/payu/payu.kt#L138) · [Rust](../../examples/payu/payu.rs)
+
+### Refunds
+
+#### RefundService.Get
+
+Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+
+| | Message |
+|---|---------|
+| **Request** | `RefundServiceGetRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L126) · [Kotlin](../../examples/payu/payu.kt#L126) · [Rust](../../examples/payu/payu.rs)
+
+### Authentication
+
+#### MerchantAuthenticationService.CreateServerSessionAuthenticationToken
+
+Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
+
+| | Message |
+|---|---------|
+| **Request** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest` |
+| **Response** | `MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse` |
+
+**Examples:** [Python](../../examples/payu/payu.py) · [TypeScript](../../examples/payu/payu.ts#L99) · [Kotlin](../../examples/payu/payu.kt#L93) · [Rust](../../examples/payu/payu.rs)

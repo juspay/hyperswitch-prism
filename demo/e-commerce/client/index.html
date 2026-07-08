@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hyperswitch E-Commerce Demo</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>🛒 Hyperswitch Store</h1>
+      <div class="header-right">
+        <select id="currency-selector" class="currency-selector">
+          <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (€)</option>
+        </select>
+        <button id="cart-btn" class="cart-btn">
+          <span class="cart-icon">🛒</span>
+          <span id="cart-count" class="cart-count">0</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <h2>Products</h2>
+    <div id="products-grid" class="products-grid">
+      <!-- Products will be rendered here -->
+    </div>
+  </main>
+
+  <!-- Cart Sidebar -->
+  <div id="cart-sidebar" class="cart-sidebar hidden">
+    <div class="cart-header">
+      <h3>Your Cart</h3>
+      <button id="close-cart" class="close-btn">&times;</button>
+    </div>
+    <div id="cart-items" class="cart-items">
+      <!-- Cart items will be rendered here -->
+    </div>
+    <div class="cart-footer">
+      <div class="cart-total">
+        <span>Total:</span>
+        <span id="cart-total-amount">$0.00</span>
+      </div>
+      <button id="checkout-btn" class="checkout-btn" disabled>Proceed to Checkout</button>
+    </div>
+  </div>
+
+  <!-- Cart Overlay -->
+  <div id="cart-overlay" class="cart-overlay hidden"></div>
+
+  <script src="js/app.js"></script>
+</body>
+</html>

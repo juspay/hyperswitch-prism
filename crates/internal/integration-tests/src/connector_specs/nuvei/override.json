@@ -1,0 +1,87 @@
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_ach_bank_transfer": {
+      "grpc_req": {
+        "metadata": {
+          "value": "{\"ach\":{\"account_number\":\"123456789\",\"routing_number\":\"021000021\",\"sec_code\":\"WEB\"}}"
+        }
+      }
+    },
+    "no3ds_auto_capture_eps": {
+      "assert": {
+        "connector_transaction_id": null
+      }
+    },
+    "no3ds_auto_capture_giropay": {
+      "assert": {
+        "connector_transaction_id": null
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "4107652651950141"
+            }
+          }
+        }
+      },
+      "assert": {
+        "status": {
+          "one_of": ["FAILURE"]
+        },
+        "connector_transaction_id": {
+          "must_exist": true
+        },
+        "error": null,
+        "error.connector_details.message": null
+      }
+    }
+  },
+  "PaymentService/CreateOrder": {
+    "create_order_basic": {
+      "assert": {
+        "status": {
+          "one_of": ["PENDING"]
+        }
+      }
+    },
+    "create_order_with_metadata": {
+      "assert": {
+        "status": {
+          "one_of": ["PENDING"]
+        }
+      }
+    },
+    "create_order_with_payment_method_type": {
+      "assert": {
+        "status": {
+          "one_of": ["AUTHENTICATION_PENDING"]
+        },
+        "session_token": null,
+        "session_data": {
+          "must_exist": true
+        }
+      }
+    }
+  },
+  "PaymentService/Void": {
+    "void_authorized_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        }
+      }
+    },
+    "void_without_cancellation_reason": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 6000,
+          "currency": "USD"
+        }
+      }
+    }
+  }
+}

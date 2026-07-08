@@ -26,6 +26,8 @@ SERVICE_FLOWS = {
         "create_order": "PaymentServiceCreateOrderResponse",
         # get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
         "get": "PaymentServiceGetResponse",
+        # incremental_authorization: PaymentService.IncrementalAuthorization — Increase the authorized amount for an existing payment. Enables you to capture additional funds when the transaction amount changes after initial authorization.
+        "incremental_authorization": "PaymentServiceIncrementalAuthorizationResponse",
         # proxy_authorize: PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector.
         "proxy_authorize": "PaymentServiceAuthorizeResponse",
         # proxy_setup_recurring: PaymentService.ProxySetupRecurring — Setup recurring mandate using vault-aliased card data.
@@ -46,10 +48,8 @@ SERVICE_FLOWS = {
     "RecurringPaymentClient": {
         # charge: RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
         "charge": "RecurringPaymentServiceChargeResponse",
-    },
-    "CustomerClient": {
-        # create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
-        "create": "CustomerServiceCreateResponse",
+        # recurring_revoke: RecurringPaymentService.Revoke — Cancel an existing recurring payment mandate. Stops future automatic charges on customer's stored consent for subscription cancellations.
+        "recurring_revoke": "RecurringPaymentServiceRevokeResponse",
     },
     "MerchantAuthenticationClient": {
         # create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
@@ -58,6 +58,16 @@ SERVICE_FLOWS = {
         "create_server_authentication_token": "MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse",
         # create_server_session_authentication_token: MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
         "create_server_session_authentication_token": "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse",
+    },
+    "CustomerClient": {
+        # customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
+        "customer_create": "CustomerServiceCreateResponse",
+    },
+    "PaymentMethodClient": {
+        # eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+        "eligibility": "PaymentMethodServiceEligibilityResponse",
+        # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
+        "tokenize": "PaymentMethodServiceTokenizeResponse",
     },
     "PayoutClient": {
         # payout_create: PayoutService.Create — Creates a payout.
@@ -77,16 +87,32 @@ SERVICE_FLOWS = {
         # payout_void: PayoutService.Void — Void a payout.
         "payout_void": "PayoutServiceVoidResponse",
     },
-    "PaymentMethodClient": {
-        # tokenize: PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing.
-        "tokenize": "PaymentMethodServiceTokenizeResponse",
+    "FraudAndRiskManagementClient": {
+        # post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+        "post_risk_check": "FrmServicePostRiskCheckResponse",
+        # pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+        "pre_risk_check": "FrmServicePreRiskCheckResponse",
+    },
+    "RefundClient": {
+        # refund_get: RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+        "refund_get": "RefundResponse",
+    },
+    "SurchargeClient": {
+        # surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
+        "surcharge_calculate": "SurchargeServiceCalculateResponse",
     },
 }
 
 # Single-step flows: no HTTP round-trip (e.g. webhook processing).
 SINGLE_SERVICE_FLOWS = {
     "EventClient": {
-        # handle_event: EventService.HandleEvent — Process webhook notifications from connectors. Translates connector events into standardized responses for asynchronous payment state updates.
+        # handle_event: EventService.HandleEvent — Verify webhook source and return a unified typed response. Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
         "handle_event": "EventServiceHandleResponse",
+        # parse_event: EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit.
+        "parse_event": "EventServiceParseResponse",
+    },
+    "PaymentClient": {
+        # verify_redirect_response: PaymentService.VerifyRedirectResponse — Verify and process redirect responses from 3D Secure or other external flows. Validates authentication results and updates payment state accordingly.
+        "verify_redirect_response": "PaymentServiceVerifyRedirectResponseResponse",
     },
 }

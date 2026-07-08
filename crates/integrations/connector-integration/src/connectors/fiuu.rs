@@ -12,28 +12,14 @@ use common_utils::{
     types::StringMajorUnit,
 };
 use domain_types::{
-    connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
-        SubmitEvidence, Void, VoidPC,
-    },
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void},
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventType, MandateReferenceId,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
-        WebhookDetailsResponse,
+        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType,
+        MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
+        SetupMandateRequestData, WebhookDetailsResponse, WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -57,8 +43,9 @@ use tracing::{error, info, warn};
 use transformers::{
     self as fiuu, FiuuPaymentCancelRequest, FiuuPaymentCancelResponse, FiuuPaymentRequest,
     FiuuPaymentResponse, FiuuPaymentSyncRequest, FiuuPaymentsRequest as FiuuRepeatPaymentsRequest,
-    FiuuPaymentsResponse, FiuuPaymentsResponse as FiuuRepeatPaymentsResponse, FiuuRefundRequest,
-    FiuuRefundResponse, FiuuRefundSyncRequest, FiuuRefundSyncResponse, FiuuWebhooksResponse,
+    FiuuPaymentsResponse, FiuuPaymentsResponse as FiuuRepeatPaymentsResponse,
+    FiuuPaymentsResponse as FiuuSetupMandateResponse, FiuuRefundRequest, FiuuRefundResponse,
+    FiuuRefundSyncRequest, FiuuRefundSyncResponse, FiuuSetupMandateRequest, FiuuWebhooksResponse,
     PaymentCaptureRequest, PaymentCaptureResponse,
 };
 
@@ -67,20 +54,8 @@ use crate::{
     types::ResponseRouterData, utils::xml_utils::flatten_json_structure, with_error_response_body,
     with_response_body,
 };
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
-
-// Trait implementations with generic type parameters
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Fiuu<T>
-{
-}
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Fiuu<T>
@@ -90,19 +65,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Fiuu<T>
 {
 }
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Fiuu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Fiuu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Fiuu<T>
-{
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentSyncV2 for Fiuu<T>
 {
@@ -124,31 +86,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Fiuu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Fiuu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Fiuu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SetupMandateV2<T> for Fiuu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Fiuu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Fiuu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Fiuu<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -168,51 +106,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Fiuu<T>
+    connector_types::SetupMandateV2<T> for Fiuu<T>
 {
 }
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::MandateRevokeV2 for Fiuu<T>
-{
-}
-
 // Authentication trait implementations
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPostAuthenticateV2<T> for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ClientAuthentication for Fiuu<T>
-{
-}
-
 macros::macro_connector_payout_implementation!(
     connector: Fiuu,
     generic_type: T,
@@ -264,6 +161,12 @@ macros::create_all_prerequisites!(
             request_body: FiuuRepeatPaymentsRequest<T>,
             response_body: FiuuRepeatPaymentsResponse,
             router_data: RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: SetupMandate,
+            request_body: FiuuSetupMandateRequest<T>,
+            response_body: FiuuSetupMandateResponse,
+            router_data: RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -275,7 +178,7 @@ macros::create_all_prerequisites!(
             _req: &RouterDataV2<F, FCD, Req, Res>,
             response_bytes: Bytes,
             status_code: u16,
-        ) -> Result<Bytes, ConnectorResponseTransformationError> {
+        ) -> Result<Bytes, ConnectorError> {
                 let response_str = String::from_utf8(response_bytes.to_vec()).map_err(|e| {
                 error!("Error in Deserializing Response Data: {:?}", e);
                 crate::utils::response_deserialization_fail(status_code, "fiuu: response body did not match the expected format; confirm API version and connector documentation.")
@@ -398,7 +301,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: fiuu::FiuuErrorResponse = res
             .response
             .parse_struct("fiuu::FiuuErrorResponse")
@@ -446,6 +350,44 @@ macros::macro_connector_implementation!(
         fn get_url(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!(
+                "{}RMS/API/Direct/1.4.0/index.php",
+                self.connector_base_url_payments(req)
+            ))
+        }
+    }
+);
+
+// SetupMandate (Pay.SetupRecurring) — Fiuu has no dedicated vault endpoint.
+// Tokenizing a card for off-session reuse goes through the same
+// `RMS/API/Direct/1.4.0/index.php` Direct API that Authorize uses, with
+// `mpstokenstatus=1` set on the card payload. The response carries an
+// `extraP.token` field which the shared `FiuuPaymentsResponse` transformer
+// lifts onto `MandateReference.connector_mandate_id`; RepeatPayment then
+// replays that id via its existing `RMS/API/Recurring/input_v7.php` flow.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Fiuu,
+    curl_request: FormData(FiuuSetupMandateRequest<T>),
+    curl_response: FiuuSetupMandateResponse,
+    flow_name: SetupMandate,
+    resource_common_data: PaymentFlowData,
+    flow_request: SetupMandateRequestData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}RMS/API/Direct/1.4.0/index.php",
@@ -672,7 +614,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         res: Response,
     ) -> CustomResult<
         RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
-        ConnectorResponseTransformationError,
+        ConnectorError,
     > {
         match res.headers {
             Some(headers) => {
@@ -730,8 +672,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
-        self.build_error_response(res, event_builder)
+        _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder, _connector_config)
     }
 }
 
@@ -860,11 +803,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .change_context(WebhookError::WebhookSourceVerificationFailed)
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        b"tranID=probe_txn_001&orderid=probe_order_001&status=00&domain=probe_domain&amount=10.00&currency=USD&channel=Credit&skey=probe_skey&appcode=probe_appcode&error_code=&error_desc="
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let header = request
             .headers
@@ -928,28 +873,144 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         }
     }
 
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let header = request
+            .headers
+            .get("content-type")
+            .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
+
+        let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
+                .change_context(WebhookError::WebhookResourceObjectNotFound)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(WebhookError::WebhookResourceObjectNotFound)?
+        };
+
+        let reference = match payload {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(p) => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(p.tran_id),
+                    // order_id is the merchant-assigned order reference echoed back by Fiuu.
+                    merchant_transaction_id: Some(p.order_id),
+                })
+            }
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(r) => {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: Some(r.refund_id),
+                    merchant_refund_id: None,
+                    // txn_id is the connector ID of the original payment.
+                    connector_transaction_id: Some(r.txn_id),
+                })
+            }
+        };
+
+        Ok(Some(reference))
+    }
+
     fn process_payment_webhook(
         &self,
-        _request: RequestDetails,
+        request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        event_context: Option<EventContext>,
     ) -> Result<WebhookDetailsResponse, error_stack::Report<WebhookError>> {
+        let header = request
+            .headers
+            .get("content-type")
+            .ok_or_else(|| report!(WebhookError::WebhookBodyDecodingFailed))?;
+
+        let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
+            parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(&request.body);
+            serde_urlencoded::from_bytes::<FiuuWebhooksResponse>(&request.body)
+                .change_context(WebhookError::WebhookResourceObjectNotFound)?
+        } else {
+            request
+                .body
+                .parse_struct("fiuu::FiuuWebhooksResponse")
+                .change_context(WebhookError::WebhookResourceObjectNotFound)?
+        };
+
+        let webhook_payment = match payload {
+            FiuuWebhooksResponse::FiuuWebhookPaymentResponse(payment_response) => payment_response,
+            FiuuWebhooksResponse::FiuuWebhookRefundResponse(_) => {
+                return Err(
+                    report!(WebhookError::WebhookResourceObjectNotFound).attach_printable(
+                        "Received refund payload in process_payment_webhook for Fiuu",
+                    ),
+                );
+            }
+        };
+
+        let capture_method = event_context.and_then(|ctx| ctx.capture_method);
+
+        // Fiuu webhook status "00" (Success) does not distinguish AUTHORIZED from CAPTURED.
+        // capture_method from the original authorize request is required to resolve this.
+        if webhook_payment.status == fiuu::FiuuPaymentWebhookStatus::Success
+            && capture_method.is_none()
+        {
+            return Err(
+                error_stack::report!(WebhookError::WebhookMissingRequiredContext {
+                    field: "capture_method",
+                    origin: "payment authorize",
+                })
+                .attach_printable(
+                    "Fiuu webhook status '00' (Success) is ambiguous without capture_method: \
+                 AUTOMATIC capture means the payment was Charged, MANUAL means Authorized. \
+                 Pass EventContext.payment.capture_method from your original authorize request.",
+                ),
+            );
+        }
+
+        let status = common_enums::AttemptStatus::try_from(fiuu::FiuuWebhookStatus {
+            capture_method,
+            status: webhook_payment.status.clone(),
+        })
+        .change_context(WebhookError::WebhookBodyDecodingFailed)?;
+
+        let error_code = webhook_payment.error_code.clone();
+        let error_message = webhook_payment.error_desc.clone();
         Ok(WebhookDetailsResponse {
-            resource_id: None,
-            status: common_enums::AttemptStatus::Unknown,
-            connector_response_reference_id: None,
-            error_code: None,
-            error_message: None,
-            raw_connector_response: None,
+            resource_id: Some(
+                domain_types::connector_types::ResponseId::ConnectorTransactionId(
+                    webhook_payment.tran_id.clone(),
+                ),
+            ),
+            status,
+            connector_response_reference_id: Some(webhook_payment.order_id),
+            error_code: error_code.clone(),
+            error_message: error_message.clone(),
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
-            mandate_reference: None,
+            mandate_reference: webhook_payment
+                .extra_parameters
+                .as_ref()
+                .and_then(|extra_params| {
+                    serde_json::from_str::<fiuu::ExtraParameters>(&extra_params.clone().expose())
+                        .ok()
+                        .and_then(|extra| extra.token)
+                        .map(|token| {
+                            Box::new(domain_types::connector_types::MandateReference {
+                                connector_mandate_id: Some(token.expose()),
+                                payment_method_id: None,
+                                connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
+                            })
+                        })
+                }),
             minor_amount_captured: None,
             amount_captured: None,
-            error_reason: None,
+            error_reason: error_message,
             network_txn_id: None,
             payment_method_update: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Incomplete,
+            sender_payment_instrument_id: None,
         })
     }
 
@@ -995,146 +1056,15 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-// Implementation for empty stubs - these will need to be properly implemented later
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Fiuu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        SetupMandate,
-        PaymentFlowData,
-        SetupMandateRequestData<T>,
-        PaymentsResponseData,
-    > for Fiuu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerAuthenticationToken,
-        PaymentFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        MandateRevoke,
-        PaymentFlowData,
-        MandateRevokeRequestData,
-        MandateRevokeResponseData,
-    > for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Fiuu<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Fiuu<T>
-{
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
     for Fiuu<T>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Fiuu<T>
-{
-}
-
-// SourceVerification implementations for all flows
-
-// Authentication flow ConnectorIntegrationV2 implementations
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Fiuu<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Fiuu<T>
-{
-}
-
-// Authentication flow SourceVerification implementations
-
 fn parse_response<T>(
     data: &[u8],
     http_status: u16,
-) -> Result<T, error_stack::Report<ConnectorResponseTransformationError>>
+) -> Result<T, error_stack::Report<ConnectorError>>
 where
     T: for<'de> Deserialize<'de>,
 {
@@ -1215,3 +1145,29 @@ pub fn parse_and_log_keys_in_url_encoded_response<T>(data: &[u8]) {
         }
     }
 }
+
+macros::macro_connector_flow_status_impls!(
+    connector: Fiuu,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        IncrementalAuthorization,
+        VoidPC,
+        CreateOrder,
+        ServerSessionAuthenticationToken,
+        ServerAuthenticationToken,
+        CreateConnectorCustomer,
+        MandateRevoke,
+        PaymentMethodToken,
+        PreAuthenticate,
+        Authenticate,
+        PostAuthenticate,
+        ClientAuthenticationToken,
+    ],
+    not_supported: [
+        VoidPostRefund,
+        Accept,
+        SubmitEvidence,
+        DefendDispute,
+    ],
+);

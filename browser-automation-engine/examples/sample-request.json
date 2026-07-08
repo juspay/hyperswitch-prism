@@ -1,0 +1,10 @@
+{
+  "url": "https://example.com/login",
+  "rules": [
+    { "action": "fill", "selector": "#email", "value": "user@test.com" },
+    { "action": "fill", "selector": "#password", "value": "secret" },
+    { "action": "click", "selector": "#login" },
+    { "action": "waitFor", "selector": ".dashboard" },
+    { "action": "extract", "selector": ".username", "as": "username" }
+  ]
+}

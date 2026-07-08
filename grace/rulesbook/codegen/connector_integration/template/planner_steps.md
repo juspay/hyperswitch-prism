@@ -229,7 +229,7 @@ impl ConnectorCommon for {{ConnectorName}} {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         // Parse connector error response
         // Map to UCS error types
         // Include all required fields

@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for nmi"
       }
     },
     "authorize": {
@@ -30,7 +31,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://sandbox.nmi.com/api/transact.php",
+          "url": "https://secure.nmi.com/api/transact.php",
           "method": "Post",
           "headers": {
             "content-type": "application/x-www-form-urlencoded",
@@ -39,33 +40,89 @@
           "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&payment=check&checkname=John+Doe&checkaba=110000000&checkaccount=000123456789"
         }
       },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "Bacs": {
+        "status": "not_supported",
+        "error": "Only ACH Bank Debit is supported for NMI is not supported by NMI"
+      },
+      "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Only ACH Bank Debit is supported for NMI"
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "Becs": {
+        "status": "not_supported",
+        "error": "Only ACH Bank Debit is supported for NMI is not supported by NMI"
+      },
+      "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Only ACH Bank Debit is supported for NMI"
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "Card": {
         "status": "supported",
@@ -92,7 +149,7 @@
           "return_url": "https://example.com/return"
         },
         "sample": {
-          "url": "https://sandbox.nmi.com/api/transact.php",
+          "url": "https://secure.nmi.com/api/transact.php",
           "method": "Post",
           "headers": {
             "content-type": "application/x-www-form-urlencoded",
@@ -101,37 +158,430 @@
           "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&ccnumber=4111111111111111&ccexp=0330&cvv=737"
         }
       },
-      "GooglePay": {
+      "CashappQr": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "GooglePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&payment_token=%7B%22id%22%3A%22tok_probe_gpay%22%2C%22object%22%3A%22token%22%2C%22type%22%3A%22card%22%7D"
+        }
       },
       "GooglePayDecrypted": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_txn_001&decrypted_googlepay_data=1&ccnumber=4111111111111111&ccexp=0330&cavv=AAAAAA%3D%3D&eci=05"
+        }
+      },
+      "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "Sepa": {
+        "status": "not_supported",
+        "error": "Only ACH Bank Debit is supported for NMI is not supported by NMI"
+      },
+      "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Only ACH Bank Debit is supported for NMI"
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Only ACH Bank Debit is supported for NMI is not supported by NMI"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       }
     },
     "capture": {
@@ -146,7 +596,7 @@
           }
         },
         "sample": {
-          "url": "https://sandbox.nmi.com/api/transact.php",
+          "url": "https://secure.nmi.com/api/transact.php",
           "method": "Post",
           "headers": {
             "content-type": "application/x-www-form-urlencoded",
@@ -156,39 +606,63 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by nmi connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by nmi connector"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by nmi connector"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by nmi connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for nmi"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by nmi connector"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by nmi connector"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by nmi connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by nmi connector"
       }
     },
     "get": {
@@ -203,7 +677,7 @@
           }
         },
         "sample": {
-          "url": "https://sandbox.nmi.com/api/query.php",
+          "url": "https://secure.nmi.com/api/query.php",
           "method": "Post",
           "headers": {
             "content-type": "application/x-www-form-urlencoded",
@@ -213,19 +687,211 @@
         }
       }
     },
-    "post_authenticate": {
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"event_type\":\"transaction.sale.success\",\"event_body\":{\"transaction_id\":\"dummy_txn_001\",\"order_id\":\"dummy_order_001\",\"condition\":\"pendingsettlement\",\"action\":{\"action_type\":\"sale\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"event_type\":\"transaction.sale.success\",\"event_body\":{\"transaction_id\":\"dummy_txn_001\",\"order_id\":\"dummy_order_001\",\"condition\":\"pendingsettlement\",\"action\":{\"action_type\":\"sale\"}}}"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by nmi connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"event_type\":\"transaction.sale.success\",\"event_body\":{\"transaction_id\":\"dummy_txn_001\",\"order_id\":\"dummy_order_001\",\"condition\":\"pendingsettlement\",\"action\":{\"action_type\":\"sale\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"event_type\":\"transaction.sale.success\",\"event_body\":{\"transaction_id\":\"dummy_txn_001\",\"order_id\":\"dummy_order_001\",\"condition\":\"pendingsettlement\",\"action\":{\"action_type\":\"sale\"}}}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for nmi"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/3ds-return"
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "security_key=probe_key&ccnumber=4111111111111111&ccexp=0330&cvv=737&first_name=John&last_name=John&customer_vault=add_customer"
+        }
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "security_key=probe_key&type=sale&amount=10.0&currency=USD&orderid=probe_proxy_txn_001&ccnumber=%7B%7B%24card_number%7D%7D&ccexp=%7B%7B%24card_exp_month%7D%7D%7B%7B%24card_exp_year%7D%7D&cvv=%7B%7B%24card_cvc%7D%7D"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "type=validate&security_key=probe_key&orderid=probe_proxy_mandate_001&customer_vault=add_customer&ccnumber=%7B%7B%24card_number%7D%7D&ccexp=%7B%7B%24card_exp_month%7D%7D%7B%7B%24card_exp_year%7D%7D&cvv=%7B%7B%24card_cvc%7D%7D"
+        }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "type=sale&security_key=probe_key&amount=10.0&currency=USD&orderid=&customer_vault_id=probe-mandate-123"
+        }
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for nmi"
       }
     },
     "refund": {
@@ -242,7 +908,7 @@
           "reason": "customer_request"
         },
         "sample": {
-          "url": "https://sandbox.nmi.com/api/transact.php",
+          "url": "https://secure.nmi.com/api/transact.php",
           "method": "Post",
           "headers": {
             "content-type": "application/x-www-form-urlencoded",
@@ -252,17 +918,92 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/query.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "security_key=probe_key&order_id=probe_refund_id_001"
+        }
+      }
+    },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by nmi connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://secure.nmi.com/api/transact.php",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "type=validate&security_key=probe_key&orderid=probe_mandate_001&customer_vault=add_customer&ccnumber=4111111111111111&ccexp=0330&cvv=737"
+        }
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "Selected payment method through NMI SetupMandate is not supported by NMI"
       }
     },
     "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for nmi"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }
@@ -275,7 +1016,7 @@
           "connector_transaction_id": "probe_connector_txn_001"
         },
         "sample": {
-          "url": "https://sandbox.nmi.com/api/transact.php",
+          "url": "https://secure.nmi.com/api/transact.php",
           "method": "Post",
           "headers": {
             "content-type": "application/x-www-form-urlencoded",

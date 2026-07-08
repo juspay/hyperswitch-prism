@@ -563,7 +563,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ExamplePayRouterData<RouterDataV2<Author
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<ExamplePayPaymentResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, T>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<errors::ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(item: ResponseRouterData<ExamplePayPaymentResponse, RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>, T>) -> Result<Self, Self::Error> {
         let mut router_data = item.router_data;

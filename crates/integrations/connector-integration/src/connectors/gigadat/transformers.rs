@@ -6,7 +6,7 @@ use domain_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{BankRedirectData, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -133,10 +133,11 @@ impl TryFrom<String> for GigadatTransactionStatus {
             "STATUS_ABORTED1" => Ok(Self::StatusAborted1),
             "STATUS_PENDING" => Ok(Self::StatusPending),
             "STATUS_FAILED" => Ok(Self::StatusFailed),
-            _ => Err(
-                IntegrationError::not_implemented("webhook body decoding failed".to_string())
-                    .into(),
-            ),
+            _ => Err(IntegrationError::NotImplemented(
+                "webhook body decoding failed".to_string(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -378,13 +379,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             }
             PaymentMethodData::BankRedirect(_) => {
-                Err(Report::new(IntegrationError::not_implemented(
-                    "Only Interac bank redirect is supported for Gigadat".to_string(),
-                )))
+                Err(Report::new(IntegrationError::NotSupported {
+                    message: "Only Interac bank redirect is supported for Gigadat".to_string(),
+                    connector: "Gigadat",
+                    context: Default::default(),
+                }))
             }
-            _ => Err(Report::new(IntegrationError::not_implemented(
-                "Only Interac bank redirect is supported for Gigadat".to_string(),
-            ))),
+            _ => Err(Report::new(IntegrationError::NotSupported {
+                message: "Only Interac bank redirect is supported for Gigadat".to_string(),
+                connector: "Gigadat",
+                context: Default::default(),
+            })),
         }
     }
 }
@@ -393,7 +398,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GigadatPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<GigadatPaymentsResponse, Self>,
@@ -430,9 +435,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GigadatPaymentsRespon
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..router_data.clone()
         })
@@ -443,7 +450,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<GigadatPaymentsRespon
 impl TryFrom<ResponseRouterData<GigadatSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<GigadatSyncResponse, Self>) -> Result<Self, Self::Error> {
         let response = &item.response;
@@ -474,9 +481,11 @@ impl TryFrom<ResponseRouterData<GigadatSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..router_data.clone()
         })
@@ -525,7 +534,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<GigadatRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<GigadatRefundResponse, Self>,

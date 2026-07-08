@@ -1,0 +1,18 @@
+{
+  "connector": "paypal",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/CompleteAuthorize",
+    "PaymentService/CreateOrder",
+    "PaymentService/Get",
+    "EventService/HandleEvent",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
+  ]
+}

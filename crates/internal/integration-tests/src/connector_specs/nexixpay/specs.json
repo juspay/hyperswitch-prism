@@ -1,0 +1,20 @@
+{
+  "connector": "nexixpay",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/CompleteAuthorize",
+    "PaymentService/Get",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Void"
+  ],
+  "request_id_source_field": "merchant_order_id",
+  "request_id_prefix": "pay_",
+  "request_id_length": 12
+}

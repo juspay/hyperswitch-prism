@@ -3,77 +3,450 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for nexixpay"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Payment method BankDebit(AchBankDebit { account_number: *** alloc::string::String ***, routing_number: *** alloc::string::String ***, card_holder_name: None, bank_account_holder_name: Some(*** alloc::string::String ***), bank_name: None, bank_type: None, bank_holder_type: None }) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankDebit(AchBankDebit { account_number: *** alloc::string::String ***, routing_number: *** alloc::string::String ***, card_holder_name: None, bank_account_holder_name: Some(*** alloc::string::String ***), bank_name: None, bank_type: None, bank_holder_type: None })"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(AchBankTransfer)"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment method PayLater(AffirmRedirect) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method PayLater(AffirmRedirect)"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment method PayLater(AfterpayClearpayRedirect) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method PayLater(AfterpayClearpayRedirect)"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(Alfamart(AlfamartVoucherData))"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(AliPayRedirect(AliPayRedirection))"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(AmazonPayRedirect(AmazonPayRedirectData))"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" })) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Encrypted(\"eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9\"), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }))"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Decrypted(ApplePayDecryptedData { application_primary_account_number: CardNumber(411111**********), application_expiration_month: *** alloc::string::String ***, application_expiration_year: *** alloc::string::String ***, payment_data: ApplePayCryptogramData { online_payment_cryptogram: *** alloc::string::String ***, eci_indicator: Some(\"05\") } }), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" })) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(ApplePay(ApplePayWalletData { payment_data: Decrypted(ApplePayDecryptedData { application_primary_account_number: CardNumber(411111**********), application_expiration_month: *** alloc::string::String ***, application_expiration_year: *** alloc::string::String ***, payment_data: ApplePayCryptogramData { online_payment_cryptogram: *** alloc::string::String ***, eci_indicator: Some(\"05\") } }), payment_method: ApplepayPaymentMethod { display_name: \"Visa 1111\", network: \"Visa\", pm_type: \"debit\" }, transaction_identifier: \"probe_txn_id\" }))"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(ApplePayThirdPartySdk(ApplePayThirdPartySdkData { token: Some(*** alloc::string::String ***) }))"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Payment method BankDebit(BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankDebit(BacsBankDebit { account_number: *** alloc::string::String ***, sort_code: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(BacsBankTransfer)"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(BancontactCard { card_number: Some(CardNumber(411111**********)), card_exp_month: Some(*** alloc::string::String ***), card_exp_year: Some(*** alloc::string::String ***), card_holder_name: Some(*** alloc::string::String ***) })"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(BcaBankTransfer)"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Payment method BankDebit(BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankDebit(BecsBankDebit { account_number: *** alloc::string::String ***, bsb_number: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(BillDeskRedirect(BillDeskRedirection))"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(Bizum)"
       },
       "Blik": {
-        "status": "not_supported",
-        "error": "Payment method BankRedirect(Blik { blik_code: Some(\"777124\") }) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(Blik { blik_code: Some(\"777124\") })"
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(BluecodeRedirect)"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(BniVaBankTransfer)"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(Boleto(BoletoVoucherData { social_security_number: None, expiration_date: None }))"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(BriVaBankTransfer)"
       },
       "Card": {
         "status": "error",
-        "error": "Stuck on field: authentication_data — Missing required field: authentication_data (must be present for 3DS flow)"
+        "error": "Stuck on field: authentication_data.transaction_id — Missing required field: authentication_data.transaction_id (operationId from PostAuthenticate)"
+      },
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(CashappQr(CashappQr))"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(CashfreeRedirect(CashfreeRedirection))"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(CimbVaBankTransfer)"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Reward"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(DanaRedirect)"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(DanamonVaBankTransfer)"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Reward"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(EaseBuzzRedirect(EaseBuzzRedirection))"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(Efecty)"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(Eft { provider: \"ozow\" })"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(Eps { bank_name: None, country: None })"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(FamilyMart(JCSVoucherData))"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(GcashRedirect(GcashRedirection))"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(Giropay { bank_account_bic: None, bank_account_iban: None, country: None })"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(GoPayRedirect(GoPayRedirection))"
       },
       "GooglePay": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Encrypted(GpayEncryptedTokenizationData { token_type: \"PAYMENT_GATEWAY\", token: \"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\" }) })) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Encrypted(GpayEncryptedTokenizationData { token_type: \"PAYMENT_GATEWAY\", token: \"{\\\"id\\\":\\\"tok_probe_gpay\\\",\\\"object\\\":\\\"token\\\",\\\"type\\\":\\\"card\\\"}\" }) }))"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\") }) })) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(GooglePay(GooglePayWalletData { pm_type: \"CARD\", description: \"Visa 1111\", info: GooglePayPaymentMethodInfo { card_network: \"VISA\", card_details: \"1111\", assurance_details: None }, tokenization_data: Decrypted(GooglePayDecryptedData { card_exp_month: *** alloc::string::String ***, card_exp_year: *** alloc::string::String ***, application_primary_account_number: CardNumber(411111**********), cryptogram: Some(*** alloc::string::String ***), eci_indicator: Some(\"05\") }) }))"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(GooglePayThirdPartySdk(GooglePayThirdPartySdkData { token: Some(*** alloc::string::String ***) }))"
       },
       "Ideal": {
-        "status": "not_supported",
-        "error": "Payment method BankRedirect(Ideal { bank_name: None }) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(Ideal { bank_name: None })"
+      },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(Indomaret(IndomaretVoucherData))"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(IndonesianBankTransfer { bank_name: None })"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(InstantBankTransfer)"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(InstantBankTransferFinland)"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(InstantBankTransferPoland)"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(Interac { country: None, email: None })"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(KakaoPayRedirect(KakaoPayRedirection))"
       },
       "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method PayLater(KlarnaRedirect)"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(Lawson(JCSVoucherData))"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(LazyPayRedirect(LazyPayRedirection))"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(LocalBankRedirect)"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(LocalBankTransfer { bank_code: None })"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(MandiriVaBankTransfer)"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(MbWay(MbWayData))"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(Mifinity(MifinityData { date_of_birth: *** time::date::Date ***, language_preference: Some(\"en\") }))"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(MiniStop(JCSVoucherData))"
+      },
+      "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Payment method PayLater(KlarnaRedirect) is not supported by Nexixpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(MomoRedirect(MomoRedirection))"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(MultibancoBankTransfer)"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(Netbanking { issuer: HdfcBank })"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(OnlineBankingCzechRepublic { issuer: CeskaSporitelna })"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(OnlineBankingFinland { email: Some(Email(****@example.com)) })"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(OnlineBankingFpx { issuer: Maybank })"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(OnlineBankingPoland { issuer: BankPekaoSa })"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(OnlineBankingSlovakia { issuer: TatraPay })"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(OnlineBankingThailand { issuer: BangkokBank })"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(OpenBanking)"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(OpenBankingUk { issuer: None, country: None })"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(Oxxo)"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(PagoEfectivo)"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(PayEasy(JCSVoucherData))"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method GiftCard(PaySafeCard)"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(PayURedirect(PayURedirection))"
       },
       "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) }))"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(PaypalSdk(PayPalWalletData { token: \"probe_paypal_sdk_token\" }))"
+      },
+      "Paysera": {
         "status": "not_supported",
-        "error": "Payment method Wallet(PaypalRedirect(PaypalRedirection { email: Some(Email(****@example.com)) })) is not supported by Nexixpay"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(PermataBankTransfer)"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(PhonePeRedirect(PhonePeRedirection))"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(Pix { pix_key: None, cpf: None, cnpj: None, source_bank_account_id: None, destination_bank_account_id: None, expiry_date: None })"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(Przelewy24 { bank_name: None })"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(Pse)"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(RedCompra)"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(RedPagos)"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(RevolutPay(RevolutPayData))"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Payment method Wallet(SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } })) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(SamsungPay(SamsungPayWalletData { payment_credential: SamsungPayWalletCredentials { method: Some(\"3DS\"), recurring_payment: Some(false), card_brand: Visa, dpan_last_four_digits: None, card_last_four_digits: \"1234\", token_data: SamsungPayTokenData { three_ds_type: Some(\"S\"), version: \"100\", data: *** alloc::string::String *** } } }))"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(Satispay(SatispayData))"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(Seicomart(JCSVoucherData))"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Payment method BankDebit(SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) }) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankDebit(SepaBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankTransfer(SepaBankTransfer)"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankDebit(SepaGuaranteedBankDebit { iban: *** alloc::string::String ***, bank_account_holder_name: Some(*** alloc::string::String ***) })"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Voucher(SevenEleven(JCSVoucherData))"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(Skrill(SkrillData))"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(Sofort { country: None, preferred_language: None })"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(SwishQr(SwishQrData))"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(TouchNGoRedirect(TouchNGoRedirection))"
+      },
+      "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method BankRedirect(Trustly { country: None })"
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(TwintRedirect)"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Payment method Upi(UpiCollect(UpiCollectData { vpa_id: Some(****@upi), upi_source: None })) is not supported by Nexixpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Upi(UpiCollect(UpiCollectData { vpa_id: Some(****@upi), upi_source: None }))"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Upi(UpiIntent(UpiIntentData { upi_source: None, app_name: None }))"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Upi(UpiQr(UpiQrData { upi_source: None }))"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(VippsRedirect)"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(WeChatPayQr(WeChatPayQr))"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(Wero(WeroData))"
       }
     },
     "capture": {
@@ -101,39 +474,63 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Field 'payment_id' is too long for connector 'Nexixpay'"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for nexixpay"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for nexixpay"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for nexixpay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by nexixpay connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by nexixpay connector"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by nexixpay connector"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by nexixpay connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by nexixpay connector"
       }
     },
     "get": {
@@ -159,10 +556,31 @@
         }
       }
     },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for nexixpay"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
     "post_authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: redirect_response — Missing required field: redirect_response"
+        "error": "Stuck on field: PaRes from redirect_response — Missing required field: PaRes from redirect_response"
       }
     },
     "pre_authenticate": {
@@ -197,13 +615,69 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"Cardholder\",\"billingAddress\":{},\"shippingAddress\":null}},\"card\":{\"pan\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvv\":\"737\"},\"recurrence\":{\"action\":\"NO_RECURRING\",\"contractId\":null,\"contractType\":null}}"
+          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"John Doe\",\"billingAddress\":{},\"shippingAddress\":null}},\"card\":{\"pan\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvv\":\"737\"},\"recurrence\":{\"action\":\"NO_RECURRING\",\"contractId\":null,\"contractType\":null}}"
         }
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: authentication_data.transaction_id — Missing required field: authentication_data.transaction_id (operationId from PostAuthenticate)"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Field 'payment_id' is too long for connector 'Nexixpay'"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "address": {
+            "billing_address": {
+              "first_name": "John"
+            }
+          },
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/orders/mit",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"order\":{\"orderId\":\"\",\"amount\":\"1000\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"John\",\"billingAddress\":{\"name\":\"John\"},\"shippingAddress\":null}},\"contractId\":\"probe-mandate-123\",\"captureType\":\"IMPLICIT\"}"
+        }
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for nexixpay"
       }
     },
     "refund": {
@@ -233,17 +707,95 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/operations/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": null
+        }
+      }
+    },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for nexixpay"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1/orders/3steps/init",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "correlation-id": "00000000-0000-0000-0000-000000000000",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key"
+          },
+          "body": "{\"order\":{\"orderId\":\"probe_mandate_001\",\"amount\":\"0\",\"currency\":\"USD\",\"customerInfo\":{\"cardHolderName\":\"John Doe\",\"billingAddress\":{},\"shippingAddress\":null}},\"card\":{\"pan\":\"4111111111111111\",\"expiryDate\":\"0330\",\"cvv\":\"737\"},\"recurrence\":{\"action\":\"CONTRACT_CREATION\",\"contractId\":\"probe_mandate_001\",\"contractType\":\"MIT_UNSCHEDULED\"},\"actionType\":\"VERIFY\"}"
+        }
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** })"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method PaymentMethodToken(PaymentMethodToken { token: *** alloc::string::String *** }) for SetupMandate"
       }
     },
     "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for nexixpay"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }

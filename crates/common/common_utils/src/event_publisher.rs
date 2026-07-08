@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use hyperswitch_masking::ErasedMaskSerialize;
 use once_cell::sync::OnceCell;
 use rdkafka::message::{Header, OwnedHeaders};
 use serde_json;
@@ -13,14 +12,15 @@ use crate::{
 
 const PARTITION_KEY_METADATA: &str = "partitionKey";
 
-/// Global static EventPublisher instance
-static EVENT_PUBLISHER: OnceCell<EventPublisher> = OnceCell::new();
+/// Global static EventPublisher instance.
+/// `None` means initialization was attempted but failed (Kafka unavailable).
+/// `Some(p)` means the publisher is healthy and ready.
+static EVENT_PUBLISHER: OnceCell<Option<EventPublisher>> = OnceCell::new();
 
 /// An event publisher that sends events directly to Kafka.
 #[derive(Clone)]
 pub struct EventPublisher {
     writer: Arc<KafkaWriter>,
-    config: EventConfig,
 }
 
 impl EventPublisher {
@@ -35,30 +35,38 @@ impl EventPublisher {
             ));
         }
 
-        if config.topic.is_empty() {
+        if config.connector_events.topic.is_empty() {
             return Err(error_stack::Report::new(
                 EventPublisherError::InvalidConfiguration {
-                    message: "topic cannot be empty".to_string(),
+                    message: "connector_events.topic cannot be empty".to_string(),
+                },
+            ));
+        }
+
+        if config.api_events.topic.is_empty() {
+            return Err(error_stack::Report::new(
+                EventPublisherError::InvalidConfiguration {
+                    message: "api_events.topic cannot be empty".to_string(),
                 },
             ));
         }
 
         tracing::debug!(
           brokers = ?config.brokers,
-          topic = %config.topic,
+          topic = %config.connector_events.topic,
           "Creating EventPublisher with configuration"
         );
 
         let writer = KafkaWriterBuilder::new()
             .brokers(config.brokers.clone())
-            .topic(config.topic.clone())
+            .topic(config.connector_events.topic.clone())
             .build()
             .map_err(|e| {
                 error_stack::Report::new(EventPublisherError::KafkaWriterInitializationFailed)
                     .attach_printable(format!("KafkaWriter build failed: {e}"))
                     .attach_printable(format!(
                         "Brokers: {:?}, Topic: {}",
-                        config.brokers, config.topic
+                        config.brokers, config.connector_events.topic
                     ))
             })?;
 
@@ -66,7 +74,6 @@ impl EventPublisher {
 
         Ok(Self {
             writer: Arc::new(writer),
-            config: config.clone(),
         })
     }
 
@@ -163,213 +170,63 @@ impl EventPublisher {
     }
 }
 
-/// Process an event by applying masking, transformations, static values, and extractions.
-/// This function does not require Kafka initialization and can be used for logging purposes.
-fn process_event_with_config(
-    event: &Event,
-    config: &EventConfig,
-) -> CustomResult<serde_json::Value, EventPublisherError> {
-    let mut result = event.masked_serialize().map_err(|e| {
-        error_stack::Report::new(EventPublisherError::EventSerializationFailed)
-            .attach_printable(format!("Event masked serialization failed: {e}"))
-    })?;
-
-    // Helper function to normalize paths (replace _DOT_ and _dot_ with .)
-    let normalize_path =
-        |path: &str| -> String { path.replace("_DOT_", ".").replace("_dot_", ".") };
-
-    // Process transformations
-    for (target_path, source_field) in &config.transformations {
-        if let Some(value) = result.get(source_field).cloned() {
-            let normalized_path = normalize_path(target_path);
-            if let Err(e) = set_nested_value(&mut result, &normalized_path, value) {
-                tracing::warn!(
-                    target_path = %target_path,
-                    normalized_path = %normalized_path,
-                    source_field = %source_field,
-                    error = %e,
-                    "Failed to set transformation, continuing with event processing"
-                );
-            }
-        }
-    }
-
-    // Process static values - log warnings but continue processing
-    for (target_path, static_value) in &config.static_values {
-        let normalized_path = normalize_path(target_path);
-        let value = serde_json::json!(static_value);
-        if let Err(e) = set_nested_value(&mut result, &normalized_path, value) {
-            tracing::warn!(
-                target_path = %target_path,
-                normalized_path = %normalized_path,
-                static_value = %static_value,
-                error = %e,
-                "Failed to set static value, continuing with event processing"
-            );
-        }
-    }
-
-    // Process extraction
-    for (target_path, extraction_path) in &config.extractions {
-        if let Some(value) = extract_from_request(&result, extraction_path) {
-            let normalized_path = normalize_path(target_path);
-            if let Err(e) = set_nested_value(&mut result, &normalized_path, value) {
-                tracing::warn!(
-                    target_path = %target_path,
-                    normalized_path = %normalized_path,
-                    extraction_path = %extraction_path,
-                    error = %e,
-                    "Failed to set extraction, continuing with event processing"
-                );
-            }
-        }
-    }
-
-    Ok(result)
-}
-
-fn extract_from_request(
-    event_value: &serde_json::Value,
-    extraction_path: &str,
-) -> Option<serde_json::Value> {
-    let mut path_parts = extraction_path.split('.');
-
-    let first_part = path_parts.next()?;
-
-    let source = match first_part {
-        "req" => event_value.get("request_data")?.clone(),
-        _ => return None,
-    };
-
-    let mut current = &source;
-    for part in path_parts {
-        current = current.get(part)?;
-    }
-
-    Some(current.clone())
-}
-
-fn set_nested_value(
-    target: &mut serde_json::Value,
-    path: &str,
-    value: serde_json::Value,
-) -> CustomResult<(), EventPublisherError> {
-    let path_parts: Vec<&str> = path.split('.').filter(|s| !s.is_empty()).collect();
-
-    if path_parts.is_empty() {
-        return Err(error_stack::Report::new(EventPublisherError::InvalidPath {
-            path: path.to_string(),
-        }));
-    }
-
-    if path_parts.len() == 1 {
-        let key = path_parts.first().ok_or_else(|| {
-            error_stack::Report::new(EventPublisherError::InvalidPath {
-                path: path.to_string(),
-            })
-        })?;
-        target[key] = value;
-        return Ok(());
-    }
-
-    let result = path_parts.iter().enumerate().try_fold(
-        target,
-        |current, (index, &part)| -> CustomResult<&mut serde_json::Value, EventPublisherError> {
-            if index == path_parts.len() - 1 {
-                current[part] = value.clone();
-                Ok(current)
-            } else {
-                if !current[part].is_object() {
-                    current[part] = serde_json::json!({});
-                }
-                current.get_mut(part).ok_or_else(|| {
-                    error_stack::Report::new(EventPublisherError::InvalidPath {
-                        path: format!("{path}.{part}"),
-                    })
-                })
-            }
-        },
-    );
-
-    result.map(|_| ())
-}
-
-/// Initialize the global EventPublisher with the given configuration
-pub fn init_event_publisher(config: &EventConfig) -> CustomResult<(), EventPublisherError> {
+/// Initialize the global EventPublisher with the given configuration.
+/// If Kafka is unreachable, stores `None` and logs a warning instead of failing.
+/// Subsequent emits will be silently dropped until the process is restarted with Kafka available.
+pub fn init_event_publisher(config: &EventConfig) {
     tracing::info!(
         enabled = config.enabled,
         "Initializing global EventPublisher"
     );
 
-    let publisher = EventPublisher::new(config)?;
-
-    EVENT_PUBLISHER.set(publisher).map_err(|failed_publisher| {
-        error_stack::Report::new(EventPublisherError::AlreadyInitialized)
-            .attach_printable("EventPublisher was already initialized")
-            .attach_printable(format!(
-                "Existing config: brokers={:?}, topic={}",
-                failed_publisher.config.brokers, failed_publisher.config.topic
-            ))
-            .attach_printable(format!(
-                "New config: brokers={:?}, topic={}",
-                config.brokers, config.topic
-            ))
-    })?;
-
-    tracing::info!("Global EventPublisher initialized successfully");
-    Ok(())
-}
-
-/// Get or initialize the global EventPublisher
-fn get_event_publisher(
-    config: &EventConfig,
-) -> CustomResult<&'static EventPublisher, EventPublisherError> {
-    EVENT_PUBLISHER.get_or_try_init(|| EventPublisher::new(config))
-}
-
-/// Standalone function to emit events using the global EventPublisher.
-/// This function always processes and logs events, but only publishes to Kafka when enabled.
-pub fn emit_event_with_config(event: Event, config: &EventConfig) {
-    // Always process the event to get masked/parsed data for logging
-    let processed_event = match process_event_with_config(&event, config) {
-        Ok(processed) => processed,
+    let value = match EventPublisher::new(config) {
+        Ok(publisher) => {
+            tracing::info!("Global EventPublisher initialized successfully");
+            Some(publisher)
+        }
         Err(e) => {
-            tracing::error!(
+            tracing::warn!(
                 error = ?e,
-                "Failed to process event"
+                brokers = ?config.brokers,
+                topic = %config.connector_events.topic,
+                "Failed to initialize EventPublisher (Kafka may be unavailable); \
+                 events will be dropped until the service is restarted with Kafka reachable"
             );
-            return;
+            None
         }
     };
 
-    // This provides observability even when Kafka publishing is disabled
-    let event_json = serde_json::to_string(&processed_event)
-        .unwrap_or_else(|e| format!("{{\"error\":\"Failed to serialize event: {}\"}}", e));
-    tracing::info!(
-        events_enabled = config.enabled,
-        "Event processed (Kafka publishing: {}) - Event JSON: {}",
-        if config.enabled {
-            "enabled"
-        } else {
-            "disabled"
-        },
-        event_json
-    );
+    // Ignore AlreadyInitialized — can happen in tests; first writer wins.
+    let _ = EVENT_PUBLISHER.set(value);
+}
 
-    // Only publish to Kafka if enabled
+/// Returns the global EventPublisher if it was successfully initialized, otherwise `None`.
+fn get_event_publisher() -> Option<&'static EventPublisher> {
+    EVENT_PUBLISHER.get().and_then(|opt| opt.as_ref())
+}
+
+/// Publish a processed event to Kafka if enabled. Called from emit_event_with_config.
+pub fn publish_event_to_kafka(
+    event: &Event,
+    processed_event: serde_json::Value,
+    config: &EventConfig,
+) {
     if config.enabled {
-        let _ = get_event_publisher(config)
-            .and_then(|publisher| {
-                let metadata = publisher.build_kafka_metadata(&event);
-                publisher.publish_event_with_metadata(
+        if let Some(publisher) = get_event_publisher() {
+            let metadata = publisher.build_kafka_metadata(event);
+            let topic_config = config.topic_config(&event.stage);
+            let _ = publisher
+                .publish_event_with_metadata(
                     processed_event,
-                    &config.topic,
-                    &config.partition_key_field,
+                    &topic_config.topic,
+                    &topic_config.partition_key_field,
                     metadata,
                 )
-            })
-            .inspect_err(|e| {
-                tracing::error!(error = ?e, "Failed to publish event to Kafka");
-            });
+                .inspect_err(|e| {
+                    tracing::error!(error = ?e, "Failed to publish event to Kafka");
+                });
+        } else {
+            tracing::warn!("EventPublisher not available; audit event dropped");
+        }
     }
 }

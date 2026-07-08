@@ -1,0 +1,74 @@
+name: "prism-configure-connector"
+version: "1.0.0"
+description: "Get the exact configuration required for a specific payment processor"
+author: "Hyperswitch Prism Team"
+tags:
+  - payments
+  - sdk
+  - configuration
+  - setup
+
+parameters:
+  - name: connector
+    type: string
+    required: true
+    description: "Payment provider name (stripe, adyen, braintree, paypal, etc.)"
+  
+  - name: environment
+    type: string
+    required: false
+    default: "sandbox"
+    description: "Environment to configure"
+    enum:
+      - sandbox
+      - production
+  
+  - name: features
+    type: array
+    required: false
+    description: "List of needed features"
+    items:
+      type: string
+      enum:
+        - cards
+        - wallets
+        - bank_transfers
+        - webhooks
+        - refunds
+        - subscriptions
+
+prompt: |
+  Provide complete connector configuration for {{connector}} in {{environment}} environment.
+
+  Features needed: {{features}}
+
+  Include:
+  1. Required credentials:
+     - API keys, secrets, passwords
+     - Merchant account IDs
+     - Endpoint configurations
+  2. Optional settings:
+     - Webhook endpoints
+     - Timeout configurations
+     - Retry policies
+  3. Sandbox test credentials (if applicable):
+     - Test API keys
+     - Test card numbers
+     - Test amounts
+  4. Configuration validation:
+     - Check all required fields are present
+     - Validate credential formats
+     - Environment-specific checks
+  5. Common pitfalls:
+     - Credential permissions needed
+     - IP whitelisting requirements
+     - Webhook signature verification setup
+
+  Output: Complete configuration object with comments and validation.
+
+examples:
+  - parameters:
+      connector: "stripe"
+      environment: "sandbox"
+      features: ["cards", "webhooks", "refunds"]
+    description: "Configure Stripe for card payments with webhooks in sandbox"

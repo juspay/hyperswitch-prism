@@ -1,15 +1,21 @@
 use crate::types::ResponseRouterData;
 use base64::{engine::general_purpose::STANDARD, Engine};
-use common_enums::{AttemptStatus, Currency, RefundStatus};
+use common_enums::{AttemptStatus, Currency, PostCaptureVoidStatus, RefundStatus};
 use common_utils::MinorUnit;
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError};
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
-    connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+    connector_flow::{
+        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, Void, VoidPC,
     },
+    connector_types::{
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
+        ConnectorSpecificClientAuthenticationResponse,
+        DatatransClientAuthenticationResponse as DatatransClientAuthenticationResponseDomain,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+    },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -164,22 +170,41 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
-        // Extract card data
-        let card_data = match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => card,
-            _ => Err(IntegrationError::not_implemented(
-                UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string(),
-            ))?,
-        };
+        // Extract card data or token
+        let card = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => {
+                // Direct card flow - use raw card details
+                DatatransCard {
+                    alias: None,
+                    number: Some(card_data.card_number.clone()),
+                    expiry_month: Some(card_data.card_exp_month.clone()),
+                    expiry_year: Some(card_data.get_card_expiry_year_2_digit()?),
+                    cvv: Some(card_data.card_cvc.clone()),
+                    card_type: Some("PLAIN".to_string()),
+                }
+            }
+            // TODO: CardToken flow for Datatrans Secure Fields SDK.
+            // When the client SDK collects card data via Secure Fields, the transactionId
+            // from secureFieldsInit is used as an alias. The authorize-split endpoint
+            // (POST /v1/transactions/{transactionId}/authorize) should be called instead
+            // of the regular authorize endpoint. The PaymentMethodToken carries the
+            // transactionId from the client authentication token response.
+            PaymentMethodData::PaymentMethodToken(token_data) => {
+                let token = token_data.token.clone();
 
-        // Build card object - for authorize flow we use card details directly
-        let card = DatatransCard {
-            alias: None, // Alias is used for stored credentials, not for direct authorization
-            number: Some(card_data.card_number.clone()),
-            expiry_month: Some(card_data.card_exp_month.clone()),
-            expiry_year: Some(card_data.get_card_expiry_year_2_digit()?),
-            cvv: Some(card_data.card_cvc.clone()),
-            card_type: Some("PLAIN".to_string()), // Set card type to PLAIN to match Hyperswitch
+                DatatransCard {
+                    alias: Some(token),
+                    number: None,
+                    expiry_month: None,
+                    expiry_year: None,
+                    cvv: None,
+                    card_type: None,
+                }
+            }
+            _ => Err(IntegrationError::NotImplemented(
+                UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string(),
+                Default::default(),
+            ))?,
         };
 
         // Determine auto_settle based on capture method
@@ -226,7 +251,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<DatatransPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<DatatransPaymentsResponse, Self>,
@@ -251,9 +276,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: item.response.acquirer_authorization_code.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -382,7 +409,7 @@ pub struct DatatransActionDetail {
 impl TryFrom<ResponseRouterData<DatatransSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<DatatransSyncResponse, Self>,
@@ -410,9 +437,11 @@ impl TryFrom<ResponseRouterData<DatatransSyncResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -485,7 +514,7 @@ pub struct DatatransCaptureResponse {
 impl TryFrom<ResponseRouterData<DatatransCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<DatatransCaptureResponse, Self>,
@@ -506,9 +535,11 @@ impl TryFrom<ResponseRouterData<DatatransCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: item.response.acquirer_authorization_code.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -580,7 +611,7 @@ pub struct DatatransRefundResponse {
 impl TryFrom<ResponseRouterData<DatatransRefundResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<DatatransRefundResponse, Self>,
@@ -670,7 +701,7 @@ pub struct DatatransRefundSyncResponse {
 impl TryFrom<ResponseRouterData<DatatransRefundSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<DatatransRefundSyncResponse, Self>,
@@ -740,7 +771,7 @@ pub struct DatatransVoidResponse {
 impl TryFrom<ResponseRouterData<DatatransVoidResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<DatatransVoidResponse, Self>,
@@ -759,9 +790,11 @@ impl TryFrom<ResponseRouterData<DatatransVoidResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: item.response.acquirer_authorization_code.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -771,6 +804,170 @@ impl TryFrom<ResponseRouterData<DatatransVoidResponse, Self>>
             },
             response: Ok(payments_response_data),
             ..item.router_data.clone()
+        })
+    }
+}
+
+// ===== VOID POST CAPTURE (REVERSE) FLOW STRUCTURES =====
+
+// VoidPC Request structure based on tech spec POST /v1/transactions/{transactionId}/cancel
+// Datatrans cancel endpoint works on both authorized and settled (captured) transactions.
+// The request body is empty — same as the regular Void flow.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransVoidPCRequest {
+    // Empty struct - serializes as {}
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::DatatransRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for DatatransVoidPCRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        _item: super::DatatransRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        // Empty request body for cancel endpoint — same as regular Void
+        Ok(Self {})
+    }
+}
+
+// VoidPC Response
+// Datatrans cancel endpoint returns 204 No Content with an empty body on success;
+// it does not echo a transactionId, acquirerAuthorizationCode, or status field.
+// Error responses (4xx/5xx) are handled separately by `build_error_response`.
+// The framework parses an empty body as `{}`, which deserializes to this empty struct.
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct DatatransVoidPCResponse {}
+
+impl TryFrom<ResponseRouterData<DatatransVoidPCResponse, Self>>
+    for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<DatatransVoidPCResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let payments_response_data = PaymentsResponseData::PostCaptureVoidResponse {
+            post_capture_void_status: PostCaptureVoidStatus::Succeeded,
+            connector_reference_id: Some(item.router_data.request.connector_transaction_id.clone()),
+            description: None,
+            status_code: item.http_code,
+        };
+
+        Ok(Self {
+            response: Ok(payments_response_data),
+            ..item.router_data
+        })
+    }
+}
+
+// ===== CLIENT AUTHENTICATION TOKEN FLOW STRUCTURES =====
+
+/// Request to initialize a Datatrans Secure Fields transaction.
+/// Returns a transactionId that serves as a client authentication token.
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransClientAuthRequest {
+    pub amount: MinorUnit,
+    pub currency: Currency,
+    pub return_url: String,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::DatatransRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for DatatransClientAuthRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        item: super::DatatransRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        Ok(Self {
+            amount: router_data.request.amount,
+            currency: router_data.request.currency,
+            return_url: router_data
+                .resource_common_data
+                .return_url
+                .clone()
+                .unwrap_or_else(|| "https://example.com/return".to_string()),
+        })
+    }
+}
+
+/// Datatrans Secure Fields init response — contains the transactionId
+/// used as a client authentication token (valid for 30 minutes).
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransClientAuthResponse {
+    pub transaction_id: String,
+}
+
+impl TryFrom<ResponseRouterData<DatatransClientAuthResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<DatatransClientAuthResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let session_data = ClientAuthenticationTokenData::ConnectorSpecific(Box::new(
+            ConnectorSpecificClientAuthenticationResponse::Datatrans(
+                DatatransClientAuthenticationResponseDomain {
+                    transaction_id: Secret::new(response.transaction_id),
+                },
+            ),
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
         })
     }
 }

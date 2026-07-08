@@ -1,0 +1,14 @@
+{
+  "connector": "trustpayments",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/IncrementalAuthorization",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Void",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge"
+  ]
+}

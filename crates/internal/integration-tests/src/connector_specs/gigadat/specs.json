@@ -1,0 +1,8 @@
+{
+  "connector": "gigadat",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Refund"
+  ]
+}

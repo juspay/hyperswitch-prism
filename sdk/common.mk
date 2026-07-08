@@ -50,13 +50,22 @@ endif
 # Build profile (release or debug)
 PROFILE ?= release-fast
 
+# Cargo uses 'debug' as the output directory name for the built-in 'dev' profile.
+# All other profiles (release, release-fast, custom) use their name as the directory.
+ifeq ($(PROFILE),dev)
+  _PROFILE_DIR := debug
+else
+  _PROFILE_DIR := $(PROFILE)
+endif
+
 # Pre-built FFI library for the current platform (output of build-ffi-lib).
-LIBRARY          := $(REPO_ROOT)/target/$(PLATFORM)/$(PROFILE)/libconnector_service_ffi.$(LIB_EXT)
+LIBRARY          := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/libconnector_service_ffi.$(LIB_EXT)
 # Pre-built gRPC FFI library (output of build-grpc-ffi-lib).
-GRPC_FFI_LIBRARY := $(REPO_ROOT)/target/$(PLATFORM)/$(PROFILE)/libhyperswitch_grpc_ffi.$(LIB_EXT)
+# Built with --target $(PLATFORM) so artifacts share the same build cache as all other crates.
+GRPC_FFI_LIBRARY := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/libhyperswitch_grpc_ffi.$(LIB_EXT)
 
 # UniFFI bindgen binary path (used by Python/Java for code generation)
-BINDGEN := $(REPO_ROOT)/target/$(PLATFORM)/$(PROFILE)/uniffi-bindgen
+BINDGEN := $(REPO_ROOT)/target/$(PLATFORM)/$(_PROFILE_DIR)/uniffi-bindgen
 
 # ---------------------------------------------------------------------------
 # build-ffi-lib
@@ -64,29 +73,47 @@ BINDGEN := $(REPO_ROOT)/target/$(PLATFORM)/$(PROFILE)/uniffi-bindgen
 # Output: target/<PLATFORM>/$(PROFILE)/libconnector_service_ffi.<ext>
 # Using --target consistently means local builds and CI builds share the same
 # directory layout — no special-case LIBRARY= or TARGET_TRIPLE= variables needed.
+# This target is NOT .PHONY - it skips the build if the library already exists
+# to save time when running multiple SDK tests.
 # ---------------------------------------------------------------------------
-.PHONY: build-ffi-lib
 build-ffi-lib:
-	@echo "Building FFI shared library for $(PLATFORM) ($(PROFILE))..."
-	@cd $(FFI_CRATE) && cargo build --no-default-features --features uniffi \
-		--profile $(PROFILE) --target $(PLATFORM)
-	@echo "Build complete: $(LIBRARY)"
+	@if [ "$(FFI_SKIP_BUILD)" = "1" ]; then \
+		if [ -f "$(LIBRARY)" ]; then \
+			echo "FFI library found: $(LIBRARY)"; \
+		else \
+			echo "ERROR: FFI_SKIP_BUILD=1 but library not found: $(LIBRARY)"; \
+			exit 1; \
+		fi; \
+	elif [ -f "$(LIBRARY)" ]; then \
+		echo "FFI library already exists: $(LIBRARY)"; \
+	else \
+		echo "Building FFI shared library for $(PLATFORM) ($(PROFILE))..."; \
+		cd $(REPO_ROOT) && cargo build -p ffi --no-default-features --features ffi/uniffi \
+			--profile $(PROFILE) --target $(PLATFORM); \
+		echo "Build complete: $(LIBRARY)"; \
+	fi
+
+# ---------------------------------------------------------------------------
+# build-grpc-ffi-lib
+# Builds the gRPC FFI library for SDKs that use gRPC functionality.
+# Output: target/$(PLATFORM)/$(PROFILE)/libhyperswitch_grpc_ffi.<ext>
+# Uses --target $(PLATFORM) so compiled dep artifacts are shared with all other
+# crates (ffi, grpc-server, uniffi-bindgen) that also use --target.
+# ---------------------------------------------------------------------------
+build-grpc-ffi-lib:
+	@if [ -f "$(GRPC_FFI_LIBRARY)" ]; then \
+		echo "gRPC FFI library already exists: $(GRPC_FFI_LIBRARY)"; \
+	else \
+		echo "Building gRPC FFI shared library for $(PLATFORM) ($(PROFILE))..."; \
+		cd $(REPO_ROOT) && cargo build -p hyperswitch-grpc-ffi \
+			--profile $(PROFILE) --target $(PLATFORM); \
+		echo "Build complete: $(GRPC_FFI_LIBRARY)"; \
+	fi
 
 # ---------------------------------------------------------------------------
 # check-cargo
 # Verifies cargo command is installed before attempting builds.
 # ---------------------------------------------------------------------------
-# ---------------------------------------------------------------------------
-# build-grpc-ffi-lib
-# Builds the gRPC Rust FFI shared library for the auto-detected platform.
-# Output: target/<PLATFORM>/$(PROFILE)/libhyperswitch_grpc_ffi.<ext>
-# ---------------------------------------------------------------------------
-.PHONY: build-grpc-ffi-lib
-build-grpc-ffi-lib:
-	@echo "Building gRPC FFI shared library for $(PLATFORM) ($(PROFILE))..."
-	@cd $(GRPC_FFI_CRATE) && cargo build --profile $(PROFILE) --target $(PLATFORM)
-	@echo "Build complete: $(GRPC_FFI_LIBRARY)"
-
 .PHONY: check-cargo
 check-cargo:
 	@which cargo > /dev/null 2>&1 || (echo "Error: cargo is not installed" && exit 1)

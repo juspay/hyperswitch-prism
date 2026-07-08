@@ -207,7 +207,7 @@ let refund_status = match item.response.status.as_str() {
 impl TryFrom<ResponseRouterData<{ConnectorName}RefundResponse, RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<...>,

@@ -17,9 +17,10 @@ use domain_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, ResponseId,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, UpiData},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::BrowserInformation,
     router_response_types::RedirectForm,
@@ -162,7 +163,7 @@ impl<
         MacroPaytmRouterData<
             RouterDataV2<
                 ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerSessionAuthenticationTokenRequestData,
                 ServerSessionAuthenticationTokenResponseData,
             >,
@@ -176,7 +177,7 @@ impl<
         item: MacroPaytmRouterData<
             RouterDataV2<
                 ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerSessionAuthenticationTokenRequestData,
                 ServerSessionAuthenticationTokenResponseData,
             >,
@@ -204,25 +205,13 @@ impl<
         let user_info = PaytmUserInfo {
             cust_id: item
                 .router_data
-                .resource_common_data
+                .request
                 .get_customer_id()
                 .unwrap_or_default(),
-            mobile: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_phone_number(),
-            email: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_email(),
-            first_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_first_name(),
-            last_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_billing_last_name(),
+            mobile: item.router_data.request.get_optional_billing_phone_number(),
+            email: item.router_data.request.get_optional_billing_email(),
+            first_name: item.router_data.request.get_optional_billing_first_name(),
+            last_name: item.router_data.request.get_optional_billing_last_name(),
         };
         let return_url = item.router_data.resource_common_data.get_return_url();
 
@@ -269,46 +258,19 @@ impl<
             ),
             carrier: None,
             charge_amount: Some(paytm_amount.clone()),
-            country_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_country(),
-            state_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_state(),
-            city_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_city(),
-            address1: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_line1(),
-            address2: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_line2(),
-            first_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_first_name(),
-            last_name: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_last_name(),
+            country_name: item.router_data.request.get_optional_shipping_country(),
+            state_name: item.router_data.request.get_optional_shipping_state(),
+            city_name: item.router_data.request.get_optional_shipping_city(),
+            address1: item.router_data.request.get_optional_shipping_line1(),
+            address2: item.router_data.request.get_optional_shipping_line2(),
+            first_name: item.router_data.request.get_optional_shipping_first_name(),
+            last_name: item.router_data.request.get_optional_shipping_last_name(),
             mobile_no: item
                 .router_data
-                .resource_common_data
+                .request
                 .get_optional_shipping_phone_number(),
-            zip_code: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_zip(),
-            email: item
-                .router_data
-                .resource_common_data
-                .get_optional_shipping_email(),
+            zip_code: item.router_data.request.get_optional_shipping_zip(),
+            email: item.router_data.request.get_optional_shipping_email(),
         };
 
         let body = PaytmInitiateReqBody {
@@ -348,12 +310,12 @@ impl<
 impl TryFrom<ResponseRouterData<PaytmInitiateTxnResponse, Self>>
     for RouterDataV2<
         ServerSessionAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ServerSessionAuthenticationTokenRequestData,
         ServerSessionAuthenticationTokenResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PaytmInitiateTxnResponse, Self>,
@@ -389,7 +351,7 @@ impl TryFrom<ResponseRouterData<PaytmInitiateTxnResponse, Self>>
                     message: failure_body.result_info.result_msg.clone(),
                     reason: Some(failure_body.result_info.result_msg.clone()),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -536,7 +498,7 @@ impl<
     > TryFrom<ResponseRouterData<PaytmProcessTxnResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PaytmProcessTxnResponse, Self>,
@@ -639,7 +601,7 @@ impl<
                     }
                 },
                 status_code: item.http_code,
-                attempt_status: Some(attempt_status),
+                attempt_status: Some(FlowStatus::Payment(attempt_status)),
                 connector_transaction_id: connector_ref_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -652,9 +614,11 @@ impl<
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: connector_ref_id,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -716,7 +680,7 @@ impl<
 impl TryFrom<ResponseRouterData<PaytmTransactionStatusResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<PaytmTransactionStatusResponse, Self>,
@@ -779,7 +743,7 @@ impl TryFrom<ResponseRouterData<PaytmTransactionStatusResponse, Self>>
                     }
                 }),
                 status_code: item.http_code,
-                attempt_status: Some(attempt_status),
+                attempt_status: Some(FlowStatus::Payment(attempt_status)),
                 connector_transaction_id: connector_ref_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -793,9 +757,11 @@ impl TryFrom<ResponseRouterData<PaytmTransactionStatusResponse, Self>>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: connector_ref_id,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -824,11 +790,10 @@ pub fn determine_upi_flow<T: domain_types::payment_method_data::PaymentMethodDat
                 UpiData::UpiIntent(_) | UpiData::UpiQr(_) => Ok(UpiFlowType::Intent),
             }
         }
-        _ => Err(IntegrationError::NotSupported {
-            message: "Only UPI payment methods are supported".to_string(),
-            connector: "Paytm",
-            context: Default::default(),
-        }
+        _ => Err(IntegrationError::NotImplemented(
+            "Only UPI payment methods are supported by this Paytm transformer".to_string(),
+            Default::default(),
+        )
         .into()),
     }
 }

@@ -1,0 +1,11 @@
+{
+  "connector": "redsys",
+  "supported_suites": [
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "PaymentService/Refund",
+    "PaymentService/Void"
+  ]
+}

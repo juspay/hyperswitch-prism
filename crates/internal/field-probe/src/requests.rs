@@ -1,45 +1,56 @@
 // ── Probe request builders ────────────────────────────────────────────────────
 //
-// RULE: Base requests must contain ONLY fields that are universal to ALL
-// connectors for that flow — i.e. fields that every connector implementation
-// requires to even attempt building a request (e.g. connector_transaction_id,
-// amount). Do NOT add fields that only some connectors need.
+// ⚠️  IMPORTANT: Base requests must contain ONLY fields that are universal to ALL
+// connectors for that flow. DO NOT add connector-specific fields here.
 //
-// Fields that are required by a subset of connectors belong in patching.rs /
-// patch-config.toml, where they are injected lazily only when the connector's
-// transformer reports them as missing.  Adding connector-specific fields to the
-// base request silently hides which fields connectors actually require and
-// pollutes the required_fields list for connectors that don't need them.
+// RULE: Only include fields that EVERY connector implementation requires to
+// attempt building a request (e.g., connector_transaction_id, amount for payments).
 //
-// Good example: `connector_transaction_id` — every capture/void/refund/get
-//   connector needs this.
-// Bad example:  `encoded_data` — only Adyen's PSync transformer reads this;
-//   it belongs in patch_get_request or patch-config.toml [get] section.
+// WHERE TO ADD CONNECTOR-SPECIFIC FIELDS:
+//   - patching.rs (for programmatic patches)
+//   - patch-config.toml (for field injection via config)
+//
+// WHY: Fields required by only SOME connectors must be injected lazily when the
+// connector's transformer reports them missing. Adding them to base requests:
+//   1. Hides which fields connectors ACTUALLY require
+//   2. Pollutes required_fields list for connectors that DON'T need them
+//   3. Makes field-probe less effective at discovering connector requirements
+//
+// EXAMPLES:
+//   ✓ Good: `connector_transaction_id` — every capture/void/refund/get needs this
+//   ✗ Bad:  `merchant_account_id` in metadata — only some connectors (e.g., Braintree) need this;
+//           belongs in patch-config.toml [refund_get.refund_connector_metadata] section
+//   ✗ Bad:  `payment_method_token` — only tokenized flows need this
+//   ✗ Bad:  `refund_connector_metadata` with hardcoded JSON — belongs in patch-config.toml
+//
+// WHEN IN DOUBT: Add to patch-config.toml instead of here!
 // ─────────────────────────────────────────────────────────────────────────────
 
-use cards::CardNumber;
 use grpc_api_types::payments::{
-    self as proto, mandate_reference::MandateIdType, payment_method::PaymentMethod as PmVariant,
-    AcceptanceType, Address, AuthenticationType, CaptureMethod, CardDetails,
-    ConnectorMandateReferenceId, CustomerAcceptance, CustomerServiceCreateRequest,
+    self as proto, mandate_reference::MandateIdType,
+    merchant_authentication_service_create_client_authentication_token_request::DomainContext,
+    payment_method::PaymentMethod as PmVariant, AcceptanceType, Address, AuthenticationType,
+    CaptureMethod, ConnectorMandateReferenceId, CustomerAcceptance, CustomerServiceCreateRequest,
     DisputeServiceAcceptRequest, DisputeServiceDefendRequest, DisputeServiceSubmitEvidenceRequest,
-    EvidenceDocument, EvidenceType, MandateReference,
+    EventServiceHandleRequest, EvidenceDocument, EvidenceType, HttpMethod, MandateReference,
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest, PaymentAddress,
     PaymentClientAuthenticationContext, PaymentMethod,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateRequest,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceTokenizeRequest,
     PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
-    PaymentServiceGetRequest, PaymentServiceProxyAuthorizeRequest,
-    PaymentServiceProxySetupRecurringRequest, PaymentServiceRefundRequest,
-    PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
+    PaymentServiceGetRequest, PaymentServiceIncrementalAuthorizationRequest,
+    PaymentServiceProxyAuthorizeRequest, PaymentServiceProxySetupRecurringRequest,
+    PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceSetupRecurringRequest,
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
-    PaymentServiceVoidRequest, RecurringPaymentServiceChargeRequest,
+    PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVoidRequest, ProxyCardDetails,
+    RecurringPaymentServiceChargeRequest, RecurringPaymentServiceRevokeRequest,
+    RefundServiceGetRequest, RequestDetails,
 };
 use hyperswitch_masking::Secret;
-use std::str::FromStr;
 
 use crate::sample_data::{card_payment_method, usd_money};
 
@@ -187,6 +198,7 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
                     connector_mandate_id: Some("probe-mandate-123".to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 },
             )),
         }),
@@ -194,14 +206,25 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
     }
 }
 
-pub(crate) fn base_create_customer_request() -> CustomerServiceCreateRequest {
-    // create_customer is explicitly about registering a customer — pre-populate
+pub(crate) fn base_customer_create_request() -> CustomerServiceCreateRequest {
+    // customer_create is explicitly about registering a customer — pre-populate
     // all standard customer fields so connectors get a complete customer record.
     CustomerServiceCreateRequest {
         merchant_customer_id: Some("cust_probe_123".to_string()),
         customer_name: Some("John Doe".to_string()),
         email: Some(Secret::new("test@example.com".to_string())),
-        phone_number: Some("4155552671".to_string()),
+        phone_number: Some(Secret::new("4155552671".to_string())),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_eligibility_request() -> PaymentMethodServiceEligibilityRequest {
+    PaymentMethodServiceEligibilityRequest {
+        amount: Some(usd_money(1000)),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            shipping_address: None,
+        }),
         ..Default::default()
     }
 }
@@ -243,14 +266,11 @@ pub(crate) fn base_create_server_session_authentication_token_request(
 pub(crate) fn base_create_client_authentication_token_request(
 ) -> MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
     MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
-        domain_context: Some(
-            grpc_api_types::payments::merchant_authentication_service_create_client_authentication_token_request::DomainContext::Payment(
-                PaymentClientAuthenticationContext {
-                    amount: Some(usd_money(1000)),
-                    ..Default::default()
-                },
-            ),
-        ),
+        merchant_client_session_id: "probe_sdk_session_001".to_string(),
+        domain_context: Some(DomainContext::Payment(PaymentClientAuthenticationContext {
+            amount: Some(usd_money(1000)),
+            ..Default::default()
+        })),
         ..Default::default()
     }
 }
@@ -333,13 +353,17 @@ pub(crate) fn base_defend_dispute_request() -> DisputeServiceDefendRequest {
 
 // ── Non-PCI (Tokenized / Proxy) request builders ──────────────────────────────
 
-fn base_card_proxy() -> CardDetails {
-    CardDetails {
-        card_number: Some(CardNumber::from_str("4111111111111111").unwrap()),
+fn base_card_proxy() -> ProxyCardDetails {
+    ProxyCardDetails {
+        // card_number holds a vault token in production (e.g. "token_123456").
+        // We use a real-looking number here only for field-probe/testing purposes.
+        // card_network MUST be set explicitly since BIN detection is not possible on vault tokens.
+        card_number: Some(Secret::new("4111111111111111".to_string())),
         card_exp_month: Some(Secret::new("03".to_string())),
         card_exp_year: Some(Secret::new("2030".to_string())),
         card_cvc: Some(Secret::new("123".to_string())),
         card_holder_name: Some(Secret::new("John Doe".to_string())),
+        card_network: Some(grpc_api_types::payments::CardNetwork::Visa as i32),
         ..Default::default()
     }
 }
@@ -379,9 +403,11 @@ pub(crate) fn base_tokenized_setup_recurring_request() -> PaymentServiceTokenSet
         setup_mandate_details: Some(proto::SetupMandateDetails {
             mandate_type: Some(proto::MandateType {
                 mandate_type: Some(proto::mandate_type::MandateType::MultiUse(
+                    #[allow(deprecated)]
                     proto::MandateAmountData {
                         amount: 0,
                         currency: proto::Currency::Usd as i32,
+                        amount_money: Some(usd_money(0)),
                         ..Default::default()
                     },
                 )),
@@ -426,6 +452,74 @@ pub(crate) fn base_proxied_setup_recurring_request() -> PaymentServiceProxySetup
             online_mandate_details: None,
         }),
         setup_future_usage: Some(proto::FutureUsage::OffSession as i32),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_incremental_authorization_request(
+) -> PaymentServiceIncrementalAuthorizationRequest {
+    PaymentServiceIncrementalAuthorizationRequest {
+        merchant_authorization_id: Some("probe_auth_001".to_string()),
+        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        amount: Some(usd_money(1100)),
+        reason: Some("incremental_auth_probe".to_string()),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_refund_get_request() -> RefundServiceGetRequest {
+    RefundServiceGetRequest {
+        merchant_refund_id: Some("probe_refund_001".to_string()),
+        connector_transaction_id: "probe_connector_txn_001".to_string(),
+        refund_id: "probe_refund_id_001".to_string(),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_recurring_revoke_request() -> RecurringPaymentServiceRevokeRequest {
+    RecurringPaymentServiceRevokeRequest {
+        merchant_revoke_id: Some("probe_revoke_001".to_string()),
+        mandate_id: "probe_mandate_001".to_string(),
+        connector_mandate_id: Some("probe_connector_mandate_001".to_string()),
+    }
+}
+
+pub(crate) fn base_verify_redirect_request() -> PaymentServiceVerifyRedirectResponseRequest {
+    PaymentServiceVerifyRedirectResponseRequest {
+        merchant_order_id: Some("probe_order_001".to_string()),
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post as i32,
+            uri: Some("https://example.com/redirect".to_string()),
+            headers: Default::default(),
+            body: b"{}".to_vec(),
+            query_params: None,
+        }),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_parse_event_request() -> grpc_api_types::payments::EventServiceParseRequest {
+    grpc_api_types::payments::EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post as i32,
+            uri: Some("https://example.com/webhook".to_string()),
+            headers: Default::default(),
+            body: b"{}".to_vec(),
+            query_params: None,
+        }),
+    }
+}
+
+pub(crate) fn base_handle_event_request() -> EventServiceHandleRequest {
+    EventServiceHandleRequest {
+        merchant_event_id: Some("probe_event_001".to_string()),
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post as i32,
+            uri: Some("https://example.com/webhook".to_string()),
+            headers: Default::default(),
+            body: b"{}".to_vec(),
+            query_params: None,
+        }),
         ..Default::default()
     }
 }

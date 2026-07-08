@@ -3,41 +3,98 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for bamboraapac"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "AchBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Alfamart": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "AliPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "BacsBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "BancontactCard": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "BcaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Bizum": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Bluecode": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Boleto": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Card": {
         "status": "supported",
@@ -73,37 +130,353 @@
           "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:dts=\"http://www.ippayments.com.au/interface/api/dts\">\n<soapenv:Body>\n<dts:SubmitSinglePayment>\n<dts:trnXML><![CDATA[<Transaction><CustRef>probe_txn_001</CustRef><Amount>1000</Amount><TrnType>1</TrnType><AccountNumber>probe_acct_num</AccountNumber><CreditCard Registered=\"False\"><CardNumber>4111111111111111</CardNumber><ExpM>03</ExpM><ExpY>2030</ExpY><CVN>737</CVN><CardHolderName>John Doe</CardHolderName></CreditCard><Security><UserName>probe_user</UserName><Password>probe_pass</Password></Security></Transaction>]]></dts:trnXML>\n</dts:SubmitSinglePayment>\n</soapenv:Body>\n</soapenv:Envelope>"
         }
       },
+      "CashappQr": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "ClassicReward": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Efecty": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Eft": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Eps": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "FamilyMart": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Giropay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Indomaret": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "InstantBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Interac": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Lawson": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "LocalBankRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "LocalBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "MbWay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Mifinity": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "MiniStop": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Netbanking": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "OpenBanking": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Oxxo": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "PagoEfectivo": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "PayEasy": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "PaypalSdk": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Pix": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Przelewy24": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Pse": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "RedCompra": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "RedPagos": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "RevolutPay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Satispay": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Seicomart": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "SepaBankTransfer": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "SevenEleven": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Sofort": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Trustly": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This step has not been implemented for: Payment method not supported"
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "UpiIntent": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "UpiQr": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "WeChatPayQr": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      },
+      "Wero": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
       }
     },
     "capture": {
@@ -128,39 +501,63 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for bamboraapac"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for bamboraapac"
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for bamboraapac"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for bamboraapac"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for bamboraapac"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by bamboraapac connector"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by bamboraapac connector"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by bamboraapac connector"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by bamboraapac connector"
       }
     },
     "get": {
@@ -185,14 +582,110 @@
         }
       }
     },
-    "post_authenticate": {
+    "handle_event": {
       "default": {
         "status": "not_implemented"
       }
     },
-    "pre_authenticate": {
+    "incremental_authorization": {
+      "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by bamboraapac connector"
+      }
+    },
+    "parse_event": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for bamboraapac"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for bamboraapac"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return"
+        },
+        "sample": {
+          "url": "https://demo.ippayments.com.au/interface/api/dts.asmx",
+          "method": "Post",
+          "headers": {
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:dts=\"http://www.ippayments.com.au/interface/api/dts\">\n<soapenv:Body>\n<dts:SubmitSinglePayment>\n<dts:trnXML><![CDATA[<Transaction><CustRef>probe_proxy_txn_001</CustRef><Amount>1000</Amount><TrnType>1</TrnType><AccountNumber>probe_acct_num</AccountNumber><CreditCard Registered=\"False\"><CardNumber>{{$card_number}}</CardNumber><ExpM>{{$card_exp_month}}</ExpM><ExpY>{{$card_exp_year}}</ExpY><CVN>{{$card_cvc}}</CVN><CardHolderName>John Doe</CardHolderName></CreditCard><Security><UserName>probe_user</UserName><Password>probe_pass</Password></Security></Transaction>]]></dts:trnXML>\n</dts:SubmitSinglePayment>\n</soapenv:Body>\n</soapenv:Envelope>"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://demo.ippayments.com.au/interface/api/sipp.asmx",
+          "method": "Post",
+          "headers": {
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "\n            <soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"\n            xmlns:sipp=\"http://www.ippayments.com.au/interface/api/sipp\">\n                <soapenv:Header/>\n                <soapenv:Body>\n                    <sipp:RegisterSingleCustomer>\n                        <sipp:registerSingleCustomerXML>\n                            <![CDATA[\n                <Register>\n                    <Customer>\n                        <CustNumber>probe_proxy_mandate_001</CustNumber>\n                        <CreditCard>\n                            <CardNumber>{{$card_number}}</CardNumber>\n                            <ExpM>{{$card_exp_month}}</ExpM>\n                            <ExpY>{{$card_exp_year}}</ExpY>\n                            <CardHolderName>John Doe</CardHolderName>\n                        </CreditCard>\n                    </Customer>\n                    <Security>\n                        <UserName>probe_user</UserName>\n                        <Password>probe_pass</Password>\n                    </Security>\n                </Register>\n            ]]>\n                        </sipp:registerSingleCustomerXML>\n                    </sipp:RegisterSingleCustomer>\n                </soapenv:Body>\n            </soapenv:Envelope>\n        "
+        }
       }
     },
     "recurring_charge": {
@@ -201,7 +694,9 @@
         "proto_request": {
           "connector_recurring_payment_id": {
             "mandate_id_type": {
-              "connector_mandate_id": "probe-mandate-123"
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
             }
           },
           "amount": {
@@ -209,7 +704,9 @@
             "currency": "USD"
           },
           "payment_method": {
-            "token": "probe_pm_token"
+            "token": {
+              "token": "probe_pm_token"
+            }
           },
           "return_url": "https://example.com/recurring-return",
           "connector_customer_id": "cust_probe_123",
@@ -225,6 +722,12 @@
           },
           "body": "\n            <soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"\n            xmlns:dts=\"http://www.ippayments.com.au/interface/api/dts\">\n                <soapenv:Body>\n                    <dts:SubmitSinglePayment>\n                        <dts:trnXML>\n                            <![CDATA[\n        <Transaction>\n            <CustRef></CustRef>\n            <Amount>1000</Amount>\n            <TrnType>1</TrnType>\n            <AccountNumber>probe_acct_num</AccountNumber>\n            <CreditCard>\n                <TokeniseAlgorithmID>2</TokeniseAlgorithmID>\n                <CardNumber>probe-mandate-123</CardNumber>\n            </CreditCard>\n            <Security>\n                    <UserName>probe_user</UserName>\n                    <Password>probe_pass</Password>\n            </Security>\n        </Transaction>\n                            ]]>\n                        </dts:trnXML>\n                    </dts:SubmitSinglePayment>\n                </soapenv:Body>\n            </soapenv:Envelope>\n        "
         }
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for bamboraapac"
       }
     },
     "refund": {
@@ -251,9 +754,29 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://demo.ippayments.com.au/interface/api/dts.asmx",
+          "method": "Post",
+          "headers": {
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:dts=\"http://www.ippayments.com.au/interface/api/dts\">\n<soapenv:Header/>\n<soapenv:Body>\n<dts:QueryTransaction>\n<dts:queryXML><![CDATA[<QueryTransaction><Criteria><AccountNumber>probe_acct_num</AccountNumber><TrnStartTimestamp>2020-01-01T00:00:00+00:00</TrnStartTimestamp><TrnEndTimestamp>2020-01-01T00:00:00+00:00</TrnEndTimestamp><Receipt>probe_refund_id_001</Receipt></Criteria><Security><UserName>probe_user</UserName><Password>probe_pass</Password></Security></QueryTransaction>]]></dts:queryXML>\n</dts:QueryTransaction>\n</soapenv:Body>\n</soapenv:Envelope>"
+        }
+      }
+    },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for bamboraapac"
       }
     },
     "setup_recurring": {
@@ -298,14 +821,33 @@
         }
       }
     },
+    "token_authorize": {
+      "default": {
+        "status": "not_supported",
+        "error": "Payment method not supported is not supported by Bamboraapac"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_supported",
+        "error": "Only card payment methods are supported for SetupMandate is not supported by Bamboraapac"
+      }
+    },
     "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for bamboraapac"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for bamboraapac"
       }
     }
   }

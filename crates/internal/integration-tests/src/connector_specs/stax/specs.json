@@ -1,0 +1,15 @@
+{
+  "connector": "stax",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "CustomerService/Create",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentMethodService/Tokenize",
+    "PaymentService/Void",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge"
+  ]
+}

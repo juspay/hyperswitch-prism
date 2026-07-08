@@ -30,7 +30,7 @@ Resolve the PR and collect:
 
 ## Step 2: Confirm this is a GRACE-raised PR
 
-Treat it as GRACE-raised if the PR author or head repo owner is `10xGRACE`.
+Treat it as GRACE-raised if the PR author is `10xGRACE` or the branch matches `feat/grace-*`.
 
 If not, fall back to `grace/rulesbook/pr-reviewer/workflows/full-pr-review.md`.
 
@@ -63,7 +63,7 @@ Run `grace/rulesbook/pr-reviewer/prompts/aggregator.md` and keep the final repor
 ## Portable Invocation Prompt
 
 ```text
-Review PR <PR-REFERENCE> in connector-service.
+Review PR <PR-REFERENCE> in hyperswitch-prism.
 This PR was raised by 10xGRACE.
 Read grace/rulesbook/pr-reviewer/workflows/grace-pr-review.md and follow it exactly.
 Use nested subagents if the tool supports them; otherwise emulate the same phases serially.

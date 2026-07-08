@@ -1,0 +1,304 @@
+{
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "FR",
+            "state": {
+              "value": "IDF"
+            },
+            "zip_code": {
+              "value": "75001"
+            },
+            "phone_country_code": "+33"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "FR",
+            "state": {
+              "value": "IDF"
+            },
+            "zip_code": {
+              "value": "75001"
+            },
+            "phone_country_code": "+33"
+          }
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "1111222233334444"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "222"
+            },
+            "card_holder_name": {
+              "value": "Paybox Test"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "FR",
+            "state": {
+              "value": "IDF"
+            },
+            "zip_code": {
+              "value": "75001"
+            },
+            "phone_country_code": "+33"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "FR",
+            "state": {
+              "value": "IDF"
+            },
+            "zip_code": {
+              "value": "75001"
+            },
+            "phone_country_code": "+33"
+          }
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "1111222233334444"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "222"
+            },
+            "card_holder_name": {
+              "value": "Paybox Test"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "FR",
+            "state": {
+              "value": "IDF"
+            },
+            "zip_code": {
+              "value": "75001"
+            },
+            "phone_country_code": "+33"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "FR",
+            "state": {
+              "value": "IDF"
+            },
+            "zip_code": {
+              "value": "75001"
+            },
+            "phone_country_code": "+33"
+          }
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "1111222233334444"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "222"
+            },
+            "card_holder_name": {
+              "value": "Paybox Test"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_manual_capture_debit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "FR",
+            "state": {
+              "value": "IDF"
+            },
+            "zip_code": {
+              "value": "75001"
+            },
+            "phone_country_code": "+33"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "FR",
+            "state": {
+              "value": "IDF"
+            },
+            "zip_code": {
+              "value": "75001"
+            },
+            "phone_country_code": "+33"
+          }
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "1111222233334444"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "222"
+            },
+            "card_holder_name": {
+              "value": "Paybox Test"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "threeds_manual_capture_credit_card": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "FR",
+            "state": {
+              "value": "IDF"
+            },
+            "zip_code": {
+              "value": "75001"
+            },
+            "phone_country_code": "+33"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "FR",
+            "state": {
+              "value": "IDF"
+            },
+            "zip_code": {
+              "value": "75001"
+            },
+            "phone_country_code": "+33"
+          }
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "1111222233334444"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "222"
+            },
+            "card_holder_name": {
+              "value": "Paybox Test"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    },
+    "no3ds_fail_payment": {
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 100,
+          "currency": "EUR"
+        },
+        "address": {
+          "billing_address": {
+            "country_alpha2_code": "FR",
+            "state": {
+              "value": "IDF"
+            },
+            "zip_code": {
+              "value": "75001"
+            },
+            "phone_country_code": "+33"
+          },
+          "shipping_address": {
+            "country_alpha2_code": "FR",
+            "state": {
+              "value": "IDF"
+            },
+            "zip_code": {
+              "value": "75001"
+            },
+            "phone_country_code": "+33"
+          }
+        },
+        "payment_method": {
+          "card": {
+            "card_number": {
+              "value": "1111222233334444"
+            },
+            "card_exp_month": {
+              "value": "12"
+            },
+            "card_exp_year": {
+              "value": "30"
+            },
+            "card_cvc": {
+              "value": "222"
+            },
+            "card_holder_name": {
+              "value": "Paybox Test"
+            },
+            "card_type": "credit"
+          }
+        }
+      }
+    }
+  }
+}

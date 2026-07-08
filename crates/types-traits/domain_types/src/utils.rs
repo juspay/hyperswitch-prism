@@ -5,7 +5,9 @@ use std::{
 
 use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethodType};
-use common_utils::{consts, metadata::MaskedMetadata, AmountConvertor, CustomResult, MinorUnit};
+use common_utils::{
+    consts, fp_utils::when, metadata::MaskedMetadata, AmountConvertor, CustomResult, MinorUnit,
+};
 use error_stack::{report, Result, ResultExt};
 use regex::Regex;
 use serde::Serialize;
@@ -13,10 +15,7 @@ use serde_json::Value;
 use time::PrimitiveDateTime;
 
 use crate::{
-    errors::{
-        self, ApiError, ApplicationErrorResponse, ConnectorResponseTransformationError,
-        IntegrationError, ParsingError,
-    },
+    errors::{self, ConnectorError, IntegrationError, IntegrationErrorContext, ParsingError},
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::ErrorResponse,
     router_response_types::Response,
@@ -87,15 +86,15 @@ where
 pub fn handle_json_response_deserialization_failure(
     res: Response,
     _: &'static str,
-) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+) -> CustomResult<ErrorResponse, ConnectorError> {
     let status = res.status_code;
     let response_data = String::from_utf8(res.response.to_vec())
-        .change_context(ConnectorResponseTransformationError::response_handling_failed(status))?;
+        .change_context(ConnectorError::response_handling_failed(status))?;
 
     // check for whether the response is in json format
     match serde_json::from_str::<Value>(&response_data) {
         // in case of unexpected response but in json format
-        Ok(_) => Err(ConnectorResponseTransformationError::response_handling_failed(status))?,
+        Ok(_) => Err(ConnectorError::response_handling_failed(status))?,
         // in case of unexpected response but in html or string format
         Err(_) => Ok(ErrorResponse {
             status_code: res.status_code,
@@ -171,12 +170,10 @@ pub fn get_amount_as_string(
 
 pub fn base64_decode(
     data: String,
-) -> core::result::Result<Vec<u8>, error_stack::Report<ConnectorResponseTransformationError>> {
+) -> core::result::Result<Vec<u8>, error_stack::Report<ConnectorError>> {
     base64::engine::general_purpose::STANDARD
         .decode(data)
-        .change_context(
-            ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(),
-        )
+        .change_context(ConnectorError::response_handling_failed_http_status_unknown())
 }
 
 pub fn to_currency_base_unit(
@@ -387,6 +384,14 @@ pub(crate) fn extract_connector_request_reference_id(identifier: &Option<String>
 pub fn get_card_issuer(
     card_number: &str,
 ) -> core::result::Result<CardIssuer, error_stack::Report<IntegrationError>> {
+    // Vault template tokens (e.g. {{$card_number}}) are not real card numbers —
+    // card issuer detection is not supported for proxy/vault flows.
+    when(card_number.contains("{{"), || {
+        Err(error_stack::Report::new(IntegrationError::NotImplemented(
+            "Card issuer detection is not supported for vault token placeholders".into(),
+            Default::default(),
+        )))
+    })?;
     for (k, v) in CARD_REGEX.iter() {
         let regex: Regex = v
             .clone()
@@ -397,8 +402,9 @@ pub fn get_card_issuer(
             return Ok(*k);
         }
     }
-    Err(error_stack::Report::new(IntegrationError::not_implemented(
-        "Card Type",
+    Err(error_stack::Report::new(IntegrationError::NotImplemented(
+        ("Card Type").into(),
+        Default::default(),
     )))
 }
 
@@ -433,19 +439,18 @@ static CARD_REGEX: LazyLock<HashMap<CardIssuer, core::result::Result<Regex, rege
 /// header is missing, a default ID is auto-generated.
 pub fn extract_merchant_id_from_metadata(
     metadata: &MaskedMetadata,
-) -> Result<common_utils::id_type::MerchantId, ApplicationErrorResponse> {
+) -> Result<common_utils::id_type::MerchantId, IntegrationError> {
     let merchant_id_str = common_utils::metadata::merchant_id_or_default(
         metadata.get_raw(consts::X_MERCHANT_ID).as_deref(),
     );
     Ok(merchant_id_str
         .parse::<common_utils::id_type::MerchantId>()
-        .map_err(|e| {
-            ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "INVALID_MERCHANT_ID".to_owned(),
-                error_identifier: 400,
-                error_message: format!("Failed to parse merchant ID from header: {e}"),
-                error_object: None,
-            })
+        .map_err(|e| IntegrationError::InvalidDataFormat {
+            field_name: "merchant_id",
+            context: IntegrationErrorContext {
+                additional_context: Some(format!("Failed to parse merchant ID from header: {e}")),
+                ..Default::default()
+            },
         })?)
 }
 
@@ -642,5 +647,28 @@ pub fn convert_spain_state_to_code(state: &str) -> Result<String, crate::errors:
             field_name: "address.state",
             context: Default::default(),
         })?,
+    }
+}
+
+/// Split a full name into (first_name, last_name) on the last whitespace.
+/// Single-token names go to first_name only. `None` / empty / whitespace-only input
+/// returns `(None, None)`.
+pub fn split_full_name(
+    full_name: Option<hyperswitch_masking::Secret<String>>,
+) -> (
+    Option<hyperswitch_masking::Secret<String>>,
+    Option<hyperswitch_masking::Secret<String>>,
+) {
+    use hyperswitch_masking::{ExposeInterface, Secret};
+    let trimmed = full_name.map(|name| name.expose().trim().to_string());
+    match trimmed {
+        Some(name) if !name.is_empty() => match name.rsplit_once(' ') {
+            Some((first, last)) => (
+                Some(Secret::new(first.to_string())),
+                Some(Secret::new(last.to_string())),
+            ),
+            None => (Some(Secret::new(name)), None),
+        },
+        _ => (None, None),
     }
 }

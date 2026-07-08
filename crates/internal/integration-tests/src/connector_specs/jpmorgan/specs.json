@@ -1,0 +1,16 @@
+{
+  "connector": "jpmorgan",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentService/Void",
+    "PaymentService/Reverse",
+    "PaymentService/SetupRecurring",
+    "RecurringPaymentService/Charge"
+  ]
+}

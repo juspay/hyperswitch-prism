@@ -9,11 +9,11 @@ use common_utils::{
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void, VoidPC},
     connector_types::{
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
@@ -123,6 +123,7 @@ pub enum FiservemeaRequestType {
     PaymentCardPreAuthTransaction,
     PostAuthTransaction,
     VoidPreAuthTransactions,
+    VoidTransaction,
     ReturnTransaction,
 }
 
@@ -212,17 +213,27 @@ pub struct VoidTransaction {
     pub request_type: FiservemeaRequestType,
 }
 
+// VoidPC (VoidPostCapture / Reverse) Request Structure
+// Uses requestType: VoidTransaction to cancel a captured (PostAuth) payment before settlement
+// Distinct from Void which uses VoidPreAuthTransactions (for pre-capture cancellations)
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FiservemeaVoidPCRequest {
+    pub request_type: FiservemeaRequestType,
+}
+
 // Type aliases for flow-specific responses (to avoid macro templating conflicts)
 pub type FiservemeaAuthorizeResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaSyncResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaCaptureResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaVoidResponse = FiservemeaPaymentsResponse;
+pub type FiservemeaVoidPCResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaRefundResponse = FiservemeaPaymentsResponse;
 pub type FiservemeaRefundSyncResponse = FiservemeaPaymentsResponse;
 
 // The macro creates a FiservemeaRouterData type. We need to provide the use statement.
 use super::FiservemeaRouterData;
-use domain_types::errors::{ConnectorResponseTransformationError, IntegrationError};
+use domain_types::errors::{ConnectorError, IntegrationError};
 
 // Implementations for FiservemeaRouterData - needed for the macro framework
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -322,6 +333,39 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
+// TryFrom for VoidPC (Reverse)
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        FiservemeaRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for FiservemeaVoidPCRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        _item: FiservemeaRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            request_type: FiservemeaRequestType::VoidTransaction,
+        })
+    }
+}
+
 impl<T: PaymentMethodDataTypes>
     TryFrom<
         &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
@@ -375,8 +419,9 @@ impl<T: PaymentMethodDataTypes>
                 PaymentMethod { payment_card }
             }
             _ => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
-                    "Only card payments are supported".to_string()
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Only card payments are supported".to_string(),
+                    Default::default()
                 )))
             }
         };
@@ -712,7 +757,7 @@ pub struct PaymentToken {
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
@@ -750,9 +795,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservemeaPaymentsRes
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: item.response.api_trace_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.client_request_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -766,7 +813,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<FiservemeaPaymentsRes
 impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
@@ -804,9 +851,11 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: item.response.api_trace_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.client_request_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -820,7 +869,7 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
 impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
@@ -858,9 +907,11 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: item.response.api_trace_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.client_request_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -874,7 +925,7 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
 impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     for RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
@@ -899,7 +950,7 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
 impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
@@ -924,7 +975,7 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
 impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
     for RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
@@ -963,14 +1014,75 @@ impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata,
                 network_txn_id: item.response.api_trace_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.client_request_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
                 ..item.router_data.resource_common_data
             },
+            ..item.router_data
+        })
+    }
+}
+
+struct FiservemeaVoidPCStatus {
+    transaction_status: Option<FiservemeaPaymentStatus>,
+    transaction_result: Option<FiservemeaPaymentResult>,
+}
+
+impl From<FiservemeaVoidPCStatus> for common_enums::PostCaptureVoidStatus {
+    fn from(value: FiservemeaVoidPCStatus) -> Self {
+        match value.transaction_status {
+            Some(FiservemeaPaymentStatus::Approved) => Self::Succeeded,
+            Some(FiservemeaPaymentStatus::Waiting) => Self::Pending,
+            Some(FiservemeaPaymentStatus::Partial)
+            | Some(FiservemeaPaymentStatus::ValidationFailed)
+            | Some(FiservemeaPaymentStatus::ProcessingFailed)
+            | Some(FiservemeaPaymentStatus::Declined)
+            | None => match value.transaction_result {
+                Some(FiservemeaPaymentResult::Approved) => Self::Succeeded,
+                Some(FiservemeaPaymentResult::Waiting) => Self::Pending,
+                Some(FiservemeaPaymentResult::Declined)
+                | Some(FiservemeaPaymentResult::Failed)
+                | Some(FiservemeaPaymentResult::Partial)
+                | Some(FiservemeaPaymentResult::Fraud)
+                | None => Self::Failed,
+            },
+        }
+    }
+}
+
+impl TryFrom<ResponseRouterData<FiservemeaPaymentsResponse, Self>>
+    for RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<FiservemeaPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let post_capture_void_status: common_enums::PostCaptureVoidStatus =
+            FiservemeaVoidPCStatus {
+                transaction_status: item.response.transaction_status.clone(),
+                transaction_result: item.response.transaction_result.clone(),
+            }
+            .into();
+
+        let description = post_capture_void_status
+            .is_post_capture_void_failure()
+            .then(|| item.response.error_message.clone())
+            .flatten();
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(item.response.ipg_transaction_id.clone()),
+                description,
+                status_code: item.http_code,
+            }),
             ..item.router_data
         })
     }

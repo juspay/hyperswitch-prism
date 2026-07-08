@@ -1,5 +1,5 @@
 use common_utils::events::FlowName;
-use connector_integration::types::ConnectorData;
+use connector_integration::types::PayoutConnectorData;
 use domain_types::{
     connector_flow::{
         PayoutCreate, PayoutCreateLink, PayoutCreateRecipient, PayoutEnrollDisburseAccount,
@@ -21,7 +21,8 @@ use domain_types::{
     utils::ForeignTryFrom,
 };
 use grpc_api_types::payouts::{
-    payout_service_server::PayoutService, PayoutServiceCreateLinkRequest,
+    payout_service_server::PayoutService, PayoutMethodEligibilityRequest,
+    PayoutMethodEligibilityResponse, PayoutServiceCreateLinkRequest,
     PayoutServiceCreateLinkResponse, PayoutServiceCreateRecipientRequest,
     PayoutServiceCreateRecipientResponse, PayoutServiceCreateRequest, PayoutServiceCreateResponse,
     PayoutServiceEnrollDisburseAccountRequest, PayoutServiceEnrollDisburseAccountResponse,
@@ -29,7 +30,7 @@ use grpc_api_types::payouts::{
     PayoutServiceStageResponse, PayoutServiceTransferRequest, PayoutServiceTransferResponse,
     PayoutServiceVoidRequest, PayoutServiceVoidResponse,
 };
-use ucs_env::error::{ReportSwitchExt, ResultExtGrpc};
+use ucs_env::error::ResultExtGrpc;
 
 use crate::{
     implement_connector_operation,
@@ -39,18 +40,32 @@ use crate::{
 
 pub struct Payouts;
 
+impl Payouts {
+    /// Extract common request metadata (config and service_name) from gRPC request
+    fn extract_request_metadata<T>(
+        &self,
+        request: &tonic::Request<T>,
+    ) -> Result<(std::sync::Arc<ucs_env::configs::Config>, String), tonic::Status>
+    where
+        T: serde::Serialize,
+    {
+        let config = get_config_from_request(request)?;
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "PayoutService".to_string());
+        Ok((config, service_name))
+    }
+}
+
 #[tonic::async_trait]
 impl PayoutService for Payouts {
     async fn create(
         &self,
         request: tonic::Request<PayoutServiceCreateRequest>,
     ) -> Result<tonic::Response<PayoutServiceCreateResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -65,12 +80,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceTransferRequest>,
     ) -> Result<tonic::Response<PayoutServiceTransferResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -85,12 +95,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceGetRequest>,
     ) -> Result<tonic::Response<PayoutServiceGetResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -105,12 +110,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceVoidRequest>,
     ) -> Result<tonic::Response<PayoutServiceVoidResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -125,12 +125,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceStageRequest>,
     ) -> Result<tonic::Response<PayoutServiceStageResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -145,12 +140,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceCreateLinkRequest>,
     ) -> Result<tonic::Response<PayoutServiceCreateLinkResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -165,12 +155,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceCreateRecipientRequest>,
     ) -> Result<tonic::Response<PayoutServiceCreateRecipientResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -185,12 +170,7 @@ impl PayoutService for Payouts {
         &self,
         request: tonic::Request<PayoutServiceEnrollDisburseAccountRequest>,
     ) -> Result<tonic::Response<PayoutServiceEnrollDisburseAccountResponse>, tonic::Status> {
-        let config = get_config_from_request(&request)?;
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PayoutService".to_string());
+        let (config, service_name) = self.extract_request_metadata(&request)?;
         grpc_logging_wrapper(
             request,
             &service_name,
@@ -199,6 +179,15 @@ impl PayoutService for Payouts {
             |request_data| self.internal_payout_enroll_disburse_account(request_data),
         )
         .await
+    }
+
+    async fn eligibility(
+        &self,
+        _request: tonic::Request<PayoutMethodEligibilityRequest>,
+    ) -> Result<tonic::Response<PayoutMethodEligibilityResponse>, tonic::Status> {
+        Err(tonic::Status::unimplemented(
+            "Eligibility check not implemented yet",
+        ))
     }
 }
 
@@ -273,6 +262,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutCreateRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_create_response,
+        connector_data_type: PayoutConnectorData,
         all_keys_required: None
     );
 
@@ -288,6 +278,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutTransferRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_transfer_response,
+        connector_data_type: PayoutConnectorData,
         all_keys_required: None
     );
 
@@ -303,6 +294,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutGetRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_get_response,
+        connector_data_type: PayoutConnectorData,
         all_keys_required: None
     );
 
@@ -318,6 +310,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutVoidRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_void_response,
+        connector_data_type: PayoutConnectorData,
         all_keys_required: None
     );
 
@@ -333,6 +326,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutStageRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_stage_response,
+        connector_data_type: PayoutConnectorData,
         all_keys_required: None
     );
 
@@ -348,6 +342,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutCreateLinkRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_create_link_response,
+        connector_data_type: PayoutConnectorData,
         all_keys_required: None
     );
 
@@ -363,6 +358,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutCreateRecipientRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_create_recipient_response,
+        connector_data_type: PayoutConnectorData,
         all_keys_required: None
     );
 
@@ -378,6 +374,7 @@ impl PayoutOperationsInternal for Payouts {
         request_data_constructor: PayoutEnrollDisburseAccountRequest::foreign_try_from,
         common_flow_data_constructor: PayoutFlowData::foreign_try_from,
         generate_response_fn: generate_payout_enroll_disburse_account_response,
+        connector_data_type: PayoutConnectorData,
         all_keys_required: None
     );
 }

@@ -3,37 +3,78 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for airwallex"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "AchBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Affirm": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Alfamart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "AliPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "AmazonPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "ApplePay": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "ApplePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "BacsBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "BancontactCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "BcaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Bizum": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
       },
       "Blik": {
         "status": "supported",
@@ -56,17 +97,17 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001",
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
-          }
+          },
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
-          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/probe_order_001/confirm",
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -75,6 +116,22 @@
           },
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"blik\":{\"shopper_name\":\"John\"},\"type\":\"blik\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\",\"device_data\":null}"
         }
+      },
+      "Bluecode": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "BniVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Boleto": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "BriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Card": {
         "status": "supported",
@@ -99,17 +156,17 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001",
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
-          }
+          },
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
-          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/probe_order_001/confirm",
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -119,13 +176,89 @@
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"card\":{\"number\":\"4111111111111111\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"cvc\":\"737\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\",\"device_data\":null}"
         }
       },
-      "GooglePay": {
+      "CashappQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "CimbVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "ClassicReward": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Crypto": {
         "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Efecty": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Eft": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "Eps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "FamilyMart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Giropay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "GooglePay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "GooglePayDecrypted": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Ideal": {
         "status": "supported",
@@ -144,17 +277,17 @@
           },
           "auth_type": "NO_THREE_DS",
           "return_url": "https://example.com/return",
-          "merchant_order_id": "probe_order_001",
           "state": {
             "access_token": {
               "token": "probe_access_token",
               "expires_in_seconds": 3600,
               "token_type": "Bearer"
             }
-          }
+          },
+          "connector_order_id": "connector_order_id"
         },
         "sample": {
-          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/probe_order_001/confirm",
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_access_token",
@@ -164,25 +297,301 @@
           "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"ideal\":{},\"type\":\"ideal\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\",\"device_data\":null}"
         }
       },
+      "Indomaret": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "IndonesianBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "InstantBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "InstantBankTransferFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "InstantBankTransferPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Interac": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
       "Klarna": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "LazyPayRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "LocalBankRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "LocalBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "MbWay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Mifinity": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "MobilePayRedirect": {
         "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Netbanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "OnlineBankingFinland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "OnlineBankingFpx": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "OnlineBankingPoland": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "OnlineBankingThailand": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "OpenBanking": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "Oxxo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "PagoEfectivo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "PayEasy": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "PaySafeCard": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "PaypalRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "PaypalSdk": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Paysera": {
         "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "PhonePeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Pix": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Przelewy24": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "Pse": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "RedCompra": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "RedPagos": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "RevolutPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "SamsungPay": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Satispay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Seicomart": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "SepaBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "SevenEleven": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Sofort": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Bank Redirect Payment Method"
+      },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Trustly": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "trustly": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "country_alpha2_code": "US"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"request_id\":\"confirm_probe_txn_001\",\"payment_method\":{\"trustly\":{\"shopper_name\":\"John\",\"country_code\":\"US\"},\"type\":\"trustly\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\",\"device_data\":null}"
+        }
+      },
+      "Twint": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       },
       "UpiCollect": {
-        "status": "not_supported",
-        "error": "Payment Method is not supported by Airwallex"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "UpiIntent": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "WeChatPayQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      },
+      "Wero": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
       }
     },
     "capture": {
@@ -215,26 +624,10 @@
         }
       }
     },
-    "create_access_token": {
+    "create_client_authentication_token": {
       "default": {
-        "status": "supported",
-        "proto_request": {},
-        "sample": {
-          "url": "https://api-demo.airwallex.com/api/v1/authentication/login",
-          "method": "Post",
-          "headers": {
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-api-key": "probe_key",
-            "x-client-id": "probe_id"
-          },
-          "body": "{}"
-        }
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for airwallex"
       }
     },
     "create_order": {
@@ -266,24 +659,62 @@
         }
       }
     },
-    "create_session_token": {
+    "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {},
+        "sample": {
+          "url": "https://api-demo.airwallex.com/api/v1/authentication/login",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-api-key": "probe_key",
+            "x-client-id": "probe_id"
+          },
+          "body": "{}"
+        }
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for airwallex"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for airwallex"
       }
     },
     "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for airwallex"
+      }
+    },
+    "dispute_get": {
       "default": {
         "status": "not_implemented"
       }
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for airwallex"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by airwallex connector"
       }
     },
     "get": {
@@ -316,19 +747,99 @@
         }
       }
     },
-    "post_authenticate": {
+    "handle_event": {
       "default": {
         "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for airwallex"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for airwallex"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for airwallex"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          },
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-demo.airwallex.com/api/v1/pa/payment_intents/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"request_id\":\"confirm_probe_proxy_txn_001\",\"payment_method\":{\"card\":{\"number\":\"{{$card_number}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"cvc\":\"{{$card_cvc}}\",\"name\":\"John Doe\"},\"type\":\"card\"},\"payment_method_options\":{\"card\":{\"auto_capture\":true}},\"return_url\":\"https://example.com/return\",\"device_data\":null}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for airwallex"
       }
     },
     "refund": {
@@ -363,17 +874,64 @@
         }
       }
     },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-demo.airwallex.com/api/v1/pa/refunds/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by airwallex connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment Method"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_order_id — Missing required field: connector_order_id"
       }
     },
     "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for airwallex"
+      }
+    },
+    "verify_redirect": {
       "default": {
         "status": "not_implemented"
       }

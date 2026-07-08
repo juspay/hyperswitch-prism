@@ -2,7 +2,24 @@ use common_utils::request::Method;
 use grpc_api_types::payments::{CaCert, HttpConfig, HttpDefault, NetworkErrorCode};
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 use std::time::{Duration, Instant};
+
+static MOCK_HTTP: AtomicBool = AtomicBool::new(false);
+static LAST_MOCK_REQUEST: Mutex<Option<String>> = Mutex::new(None);
+
+/// Enable HTTP mock mode. When enabled, execute() returns a 200/{} response
+/// without making a real network call. For smoke test use only.
+pub fn set_mock_http(enabled: bool) {
+    MOCK_HTTP.store(enabled, Ordering::Relaxed);
+}
+
+/// Take the last intercepted mock request string (e.g. "POST https://api.stripe.com/v1/...").
+/// Returns None if no mock request was intercepted since the last call.
+pub fn take_last_mock_request() -> Option<String> {
+    LAST_MOCK_REQUEST.lock().ok()?.take()
+}
 
 // Native options for decoupling the SDK from the Protobuf-generated transport types.
 #[derive(Clone, Debug, Default)]
@@ -112,6 +129,7 @@ impl NetworkError {
     }
 }
 
+#[derive(Clone)]
 pub struct HttpClient {
     client: reqwest::Client,
     options: HttpOptions,
@@ -210,6 +228,26 @@ impl HttpClient {
         request: HttpRequest,
         override_options: Option<HttpOptions>,
     ) -> Result<HttpResponse, NetworkError> {
+        // Check for mock mode (used in smoke test mock mode)
+        if MOCK_HTTP.load(Ordering::Relaxed) {
+            let method_str = match request.method {
+                Method::Get => "GET",
+                Method::Post => "POST",
+                Method::Put => "PUT",
+                Method::Delete => "DELETE",
+                Method::Patch => "PATCH",
+            };
+            if let Ok(mut guard) = LAST_MOCK_REQUEST.lock() {
+                *guard = Some(format!("{} {}", method_str, request.url));
+            }
+            return Ok(HttpResponse {
+                status_code: 200,
+                headers: std::collections::HashMap::new(),
+                body: b"{}".to_vec(),
+                latency_ms: 0,
+            });
+        }
+
         if reqwest::Url::parse(&request.url).is_err() {
             return Err(NetworkError {
                 code: NetworkErrorCode::UrlParsingFailed,
@@ -217,7 +255,6 @@ impl HttpClient {
                 status_code: None,
             });
         }
-
         let start_time = Instant::now();
 
         let mut req_builder = match request.method {
@@ -303,4 +340,19 @@ impl HttpClient {
 pub fn resolve_proxy_url(_url: &str, proxy: &Option<ProxyConfig>) -> Option<String> {
     let proxy = proxy.as_ref()?;
     proxy.https_url.clone().or_else(|| proxy.http_url.clone())
+}
+
+/// Generate a cache key from proxy configuration for HTTP client caching.
+/// Returns empty string when no proxy is configured.
+pub fn generate_proxy_cache_key(proxy: &Option<ProxyConfig>) -> String {
+    match proxy {
+        None => String::new(),
+        Some(p) => {
+            let http = p.http_url.as_deref().unwrap_or("");
+            let https = p.https_url.as_deref().unwrap_or("");
+            let mut bypass = p.bypass_urls.clone();
+            bypass.sort();
+            format!("{}|{}|{}", http, https, bypass.join(","))
+        }
+    }
 }

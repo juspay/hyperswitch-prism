@@ -12,15 +12,15 @@ mod uniffi_bindings_inner {
     use domain_types::router_response_types::Response;
     use grpc_api_types::payments::Environment;
     use grpc_api_types::payments::{
-        ffi_result, ConnectorResponseTransformationError, FfiConnectorHttpRequest,
-        FfiConnectorHttpResponse, FfiResult, IntegrationError,
+        ffi_result, ConnectorError, FfiConnectorHttpRequest, FfiConnectorHttpResponse, FfiResult,
+        IntegrationError,
     };
     use prost::Message;
     use std::collections::HashMap;
 
     use crate::bindings::utils::{
         build_domain_response, build_ffi_request_bytes, parse_ffi_options_for_req,
-        parse_ffi_options_for_res, parse_metadata_for_req, parse_metadata_for_res,
+        parse_ffi_options_for_res, parse_metadata, parse_webhook_metadata,
     };
     use crate::define_ffi_flow;
 
@@ -67,7 +67,7 @@ mod uniffi_bindings_inner {
             }
         };
 
-        let ffi_metadata = match parse_metadata_for_req(&ffi_options) {
+        let ffi_metadata = match parse_metadata(&ffi_options) {
             Ok(m) => m,
             Err(e) => {
                 return FfiResult {
@@ -141,7 +141,7 @@ mod uniffi_bindings_inner {
 
     /// Decode `response_bytes` as the domain `Response` and `request_bytes` as `Req`,
     /// call `handler`, and encode the result as Result proto.
-    /// If the handler returns an error, encode the ConnectorResponseTransformationError in Result.
+    /// If the handler returns an error, encode the ConnectorError in Result.
     pub fn run_res_transformer<Req, Res>(
         response_bytes: Vec<u8>,
         request_bytes: Vec<u8>,
@@ -150,7 +150,7 @@ mod uniffi_bindings_inner {
             crate::types::FfiRequestData<Req>,
             Response,
             Option<Environment>,
-        ) -> Result<Res, ConnectorResponseTransformationError>,
+        ) -> Result<Res, Box<ConnectorError>>,
     ) -> Vec<u8>
     where
         Req: Message + Default,
@@ -160,8 +160,8 @@ mod uniffi_bindings_inner {
             Ok(r) => r,
             Err(e) => {
                 return FfiResult {
-                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
-                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                    r#type: ffi_result::Type::ConnectorError.into(),
+                    payload: Some(ffi_result::Payload::ConnectorError(*e)),
                 }
                 .encode_to_vec()
             }
@@ -171,14 +171,13 @@ mod uniffi_bindings_inner {
             Ok(p) => p,
             Err(e) => {
                 return FfiResult {
-                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
-                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(
-                        ConnectorResponseTransformationError {
-                            error_message: format!("Request payload decode failed: {e}"),
-                            error_code: "DECODE_FAILED".to_string(),
-                            http_status_code: None,
-                        },
-                    )),
+                    r#type: ffi_result::Type::ConnectorError.into(),
+                    payload: Some(ffi_result::Payload::ConnectorError(ConnectorError {
+                        error_message: format!("Request payload decode failed: {e}"),
+                        error_code: "DECODE_FAILED".to_string(),
+                        http_status_code: None,
+                        error_info: None,
+                    })),
                 }
                 .encode_to_vec();
             }
@@ -188,19 +187,24 @@ mod uniffi_bindings_inner {
             Ok(o) => o,
             Err(e) => {
                 return FfiResult {
-                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
-                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                    r#type: ffi_result::Type::ConnectorError.into(),
+                    payload: Some(ffi_result::Payload::ConnectorError(*e)),
                 }
                 .encode_to_vec()
             }
         };
 
-        let ffi_metadata = match parse_metadata_for_res(&ffi_options) {
+        let ffi_metadata = match parse_metadata(&ffi_options) {
             Ok(m) => m,
             Err(e) => {
                 return FfiResult {
-                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
-                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                    r#type: ffi_result::Type::ConnectorError.into(),
+                    payload: Some(ffi_result::Payload::ConnectorError(ConnectorError {
+                        error_message: e.error_message,
+                        error_code: e.error_code,
+                        http_status_code: None,
+                        error_info: None,
+                    })),
                 }
                 .encode_to_vec()
             }
@@ -247,8 +251,8 @@ mod uniffi_bindings_inner {
                 .encode_to_vec()
             }
             Err(e) => FfiResult {
-                r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
-                payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                r#type: ffi_result::Type::ConnectorError.into(),
+                payload: Some(ffi_result::Payload::ConnectorError(*e)),
             }
             .encode_to_vec(),
         }
@@ -261,6 +265,75 @@ mod uniffi_bindings_inner {
     include!("_generated_ffi_flows.rs");
 
     // ── Hand-written exports (not auto-generated) ─────────────────────────────
+
+    /// parse_event — stateless webhook event type and resource reference extraction.
+    ///
+    /// No secrets, no context. The caller passes raw `EventServiceParseRequest` proto bytes
+    /// and receives encoded `EventServiceParseResponse` bytes directly.
+    #[uniffi::export]
+    pub fn parse_event_transformer(request_bytes: Vec<u8>, options_bytes: Vec<u8>) -> Vec<u8> {
+        use grpc_api_types::payments::EventServiceParseRequest;
+        use prost::Message as _;
+
+        let payload = match EventServiceParseRequest::decode(Bytes::from(request_bytes)) {
+            Ok(p) => p,
+            Err(e) => {
+                return FfiResult {
+                    r#type: ffi_result::Type::IntegrationError.into(),
+                    payload: Some(ffi_result::Payload::IntegrationError(IntegrationError {
+                        error_message: format!("EventServiceParseRequest decode failed: {e}"),
+                        error_code: "DECODE_FAILED".to_string(),
+                        suggested_action: None,
+                        doc_url: None,
+                    })),
+                }
+                .encode_to_vec();
+            }
+        };
+
+        let ffi_options = match parse_ffi_options_for_req(options_bytes) {
+            Ok(o) => o,
+            Err(e) => {
+                return FfiResult {
+                    r#type: ffi_result::Type::IntegrationError.into(),
+                    payload: Some(ffi_result::Payload::IntegrationError(e)),
+                }
+                .encode_to_vec()
+            }
+        };
+
+        let ffi_metadata = match parse_webhook_metadata(&ffi_options) {
+            Ok(m) => m,
+            Err(e) => {
+                return FfiResult {
+                    r#type: ffi_result::Type::IntegrationError.into(),
+                    payload: Some(ffi_result::Payload::IntegrationError(e)),
+                }
+                .encode_to_vec()
+            }
+        };
+
+        let request = crate::types::FfiRequestData {
+            payload,
+            extracted_metadata: ffi_metadata,
+            masked_metadata: None,
+        };
+
+        let environment = Some(ffi_options.environment());
+
+        match crate::handlers::payments::parse_event_handler(request, environment) {
+            Ok(response) => FfiResult {
+                r#type: ffi_result::Type::ProtoResponse.into(),
+                payload: Some(ffi_result::Payload::ProtoResponse(response.encode_to_vec())),
+            }
+            .encode_to_vec(),
+            Err(e) => FfiResult {
+                r#type: ffi_result::Type::IntegrationError.into(),
+                payload: Some(ffi_result::Payload::IntegrationError(e)),
+            }
+            .encode_to_vec(),
+        }
+    }
 
     /// handle_event — synchronous webhook processing (single-step, no outgoing HTTP).
     ///
@@ -276,36 +349,35 @@ mod uniffi_bindings_inner {
             Ok(p) => p,
             Err(e) => {
                 return FfiResult {
-                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
-                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(
-                        ConnectorResponseTransformationError {
-                            error_message: format!("EventServiceHandleRequest decode failed: {e}"),
-                            error_code: "DECODE_FAILED".to_string(),
-                            http_status_code: None,
-                        },
-                    )),
+                    r#type: ffi_result::Type::IntegrationError.into(),
+                    payload: Some(ffi_result::Payload::IntegrationError(IntegrationError {
+                        error_message: format!("EventServiceHandleRequest decode failed: {e}"),
+                        error_code: "DECODE_FAILED".to_string(),
+                        suggested_action: None,
+                        doc_url: None,
+                    })),
                 }
                 .encode_to_vec();
             }
         };
 
-        let ffi_options = match parse_ffi_options_for_res(options_bytes) {
+        let ffi_options = match parse_ffi_options_for_req(options_bytes) {
             Ok(o) => o,
             Err(e) => {
                 return FfiResult {
-                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
-                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                    r#type: ffi_result::Type::IntegrationError.into(),
+                    payload: Some(ffi_result::Payload::IntegrationError(e)),
                 }
                 .encode_to_vec()
             }
         };
 
-        let ffi_metadata = match parse_metadata_for_res(&ffi_options) {
+        let ffi_metadata = match parse_webhook_metadata(&ffi_options) {
             Ok(m) => m,
             Err(e) => {
                 return FfiResult {
-                    r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
-                    payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                    r#type: ffi_result::Type::IntegrationError.into(),
+                    payload: Some(ffi_result::Payload::IntegrationError(e)),
                 }
                 .encode_to_vec()
             }
@@ -320,9 +392,134 @@ mod uniffi_bindings_inner {
         let environment = Some(ffi_options.environment());
 
         match crate::handlers::payments::handle_event_handler(request, environment) {
+            Ok(response) => FfiResult {
+                r#type: ffi_result::Type::ProtoResponse.into(),
+                payload: Some(ffi_result::Payload::ProtoResponse(response.encode_to_vec())),
+            }
+            .encode_to_vec(),
+            Err(e) => FfiResult {
+                r#type: ffi_result::Type::IntegrationError.into(),
+                payload: Some(ffi_result::Payload::IntegrationError(e)),
+            }
+            .encode_to_vec(),
+        }
+    }
+
+    /// verify_redirect_response — synchronous verification of redirect response (no outgoing HTTP call).
+    ///
+    /// Calls `decode_redirect_response_body`, `verify_redirect_response_source`, and
+    /// `process_redirect_response` on the connector, mirroring what the gRPC server does.
+    #[uniffi::export]
+    pub fn verify_redirect_response_transformer(
+        request_bytes: Vec<u8>,
+        options_bytes: Vec<u8>,
+    ) -> Vec<u8> {
+        use grpc_api_types::payments::PaymentServiceVerifyRedirectResponseRequest;
+        use prost::Message as _;
+
+        let payload =
+            match PaymentServiceVerifyRedirectResponseRequest::decode(Bytes::from(request_bytes)) {
+                Ok(p) => p,
+                Err(e) => {
+                    return FfiResult {
+                        r#type: ffi_result::Type::ConnectorError.into(),
+                        payload: Some(ffi_result::Payload::ConnectorError(ConnectorError {
+                            error_message: format!(
+                                "PaymentServiceVerifyRedirectResponseRequest decode failed: {e}"
+                            ),
+                            error_code: "DECODE_FAILED".to_string(),
+                            http_status_code: None,
+                            error_info: None,
+                        })),
+                    }
+                    .encode_to_vec();
+                }
+            };
+
+        let ffi_options = match parse_ffi_options_for_res(options_bytes) {
+            Ok(o) => o,
+            Err(e) => {
+                return FfiResult {
+                    r#type: ffi_result::Type::ConnectorError.into(),
+                    payload: Some(ffi_result::Payload::ConnectorError(*e)),
+                }
+                .encode_to_vec()
+            }
+        };
+
+        let ffi_metadata = match parse_metadata(&ffi_options) {
+            Ok(m) => m,
+            Err(e) => {
+                return FfiResult {
+                    r#type: ffi_result::Type::ConnectorError.into(),
+                    payload: Some(ffi_result::Payload::ConnectorError(ConnectorError {
+                        error_message: e.error_message,
+                        error_code: e.error_code,
+                        http_status_code: None,
+                        error_info: None,
+                    })),
+                }
+                .encode_to_vec()
+            }
+        };
+
+        let connector = match ffi_metadata.connector.as_payment() {
+            Some(connector) => connector,
+            None => {
+                return FfiResult {
+                    r#type: ffi_result::Type::ConnectorError.into(),
+                    payload: Some(ffi_result::Payload::ConnectorError(ConnectorError {
+                        error_message: "Unsupported connector variant".to_string(),
+                        error_code: "UNSUPPORTED_CONNECTOR_VARIANT".to_string(),
+                        http_status_code: None,
+                        error_info: None,
+                    })),
+                }
+                .encode_to_vec()
+            }
+        };
+
+        let connector_config = match ffi_metadata.connector_config {
+            Some(config) => config,
+            None => {
+                return FfiResult {
+                    r#type: ffi_result::Type::ConnectorError.into(),
+                    payload: Some(ffi_result::Payload::ConnectorError(ConnectorError {
+                        error_message: "Missing connector config".to_string(),
+                        error_code: "MISSING_CONNECTOR_CONFIG".to_string(),
+                        http_status_code: None,
+                        error_info: None,
+                    })),
+                }
+                .encode_to_vec()
+            }
+        };
+        let metadata = &common_utils::metadata::MaskedMetadata::default();
+
+        let config = match ucs_env::configs::Config::new() {
+            Ok(cfg) => std::sync::Arc::new(cfg),
+            Err(e) => {
+                return FfiResult {
+                    r#type: ffi_result::Type::ConnectorError.into(),
+                    payload: Some(ffi_result::Payload::ConnectorError(ConnectorError {
+                        error_message: format!("Failed to load config: {e}"),
+                        error_code: "CONFIG_LOAD_FAILED".to_string(),
+                        http_status_code: None,
+                        error_info: None,
+                    })),
+                }
+                .encode_to_vec()
+            }
+        };
+
+        match crate::services::payments::verify_redirect_response_transformer(
+            payload,
+            &config,
+            connector,
+            connector_config,
+            metadata,
+        ) {
             Ok(response) => {
-                // Serialize the protobuf response and wrap it in FfiConnectorHttpResponse
-                // Note: handle_event doesn't have connector response headers (webhook processing)
                 let response_bytes = response.encode_to_vec();
                 let http_response = FfiConnectorHttpResponse {
                     status_code: 200,
@@ -336,8 +533,8 @@ mod uniffi_bindings_inner {
                 .encode_to_vec()
             }
             Err(e) => FfiResult {
-                r#type: ffi_result::Type::ConnectorResponseTransformationError.into(),
-                payload: Some(ffi_result::Payload::ConnectorResponseTransformationError(e)),
+                r#type: ffi_result::Type::ConnectorError.into(),
+                payload: Some(ffi_result::Payload::ConnectorError(*e)),
             }
             .encode_to_vec(),
         }

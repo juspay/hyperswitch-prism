@@ -6,7 +6,7 @@ use domain_types::{
         PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, ResponseId, SetupMandateRequestData,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -142,7 +142,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 card_number: card.card_number.clone(),
                 card_c_v_v: card.card_cvc.clone(),
             },
-            _ => return Err(IntegrationError::not_implemented("payment method").into()),
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    ("payment method").into(),
+                    Default::default(),
+                )
+                .into())
+            }
         };
 
         let req_address = item
@@ -269,7 +275,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<HelcimPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -301,10 +307,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 redirection_data: None,
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -318,7 +326,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<HelcimPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -334,10 +342,12 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                         redirection_data: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: item.response.invoice_number.clone(),
                         incremental_authorization_allowed: None,
                         mandate_reference: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status,
@@ -348,7 +358,7 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
             }
             SyncRequestType::MultipleCaptureSync => {
                 Err(Report::new(
-                    ConnectorResponseTransformationError::unexpected_response_error_with_context(
+                    ConnectorError::unexpected_response_error_with_context(
                         item.http_code,
                         Some("manual multiple capture sync not supported".to_string()),
                     ),
@@ -422,7 +432,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<HelcimPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -436,10 +446,12 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                 redirection_data: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -496,7 +508,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<HelcimPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -510,10 +522,12 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                 redirection_data: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -573,7 +587,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 card_number: card.card_number.clone(),
                 card_c_v_v: card.card_cvc.clone(),
             },
-            _ => return Err(IntegrationError::not_implemented("payment method").into()),
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    ("payment method").into(),
+                    Default::default(),
+                )
+                .into())
+            }
         };
 
         let req_address = item
@@ -651,7 +671,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     >
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(
         item: ResponseRouterData<HelcimPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
@@ -660,6 +680,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_mandate_id: Some(item.response.transaction_id.to_string()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         };
 
         Ok(Self {
@@ -670,10 +691,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 redirection_data: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 mandate_reference: Some(Box::new(mandate_reference)),
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -767,7 +790,7 @@ impl From<RefundResponse> for common_enums::RefundStatus {
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -783,7 +806,7 @@ impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<RefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = Report<ConnectorResponseTransformationError>;
+    type Error = Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<RefundResponse, Self>) -> Result<Self, Self::Error> {
         Ok(Self {
             response: Ok(RefundsResponseData {

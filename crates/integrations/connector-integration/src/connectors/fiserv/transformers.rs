@@ -11,9 +11,9 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     utils,
 };
@@ -464,11 +464,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         if item.router_data.resource_common_data.is_three_ds() {
-            Err(IntegrationError::NotSupported {
-                message: "Cards 3DS".to_string(),
-                connector: "Fiserv",
-                context: Default::default(),
-            })?
+            Err(error_stack::report!(IntegrationError::NotImplemented(
+                "Cards 3DS".to_string(),
+                Default::default()
+            )))?
         }
 
         let auth: FiservAuthType = FiservAuthType::try_from(&item.router_data.connector_config)?;
@@ -546,12 +545,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::OpenBanking(_)
-            | PaymentMethodData::CardToken(_)
+            | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(error_stack::report!(IntegrationError::not_implemented(
+                Err(error_stack::report!(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiserv"),
+                    Default::default()
                 )))
             }
         }?;
@@ -793,7 +793,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     TryFrom<ResponseRouterData<FiservPaymentsResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservPaymentsResponse, Self>,
@@ -827,11 +827,13 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         if status == enums::AttemptStatus::Failure || status == enums::AttemptStatus::Voided {
@@ -843,7 +845,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 message: format!("Payment status: {:?}", gateway_resp.transaction_state),
                 reason: None,
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -861,7 +863,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 impl<F> TryFrom<ResponseRouterData<FiservCaptureResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservCaptureResponse, Self>,
@@ -895,11 +897,13 @@ impl<F> TryFrom<ResponseRouterData<FiservCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         if status == enums::AttemptStatus::Failure || status == enums::AttemptStatus::Voided {
@@ -911,7 +915,7 @@ impl<F> TryFrom<ResponseRouterData<FiservCaptureResponse, Self>>
                 message: format!("Payment status: {:?}", gateway_resp.transaction_state),
                 reason: None,
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -929,7 +933,7 @@ impl<F> TryFrom<ResponseRouterData<FiservCaptureResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<FiservVoidResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentVoidData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<FiservVoidResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
@@ -961,11 +965,13 @@ impl<F> TryFrom<ResponseRouterData<FiservVoidResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         if status == enums::AttemptStatus::Failure {
@@ -977,7 +983,7 @@ impl<F> TryFrom<ResponseRouterData<FiservVoidResponse, Self>>
                 message: format!("Void status: {:?}", gateway_resp.transaction_state),
                 reason: None,
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -995,7 +1001,7 @@ impl<F> TryFrom<ResponseRouterData<FiservVoidResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<FiservSyncResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<FiservSyncResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
@@ -1037,11 +1043,13 @@ impl<F> TryFrom<ResponseRouterData<FiservSyncResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 gateway_resp.transaction_processing_details.order_id.clone(),
             ),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         if status == enums::AttemptStatus::Failure || status == enums::AttemptStatus::Voided {
@@ -1053,7 +1061,7 @@ impl<F> TryFrom<ResponseRouterData<FiservSyncResponse, Self>>
                 message: format!("Payment status: {:?}", gateway_resp.transaction_state),
                 reason: None,
                 status_code: http_code,
-                attempt_status: Some(status),
+                attempt_status: Some(FlowStatus::Payment(status)),
                 connector_transaction_id: gateway_resp.gateway_transaction_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1071,7 +1079,7 @@ impl<F> TryFrom<ResponseRouterData<FiservSyncResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<FiservRefundResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundsData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<FiservRefundResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {
@@ -1127,7 +1135,7 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundResponse, Self>>
 impl<F> TryFrom<ResponseRouterData<FiservRefundSyncResponse, Self>>
     for RouterDataV2<F, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<FiservRefundSyncResponse, Self>,
@@ -1195,7 +1203,7 @@ impl<F> TryFrom<ResponseRouterData<FiservRefundSyncResponse, Self>>
 impl<F, Req, Res> TryFrom<ResponseRouterData<FiservErrorResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, Req, Res>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(item: ResponseRouterData<FiservErrorResponse, Self>) -> Result<Self, Self::Error> {
         let ResponseRouterData {

@@ -1,0 +1,11 @@
+{
+  "connector": "bambora",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "PaymentService/Get",
+    "RefundService/Get"
+  ]
+}

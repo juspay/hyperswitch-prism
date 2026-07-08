@@ -3,16 +3,19 @@
 # Export structure:
 #   - PaymentClient, MerchantAuthenticationClient (per-service high-level API)
 #   - Direct imports via wildcard from generated proto files
-#   - Exception classes (IntegrationError, ConnectorResponseTransformationError) from connector_client
+#   - Exception classes (IntegrationError, ConnectorError) from connector_client
 
 from payments._generated_service_clients import (
     CustomerClient,
-    PaymentClient,
     DisputeClient,
+    EventClient,
     MerchantAuthenticationClient,
+    PaymentClient,
     PaymentMethodAuthenticationClient,
     PaymentMethodClient,
+    PayoutClient,
     RecurringPaymentClient,
+    RefundClient,
 )
 from payments.grpc_client import GrpcClient, GrpcConfig
 
@@ -23,7 +26,7 @@ from payments.generated.sdk_config_pb2 import *
 from payments.generated.connector_service_ffi import *
 
 # Exception classes - override protobuf message types with proper Exception classes
-from payments.connector_client import IntegrationError, ConnectorResponseTransformationError
+from payments.connector_client import IntegrationError, ConnectorError
 from payments.http_client import NetworkError, NetworkErrorCode
 
 # Expose proto modules for namespaced access (e.g., payments.Connector, configs.Environment)

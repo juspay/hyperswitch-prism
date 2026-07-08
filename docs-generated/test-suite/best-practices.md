@@ -3,7 +3,7 @@
 title: Best Practices
 description: Guidelines for writing effective test scenarios
 last_updated: 2026-03-12
-generated_from: backend/ucs-connector-tests/
+generated_from: backend/integration-tests/
 auto_generated: false
 reviewed_by: engineering
 reviewed_at: 2026-03-12
@@ -330,7 +330,7 @@ cargo run --bin run_test ... --print-grpcurl
 Always check the generated report:
 
 ```bash
-cat backend/ucs-connector-tests/test_report.md
+cat backend/integration-tests/test_report.md
 ```
 
 ### Isolate Failures

@@ -157,11 +157,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         data: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         event_builder: Option<&mut ConnectorEvent>,
         res: types::Response,
-    ) -> CustomResult<RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>, ConnectorResponseTransformationError> {
+    ) -> CustomResult<RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>, ConnectorError> {
         let response: transformers::{ConnectorName}RefundSyncResponse = res
             .response
             .parse_struct("{ConnectorName} RSync Response")
-            .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -171,7 +171,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             data: data.clone(),
             http_code: res.status_code,
         })
-        .change_context(errors::ConnectorResponseTransformationError::ResponseHandlingFailed)
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
 
     // Error response handling
@@ -179,7 +179,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -536,11 +536,11 @@ impl {ConnectorName}<T> {
         &self,
         res: types::Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: {ConnectorName}ErrorResponse = res
             .response
             .parse_struct("{ConnectorName} Error Response")
-            .change_context(errors::ConnectorResponseTransformationError::ResponseDeserializationFailed { context: Default::default() })?;
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed { context: Default::default() })?;
 
         event_builder.map(|i| i.set_error_response_body(&response));
 
@@ -572,7 +572,7 @@ pub struct {ConnectorName}ErrorDetail {
 }
 
 impl {ConnectorName}<T> {
-    fn build_error_response(&self, res: types::Response) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+    fn build_error_response(&self, res: types::Response) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: {ConnectorName}ErrorResponse = res.response.parse_struct("Error Response")?;
         
         let error_message = if let Some(errors) = response.errors {

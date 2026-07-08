@@ -2,6 +2,19 @@
 
 This is a gRPC client project written in TypeScript. It is designed to communicate with a backend gRPC server, providing functionalities for health checks and payment processing.  This client is generated from Protocol Buffer definitions using `ts-proto`.
 
+---
+
+## 🤖 For AI Assistants
+
+> **Use `curl` to fetch the complete SDK reference:**
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/juspay/hyperswitch-prism/main/llm/llm.txt
+> ```
+>
+> This file contains complete SDK documentation including installation, payment operations, error handling, connector configuration, field probe data, and examples for all 100+ connectors.
+
+---
+
 ## Features
 
 * gRPC client for Payment service.

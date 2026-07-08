@@ -6,7 +6,7 @@ use domain_types::{
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId,
     },
-    errors::{ConnectorResponseTransformationError, IntegrationError},
+    errors::{ConnectorError, IntegrationError},
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -447,9 +447,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract card data
         let card_data = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(IntegrationError::not_implemented(
-                "Payment method not supported".to_string(),
-            )),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Payment method not supported".to_string(),
+                connector: "Bamboraapac",
+                context: Default::default(),
+            })),
         }?;
 
         // Determine transaction type based on capture method
@@ -496,7 +498,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     TryFrom<ResponseRouterData<BamboraapacPaymentResponse, Self>>
     for RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BamboraapacPaymentResponse, Self>,
@@ -549,7 +551,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .unwrap_or_else(|| "Payment declined".to_string()),
                     reason: response.declined_message.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.receipt.clone()),
                     network_decline_code: response.declined_code.clone(),
                     network_advice_code: None,
@@ -566,9 +568,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.receipt.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -628,7 +632,7 @@ impl TryFrom<&RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, Paymen
 impl TryFrom<ResponseRouterData<BamboraapacCaptureResponse, Self>>
     for RouterDataV2<Capture, PaymentFlowData, PaymentsCaptureData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BamboraapacCaptureResponse, Self>,
@@ -676,7 +680,7 @@ impl TryFrom<ResponseRouterData<BamboraapacCaptureResponse, Self>>
                         .unwrap_or_else(|| "Capture declined".to_string()),
                     reason: response.declined_message.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.receipt.clone()),
                     network_decline_code: response.declined_code.clone(),
                     network_advice_code: None,
@@ -693,9 +697,11 @@ impl TryFrom<ResponseRouterData<BamboraapacCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.receipt.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -747,7 +753,7 @@ impl TryFrom<&RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsRes
 impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
     for RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BamboraapacSyncResponse, Self>,
@@ -785,7 +791,9 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
                         message: "No matching transaction found".to_string(),
                         reason: Some("Transaction not found in query results".to_string()),
                         status_code: item.http_code,
-                        attempt_status: Some(common_enums::AttemptStatus::Failure),
+                        attempt_status: Some(FlowStatus::Payment(
+                            common_enums::AttemptStatus::Failure,
+                        )),
                         connector_transaction_id: None,
                         network_decline_code: None,
                         network_advice_code: None,
@@ -825,7 +833,7 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
                         .unwrap_or_else(|| "Payment declined".to_string()),
                     reason: response.declined_message.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.receipt.clone()),
                     network_decline_code: response.declined_code.clone(),
                     network_advice_code: None,
@@ -842,9 +850,11 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.receipt.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -910,7 +920,7 @@ impl TryFrom<ResponseRouterData<BamboraapacRefundResponse, Self>>
         RefundsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BamboraapacRefundResponse, Self>,
@@ -1017,7 +1027,7 @@ impl TryFrom<&RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsRespons
 impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
     for RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BamboraapacSyncResponse, Self>,
@@ -1124,6 +1134,7 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
 // ============================================================================
 
 use domain_types::connector_types::SetupMandateRequestData;
+use domain_types::router_data::FlowStatus;
 
 // SetupMandate Request Structure (Customer Registration without payment)
 #[derive(Debug, Clone)]
@@ -1199,9 +1210,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract card data from payment method data
         let card_data = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => Ok(card),
-            _ => Err(IntegrationError::not_implemented(
-                "Only card payment methods are supported for SetupMandate".to_string(),
-            )),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Only card payment methods are supported for SetupMandate".to_string(),
+                connector: "Bamboraapac",
+                context: Default::default(),
+            })),
         }?;
 
         // Get card number using peek() method
@@ -1248,7 +1261,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaymentsResponseData,
     >
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BamboraapacSetupMandateResponse, Self>,
@@ -1300,7 +1313,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: error_message.to_string(),
                     reason: Some(error_message.to_string()),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1326,6 +1339,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_mandate_id: Some(connector_mandate_id.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })),
             connector_metadata: Some(serde_json::json!({
                 "customer_number": response.cust_number.clone(),
@@ -1334,9 +1348,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 "action_code": response.action_code
             })),
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1401,8 +1417,9 @@ impl<
                 )?
             }
             _ => {
-                return Err(error_stack::report!(IntegrationError::not_implemented(
-                    "Only ConnectorMandateId is supported for RepeatPayment".to_string()
+                return Err(error_stack::report!(IntegrationError::NotImplemented(
+                    "Only ConnectorMandateId is supported for RepeatPayment".to_string(),
+                    Default::default()
                 )))
             }
         };
@@ -1434,7 +1451,7 @@ impl<
     > TryFrom<ResponseRouterData<BamboraapacPaymentResponse, Self>>
     for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
 {
-    type Error = error_stack::Report<ConnectorResponseTransformationError>;
+    type Error = error_stack::Report<ConnectorError>;
 
     fn try_from(
         item: ResponseRouterData<BamboraapacPaymentResponse, Self>,
@@ -1487,7 +1504,7 @@ impl<
                         .unwrap_or_else(|| "Payment declined".to_string()),
                     reason: response.declined_message.clone(),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: Some(response.receipt.clone()),
                     network_decline_code: response.declined_code.clone(),
                     network_advice_code: None,
@@ -1504,9 +1521,11 @@ impl<
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: Some(response.receipt.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {

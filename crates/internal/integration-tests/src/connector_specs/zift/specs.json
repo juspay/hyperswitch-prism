@@ -1,0 +1,12 @@
+{
+  "connector": "zift",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
+  ]
+}

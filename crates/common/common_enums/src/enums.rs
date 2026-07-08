@@ -221,6 +221,10 @@ pub enum SamsungPayCardBrand {
 pub enum BankType {
     Checking,
     Savings,
+    Transmission,
+    Current,
+    Bond,
+    SubscriptionShare,
 }
 
 #[derive(
@@ -405,6 +409,58 @@ pub enum BankNames {
     Yoursafe,
     N26,
     NationaleNederlanden,
+    // Indian banks (Netbanking)
+    StateBank,
+    HdfcBank,
+    IciciBank,
+    AxisBank,
+    KotakMahindraBank,
+    PunjabNationalBank,
+    BankOfBaroda,
+    UnionBankOfIndia,
+    CanaraBank,
+    IndusIndBank,
+    YesBank,
+    IdbiBank,
+    FederalBank,
+    IndianOverseasBank,
+    CentralBankOfIndia,
+    Absa,
+    AccessBank,
+    Albaraka,
+    ChinaConstructionBank,
+    Discovery,
+    EnlBank,
+    FirstNationalBank,
+    GotymeBank,
+    HabibOverseas,
+    HbzBank,
+    Investec,
+    JpMorganChase,
+    MtnBanking,
+    Olympus,
+    OldMutual,
+    PermanentBank,
+    SocieteGenerale,
+    StandardBank,
+    StateBankOfIndia,
+    Ubank,
+    VbsMutualBank,
+    BankZero,
+    BidvestBank,
+    BidvestBankAlliances,
+    FbcFidelityBank,
+    FinbondEpe,
+    FinbondMutualBank,
+    Ithala,
+    PeoplesBankPepBank,
+    PeoplesBank,
+    PostBank,
+    Nedbank,
+    Capitec,
+    CapitecBusiness,
+    AfricanBank,
+    AfricanBankBusiness,
 }
 
 /// Specifies the regulated name for a card network, primarily used for US debit card routing regulations.
@@ -950,6 +1006,7 @@ pub enum PaymentMethodType {
     AliPay,
     AliPayHk,
     Alma,
+    Tamara,
     AmazonPay,
     ApplePay,
     Atome,
@@ -959,6 +1016,7 @@ pub enum PaymentMethodType {
     Becs,
     Benefit,
     Bizum,
+    BillDesk,
     Blik,
     Boleto,
     BcaBankTransfer,
@@ -971,10 +1029,12 @@ pub enum PaymentMethodType {
     Card,
     CryptoCurrency,
     Cashapp,
+    Cashfree,
     Dana,
     DanamonVa,
     DuitNow,
     Efecty,
+    EaseBuzz,
     Eft,
     Eps,
     Fps,
@@ -992,6 +1052,7 @@ pub enum PaymentMethodType {
     LocalBankRedirect,
     MandiriVa,
     Knet,
+    LazyPay,
     MbWay,
     MobilePay,
     Momo,
@@ -1011,7 +1072,9 @@ pub enum PaymentMethodType {
     OpenBanking,
     PayBright,
     Paypal,
+    PayU,
     Paze,
+    PhonePe,
     Pix,
     PaySafeCard,
     Przelewy24,
@@ -1037,6 +1100,7 @@ pub enum PaymentMethodType {
     Walley,
     WeChatPay,
     Wero,
+    Netbanking,
     SevenEleven,
     Lawson,
     MiniStop,
@@ -1054,6 +1118,9 @@ pub enum PaymentMethodType {
     RevolutPay,
     SepaGuaranteedDebit,
     IndonesianBankTransfer,
+    Skrill,
+    Paysera,
+    QwikcilverWallet,
 }
 
 impl PaymentMethodType {
@@ -1113,6 +1180,71 @@ pub enum RefundStatus {
     Success,
     #[serde(alias = "TransactionFailure")]
     TransactionFailure,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum RechargeStatus {
+    Success,
+    Failure,
+    #[default]
+    Pending,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+pub enum WalletStatus {
+    #[default]
+    Unspecified,
+    Active,
+    Inactive,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+pub enum WalletItemStatus {
+    #[default]
+    Unspecified,
+    Active,
+    Inactive,
+    Depleted,
+    Expired,
 }
 
 #[derive(
@@ -1310,6 +1442,39 @@ impl AttemptStatus {
     }
 }
 
+/// Status of a post-capture void (Reverse) operation
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum PostCaptureVoidStatus {
+    Succeeded,
+    #[default]
+    Pending,
+    Failed,
+}
+
+impl PostCaptureVoidStatus {
+    pub fn is_post_capture_void_failure(self) -> bool {
+        match self {
+            Self::Failed => true,
+            Self::Pending | Self::Succeeded => false,
+        }
+    }
+}
+
 /// Status of the dispute
 #[derive(
     Clone,
@@ -1362,6 +1527,29 @@ pub enum DisputeStage {
     #[default]
     Dispute,
     PreArbitration,
+}
+
+/// Indicates the payment eligibility status.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum EligibilityStatus {
+    #[default]
+    Ineligible,
+    Eligible,
+    Unknown,
 }
 
 /// Indicates the card network.
@@ -1581,6 +1769,23 @@ pub enum CountryAlpha3 {
     SDN, SUR, SJM, SWZ, SWE, CHE, SYR, TWN, TJK, TZA, THA, TLS, TGO, TKL, TON,
     TTO, TUN, TUR, TKM, TCA, TUV, UGA, UKR, ARE, GBR, USA, UMI, URY, UZB, VUT,
     VEN, VNM, VGB, VIR, WLF, ESH, YEM, ZMB, ZWE
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Clone)]
+pub enum KafkaClientError {
+    /// Invalid configuration provided
+    #[error("Invalid configuration: {message}")]
+    InvalidConfiguration { message: String },
+    #[error("Kafka connector request publishing not enabled")]
+    NotEnabled,
+    #[error("Kafka producer not initialized")]
+    ProducerNotInitialized,
+    #[error("Kafka producer construction failed")]
+    ProducerConstructionFailed,
+    #[error("Failed to fetch Kafka metadata")]
+    MetadataFetchFailed,
+    #[error("Unsupported payload format: {format}")]
+    UnsupportedPayloadFormat { format: String },
 }
 
 #[derive(Debug, thiserror::Error, PartialEq, Clone)]
@@ -1893,18 +2098,11 @@ pub enum ProductType {
     Accommodation,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub enum WebhookTransformationStatus {
-    /// Transformation completed successfully, no further action needed
-    Complete,
-    /// Transformation incomplete, requires second call for final status
-    Incomplete,
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum CallConnectorAction {
     Trigger,
     HandleResponse(Vec<u8>),
+    HandleResponseWithoutBuildRequest,
 }
 
 #[derive(
@@ -2238,4 +2436,130 @@ pub enum Tokenization {
 pub enum TaxStatus {
     Taxable,
     Exempt,
+}
+
+/// FRM decision outcomes for fraud risk assessment
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    strum::EnumIter,
+    strum::VariantNames,
+    ToSchema,
+)]
+pub enum FrmDecision {
+    #[default]
+    Approve,
+    Reject,
+    Review,
+    Error,
+}
+
+/// Whether the ticket can be refunded.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TicketRefundability {
+    Refundable,
+    NonRefundable,
+}
+
+/// Ticket medium — electronic vs paper.
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum TicketDeliveryType {
+    Electronic,
+    Paper,
+}
+
+/// Whether the cardholder is among the passengers (fraud signal).
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    Deserialize,
+    Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum CardholderTravelStatus {
+    Traveling,
+    NotTraveling,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+    ToSchema,
+)]
+#[strum(serialize_all = "PascalCase")]
+#[serde(rename_all = "PascalCase")]
+pub enum AdyenSplitType {
+    /// Books split amount to the specified account.
+    BalanceAccount,
+    /// The aggregated amount of the interchange and scheme fees.
+    AcquiringFees,
+    /// The aggregated amount of all transaction fees.
+    PaymentFee,
+    /// The aggregated amount of Adyen's commission and markup fees.
+    AdyenFees,
+    ///  The transaction fees due to Adyen under blended rates.
+    AdyenCommission,
+    /// The transaction fees due to Adyen under Interchange ++ pricing.
+    AdyenMarkup,
+    ///  The fees paid to the issuer for each payment made with the card network.
+    Interchange,
+    ///  The fees paid to the card scheme for using their network.
+    SchemeFee,
+    /// Your platform's commission on the payment (specified in amount), booked to your liable balance account.
+    Commission,
+    /// Allows you and your users to top up balance accounts using direct debit, card payments, or other payment methods.
+    TopUp,
+    /// The value-added tax charged on the payment, booked to your platforms liable balance account.
+    Vat,
 }

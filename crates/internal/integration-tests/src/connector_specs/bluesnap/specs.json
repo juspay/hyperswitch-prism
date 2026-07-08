@@ -1,0 +1,12 @@
+{
+  "connector": "bluesnap",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Get",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken"
+  ]
+}

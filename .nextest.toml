@@ -6,4 +6,3 @@ fail-fast = false
 
 [profile.ci]
 status-level = "all"
-test-threads = 1

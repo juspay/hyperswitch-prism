@@ -14,7 +14,7 @@ use utoipa::ToSchema;
 
 pub use crate::router_data::PazeDecryptedData;
 use crate::{
-    errors::{ApiError, ApplicationErrorResponse, IntegrationError, IntegrationErrorContext},
+    errors::{IntegrationError, IntegrationErrorContext},
     utils::{get_card_issuer, missing_field_err, CardIssuer, Error},
 };
 
@@ -83,10 +83,10 @@ impl PaymentMethodDataTypes for DefaultPCIHolder {
 }
 
 impl PaymentMethodDataTypes for VaultTokenHolder {
-    type Inner = String; //Token
+    type Inner = Secret<String>; //Token
 
     fn peek_inner(inner: &Self::Inner) -> &str {
-        inner
+        inner.peek()
     }
 
     fn is_cobadged_inner(_inner: &Self::Inner) -> Result<bool, IntegrationError> {
@@ -100,42 +100,53 @@ impl<T: PaymentMethodDataTypes> Card<T> {
     pub fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
         let binding = self.card_exp_year.clone();
         let year = binding.peek();
-        Ok(Secret::new(
-            year.get(year.len() - 2..)
-                .ok_or(IntegrationError::InvalidDataFormat {
-                    field_name: "payment_method_data.card.card_exp_year",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Expected format: YY or YYYY".to_owned()),
-                        ..Default::default()
-                    },
-                })?
-                .to_string(),
-        ))
+        // If the value is a vault template token (e.g. {{$card_exp_year}}), pass it through as-is
+        // so that the injector template substitution works correctly.
+        match year {
+            y if y.contains("{{") => Ok(Secret::new(y.to_string())),
+            y => Ok(Secret::new(
+                y.get(y.len() - 2..)
+                    .ok_or(IntegrationError::InvalidDataFormat {
+                        field_name: "payment_method_data.card.card_exp_year",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Expected format: YY or YYYY".to_owned()),
+                            ..Default::default()
+                        },
+                    })?
+                    .to_string(),
+            )),
+        }
     }
 
     pub fn get_card_expiry_month_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
-        let exp_month = self
-            .card_exp_month
-            .peek()
-            .to_string()
-            .parse::<u8>()
-            .map_err(|_| IntegrationError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_month",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Expected format: MM".to_owned()),
-                    ..Default::default()
-                },
-            })?;
-        let month = cards::validate::CardExpirationMonth::try_from(exp_month).map_err(|_| {
-            IntegrationError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_month",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Expected format: MM".to_owned()),
-                    ..Default::default()
-                },
+        let month_str = self.card_exp_month.peek();
+        // If the value is a vault template token (e.g. {{$card_exp_month}}), pass it through as-is
+        // so that the injector template substitution works correctly.
+        match month_str {
+            m if m.contains("{{") => Ok(Secret::new(m.to_string())),
+            m => {
+                let exp_month =
+                    m.parse::<u8>()
+                        .map_err(|_| IntegrationError::InvalidDataFormat {
+                            field_name: "payment_method_data.card.card_exp_month",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Expected format: MM".to_owned()),
+                                ..Default::default()
+                            },
+                        })?;
+                let month =
+                    cards::validate::CardExpirationMonth::try_from(exp_month).map_err(|_| {
+                        IntegrationError::InvalidDataFormat {
+                            field_name: "payment_method_data.card.card_exp_month",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Expected format: MM".to_owned()),
+                                ..Default::default()
+                            },
+                        }
+                    })?;
+                Ok(Secret::new(month.two_digits()))
             }
-        })?;
-        Ok(Secret::new(month.two_digits()))
+        }
     }
 
     pub fn get_card_expiry_month_year_2_digit_with_delimiter(
@@ -174,6 +185,21 @@ impl<T: PaymentMethodDataTypes> Card<T> {
             .map(Secret::new)
     }
 
+    pub fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
+        self.card_exp_year
+            .peek()
+            .clone()
+            .parse::<i32>()
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "payment_method_data.card.card_exp_year",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Expected format: YY or YYYY".to_owned()),
+                    ..Default::default()
+                },
+            })
+            .map(Secret::new)
+    }
+
     pub fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Secret<String> {
         let year = self.get_expiry_year_4_digit();
         Secret::new(format!(
@@ -188,6 +214,12 @@ impl<T: PaymentMethodDataTypes> Card<T> {
         let year = self.get_card_expiry_year_2_digit()?;
         let month = self.get_card_expiry_month_2_digit()?;
         Ok(Secret::new(format!("{}{}", month.peek(), year.peek())))
+    }
+
+    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
+        let year = self.get_card_expiry_year_2_digit()?;
+        let month = self.get_card_expiry_month_2_digit()?;
+        Ok(Secret::new(format!("{}{}", year.peek(), month.peek())))
     }
 
     pub fn get_card_expiry_year_month_2_digit_with_delimiter(
@@ -208,6 +240,10 @@ impl<T: PaymentMethodDataTypes> Card<T> {
             .clone()
             .ok_or_else(missing_field_err("card.card_holder_name"))
     }
+
+    pub fn get_optional_cardholder_name(&self) -> Option<Secret<String>> {
+        self.card_holder_name.clone()
+    }
 }
 
 impl Card<DefaultPCIHolder> {
@@ -222,25 +258,6 @@ impl Card<DefaultPCIHolder> {
             delimiter,
             year.peek()
         ))
-    }
-    pub fn get_expiry_date_as_yymm(&self) -> Result<Secret<String>, IntegrationError> {
-        let year = self.get_card_expiry_year_2_digit()?.expose();
-        let month = self.card_exp_month.clone().expose();
-        Ok(Secret::new(format!("{year}{month}")))
-    }
-    pub fn get_expiry_year_as_i32(&self) -> Result<Secret<i32>, Error> {
-        self.card_exp_year
-            .peek()
-            .clone()
-            .parse::<i32>()
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "payment_method_data.card.card_exp_year",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Expected format: YY or YYYY".to_owned()),
-                    ..Default::default()
-                },
-            })
-            .map(Secret::new)
     }
 }
 
@@ -264,7 +281,7 @@ pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
     Upi(UpiData),
     Voucher(VoucherData),
     GiftCard(Box<GiftCardData>),
-    CardToken(CardToken),
+    PaymentMethodToken(PaymentMethodToken),
     OpenBanking(OpenBankingData),
     NetworkToken(NetworkTokenData),
     MobilePayment(MobilePaymentData),
@@ -378,20 +395,18 @@ pub struct GiftCardDetails {
     pub cvc: Secret<String>,
 }
 
-#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone, Default)]
+#[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
-pub struct CardToken {
-    /// The card holder's name
-    pub card_holder_name: Option<Secret<String>>,
-
-    /// The CVC number for the card
-    pub card_cvc: Option<Secret<String>>,
+pub struct PaymentMethodToken {
+    pub token: Secret<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BoletoVoucherData {
     /// The shopper's social security number
     pub social_security_number: Option<Secret<String>>,
+    /// Merchant-controlled boleto due date. When absent, connectors fall back to a default window.
+    pub expiration_date: Option<PrimitiveDateTime>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -582,6 +597,13 @@ pub enum BankDebitData {
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
+    EftBankDebit {
+        account_number: Secret<String>,
+        branch_code: Option<Secret<String>>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+    },
     SepaBankDebit {
         iban: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
@@ -667,6 +689,9 @@ pub enum BankRedirectData {
         provider: String,
     },
     OpenBanking {},
+    Netbanking {
+        issuer: common_enums::BankNames,
+    },
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
@@ -678,6 +703,7 @@ pub enum PayLaterData {
     PayBrightRedirect {},
     WalleyRedirect {},
     AlmaRedirect {},
+    TamaraRedirect {},
     AtomeRedirect {},
 }
 
@@ -717,7 +743,20 @@ pub enum WalletData {
     MbWay(MbWayData),
     Satispay(SatispayData),
     Wero(WeroData),
+    LazyPayRedirect(LazyPayRedirection),
+    PhonePeRedirect(PhonePeRedirection),
+    BillDeskRedirect(BillDeskRedirection),
+    CashfreeRedirect(CashfreeRedirection),
+    PayURedirect(PayURedirection),
+    EaseBuzzRedirect(EaseBuzzRedirection),
+    /// Qwikcilver / Pine Labs stored-value wallet — caller supplies the wallet number directly.
+    QwikcilverWalletDirect(Box<QwikcilverWalletDirectData>),
+    /// Skrill redirect wallet — consumer email is sourced from billing details.
+    Skrill(SkrillData),
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct SkrillData {}
 
 impl WalletData {
     pub fn get_wallet_token(&self) -> Result<Secret<String>, Error> {
@@ -757,9 +796,11 @@ impl WalletData {
                 let encoded_token = base64::engine::general_purpose::STANDARD.encode(token_as_vec);
                 Ok(encoded_token)
             }
-            _ => {
-                Err(IntegrationError::not_implemented("SELECTED PAYMENT METHOD".to_owned()).into())
-            }
+            _ => Err(IntegrationError::NotImplemented(
+                "SELECTED PAYMENT METHOD".to_owned(),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -775,6 +816,24 @@ pub struct SatispayData {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct WeroData {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct LazyPayRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PhonePeRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct BillDeskRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CashfreeRedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct PayURedirection {}
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct EaseBuzzRedirection {}
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct MifinityData {
@@ -881,42 +940,49 @@ impl GooglePayWalletData {
 
     pub fn validate_decrypted_card_exp_month(
         value: Option<Secret<String>>,
-    ) -> Result<Secret<String>, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
         value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_CARD_EXP_MONTH".to_owned(),
-                error_identifier: 400,
-                error_message: "Google Pay tokenization data card exp month is required".to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "card_exp_month",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Google Pay tokenization data card exp month is required".to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })
     }
 
     pub fn validate_decrypted_card_exp_year(
         value: Option<Secret<String>>,
-    ) -> Result<Secret<String>, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
         value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_CARD_EXP_YEAR".to_owned(),
-                error_identifier: 400,
-                error_message: "Google Pay tokenization data card exp year is required".to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "card_exp_year",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Google Pay tokenization data card exp year is required".to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })
     }
 
     pub fn validate_decrypted_primary_account_number(
         value: Option<cards::CardNumber>,
-    ) -> Result<cards::CardNumber, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<cards::CardNumber, error_stack::Report<IntegrationError>> {
         value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_APPLICATION_PRIMARY_ACCOUNT_NUMBER".to_owned(),
-                error_identifier: 400,
-                error_message:
-                    "Google Pay tokenization data application primary account number is required"
-                        .to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "primary_account_number",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Google Pay tokenization data card number is required".to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })
     }
 }
@@ -990,6 +1056,15 @@ impl GooglePayDecryptedData {
         let year = self.get_two_digit_expiry_year()?.expose();
         let month = self.get_expiry_month()?.clone().expose();
         Ok(Secret::new(format!("{month}{year}")))
+    }
+
+    pub fn get_expiry_date_as_yyyymm(
+        &self,
+        delimiter: &str,
+    ) -> error_stack::Result<Secret<String>, ValidationError> {
+        let year = self.get_four_digit_expiry_year()?.expose();
+        let month = self.get_expiry_month()?.clone().expose();
+        Ok(Secret::new(format!("{year}{delimiter}{month}")))
     }
 
     pub fn get_expiry_month(&self) -> error_stack::Result<Secret<String>, ValidationError> {
@@ -1191,6 +1266,20 @@ impl ApplePayDecryptedData {
         let month = self.application_expiration_month.clone().expose();
         Ok(Secret::new(format!("{month}{year}")))
     }
+
+    /// Get the expiry date in YYYY{separator}MM format from the Apple Pay pre-decrypt data
+    pub fn get_expiry_date_as_yyyymm(&self, separator: &str) -> Secret<String> {
+        let year = self.get_four_digit_expiry_year();
+        let month = self.application_expiration_month.clone().expose();
+        Secret::new(format!("{}{}{:0>2}", year.peek(), separator, month))
+    }
+
+    /// Get the expiry date in MM{separator}YYYY format from the Apple Pay pre-decrypt data
+    pub fn get_expiry_date_as_mmyyyy(&self, separator: &str) -> Secret<String> {
+        let year = self.get_four_digit_expiry_year();
+        let month = self.application_expiration_month.clone().expose();
+        Secret::new(format!("{month}{separator}{}", year.peek()))
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -1206,71 +1295,83 @@ pub struct ApplePayWalletData {
 impl ApplePayWalletData {
     pub fn validate_decrypted_primary_account_number(
         value: Option<cards::CardNumber>,
-    ) -> Result<cards::CardNumber, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<cards::CardNumber, error_stack::Report<IntegrationError>> {
         value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_APPLICATION_PRIMARY_ACCOUNT_NUMBER".to_owned(),
-                error_identifier: 400,
-                error_message:
-                    "Apple Pay payment data application primary account number is required"
-                        .to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "application_primary_account_number",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Apple Pay payment data application primary account number is required"
+                            .to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })
     }
 
     pub fn validate_decrypted_expiration_month(
         value: Option<Secret<String>>,
-    ) -> Result<Secret<String>, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
         value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_APPLICATION_EXPIRATION_MONTH".to_owned(),
-                error_identifier: 400,
-                error_message: "Apple Pay payment data application expiration month is required"
-                    .to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "application_expiration_month",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Apple Pay payment data application expiration month is required"
+                            .to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })
     }
 
     pub fn validate_decrypted_expiration_year(
         value: Option<Secret<String>>,
-    ) -> Result<Secret<String>, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
         value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_APPLICATION_EXPIRATION_YEAR".to_owned(),
-                error_identifier: 400,
-                error_message: "Apple Pay payment data application expiration year is required"
-                    .to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "application_expiration_year",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Apple Pay payment data application expiration year is required".to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })
     }
 
     pub fn validate_decrypted_payment_data(
         value: Option<grpc_api_types::payments::ApplePayCryptogramData>,
-    ) -> Result<ApplePayCryptogramData, error_stack::Report<ApplicationErrorResponse>> {
+    ) -> Result<ApplePayCryptogramData, error_stack::Report<IntegrationError>> {
         let decrypted_payment_data = value.ok_or_else(|| {
-            error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                sub_code: "MISSING_DECRYPTED_PAYMENT_DATA".to_owned(),
-                error_identifier: 400,
-                error_message: "Apple Pay decrypted payment data is required".to_owned(),
-                error_object: None,
-            }))
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "decrypted_payment_data",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Apple Pay decrypted payment data is required".to_owned()
+                    ),
+                    ..Default::default()
+                },
+            })
         })?;
 
         Ok(ApplePayCryptogramData {
             online_payment_cryptogram: decrypted_payment_data
                 .online_payment_cryptogram
                 .ok_or_else(|| {
-                    error_stack::report!(ApplicationErrorResponse::BadRequest(ApiError {
-                        sub_code: "MISSING_ONLINE_PAYMENT_CRYPTOGRAM".to_owned(),
-                        error_identifier: 400,
-                        error_message:
-                            "Apple Pay payment data online payment cryptogram is required"
-                                .to_owned(),
-                        error_object: None,
-                    }))
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "online_payment_cryptogram",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Apple Pay payment data online payment cryptogram is required"
+                                    .to_owned()
+                            ),
+                            ..Default::default()
+                        },
+                    })
                 })?,
             eci_indicator: decrypted_payment_data.eci_indicator,
         })
@@ -1451,19 +1552,23 @@ pub struct CardDetailsForNetworkTransactionId {
 
 impl CardDetailsForNetworkTransactionId {
     pub fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, IntegrationError> {
-        let binding = self.card_exp_year.clone();
-        let year = binding.peek();
-        Ok(Secret::new(
-            year.get(year.len() - 2..)
-                .ok_or(IntegrationError::InvalidDataFormat {
-                    field_name: "payment_method_data.card.card_exp_year",
-                    context: IntegrationErrorContext {
-                        additional_context: Some("Expected format: YY or YYYY".to_owned()),
-                        ..Default::default()
-                    },
-                })?
-                .to_string(),
-        ))
+        let year = self.card_exp_year.peek();
+        // If the value is a vault template token (e.g. {{$card_exp_year}}), pass it through as-is
+        // so that the injector template substitution works correctly.
+        match year {
+            y if y.contains("{{") => Ok(Secret::new(y.to_string())),
+            y => Ok(Secret::new(
+                y.get(y.len() - 2..)
+                    .ok_or(IntegrationError::InvalidDataFormat {
+                        field_name: "payment_method_data.card.card_exp_year",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Expected format: YY or YYYY".to_owned()),
+                            ..Default::default()
+                        },
+                    })?
+                    .to_string(),
+            )),
+        }
     }
     pub fn get_card_issuer(&self) -> Result<CardIssuer, error_stack::Report<IntegrationError>> {
         get_card_issuer(self.card_number.peek())
@@ -1565,6 +1670,12 @@ pub struct SamsungPayWebWalletData {
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct AmazonPayRedirectData {}
 
+/// Qwikcilver / Pine Labs stored-value wallet payload.
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct QwikcilverWalletDirectData {
+    pub wallet_number: Secret<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CoBadgedCardData {
     pub co_badged_card_networks: Vec<CardNetwork>,
@@ -1632,6 +1743,81 @@ pub struct ReceiverDetails {
     amount_remaining: Option<i64>,
 }
 
+/// Customer identification document type (mirrors hyperswitch common_types::customers::DocumentKind)
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DocumentKind {
+    /// Cadastro de Pessoas Físicas - the Brazilian individual taxpayer identifier.
+    Cpf,
+    /// Cadastro Nacional da Pessoa Jurídica - the Brazilian business identifier.
+    Cnpj,
+    /// Philippine PhilSys Number (PSN) — a 12-digit national ID required by dLocal for GCash.
+    Psn,
+    /// Generic / other non-Brazilian national document. Carried through as-is; the
+    /// connector validates it per country. Kept last as the catch-all.
+    Other,
+}
+
+impl DocumentKind {
+    /// Validate a document number against its kind. CPF/CNPJ use the Brazilian
+    /// checksum; PSN must be exactly 12 numeric digits; `Other` is passed through.
+    pub fn validate(&self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
+        match self {
+            Self::Cpf => self.validate_cpf(doc_number),
+            Self::Cnpj => self.validate_cnpj(doc_number),
+            Self::Psn => self.validate_psn(doc_number),
+            // Other non-Brazilian documents are passed through; the connector validates
+            // them per country.
+            Self::Other => Ok(()),
+        }
+    }
+
+    /// The Philippine PhilSys Number (PSN) is a randomly-generated 12-digit national ID
+    /// with no checksum; validate that it is exactly 12 numeric digits.
+    fn validate_psn(self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
+        if doc_number.len() == 12 && doc_number.bytes().all(|b| b.is_ascii_digit()) {
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidValue {
+                message: "Invalid PSN: expected exactly 12 digits".to_string(),
+            }
+            .into())
+        }
+    }
+
+    fn validate_cpf(self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
+        if cpf_cnpj::cpf::validate(doc_number) {
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidValue {
+                message: "Invalid CPF".to_string(),
+            }
+            .into())
+        }
+    }
+
+    fn validate_cnpj(self, doc_number: &str) -> error_stack::Result<(), ValidationError> {
+        if cpf_cnpj::cnpj::validate(doc_number) {
+            Ok(())
+        } else {
+            Err(ValidationError::InvalidValue {
+                message: "Invalid CNPJ".to_string(),
+            }
+            .into())
+        }
+    }
+}
+
+/// Customer's country-specific identification document
+/// (mirrors hyperswitch api_models::customers::CustomerDocumentDetails).
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct CustomerDocumentDetails {
+    /// The customer's document type
+    pub document_type: DocumentKind,
+    /// The customer's document number
+    pub document_number: Secret<String>,
+}
+
 /// Customer Information Details
 #[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct CustomerInfoDetails {
@@ -1650,4 +1836,48 @@ pub struct CustomerInfoDetails {
     /// Customer Bank Name
     #[schema(value_type = Option<String>)]
     pub customer_bank_name: Option<Secret<String>>,
+}
+
+/// Generic payment method details returned in responses (e.g., after recharge, query operations)
+/// Supports multiple payment method types with their specific metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum PaymentMethodDetails {
+    /// Wallet-specific details (stored value, container, or hybrid wallets)
+    Wallet(WalletDetails),
+    // Future expansions: For gift cards, prepaid cards, loyalty rewards, etc.
+}
+
+/// Represents an item (payment method) stored within a wallet (for container/hybrid wallets)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WalletItem {
+    /// Unique identifier for this wallet item from the connector
+    pub wallet_item_id: String,
+    /// Product identifier under which this item exists
+    pub product_id: String,
+    /// Current status of this wallet item
+    pub status: common_enums::WalletItemStatus,
+    /// Available balance for this item (if applicable)
+    pub available_balance: Option<common_utils::types::Money>,
+    /// Expiry date of this item (ISO 8601 format)
+    pub expiry_date: Option<String>,
+}
+
+/// Represents wallet-specific details after a recharge or query operation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WalletDetails {
+    /// Unique wallet account identifier from connector (e.g., QwikWallet number)
+    pub wallet_account_id: String,
+    /// Wallet PIN for authentication (if applicable)
+    pub wallet_pin: Option<Secret<String>>,
+    /// Current operational status of the wallet
+    pub wallet_status: Option<common_enums::WalletStatus>,
+    /// Name registered on the wallet account
+    pub wallet_holder_name: Option<String>,
+    /// Current wallet balance in minor currency units (for stored value wallets)
+    pub balance: Option<common_utils::types::MinorUnit>,
+    /// Product or program identifier under which the wallet exists
+    pub product_id: Option<String>,
+    /// Payment method items stored in this wallet (for container/hybrid wallets)
+    pub items: Vec<WalletItem>,
 }

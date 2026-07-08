@@ -1,6 +1,6 @@
 pub mod qr_code;
 pub mod xml_utils;
-use crate::{ConnectorResponseTransformationError, IntegrationError};
+use crate::{ConnectorError, IntegrationError};
 use base64::Engine;
 use common_utils::{
     consts::{
@@ -89,6 +89,44 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static>
     }
 }
 
+/// Exposes the requested [`PaymentMethodType`] across the different payment flow request types.
+///
+/// Flows that do not carry a payment method type (e.g. capture and void) return `None`, so
+/// connectors can uniformly read the payment method type in generic response handlers.
+pub trait GetOptionalPaymentMethodType {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType>;
+}
+
+impl<T: PaymentMethodDataTypes> GetOptionalPaymentMethodType for PaymentsAuthorizeData<T> {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
+impl GetOptionalPaymentMethodType for PaymentsSyncData {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
+impl<T: PaymentMethodDataTypes> GetOptionalPaymentMethodType for RepeatPaymentData<T> {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        self.payment_method_type
+    }
+}
+
+impl GetOptionalPaymentMethodType for PaymentsCaptureData {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        None
+    }
+}
+
+impl GetOptionalPaymentMethodType for PaymentVoidData {
+    fn get_optional_payment_method_type(&self) -> Option<common_enums::PaymentMethodType> {
+        None
+    }
+}
+
 pub fn missing_field_err(
     message: &'static str,
 ) -> Box<dyn Fn() -> Report<IntegrationError> + 'static> {
@@ -127,16 +165,10 @@ pub fn amount_conversion_ctx(
     )
 }
 
-// --- Response phase (`ConnectorResponseTransformationError`) -----------------
+// --- Response phase (`ConnectorError`) -----------------
 
-pub fn response_handling_fail(
-    http_status: u16,
-    detail: impl Into<String>,
-) -> ConnectorResponseTransformationError {
-    ConnectorResponseTransformationError::response_handling_failed_with_context(
-        http_status,
-        Some(detail.into()),
-    )
+pub fn response_handling_fail(http_status: u16, detail: impl Into<String>) -> ConnectorError {
+    ConnectorError::response_handling_failed_with_context(http_status, Some(detail.into()))
 }
 
 /// Canonical detail prefix for response-handling failures where connector
@@ -148,10 +180,7 @@ pub fn response_http_status_detail(connector: &str) -> String {
 }
 
 /// Convenience helper for the common non-success HTTP status case.
-pub fn response_handling_fail_for_connector(
-    http_status: u16,
-    connector: &str,
-) -> ConnectorResponseTransformationError {
+pub fn response_handling_fail_for_connector(http_status: u16, connector: &str) -> ConnectorError {
     response_handling_fail(http_status, response_http_status_detail(connector))
 }
 
@@ -159,22 +188,13 @@ pub fn response_handling_fail_for_connector(
 pub fn response_deserialization_fail(
     http_status: u16,
     detail: impl Into<String>,
-) -> ConnectorResponseTransformationError {
-    ConnectorResponseTransformationError::response_deserialization_failed_with_context(
-        http_status,
-        Some(detail.into()),
-    )
+) -> ConnectorError {
+    ConnectorError::response_deserialization_failed_with_context(http_status, Some(detail.into()))
 }
 
 /// Connector returned a response that does not match this flow’s contract.
-pub fn unexpected_response_fail(
-    http_status: u16,
-    detail: impl Into<String>,
-) -> ConnectorResponseTransformationError {
-    ConnectorResponseTransformationError::unexpected_response_error_with_context(
-        http_status,
-        Some(detail.into()),
-    )
+pub fn unexpected_response_fail(http_status: u16, detail: impl Into<String>) -> ConnectorError {
+    ConnectorError::unexpected_response_error_with_context(http_status, Some(detail.into()))
 }
 
 pub(crate) fn get_unimplemented_payment_method_error_message(connector: &str) -> String {
@@ -213,7 +233,7 @@ where
 pub(crate) fn handle_json_response_deserialization_failure(
     res: Response,
     _connector: &'static str,
-) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+) -> CustomResult<ErrorResponse, ConnectorError> {
     let response_data =
         String::from_utf8(res.response.to_vec()).change_context(response_deserialization_fail(
             res.status_code,
@@ -304,21 +324,21 @@ where
 
 pub trait SplitPaymentData {
     fn get_split_payment_data(&self)
-        -> Option<domain_types::connector_types::SplitPaymentsRequest>;
+        -> Option<domain_types::connector_types::SplitPaymentsDetails>;
 }
 
 impl SplitPaymentData for PaymentsCaptureData {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
-        None
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
+        self.split_payments.clone()
     }
 }
 
 impl<T: PaymentMethodDataTypes> SplitPaymentData for PaymentsAuthorizeData<T> {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
         self.split_payments.clone()
     }
 }
@@ -326,7 +346,7 @@ impl<T: PaymentMethodDataTypes> SplitPaymentData for PaymentsAuthorizeData<T> {
 impl<T: PaymentMethodDataTypes> SplitPaymentData for RepeatPaymentData<T> {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
         self.split_payments.clone()
     }
 }
@@ -334,7 +354,7 @@ impl<T: PaymentMethodDataTypes> SplitPaymentData for RepeatPaymentData<T> {
 impl SplitPaymentData for PaymentsSyncData {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
         self.split_payments.clone()
     }
 }
@@ -342,16 +362,16 @@ impl SplitPaymentData for PaymentsSyncData {
 impl SplitPaymentData for PaymentVoidData {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
-        None
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
+        self.split_payments.clone()
     }
 }
 
 impl<T: PaymentMethodDataTypes> SplitPaymentData for SetupMandateRequestData<T> {
     fn get_split_payment_data(
         &self,
-    ) -> Option<domain_types::connector_types::SplitPaymentsRequest> {
-        None
+    ) -> Option<domain_types::connector_types::SplitPaymentsDetails> {
+        self.split_payments.clone()
     }
 }
 
@@ -436,7 +456,7 @@ pub trait MultipleCaptureSyncResponse {
 
 pub(crate) fn construct_captures_response_hashmap<T>(
     capture_sync_response_list: Vec<T>,
-) -> CustomResult<HashMap<String, CaptureSyncResponse>, ConnectorResponseTransformationError>
+) -> CustomResult<HashMap<String, CaptureSyncResponse>, ConnectorError>
 where
     T: MultipleCaptureSyncResponse,
 {
@@ -454,7 +474,7 @@ where
                     amount: capture_sync_response
                         .get_amount_captured()
                         .change_context(
-                            ConnectorResponseTransformationError::response_handling_failed_http_status_unknown(),
+                            ConnectorError::response_handling_failed_http_status_unknown(),
                         )
                         .attach_printable(
                             "failed to convert back captured response amount to minor unit",
@@ -596,5 +616,98 @@ fn collect_values_by_removing_signature(value: &Value, signature: &str) -> Vec<S
             .values()
             .flat_map(|v| collect_values_by_removing_signature(v, signature))
             .collect(),
+    }
+}
+
+pub fn build_card_holder_name(
+    explicit_name: &Option<Secret<String>>,
+    billing_first_name: Option<Secret<String>>,
+    billing_last_name: Option<Secret<String>>,
+) -> Option<Secret<String>> {
+    explicit_name.clone().or_else(|| {
+        let first = billing_first_name.map(|n| n.expose()).unwrap_or_default();
+        let last = billing_last_name.map(|n| n.expose()).unwrap_or_default();
+        let full = format!("{first} {last}").trim().to_string();
+        if full.is_empty() {
+            None
+        } else {
+            Some(Secret::new(full))
+        }
+    })
+}
+
+pub fn pad_expiry_year_to_four_digits(year: &Secret<String>) -> Secret<String> {
+    let y = year.peek();
+    if y.len() == 2 {
+        Secret::new(format!("20{y}"))
+    } else {
+        Secret::new(y.clone())
+    }
+}
+
+/// Used by CyberSource and connectors that run on the same backend (e.g. Wells Fargo).
+pub trait CardTypeCode {
+    fn type_code(&self) -> Option<&'static str>;
+}
+
+impl CardTypeCode for domain_types::utils::CardIssuer {
+    fn type_code(&self) -> Option<&'static str> {
+        Some(match self {
+            Self::AmericanExpress => "003",
+            Self::Master => "002",
+            Self::Maestro => "042",
+            Self::Visa => "001",
+            Self::Discover => "004",
+            Self::DinersClub => "005",
+            Self::CarteBlanche => "006",
+            Self::JCB => "007",
+            Self::CartesBancaires => "036",
+            Self::UnionPay => "062",
+        })
+    }
+}
+
+impl CardTypeCode for common_enums::CardNetwork {
+    fn type_code(&self) -> Option<&'static str> {
+        match self {
+            Self::Visa => Some("001"),
+            Self::Mastercard => Some("002"),
+            Self::AmericanExpress => Some("003"),
+            Self::Discover => Some("004"),
+            Self::DinersClub => Some("005"),
+            Self::JCB => Some("007"),
+            Self::Maestro => Some("042"),
+            Self::CartesBancaires => Some("036"),
+            Self::UnionPay => Some("062"),
+            _ => None,
+        }
+    }
+}
+
+pub fn truncate_secret_string(value: &Secret<String>, max_len: usize) -> Secret<String> {
+    let s = value.peek();
+    if s.len() > max_len {
+        Secret::new(s.chars().take(max_len).collect())
+    } else {
+        Secret::new(s.clone())
+    }
+}
+
+pub fn build_error_response(
+    code: String,
+    message: String,
+    status_code: u16,
+    connector_transaction_id: Option<String>,
+) -> ErrorResponse {
+    ErrorResponse {
+        code,
+        message: message.clone(),
+        reason: Some(message),
+        status_code,
+        attempt_status: None,
+        connector_transaction_id,
+        network_decline_code: None,
+        network_advice_code: None,
+        network_error_message: None,
     }
 }

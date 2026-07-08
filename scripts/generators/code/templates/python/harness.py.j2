@@ -1,0 +1,21 @@
+# AUTO-GENERATED — do not edit. Regenerate: make generate
+# {{ connector_name }} — flow coverage harness (not documentation)
+
+import asyncio
+from google.protobuf.json_format import ParseDict
+from payments import PaymentClient, RefundClient, CaptureClient, VoidClient, PSyncClient, RSyncClient
+from payments.generated import payment_pb2, refund_pb2, capture_pb2, void_pb2, payouts_pb2
+
+SUPPORTED_FLOWS = {{ supported_flows }}
+
+{% for flow in flows %}
+def _minimal_{{ flow.name }}_request():
+    """Minimal request for {{ flow.name }} flow."""
+    return ParseDict({{ flow.minimal_request }}, {{ flow.request_type }}())
+
+async def process_{{ flow.name }}(txn_id, config=None):
+    """Process {{ flow.name }} flow."""
+    client = {{ flow.client_class }}(config)
+    return await client.{{ flow.method_name }}(_minimal_{{ flow.name }}_request())
+
+{% endfor %}

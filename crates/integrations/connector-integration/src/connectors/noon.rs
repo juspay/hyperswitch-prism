@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 
 use base64::Engine;
-use common_enums::AttemptStatus;
+use common_enums::{AttemptStatus, CaptureMethod};
 use common_utils::{
     crypto::{self, VerifySignature},
     errors::CustomResult,
@@ -11,29 +11,17 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
-        SubmitEvidence, Void, VoidPC,
+        Authorize, Capture, MandateRevoke, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, EventType,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType,
+        MandateRevokeRequestData, MandateRevokeResponseData, PaymentFlowData, PaymentVoidData,
+        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, SetupMandateRequestData, WebhookResourceReference,
     },
     payment_method_data::PaymentMethodDataTypes,
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::Response,
     types::Connectors,
@@ -60,23 +48,13 @@ use transformers::{
 
 use super::macros;
 use crate::{types::ResponseRouterData, with_error_response_body};
-use domain_types::errors::ConnectorResponseTransformationError;
+use domain_types::errors::ConnectorError;
 use domain_types::errors::{IntegrationError, WebhookError};
 
 // Local headers module
 mod headers {
     pub const CONTENT_TYPE: &str = "Content-Type";
     pub const AUTHORIZATION: &str = "Authorization";
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Noon<T>
-{
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -112,45 +90,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Noon<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentIncrementalAuthorization for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentVoidPostCaptureV2 for Noon<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Noon<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -206,11 +150,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(message.into_bytes())
     }
 
+    fn sample_webhook_body(&self) -> &'static [u8] {
+        br#"{"orderId":12345,"orderStatus":"CAPTURED","eventType":"SALE","eventId":"probe-event-001","timeStamp":"2024-01-01T00:00:00Z"}"#
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,
-        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
-        _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<EventType, error_stack::Report<WebhookError>> {
         let details: noon::NoonWebhookEvent = request
             .body
@@ -263,22 +209,103 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .attach_printable("Noon webhook signature verification failed")
     }
 
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<WebhookError>> {
+        let webhook_object: noon::NoonWebhookObject = request
+            .body
+            .parse_struct("NoonWebhookObject")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse NoonWebhookObject for reference extraction")?;
+
+        // Noon's order_id serves as the connector transaction ID.
+        // There is no separate merchant-assigned ID visible in the webhook payload.
+        Ok(Some(WebhookResourceReference::Payment(
+            PaymentWebhookReference {
+                connector_transaction_id: Some(webhook_object.order_id.to_string()),
+                merchant_transaction_id: None,
+            },
+        )))
+    }
+
     fn process_payment_webhook(
         &self,
-        _request: RequestDetails,
+        request: RequestDetails,
         _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
+        event_context: Option<EventContext>,
     ) -> Result<
         domain_types::connector_types::WebhookDetailsResponse,
         error_stack::Report<WebhookError>,
     > {
+        let webhook_object: noon::NoonWebhookObject = request
+            .body
+            .parse_struct("NoonWebhookObject")
+            .change_context(WebhookError::WebhookBodyDecodingFailed)
+            .attach_printable("Failed to parse payment webhook details from Noon webhook body")?;
+
+        let status = match webhook_object.order_status {
+            noon::NoonPaymentStatus::Authorized => {
+                let capture_method = event_context
+                    .and_then(|ctx| ctx.capture_method)
+                    .ok_or_else(|| {
+                        error_stack::report!(WebhookError::WebhookMissingRequiredContext {
+                            field: "capture_method",
+                            origin: "payment authorize",
+                        })
+                        .attach_printable(
+                            "Noon webhook status 'Authorized' is ambiguous without capture_method: \
+                             AUTOMATIC capture means the payment was Charged, MANUAL means Authorized. \
+                             Pass EventContext.payment.capture_method from your original authorize request.",
+                        )
+                    })?;
+                match capture_method {
+                    CaptureMethod::Automatic | CaptureMethod::SequentialAutomatic => {
+                        AttemptStatus::Charged
+                    }
+                    _ => AttemptStatus::Authorized,
+                }
+            }
+            noon::NoonPaymentStatus::Captured
+            | noon::NoonPaymentStatus::PartiallyCaptured
+            | noon::NoonPaymentStatus::PartiallyRefunded
+            | noon::NoonPaymentStatus::Refunded => AttemptStatus::Charged,
+            noon::NoonPaymentStatus::Reversed | noon::NoonPaymentStatus::PartiallyReversed => {
+                AttemptStatus::Voided
+            }
+            noon::NoonPaymentStatus::Cancelled | noon::NoonPaymentStatus::Expired => {
+                AttemptStatus::AuthenticationFailed
+            }
+            noon::NoonPaymentStatus::ThreeDsEnrollInitiated
+            | noon::NoonPaymentStatus::ThreeDsEnrollChecked => AttemptStatus::AuthenticationPending,
+            noon::NoonPaymentStatus::ThreeDsResultVerified => {
+                AttemptStatus::AuthenticationSuccessful
+            }
+            noon::NoonPaymentStatus::Failed | noon::NoonPaymentStatus::Rejected => {
+                AttemptStatus::Failure
+            }
+            noon::NoonPaymentStatus::Pending | noon::NoonPaymentStatus::MarkedForReview => {
+                AttemptStatus::Pending
+            }
+            noon::NoonPaymentStatus::Initiated
+            | noon::NoonPaymentStatus::PaymentInfoAdded
+            | noon::NoonPaymentStatus::Authenticated => AttemptStatus::Started,
+            noon::NoonPaymentStatus::Locked => AttemptStatus::Unspecified,
+        };
+
+        let connector_order_id = webhook_object.order_id.to_string();
         Ok(domain_types::connector_types::WebhookDetailsResponse {
-            resource_id: None,
-            status: AttemptStatus::Unknown,
-            connector_response_reference_id: None,
+            resource_id: Some(
+                domain_types::connector_types::ResponseId::ConnectorTransactionId(
+                    connector_order_id.clone(),
+                ),
+            ),
+            status,
+            connector_response_reference_id: Some(connector_order_id),
             error_code: None,
             error_message: None,
-            raw_connector_response: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
             mandate_reference: None,
@@ -287,7 +314,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             error_reason: None,
             network_txn_id: None,
             payment_method_update: None,
-            transformation_status: common_enums::WebhookTransformationStatus::Incomplete,
+            sender_payment_instrument_id: None,
         })
     }
 
@@ -307,40 +334,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(resource)
     }
 }
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPreAuthenticateV2<T> for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentAuthenticateV2<T> for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentPostAuthenticateV2<T> for Noon<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ClientAuthentication for Noon<T>
-{
-}
-
 macros::macro_connector_payout_implementation!(
     connector: Noon,
     generic_type: T,
@@ -487,7 +480,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
-    ) -> CustomResult<ErrorResponse, ConnectorResponseTransformationError> {
+        _connector_config: &ConnectorSpecificConfig,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: NoonErrorResponse =
             res.response
                 .parse_struct("NoonErrorResponse")
@@ -511,7 +505,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             code: response.result_code.to_string(),
             message: response.message.clone(),
             reason: Some(response.message),
-            attempt_status,
+            attempt_status: attempt_status.map(FlowStatus::Payment),
             connector_transaction_id: None,
             network_advice_code: None,
             network_decline_code: None,
@@ -783,63 +777,6 @@ macros::macro_connector_implementation!(
     }
 );
 
-// Implementation for empty stubs - these will need to be properly implemented later
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Noon<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Noon<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ServerAuthenticationToken,
-        PaymentFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for Noon<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Noon<T>
-{
-}
-
-// SourceVerification implementations for all flows
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
     for Noon<T>
 {
@@ -847,55 +784,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
 // We already have an implementation for ValidationTrait above
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Noon<T>
-{
-}
-
 // ConnectorIntegrationV2 implementations for authentication flows
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PreAuthenticate,
-        PaymentFlowData,
-        PaymentsPreAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Noon<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        Authenticate,
-        PaymentFlowData,
-        PaymentsAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Noon<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        PostAuthenticate,
-        PaymentFlowData,
-        PaymentsPostAuthenticateData<T>,
-        PaymentsResponseData,
-    > for Noon<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        ClientAuthenticationToken,
-        PaymentFlowData,
-        ClientAuthenticationTokenRequestData,
-        PaymentsResponseData,
-    > for Noon<T>
-{
-}
 
 // SourceVerification implementations for authentication flows
+
+macros::macro_connector_flow_status_impls!(
+    connector: Noon,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
+        VoidPC,
+        CreateOrder,
+        ServerSessionAuthenticationToken,
+        PaymentMethodToken,
+        PreAuthenticate,
+        Authenticate,
+        PostAuthenticate,
+        ClientAuthenticationToken,
+    ],
+    not_supported: [
+        VoidPostRefund,
+        IncrementalAuthorization,
+        Accept,
+        SubmitEvidence,
+        DefendDispute,
+        ServerAuthenticationToken,
+        CreateConnectorCustomer,
+    ],
+);

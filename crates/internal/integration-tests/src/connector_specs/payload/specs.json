@@ -1,0 +1,15 @@
+{
+  "connector": "payload",
+  "supported_suites": [
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "CustomerService/Create",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
+  ]
+}

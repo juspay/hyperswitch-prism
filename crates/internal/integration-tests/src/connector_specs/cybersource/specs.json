@@ -1,0 +1,18 @@
+{
+  "connector": "cybersource",
+  "supported_suites": [
+    "PaymentMethodAuthenticationService/Authenticate",
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/Get",
+    "PaymentService/IncrementalAuthorization",
+    "PaymentMethodAuthenticationService/PostAuthenticate",
+    "PaymentMethodAuthenticationService/PreAuthenticate",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
+  ]
+}

@@ -1,6 +1,9 @@
+use hyperswitch_masking::ErasedMaskSerialize;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::errors::EventPublisherError;
+use crate::types::ExecutionMode;
 use crate::{
     global_id::{
         customer::GlobalCustomerId,
@@ -210,6 +213,13 @@ impl<T: ApiEventMetric> ApiEventMetric for &T {
 
 impl ApiEventMetric for TimeRange {}
 
+fn serialize_method<S: serde::Serializer>(
+    method: &Option<String>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    serializer.serialize_str(method.as_deref().unwrap_or(""))
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct Event {
     pub request_id: String,
@@ -217,11 +227,17 @@ pub struct Event {
     pub flow_type: FlowName,
     pub connector: String,
     pub url: Option<String>,
+    /// HTTP verb for outbound connector calls; empty string for gRPC-only audit events.
+    #[serde(serialize_with = "serialize_method")]
+    pub method: Option<String>,
     pub stage: EventStage,
+    /// Primary execution or shadow mirror.
+    pub execution_mode: ExecutionMode,
     pub latency_ms: Option<u64>,
     pub status_code: Option<i32>,
     pub request_data: Option<MaskedSerdeValue>,
     pub response_data: Option<MaskedSerdeValue>,
+    pub error: Option<MaskedSerdeValue>,
     pub headers: HashMap<String, String>,
     #[serde(flatten)]
     pub additional_fields: HashMap<String, MaskedSerdeValue>,
@@ -270,6 +286,13 @@ impl Event {
         );
     }
 
+    pub fn add_tenant_id(&mut self, tenant_id: &str) {
+        MaskedSerdeValue::from_masked_optional(&tenant_id.to_string(), "tenant_id").map(|masked| {
+            self.additional_fields
+                .insert("tenant_id".to_string(), masked);
+        });
+    }
+
     pub fn set_grpc_error_response(&mut self, tonic_error: &tonic::Status) {
         self.status_code = Some(tonic_error.code().into());
         let error_body = serde_json::json!({
@@ -289,6 +312,10 @@ impl Event {
     pub fn set_connector_response<R: Serialize>(&mut self, response: &R) {
         self.response_data = MaskedSerdeValue::from_masked_optional(response, "connector_response");
     }
+
+    pub fn set_error_response<R: Serialize>(&mut self, error: &R) {
+        self.error = MaskedSerdeValue::from_masked_optional(error, "error_response");
+    }
 }
 
 #[derive(strum::Display)]
@@ -297,6 +324,7 @@ impl Event {
 pub enum FlowName {
     Authorize,
     Refund,
+    VoidPostRefund,
     Capture,
     Void,
     VoidPostCapture,
@@ -313,6 +341,7 @@ pub enum FlowName {
     CreateOrder,
     ServerSessionAuthenticationToken,
     ServerAuthenticationToken,
+    SurchargeCalculate,
     CreateConnectorCustomer,
     PaymentMethodToken,
     PreAuthenticate,
@@ -330,6 +359,13 @@ pub enum FlowName {
     PayoutCreateLink,
     PayoutCreateRecipient,
     PayoutEnrollDisburseAccount,
+    NotifyConnector,
+    Recharge,
+    CreatePaymentMethod,
+    GetPaymentMethod,
+    PreRiskCheck,
+    PostRiskCheck,
+    PaymentMethodEligibility,
 }
 
 impl FlowName {
@@ -337,6 +373,7 @@ impl FlowName {
         match self {
             Self::Authorize => "Authorize",
             Self::Refund => "Refund",
+            Self::VoidPostRefund => "VoidPostRefund",
             Self::Capture => "Capture",
             Self::Void => "Void",
             Self::VoidPostCapture => "VoidPostCapture",
@@ -369,6 +406,14 @@ impl FlowName {
             Self::PayoutCreateRecipient => "PayoutCreateRecipient",
             Self::PayoutEnrollDisburseAccount => "PayoutEnrollDisburseAccount",
             Self::MandateRevoke => "MandateRevoke",
+            Self::SurchargeCalculate => "SurchargeCalculate",
+            Self::NotifyConnector => "NotifyConnector",
+            Self::Recharge => "Recharge",
+            Self::CreatePaymentMethod => "CreatePaymentMethod",
+            Self::GetPaymentMethod => "GetPaymentMethod",
+            Self::PreRiskCheck => "PreRiskCheck",
+            Self::PostRiskCheck => "PostRiskCheck",
+            Self::PaymentMethodEligibility => "PaymentMethodEligibility",
             Self::Unknown => "Unknown",
         }
     }
@@ -389,13 +434,22 @@ impl EventStage {
     }
 }
 
+/// A Kafka topic plus the payload field whose value is used as its partition key.
+#[derive(Debug, Clone, Default, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
+pub struct KafkaTopicConfig {
+    pub topic: String,
+    pub partition_key_field: String,
+}
+
 /// Configuration for events system
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct EventConfig {
     pub enabled: bool,
-    pub topic: String,
     pub brokers: Vec<String>,
-    pub partition_key_field: String,
+    /// Outbound connector-call events.
+    pub connector_events: KafkaTopicConfig,
+    /// Inbound request events.
+    pub api_events: KafkaTopicConfig,
     #[serde(default)]
     pub transformations: HashMap<String, String>, // target_path → source_field
     #[serde(default)]
@@ -404,16 +458,196 @@ pub struct EventConfig {
     pub extractions: HashMap<String, String>, // target_path → extraction_path
 }
 
+impl EventConfig {
+    /// Topic + partition key for the given event stage.
+    pub fn topic_config(&self, stage: &EventStage) -> &KafkaTopicConfig {
+        match stage {
+            EventStage::ConnectorCall => &self.connector_events,
+            EventStage::GrpcRequest => &self.api_events,
+        }
+    }
+}
+
 impl Default for EventConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            topic: "events".to_string(),
             brokers: vec!["localhost:9092".to_string()],
-            partition_key_field: "request_id".to_string(),
+            connector_events: KafkaTopicConfig::default(),
+            api_events: KafkaTopicConfig::default(),
             transformations: HashMap::new(),
             static_values: HashMap::new(),
             extractions: HashMap::new(),
         }
     }
+}
+
+/// Emit an event: always processes and logs; publishes to Kafka only when kafka feature is enabled.
+pub fn emit_event_with_config(event: Event, config: &EventConfig) {
+    let processed_event = match process_event_with_config(&event, config) {
+        Ok(processed) => processed,
+        Err(e) => {
+            tracing::error!(error = ?e, "Failed to process event");
+            return;
+        }
+    };
+    let event_json = serde_json::to_string(&processed_event)
+        .unwrap_or_else(|e| format!("{{\"error\":\"Failed to serialize event: {}\"}}", e));
+    tracing::info!(
+        events_enabled = config.enabled,
+        "Event processed (Kafka publishing: {}) - Event JSON: {}",
+        if config.enabled {
+            "enabled"
+        } else {
+            "disabled"
+        },
+        event_json
+    );
+    #[cfg(feature = "kafka")]
+    crate::event_publisher::publish_event_to_kafka(&event, processed_event, config);
+}
+
+/// Process an event by applying masking, transformations, static values, and extractions.
+/// This function does not require Kafka and is used for both logging and publishing.
+pub(crate) fn process_event_with_config(
+    event: &Event,
+    config: &EventConfig,
+) -> crate::CustomResult<serde_json::Value, EventPublisherError> {
+    let mut result = event.masked_serialize().map_err(|e| {
+        error_stack::Report::new(EventPublisherError::EventSerializationFailed)
+            .attach_printable(format!("Event masked serialization failed: {e}"))
+    })?;
+
+    // Helper function to normalize paths (replace _DOT_ and _dot_ with .)
+    let normalize_path =
+        |path: &str| -> String { path.replace("_DOT_", ".").replace("_dot_", ".") };
+
+    // Process transformations
+    for (target_path, source_field) in &config.transformations {
+        if let Some(value) = result.get(source_field).cloned() {
+            let normalized_path = normalize_path(target_path);
+            if let Err(e) = set_nested_value(&mut result, &normalized_path, value) {
+                tracing::warn!(
+                    target_path = %target_path,
+                    normalized_path = %normalized_path,
+                    source_field = %source_field,
+                    error = %e,
+                    "Failed to set transformation, continuing with event processing"
+                );
+            }
+        }
+    }
+
+    // Process static values - log warnings but continue processing
+    for (target_path, static_value) in &config.static_values {
+        let normalized_path = normalize_path(target_path);
+        let value = serde_json::json!(static_value);
+        if let Err(e) = set_nested_value(&mut result, &normalized_path, value) {
+            tracing::warn!(
+                target_path = %target_path,
+                normalized_path = %normalized_path,
+                static_value = %static_value,
+                error = %e,
+                "Failed to set static value, continuing with event processing"
+            );
+        }
+    }
+
+    // Process extraction
+    for (target_path, extraction_path) in &config.extractions {
+        if let Some(value) = extract_from_request(&result, extraction_path) {
+            let normalized_path = normalize_path(target_path);
+            if let Err(e) = set_nested_value(&mut result, &normalized_path, value) {
+                tracing::warn!(
+                    target_path = %target_path,
+                    normalized_path = %normalized_path,
+                    extraction_path = %extraction_path,
+                    error = %e,
+                    "Failed to set extraction, continuing with event processing"
+                );
+            }
+        }
+    }
+
+    // Stringify JSON object fields that CKH expects as String columns
+    for field in &["request", "masked_response", "error"] {
+        if let Some(obj) = result.as_object_mut() {
+            if let Some(val) = obj.get(*field) {
+                if val.is_object() || val.is_array() {
+                    let stringified = val.to_string();
+                    obj.insert(field.to_string(), serde_json::Value::String(stringified));
+                }
+            }
+        }
+    }
+
+    Ok(result)
+}
+
+pub(crate) fn extract_from_request(
+    event_value: &serde_json::Value,
+    extraction_path: &str,
+) -> Option<serde_json::Value> {
+    let mut path_parts = extraction_path.split('.');
+
+    let first_part = path_parts.next()?;
+
+    let source = match first_part {
+        "req" => event_value.get("request_data")?.clone(),
+        _ => return None,
+    };
+
+    let mut current = &source;
+    for part in path_parts {
+        current = current.get(part)?;
+    }
+
+    Some(current.clone())
+}
+
+pub(crate) fn set_nested_value(
+    target: &mut serde_json::Value,
+    path: &str,
+    value: serde_json::Value,
+) -> crate::CustomResult<(), EventPublisherError> {
+    let path_parts: Vec<&str> = path.split('.').filter(|s| !s.is_empty()).collect();
+
+    if path_parts.is_empty() {
+        return Err(error_stack::Report::new(EventPublisherError::InvalidPath {
+            path: path.to_string(),
+        }));
+    }
+
+    if path_parts.len() == 1 {
+        let key = path_parts.first().ok_or_else(|| {
+            error_stack::Report::new(EventPublisherError::InvalidPath {
+                path: path.to_string(),
+            })
+        })?;
+        target[key] = value;
+        return Ok(());
+    }
+
+    let result = path_parts.iter().enumerate().try_fold(
+        target,
+        |current,
+         (index, &part)|
+         -> crate::CustomResult<&mut serde_json::Value, EventPublisherError> {
+            if index == path_parts.len() - 1 {
+                current[part] = value.clone();
+                Ok(current)
+            } else {
+                if !current[part].is_object() {
+                    current[part] = serde_json::json!({});
+                }
+                current.get_mut(part).ok_or_else(|| {
+                    error_stack::Report::new(EventPublisherError::InvalidPath {
+                        path: format!("{path}.{part}"),
+                    })
+                })
+            }
+        },
+    );
+
+    result.map(|_| ())
 }
