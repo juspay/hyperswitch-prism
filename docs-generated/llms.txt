@@ -235,7 +235,7 @@ connector_id: finix
 doc: docs/connectors/finix.md
 scenarios: none
 payment_methods: none
-flows: capture, customer_create, get, recurring_charge, refund, refund_get, token_authorize, void
+flows: capture, customer_create, get, handle_event, parse_event, recurring_charge, refund, refund_get, token_authorize, void
 examples_python: none
 
 ## Fiserv
