@@ -351,7 +351,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method not supported is not supported by peachpayments"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -435,7 +435,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method not supported is not supported by peachpayments"
       },
       "Sofort": {
         "status": "not_supported",
