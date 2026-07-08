@@ -628,7 +628,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::QwikcilverWalletDirect(_) => {
+                | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => {
                     Err(errors::IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Imerchantsolutions"),
                         errors::IntegrationErrorContext {
@@ -794,11 +795,13 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     connector_mandate_id: Some(mandate_id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id,
+                    mandate_metadata: None,
                 })
                 .unwrap_or(MandateReference {
                     connector_mandate_id: None,
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 });
             Ok(Self {
                 resource_common_data: PaymentFlowData {

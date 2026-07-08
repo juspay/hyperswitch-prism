@@ -1294,6 +1294,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateRes
                     .customer_id
                     .as_ref()
                     .map(|id| id.peek().to_string()),
+                mandate_metadata: None,
             }));
 
             Ok(Self {
@@ -1550,6 +1551,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxRepeatPaymentRe
                                 .customer_id
                                 .as_ref()
                                 .map(|id| id.peek().to_string()),
+                            mandate_metadata: None,
                         })
                     });
 

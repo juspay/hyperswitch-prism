@@ -275,5 +275,10 @@ pub use self::hyperswitch::Hyperswitch;
 pub mod qwikcilver;
 pub use self::qwikcilver::Qwikcilver;
 
+pub mod flywire;
+pub use self::flywire::Flywire;
+pub mod affirm;
+pub use self::affirm::Affirm;
+
 pub mod kount;
 pub use self::kount::Kount;

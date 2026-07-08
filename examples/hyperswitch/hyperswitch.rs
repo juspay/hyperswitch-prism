@@ -45,14 +45,15 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
     }
 }
 
+#[allow(dead_code)]
 pub fn build_handle_event_request() -> EventServiceHandleRequest {
     EventServiceHandleRequest {
         merchant_event_id: Some("probe_event_001".to_string()),  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
         request_details: Some(RequestDetails {
-            method: HttpMethod::HttpMethodPost.into(),  // HTTP method of the request (e.g., GET, POST).
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
             headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"merchant_id\":\"probe_merchant\",\"event_id\":\"evt_probe_001\",\"event_type\":\"payment_succeeded\",\"content\":{\"type\":\"payment_details\",\"object\":{\"payment_id\":\"pay_probe001\",\"status\":\"succeeded\",\"connector_transaction_id\":\"txn_probe001\"}}}".to_string(),  // Body of the HTTP request.
+            body: "{\"merchant_id\":\"probe_merchant\",\"event_id\":\"evt_probe_001\",\"event_type\":\"payment_succeeded\",\"content\":{\"type\":\"payment_details\",\"object\":{\"payment_id\":\"pay_probe001\",\"status\":\"succeeded\",\"connector_transaction_id\":\"txn_probe001\"}}}".as_bytes().to_vec(),  // Body of the HTTP request.
             ..Default::default()
         }),
         ..Default::default()
@@ -62,10 +63,10 @@ pub fn build_handle_event_request() -> EventServiceHandleRequest {
 pub fn build_parse_event_request() -> EventServiceParseRequest {
     EventServiceParseRequest {
         request_details: Some(RequestDetails {
-            method: HttpMethod::HttpMethodPost.into(),  // HTTP method of the request (e.g., GET, POST).
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
             uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
             headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
-            body: "{\"merchant_id\":\"probe_merchant\",\"event_id\":\"evt_probe_001\",\"event_type\":\"payment_succeeded\",\"content\":{\"type\":\"payment_details\",\"object\":{\"payment_id\":\"pay_probe001\",\"status\":\"succeeded\",\"connector_transaction_id\":\"txn_probe001\"}}}".to_string(),  // Body of the HTTP request.
+            body: "{\"merchant_id\":\"probe_merchant\",\"event_id\":\"evt_probe_001\",\"event_type\":\"payment_succeeded\",\"content\":{\"type\":\"payment_details\",\"object\":{\"payment_id\":\"pay_probe001\",\"status\":\"succeeded\",\"connector_transaction_id\":\"txn_probe001\"}}}".as_bytes().to_vec(),  // Body of the HTTP request.
             ..Default::default()
         }),
     }
@@ -93,10 +94,8 @@ pub async fn process_parse_event(
     client: &ConnectorClient,
     _merchant_transaction_id: &str,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let response = client
-        .parse_event(build_parse_event_request(), &HashMap::new(), None)
-        .await?;
-    Ok(format!("status: {:?}", response.status()))
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
 }
 
 #[allow(dead_code)]
