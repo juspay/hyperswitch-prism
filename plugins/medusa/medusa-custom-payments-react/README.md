@@ -15,9 +15,10 @@ React UI components for Hyperswitch Prism payment connectors. Ships two layers o
 | `paypal` | ✅ | ✅ | CAPTURED |
 | `stripe` | — | ✅ | AUTHORIZED |
 | `globalpay` | ✅ | ✅ | CAPTURED |
+| `mollie` | ✅ | ✅ | CAPTURED (Card after 3DS; Klarna after redirect) |
 | `braintree` | ○ | ○ | — |
-| `cybersource` | ○ | ○ | — |
-| `mollie` | ○ | ○ | — |
+| `cybersource` | — | — | CAPTURED |
+| `authorizedotnet` | — | — | CAPTURED |
 
 **Legend**
 
@@ -25,11 +26,15 @@ React UI components for Hyperswitch Prism payment connectors. Ships two layers o
 |--------|---------|
 | ✅ | Supported — React component available |
 | ○ | No React component — connector has no client-side UI (wallet / redirect / server-side only) |
-| — | Not in `HyperswitchPrismConnectorPanel`; use `StripeWrapper` directly (Stripe handles its own Elements context) |
+| — | Not in `HyperswitchPrismConnectorPanel` — use the connector's wrapper directly (`StripeWrapper`, `AuthorizedotnetWrapper`) |
 
 > **Authorize result**
 > - **AUTHORIZED** (`adyen`, `stripe`) — funds reserved; Capture or Void available as a next step
-> - **CAPTURED** (`paypal`, `globalpay`) — funds collected immediately at authorize time; only Refund available afterward
+> - **CAPTURED** (`paypal`, `globalpay`, `cybersource`, `authorizedotnet`) — funds collected immediately at authorize time; only Refund available afterward
+
+> **`authorizedotnet`:** uses the standalone `AuthorizedotnetWrapper` (a raw-card form with its own built-in Pay button); it is not wired into `HyperswitchPrismConnectorPanel` / `HyperswitchPrismPaymentButton`.
+>
+> **`cybersource`:** uses the standalone `CybersourceWrapper` (Flex Microform card fields and transient-token persistence); it is not wired into `HyperswitchPrismConnectorPanel` / `HyperswitchPrismPaymentButton`.
 
 > **Note:** All UI flows and connector integrations in this matrix are tested and verified under the **sandbox / test environment** of each connector. Production behavior should be validated separately before go-live.
 
@@ -67,23 +72,34 @@ NEXT_PUBLIC_ADYEN_CLIENT_KEY=test_...
 
 | Export | Type | Description |
 |--------|------|-------------|
-| `HyperswitchPrismConnectorPanel` | Component | Renders the correct connector UI (Adyen/PayPal/GlobalPay) for a selected payment method |
+| `HyperswitchPrismConnectorPanel` | Component | Renders the correct connector UI (Adyen/PayPal/GlobalPay/Mollie) for a selected payment method |
 | `HyperswitchPrismPaymentButton` | Component | Auto-dispatches to the correct place-order button based on `providerId` |
+| `MollieReturnHandler` | Component | Finalises the order on the Mollie 3DS return route (retry-polls the host's place-order action) |
 | `AdyenWrapper` | Component | Low-level Adyen Web v6 drop-in wrapper |
 | `PayPalWrapper` | Component | Low-level PayPal Buttons SDK wrapper |
 | `GlobalPayWrapper` | Component | Low-level GlobalPay hosted card fields wrapper |
 | `StripeWrapper` | Component | Low-level Stripe Payment Element wrapper |
+| `MollieWrapper` | Component | Low-level Mollie Components (in-page card tokenization) wrapper |
+| `MollieKlarnaForm` | Component | Klarna (Pay later) billing form for the Mollie redirect flow — collects name/email/postal address (Netherlands test defaults, all fields editable) and submits a `MollieKlarnaBilling`. Pair with a EUR session (Klarna via Mollie is EU-only) |
+| `MollieKlarnaBilling` | Type | Shape of the Klarna billing the form collects: `firstName`, `lastName`, `email`, `line1`, `city`, `postalCode`, `country` (ISO 3166-1 alpha-2) |
+| `CybersourceWrapper` | Component | Low-level Cybersource Flex Microform wrapper (hosted card number/CVV fields, transient-token persistence) |
+| `AuthorizedotnetWrapper` | Component | Low-level Authorize.Net raw-card form (in-page PAN entry, no tokenization; self-contained Pay button) |
 | `StripePaymentButton` | Component | Place-order button for Stripe |
 | `AdyenPaymentButton` | Component | Place-order button for Adyen |
 | `PayPalPaymentButton` | Component | Place-order button for PayPal |
 | `GlobalPayPaymentButton` | Component | Place-order button for GlobalPay |
+| `MolliePaymentButton` | Component | Place-order button for Mollie (handles the 3DS redirect) |
 | `ManualTestPaymentButton` | Component | Dev-only button for manual/test payment providers |
 | `isHyperswitchPrism` | Utility | Returns `true` for any Hyperswitch Prism provider ID |
 | `isHyperswitchPrismStripe` | Utility | Matches Stripe provider IDs (short and legacy forms) |
 | `isHyperswitchPrismAdyen` | Utility | Matches Adyen provider IDs |
 | `isHyperswitchPrismPaypal` | Utility | Matches PayPal provider IDs |
 | `isHyperswitchPrismGlobalpay` | Utility | Matches GlobalPay provider IDs |
+| `isHyperswitchPrismMollie` | Utility | Matches Mollie provider IDs |
+| `isHyperswitchPrismPanel` | Utility | Matches Prism connectors wired into the high-level panel/button path (adyen/paypal/globalpay/mollie) |
 | `HYPERSWITCH_PRISM_PROVIDER_IDS` | Constant | Map of connector name → canonical provider ID |
+
+> The predicates are also exported from the **server-safe** subpath `@juspay-tech/medusa-custom-payments-react/predicates` — import them from there in Next.js server components.
 
 ---
 
@@ -150,24 +166,53 @@ import { HyperswitchPrismPaymentButton } from "@juspay-tech/medusa-custom-paymen
 
 ### Storefront predicates
 
-Define these **inline** in your `src/lib/constants.tsx` — do **not** re-export from this package, as it causes a `createContext` error in Next.js server components.
+Import the predicates from the **server-safe subpath** `@juspay-tech/medusa-custom-payments-react/predicates` (pure, no `"use client"`), which is safe to use in Next.js **server** components. Do **not** import them from the package root in a server component — the root barrel pulls in client components and triggers a `createContext` error.
 
 ```ts
-const matchesPrismConnector = (id: string | undefined, connector: string) =>
-  id === `pp_hyperswitch-prism_${connector}` ||
-  id === `pp_hyperswitch-prism_hyperswitch-prism-${connector}`
-
-export const isHyperswitchPrismStripe   = (id?: string) => matchesPrismConnector(id, "stripe")
-export const isHyperswitchPrismAdyen    = (id?: string) => matchesPrismConnector(id, "adyen")
-export const isHyperswitchPrismPaypal   = (id?: string) => matchesPrismConnector(id, "paypal")
-export const isHyperswitchPrismGlobalpay = (id?: string) => matchesPrismConnector(id, "globalpay")
-
-export const isHyperswitchPrism = (id?: string) =>
-  isHyperswitchPrismStripe(id) || isHyperswitchPrismAdyen(id) ||
-  isHyperswitchPrismPaypal(id) || isHyperswitchPrismGlobalpay(id)
+// safe in server OR client components
+import {
+  isHyperswitchPrism,
+  isHyperswitchPrismStripe,
+  isHyperswitchPrismMollie,
+  isHyperswitchPrismPanel, // adyen | paypal | globalpay | mollie
+} from "@juspay-tech/medusa-custom-payments-react/predicates"
 ```
 
-The dual-match pattern handles both canonical short IDs (`pp_hyperswitch-prism_stripe`) and legacy long IDs (`pp_hyperswitch-prism_hyperswitch-prism-stripe`) for backward compatibility with older backend configurations.
+`isHyperswitchPrismPanel` is the union to drive both `HyperswitchPrismConnectorPanel` and `HyperswitchPrismPaymentButton` for connectors wired into that high-level path. The predicates match both canonical short IDs (`pp_hyperswitch-prism_stripe`) and legacy long IDs for backward compatibility.
+
+### Mollie (3DS) — panel, button, and return handler
+
+Mollie cards complete via a 3DS redirect, so three pieces work together:
+
+```tsx
+// 1) Panel renders Mollie Components and persists the tokenized card + return URL
+<HyperswitchPrismConnectorPanel
+  providerId={providerId}
+  sessionData={session?.data}
+  mollieReturnUrl={`${window.location.origin}/[cc]/checkout/mollie-return`}
+  onInitiateSession={(data) => initiatePaymentSession(cart, { provider_id, data })}
+  onPaymentCompleted={() => router.push("...?step=review")}
+  onError={(e) => setError(e.message)}
+/>
+
+// 2) Button places the order; on `requires_more` it follows Mollie's 3DS redirect
+<HyperswitchPrismPaymentButton
+  providerId={providerId} cart={cart} notReady={notReady}
+  onPlaceOrder={placeOrder} buttonComponent={Button}
+  backendUrl={process.env.NEXT_PUBLIC_MEDUSA_BACKEND_URL}
+  publishableKey={process.env.NEXT_PUBLIC_MEDUSA_PUBLISHABLE_KEY}
+/>
+
+// 3) The route Mollie returns to (e.g. app/[cc]/checkout/mollie-return/page.tsx)
+//    finalises the order by polling the place-order action until it succeeds.
+<MollieReturnHandler
+  onFinalize={async () => { await placeOrder() }}
+  backHref="/checkout?step=payment"
+  linkComponent={LocalizedClientLink}
+/>
+```
+
+> **Note:** `onInitiateSession` is `(data: Record<string, unknown>) => Promise<void>` (≥ 0.0.5) — GlobalPay passes `{ paymentReference, id }`, Mollie passes `{ ...sessionData, cardToken, returnUrl }`; forward `data` straight to `initiatePaymentSession`.
 
 ---
 

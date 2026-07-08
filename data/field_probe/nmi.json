@@ -452,8 +452,8 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -536,8 +536,8 @@
         "error": "This feature is not implemented: Payment method not supported"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -661,7 +661,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by nmi connector"
       }
     },
     "get": {
@@ -688,7 +689,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"event_type\":\"transaction.sale.success\",\"event_body\":{\"transaction_id\":\"dummy_txn_001\",\"order_id\":\"dummy_order_001\",\"condition\":\"pendingsettlement\",\"action\":{\"action_type\":\"sale\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"event_type\":\"transaction.sale.success\",\"event_body\":{\"transaction_id\":\"dummy_txn_001\",\"order_id\":\"dummy_order_001\",\"condition\":\"pendingsettlement\",\"action\":{\"action_type\":\"sale\"}}}"
+        }
       }
     },
     "incremental_authorization": {
@@ -698,6 +714,25 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"event_type\":\"transaction.sale.success\",\"event_body\":{\"transaction_id\":\"dummy_txn_001\",\"order_id\":\"dummy_order_001\",\"condition\":\"pendingsettlement\",\"action\":{\"action_type\":\"sale\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"event_type\":\"transaction.sale.success\",\"event_body\":{\"transaction_id\":\"dummy_txn_001\",\"order_id\":\"dummy_order_001\",\"condition\":\"pendingsettlement\",\"action\":{\"action_type\":\"sale\"}}}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

@@ -312,6 +312,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -346,6 +347,7 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                         incremental_authorization_allowed: None,
                         mandate_reference: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status,
@@ -449,6 +451,7 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -524,6 +527,7 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -676,6 +680,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_mandate_id: Some(item.response.transaction_id.to_string()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         };
 
         Ok(Self {
@@ -691,6 +696,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 incremental_authorization_allowed: None,
                 mandate_reference: Some(Box::new(mandate_reference)),
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

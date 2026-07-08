@@ -537,8 +537,8 @@
         "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -651,8 +651,8 @@
         "error": "This feature is not implemented: Selected payment method is not supported"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected wallet type is not supported"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -797,7 +797,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by bluesnap connector"
       }
     },
     "get": {
@@ -866,6 +867,11 @@
           "headers": {},
           "body": "transactionType=CHARGE&referenceNumber=probe_ref_001&merchantTransactionId=probe_txn_001&invoiceId=probe_invoice_001&cardLastFourDigits=1111&amount=10.00&currency=USD"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

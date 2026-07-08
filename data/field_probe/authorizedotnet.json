@@ -376,7 +376,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method GiftCard(PaySafeCard) is not supported by authorizedotnet"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -460,7 +460,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method Wallet(Skrill(SkrillData)) is not supported by authorizedotnet"
       },
       "Sofort": {
         "status": "not_supported",
@@ -616,7 +616,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by authorizedotnet connector"
       }
     },
     "get": {
@@ -684,6 +685,11 @@
           "headers": {},
           "body": "{\"eventType\":\"net.authorize.payment.authcapture.created\",\"payload\":{\"id\":\"probe_txn_001\",\"responseCode\":1,\"authCode\":\"probe_auth\"}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

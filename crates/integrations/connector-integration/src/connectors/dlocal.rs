@@ -244,6 +244,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     connector_mandate_id: Some(token.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })
             });
 
@@ -492,8 +493,11 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
+            // hyperswitch dlocal routes all Authorize traffic to /secure_payments. Mirror
+            // that for the in-scope HS-parity flows (Card + Voucher/OXXO) while leaving
+            // wallet / bank-transfer / bank-debit on /payments, where they currently work.
             match &req.request.payment_method_data {
-                PaymentMethodData::Card(_) => {
+                PaymentMethodData::Card(_) | PaymentMethodData::Voucher(_) => {
                     Ok(format!("{base_url}secure_payments"))
                 }
                 _ => Ok(format!("{base_url}payments")),
@@ -731,6 +735,7 @@ macros::macro_connector_flow_status_impls!(
         MandateRevoke,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         VoidPC,
         CreateOrder,

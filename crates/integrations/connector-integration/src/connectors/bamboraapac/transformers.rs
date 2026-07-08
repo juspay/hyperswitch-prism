@@ -572,6 +572,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_response_reference_id: Some(response.receipt.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -700,6 +701,7 @@ impl TryFrom<ResponseRouterData<BamboraapacCaptureResponse, Self>>
             connector_response_reference_id: Some(response.receipt.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -852,6 +854,7 @@ impl TryFrom<ResponseRouterData<BamboraapacSyncResponse, Self>>
             connector_response_reference_id: Some(response.receipt.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1336,6 +1339,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_mandate_id: Some(connector_mandate_id.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })),
             connector_metadata: Some(serde_json::json!({
                 "customer_number": response.cust_number.clone(),
@@ -1348,6 +1352,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1520,6 +1525,7 @@ impl<
             connector_response_reference_id: Some(response.receipt.clone()),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {

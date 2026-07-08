@@ -145,12 +145,16 @@ pub enum ConnectorEnum {
     PinelabsOnline,
     Easebuzz,
     Axisbank,
+    TsysTransit,
     TwocTwopPaco,
     Juspay,
     Payconex,
     Tamara,
     Hyperswitch,
     Qwikcilver,
+    Flywire,
+    Affirm,
+    Kount,
 }
 
 // snake case for enum variants
@@ -170,6 +174,25 @@ pub enum ConnectorEnum {
 #[strum(serialize_all = "snake_case")]
 pub enum SurchargeConnectorEnum {
     Interpayments,
+}
+
+/// Enum representing connectors that support FRM flows
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    EnumIter,
+    EnumString,
+    serde::Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum FrmConnectorEnum {
+    Kount,
 }
 
 /// Enum representing connectors that support payout flows
@@ -259,12 +282,34 @@ impl ForeignTryFrom<AuthType> for PayoutConnectorEnum {
     }
 }
 
+impl ForeignTryFrom<AuthType> for FrmConnectorEnum {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
+        match config {
+            AuthType::Kount(_) => Ok(Self::Kount),
+            _ => Err(error_stack::Report::new(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Connector is not supported for FRM flows".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )),
+        }
+    }
+}
+
 /// Unified connector enum that can represent either payment, surcharge, or payout connectors
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectorVariant {
     Payment(ConnectorEnum),
     Surcharge(SurchargeConnectorEnum),
     Payout(PayoutConnectorEnum),
+    Frm(FrmConnectorEnum),
 }
 
 impl ConnectorVariant {
@@ -292,11 +337,20 @@ impl ConnectorVariant {
         }
     }
 
+    /// Get the FRM connector if this is a FRM variant
+    pub fn as_frm(&self) -> Option<FrmConnectorEnum> {
+        match self {
+            ConnectorVariant::Frm(conn) => Some(*conn),
+            _ => None,
+        }
+    }
+
     pub fn get_connector_name(&self) -> String {
         match self {
             ConnectorVariant::Payment(conn) => conn.to_string(),
             ConnectorVariant::Surcharge(conn) => conn.to_string(),
             ConnectorVariant::Payout(conn) => conn.to_string(),
+            ConnectorVariant::Frm(conn) => conn.to_string(),
         }
     }
 }
@@ -390,12 +444,15 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Easebuzz => Ok(Self::Easebuzz),
             grpc_api_types::payments::Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             grpc_api_types::payments::Connector::Axisbank => Ok(Self::Axisbank),
+            grpc_api_types::payments::Connector::TsysTransit => Ok(Self::TsysTransit),
             grpc_api_types::payments::Connector::TwocTwopPaco => Ok(Self::TwocTwopPaco),
             grpc_api_types::payments::Connector::Juspay => Ok(Self::Juspay),
             grpc_api_types::payments::Connector::Payconex => Ok(Self::Payconex),
             grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
             grpc_api_types::payments::Connector::Hyperswitch => Ok(Self::Hyperswitch),
             grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
+            grpc_api_types::payments::Connector::Flywire => Ok(Self::Flywire),
+            grpc_api_types::payments::Connector::Kount => Ok(Self::Kount),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -499,6 +556,9 @@ pub trait ConnectorResponseHeaders {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct NetworkTokenWithNTIRef {
     pub network_transaction_id: String,
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
     pub token_exp_month: Option<Secret<String>>,
     pub token_exp_year: Option<Secret<String>>,
 }
@@ -506,8 +566,17 @@ pub struct NetworkTokenWithNTIRef {
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id sent by connector
-    NetworkMandateId(String), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with card data
+    NetworkMandateId(NetworkMandateIdRef), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with card data
     NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with network token data
+}
+
+/// Scheme-level identifiers for PSP-agnostic MIT flows (raw card path).
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct NetworkMandateIdRef {
+    pub network_transaction_id: String,
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -530,6 +599,24 @@ impl MandateIds {
             mandate_reference_id: None,
         }
     }
+
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        match &self.mandate_reference_id {
+            Some(MandateReferenceId::ConnectorMandateId(data)) => data.connector_mandate_id.clone(),
+            Some(MandateReferenceId::NetworkMandateId(_))
+            | Some(MandateReferenceId::NetworkTokenWithNTI(_))
+            | None => None,
+        }
+    }
+
+    pub fn get_connector_mandate_metadata(&self) -> Option<SecretSerdeValue> {
+        match &self.mandate_reference_id {
+            Some(MandateReferenceId::ConnectorMandateId(data)) => data.mandate_metadata.clone(),
+            Some(MandateReferenceId::NetworkMandateId(_))
+            | Some(MandateReferenceId::NetworkTokenWithNTI(_))
+            | None => None,
+        }
+    }
 }
 
 #[derive(Debug, Default, Clone)]
@@ -548,6 +635,7 @@ pub struct PaymentsSyncData {
     pub integrity_object: Option<PaymentSynIntegrityObject>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub setup_future_usage: Option<common_enums::FutureUsage>,
+    pub mandate_reference: Option<MandateReference>,
 }
 
 impl PaymentsSyncData {
@@ -585,6 +673,19 @@ impl PaymentsSyncData {
             Some(common_enums::FutureUsage::OffSession)
         )
     }
+}
+/// Settlement phase reported by the connector on PSync. Mirrors the proto enum
+/// `SettlementStatus`. Distinct from `AttemptStatus` which collapses
+/// Authorized + Settled into `Charged`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SettlementStatus {
+    /// Connector emits the field but the txn is in neither Settled nor
+    /// Not-Settled phase (e.g. PACO Voided / Refunded / Failed / Pending).
+    Unspecified,
+    /// Funds finalised — Refund is the valid reversal.
+    Settled,
+    /// Authorised only, settlement pending — Void is the valid reversal.
+    NotSettled,
 }
 
 #[derive(Debug, Clone)]
@@ -635,6 +736,10 @@ pub struct PaymentFlowData {
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
     pub sender_payment_instrument_id: Option<String>,
+    /// Settlement phase reported by the connector.
+    /// Lives on PaymentFlowData (not PaymentsSyncData) so other flows can
+    /// populate it in the future if a connector starts reporting settlement state on authorize, capture, etc.
+    pub settlement_status: Option<SettlementStatus>,
 }
 
 impl PaymentFlowData {
@@ -1372,6 +1477,36 @@ impl PaymentVoidData {
 }
 
 #[derive(Debug, Clone)]
+pub struct PaymentMethodEligibilityData {
+    /// Order amount and currency.
+    pub amount: common_utils::types::Money,
+    /// Customer details (phone, email, name, etc.) for eligibility check.
+    pub customer: Option<CustomerInfo>,
+    /// Market/country the eligibility check is for. BNPL eligibility is
+    /// country-gated, so connectors operating per-market rely on this.
+    /// (Billing/shipping address and order line items are carried on the
+    /// flow-level `PaymentFlowData`, consistent with the Authorize flow.)
+    pub country_code: Option<common_enums::CountryAlpha2>,
+    /// The specific payment method (e.g. a BNPL variant) eligibility is being
+    /// checked for, when the caller wants to scope the check.
+    pub payment_method_type: Option<PaymentMethodType>,
+    /// description/language hint for connector-rendered eligibility messaging.
+    pub description: Option<String>,
+    /// Connector-specific extras that don't have a first-class field.
+    pub metadata: Option<SecretSerdeValue>,
+    /// Connector-specific feature data (JSON blob) for the transaction.
+    pub connector_feature_data: Option<SecretSerdeValue>,
+    /// Sandbox/test mode flag (true for test environment).
+    pub test_mode: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PaymentMethodEligibilityResponse {
+    pub eligibility: common_enums::EligibilityStatus,
+    pub status_code: u32,
+}
+
+#[derive(Debug, Clone)]
 pub struct PaymentsCancelPostCaptureData {
     pub connector_transaction_id: String,
     pub cancellation_reason: Option<String>,
@@ -1407,6 +1542,7 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     /// ```
     pub amount: MinorUnit,
     pub order_tax_amount: Option<MinorUnit>,
+    pub surcharge_amount: Option<Money>,
     pub email: Option<Email>,
     pub customer_document_details: Option<CustomerDocumentDetails>,
     pub customer_name: Option<String>,
@@ -1458,8 +1594,14 @@ pub struct PaymentsAuthorizeData<T: PaymentMethodDataTypes> {
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
     pub continue_redirection_url: Option<Url>,
     pub tokenization: Option<common_enums::Tokenization>,
+    /// For CIT (no mandate_id), signals the future intended MIT type.
+    /// For Authorize-as-MIT (mandate_id present), signals the actual MIT
+    /// category being processed. Mirrors `RepeatPaymentData.mit_category`.
+    pub mit_category: Option<common_enums::MitCategory>,
     /// Domain-specific data (e.g. airline itinerary) for connectors that need it.
     pub domain_data: Option<DomainData>,
+    /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
+    pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
@@ -1541,7 +1683,7 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
-                    Some(network_transaction_id.clone())
+                    Some(network_transaction_id.network_transaction_id.clone())
                 }
                 Some(MandateReferenceId::ConnectorMandateId(_))
                 | Some(MandateReferenceId::NetworkTokenWithNTI(_))
@@ -1723,6 +1865,7 @@ pub enum PaymentsResponseData {
         network_txn_link_id: Option<String>,
         connector_response_reference_id: Option<String>,
         incremental_authorization_allowed: Option<bool>,
+        splits: Option<ConnectorSplitResponseData>,
         status_code: u16,
     },
     ClientAuthenticationTokenResponse {
@@ -1775,6 +1918,7 @@ pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub connector_mandate_request_reference_id: Option<String>,
+    pub mandate_metadata: Option<SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -1927,6 +2071,8 @@ pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     pub redirect_response: Option<ContinueRedirectionResponse>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub mandate_reference: Option<MandateReferenceId>,
+    /// Merchant transaction id, used to derive the FRM DDC sessionId (e.g. Kount).
+    pub merchant_transaction_id: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
@@ -1961,6 +2107,9 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub redirect_response: Option<ContinueRedirectionResponse>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub authentication_data: Option<router_request_types::AuthenticationData>,
+    pub webhook_url: Option<String>,
+    /// Domain-specific data (e.g. student fields) for connectors that need it.
+    pub domain_data: Option<DomainData>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
@@ -2316,6 +2465,19 @@ pub struct RefundSyncData {
     pub connector_order_id: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct RefundVoidPostRefundData {
+    pub connector_refund_id: String,
+    pub cancellation_reason: Option<String>,
+    pub refund_connector_metadata: Option<SecretSerdeValue>,
+    pub refund_status: common_enums::RefundStatus,
+    pub integrity_object: Option<RefundSyncIntegrityObject>,
+    pub browser_info: Option<BrowserInformation>,
+    pub connector_feature_data: Option<SecretSerdeValue>,
+    pub refund_money: Option<common_utils::types::Money>,
+    pub connector_order_id: Option<String>,
+}
+
 impl RefundSyncData {
     pub fn get_connector_order_id(&self) -> Result<String, Error> {
         self.connector_order_id
@@ -2516,6 +2678,7 @@ pub struct PayoutWebhookReference {
 #[derive(Debug, Clone)]
 pub struct RefundWebhookDetailsResponse {
     pub connector_refund_id: Option<String>,
+    pub merchant_transaction_id: Option<String>,
     pub status: common_enums::RefundStatus,
     pub connector_response_reference_id: Option<String>,
     pub error_code: Option<String>,
@@ -2603,6 +2766,7 @@ pub enum EventType {
     // Refund events
     RefundFailure,
     RefundSuccess,
+    RefundProcessing,
 
     // Dispute events
     DisputeOpened,
@@ -2673,7 +2837,7 @@ impl EventType {
     pub fn is_refund_event(&self) -> bool {
         matches!(
             self,
-            Self::RefundFailure | Self::RefundSuccess | Self::Refund
+            Self::RefundFailure | Self::RefundSuccess | Self::RefundProcessing | Self::Refund
         )
     }
 
@@ -2793,6 +2957,9 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookEventType> for EventType {
             grpc_api_types::payments::WebhookEventType::WebhookRefundSuccess => {
                 Ok(Self::RefundSuccess)
             }
+            grpc_api_types::payments::WebhookEventType::WebhookRefundProcessing => {
+                Ok(Self::RefundProcessing)
+            }
             grpc_api_types::payments::WebhookEventType::WebhookDisputeOpened => {
                 Ok(Self::DisputeOpened)
             }
@@ -2876,6 +3043,7 @@ impl ForeignTryFrom<EventType> for grpc_api_types::payments::WebhookEventType {
             EventType::SourceTransactionCreated => Ok(Self::SourceTransactionCreated),
             EventType::RefundFailure => Ok(Self::WebhookRefundFailure),
             EventType::RefundSuccess => Ok(Self::WebhookRefundSuccess),
+            EventType::RefundProcessing => Ok(Self::WebhookRefundProcessing),
             EventType::DisputeOpened => Ok(Self::WebhookDisputeOpened),
             EventType::DisputeExpired => Ok(Self::WebhookDisputeExpired),
             EventType::DisputeAccepted => Ok(Self::WebhookDisputeAccepted),
@@ -3096,8 +3264,8 @@ pub struct PaymentsCaptureData {
     pub browser_info: Option<BrowserInformation>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub metadata: Option<SecretSerdeValue>,
-    pub merchant_order_id: Option<String>,
     pub order_tax_amount: Option<MinorUnit>,
+    pub merchant_order_id: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
 }
 
@@ -3169,6 +3337,9 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     pub enable_partial_authorization: Option<bool>,
     pub locale: Option<String>,
     pub connector_testing_data: Option<SecretSerdeValue>,
+    /// Signals the future intended MIT type for this CIT setup (e.g.
+    /// `Recurring`, `Installment`). Mirrors `RepeatPaymentData.mit_category`.
+    pub mit_category: Option<common_enums::MitCategory>,
     pub split_payments: Option<SplitPaymentsDetails>,
 }
 
@@ -3256,6 +3427,8 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub merchant_account_id: Option<Secret<String>>,
     pub merchant_configured_currency: Option<Currency>,
     pub additional_payment_data: Option<AdditionalPaymentData>,
+    /// Partner / merchant application identifiers (e.g. Adyen applicationInfo).
+    pub partner_merchant_identifier_details: Option<PartnerMerchantIdentifierDetails>,
 }
 
 impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
@@ -3338,7 +3511,7 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
     pub fn get_network_mandate_id(&self) -> Option<String> {
         match &self.mandate_reference {
             MandateReferenceId::NetworkMandateId(network_mandate_id) => {
-                Some(network_mandate_id.to_string())
+                Some(network_mandate_id.network_transaction_id.clone())
             }
             MandateReferenceId::ConnectorMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => None,
@@ -3612,6 +3785,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
                     Self::QwikcilverWalletDirect
                 }
+                payment_method_data::WalletData::Skrill(_) => Self::Skrill,
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -3623,6 +3797,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::PayLaterData::PayBrightRedirect {} => Self::PayBrightRedirect,
                 payment_method_data::PayLaterData::WalleyRedirect {} => Self::WalleyRedirect,
                 payment_method_data::PayLaterData::AlmaRedirect {} => Self::AlmaRedirect,
+                payment_method_data::PayLaterData::TamaraRedirect {} => Self::TamaraRedirect,
                 payment_method_data::PayLaterData::AtomeRedirect {} => Self::AtomeRedirect,
             },
             PaymentMethodData::BankRedirect(bank_redirect_data) => match bank_redirect_data {
@@ -3844,17 +4019,17 @@ pub struct StripeSplitPaymentData {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
-pub enum ConnectorChargeResponseData {
-    /// StripeChargeResponseData
-    StripeSplitPayment(StripeChargeResponseData),
-    /// AdyenChargeResponseData
+pub enum ConnectorSplitResponseData {
+    /// StripeSplitResponseData
+    StripeSplitPayment(StripeSplitResponseData),
+    /// AdyenSplitResponseData
     AdyenSplitPayment(AdyenSplitData),
 }
 
 /// Fee information to be charged on the payment being collected via Stripe
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
-pub struct StripeChargeResponseData {
+pub struct StripeSplitResponseData {
     /// Identifier for charge created for the payment
     pub charge_id: Option<String>,
 
@@ -3866,6 +4041,9 @@ pub struct StripeChargeResponseData {
 
     /// Identifier for the reseller's account where the funds were transferred
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, Clone)]
@@ -3949,11 +4127,53 @@ impl RecurringMandateData for RecurringMandatePaymentData {
     }
 }
 
+/// Partner / external-platform application details (domain mirror of the proto
+/// `PartnerApplicationDetails`).
+#[derive(Debug, Clone, Default)]
+pub struct PartnerApplicationDetails {
+    pub name: Option<String>,
+    pub version: Option<String>,
+    pub integrator: Option<String>,
+}
+
+/// Merchant application details (domain mirror of the proto
+/// `MerchantApplicationDetails`).
+#[derive(Debug, Clone, Default)]
+pub struct MerchantApplicationDetails {
+    pub name: Option<String>,
+    pub version: Option<String>,
+}
+
+/// Partner and merchant application identifiers initiating the request (domain
+/// mirror of the proto `PartnerMerchantIdentifierDetails`; e.g. Adyen
+/// `applicationInfo`).
+#[derive(Debug, Clone, Default)]
+pub struct PartnerMerchantIdentifierDetails {
+    pub partner_details: Option<PartnerApplicationDetails>,
+    pub merchant_details: Option<MerchantApplicationDetails>,
+}
+
 /// Domain-specific data supplied by the merchant (airline today; extensible
 /// to other verticals). Mirrors the proto `DomainData`.
 #[derive(Debug, Clone, Default)]
 pub struct DomainData {
     pub airline_data: Option<AirlineData>,
+    pub education_data: Option<EducationData>,
+}
+
+/// Connector-agnostic education data (e.g. Flywire tuition payments).
+#[derive(Debug, Clone, Default)]
+pub struct EducationData {
+    pub student_details: Option<StudentDetails>,
+}
+
+/// Student details for education payments (e.g. Flywire recipient fields).
+#[derive(Debug, Clone, Default)]
+pub struct StudentDetails {
+    pub student_id: Option<String>,
+    pub student_first_name: Option<String>,
+    pub student_last_name: Option<String>,
+    pub student_email: Option<Secret<String>>,
 }
 
 /// Connector-agnostic airline / travel itinerary data — the union of fields
@@ -3996,7 +4216,7 @@ pub struct AirlineData {
 #[derive(Debug, Clone, Default)]
 pub struct AirlineSegment {
     pub sequence_no: Option<u32>,
-    pub carrier_code: Option<String>,
+    pub marketing_carrier_code: Option<String>,
     pub flight_number: Option<String>,
     pub flight_type: Option<String>,
     pub class_of_service: Option<String>,
@@ -4013,6 +4233,8 @@ pub struct AirlineSegment {
     pub conjunction_ticket: Option<String>,
     pub coupon_number: Option<String>,
     pub endorsements_restrictions: Option<String>,
+    pub operating_carrier_code: Option<String>,
+    pub operating_flight_number: Option<String>,
 }
 
 /// A flight endpoint, reused for both departure and arrival.
@@ -4087,6 +4309,20 @@ impl CustomerInfo {
         self.customer_phone_number
             .clone()
             .ok_or_else(missing_field_err("customer.phone_number"))
+    }
+
+    /// Best-effort full name: the explicit `customer_name` when present, else the
+    /// first/last names joined with a space. `None` when no name is available.
+    pub fn get_full_name(&self) -> Option<Secret<String>> {
+        if let Some(name) = self.customer_name.clone() {
+            return Some(name);
+        }
+        let parts: Vec<String> = [self.first_name.as_ref(), self.last_name.as_ref()]
+            .into_iter()
+            .flatten()
+            .map(|part| part.peek().to_string())
+            .collect();
+        (!parts.is_empty()).then(|| Secret::new(parts.join(" ")))
     }
 
     pub fn get_first_name(&self) -> Result<Secret<String>, Error> {
@@ -5014,8 +5250,10 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
             AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
+            AuthType::Kount(_) => Ok(Self::Payment(ConnectorEnum::Kount)),
             AuthType::Hyperswitch(_) => Ok(Self::Payment(ConnectorEnum::Hyperswitch)),
             AuthType::Imerchantsolutions(_) => Ok(Self::Payment(ConnectorEnum::Imerchantsolutions)),
+            AuthType::TsysTransit(_) => Ok(Self::Payment(ConnectorEnum::TsysTransit)),
             AuthType::TwocTwopPaco(_) => Ok(Self::Payment(ConnectorEnum::TwocTwopPaco)),
             AuthType::Interpayments(_) => {
                 Ok(Self::Surcharge(SurchargeConnectorEnum::Interpayments))
@@ -5024,6 +5262,8 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Placetopay(_) => Ok(Self::Payment(ConnectorEnum::Placetopay)),
             AuthType::Finix(_) => Ok(Self::Payment(ConnectorEnum::Finix)),
             AuthType::Tamara(_) => Ok(Self::Payment(ConnectorEnum::Tamara)),
+            AuthType::Flywire(_) => Ok(Self::Payment(ConnectorEnum::Flywire)),
+            AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
         }
     }
 }

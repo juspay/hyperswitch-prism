@@ -357,7 +357,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method is not supported by Wellsfargo"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -440,8 +440,8 @@
         "error": "Payment method is not supported by Wellsfargo"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method supported by connector but not yet implemented"
       },
       "Sofort": {
         "status": "not_supported",
@@ -571,7 +571,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by wellsfargo connector"
       }
     },
     "get": {
@@ -613,6 +614,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

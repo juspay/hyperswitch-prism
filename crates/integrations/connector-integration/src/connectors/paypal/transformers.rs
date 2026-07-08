@@ -1656,7 +1656,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::QwikcilverWalletDirect(_) => {
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: utils::get_unimplemented_payment_method_error_message("Paypal"),
                         connector: "Paypal",
@@ -1752,6 +1753,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
             | PayLaterData::AlmaRedirect {}
+            | PayLaterData::TamaraRedirect {}
             | PayLaterData::AtomeRedirect {} => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -2238,7 +2240,12 @@ pub enum AuthenticationStatus {
 pub struct PaypalOrdersResponse {
     id: String,
     intent: PaypalPaymentIntent,
-    status: PaypalOrderStatus,
+    // PayPal can omit the top-level order `status` in some Orders v2 responses (observed in PSync
+    // for an order whose only capture was `DECLINED`). This field is kept optional so the response
+    // still deserializes when it is absent. The attempt status is not derived from this field
+    // anyway: for orders it is taken from the capture/authorization status inside `purchase_units`
+    // (see `TryFrom<ResponseRouterData<PaypalOrdersResponse, ..>>`).
+    status: Option<PaypalOrderStatus>,
     purchase_units: Vec<PurchaseUnitItem>,
     payment_source: Option<PaymentSourceItemResponse>,
 }
@@ -2443,6 +2450,9 @@ where
             item.http_code,
             "paypal",
         ))?;
+        // Derive the attempt status from the capture/authorization status rather than the
+        // top-level order `status`, which PayPal may omit (e.g. a declined capture). For example a
+        // `DECLINED` capture maps to `AttemptStatus::Failure` and is handled by the branch below.
         let status = payment_collection_item.status.clone();
         let status = common_enums::AttemptStatus::from(status);
 
@@ -2505,6 +2515,7 @@ where
                         },
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     })),
                     status_code: item.http_code,
                     connector_metadata: Some(connector_meta),
@@ -2518,6 +2529,7 @@ where
                         .router_data
                         .request
                         .get_request_incremental_authorization(),
+                    splits: None,
                 }),
                 ..item.router_data
             }),
@@ -2623,6 +2635,7 @@ impl TryFrom<ResponseRouterData<PaypalRedirectResponse, Self>>
                 ),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -2653,6 +2666,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalThreeDsSyncResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -2735,6 +2749,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -2778,6 +2793,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -2851,6 +2867,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsSyncResponse, Self>>
                     .or(Some(item.response.supplementary_data.related_ids.order_id)),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -3033,6 +3050,7 @@ impl TryFrom<ResponseRouterData<PaypalCaptureResponse, Self>>
                 connector_response_reference_id: invoice_id.or(Some(capture_id)),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -3081,6 +3099,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsCancelResponse, Self>>
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -3100,6 +3119,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalSetupMandatesResponse, Self>>
             connector_mandate_id: Some(info_response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         }));
         // https://developer.paypal.com/docs/api/payment-tokens/v3/#payment-tokens_create
         // If 201 status code, then order is captured, other status codes are handled by the error handler
@@ -3123,6 +3143,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalSetupMandatesResponse, Self>>
                 connector_response_reference_id: Some(info_response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })

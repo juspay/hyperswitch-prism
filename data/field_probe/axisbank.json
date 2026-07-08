@@ -317,8 +317,8 @@
         "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
       },
       "PayURedirect": {
         "status": "error",
@@ -401,8 +401,8 @@
         "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "error",
+        "error": "Stuck on field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields — Missing required field: metadata. metadata must contain 'merchant_id' and 'merchant_channel_id' fields"
       },
       "Sofort": {
         "status": "error",
@@ -510,7 +510,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by axisbank connector"
       }
     },
     "get": {
@@ -531,6 +532,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

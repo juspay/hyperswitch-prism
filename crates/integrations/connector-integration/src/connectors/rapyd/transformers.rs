@@ -151,6 +151,7 @@ impl<F, T> TryFrom<ResponseRouterData<RapydPaymentsResponse, Self>>
                                     .to_owned(),
                                 incremental_authorization_allowed: None,
                                 status_code: item.http_code,
+                                splits: None,
                             }),
                         )
                     }
@@ -1278,6 +1279,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                     connector_mandate_id: Some(card.to_owned()),
                                     payment_method_id: None,
                                     connector_mandate_request_reference_id: None,
+                                    mandate_metadata: None,
                                 }));
                                 // Promote Authorized → Charged so zero/low-amount
                                 // verification attempts reach a terminal state.
@@ -1303,6 +1305,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                             .clone(),
                                         incremental_authorization_allowed: None,
                                         status_code: item.http_code,
+                                        splits: None,
                                     }),
                                 )
                             }
@@ -1544,6 +1547,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             connector_response_reference_id: data.merchant_reference_id.to_owned(),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                     ),
                 }

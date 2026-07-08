@@ -703,6 +703,7 @@ pub enum PayLaterData {
     PayBrightRedirect {},
     WalleyRedirect {},
     AlmaRedirect {},
+    TamaraRedirect {},
     AtomeRedirect {},
 }
 
@@ -750,7 +751,12 @@ pub enum WalletData {
     EaseBuzzRedirect(EaseBuzzRedirection),
     /// Qwikcilver / Pine Labs stored-value wallet — caller supplies the wallet number directly.
     QwikcilverWalletDirect(Box<QwikcilverWalletDirectData>),
+    /// Skrill redirect wallet — consumer email is sourced from billing details.
+    Skrill(SkrillData),
 }
+
+#[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct SkrillData {}
 
 impl WalletData {
     pub fn get_wallet_token(&self) -> Result<Secret<String>, Error> {

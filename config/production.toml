@@ -19,11 +19,15 @@ port = 8080
 
 [proxy]
 idle_pool_connection_timeout = 90
+connector_request_timeout = 30
 bypass_urls = ["localhost", "local"]
 
 [connectors]
+kount.base_url = "https://api.kount.com"
+kount.secondary_base_url = "https://login.kount.com"
 hyperswitch.base_url = "https://api.hyperswitch.io"
 payconex.base_url = "https://secure.payconex.net"
+affirm.base_url = "https://api.affirm.com"
 tamara.base_url = "https://api.tamara.co"
 juspay.base_url = "https://api.juspay.in/"
 qwikcilver.base_url = "https://api.qwikcilver.com/"
@@ -130,12 +134,22 @@ pinelabs_online.base_url = "https://api.pluralpay.in/api/pay/v1"
 easebuzz.base_url = "https://pay.easebuzz.in"
 easebuzz.secondary_base_url = "https://dashboard.easebuzz.in"
 axisbank.base_url = "https://upisdk.axisbank.co.in/api/b2/"
+tsys_transit.base_url = "https://gwapi.transit-pass.com/"
+flywire.base_url = "https://api-platform.flywire.com"
 
 # Generic Events Configuration
 [events]
 enabled = false
 brokers = ["localhost:9092"]
-topic = "audit-trail-events"
+
+# Outbound connector-call events.
+[events.connector_events]
+topic = "unified-connector-service-connector-events"
+partition_key_field = "request_id"
+
+# Inbound request events.
+[events.api_events]
+topic = "unified-connector-service-api-events"
 partition_key_field = "request_id"
 
 [connector_request_kafka]

@@ -867,6 +867,7 @@ impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
             connector_mandate_id: Some(item.transaction_id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         };
 
         Ok(Self::TransactionResponse {
@@ -879,6 +880,7 @@ impl TryFrom<&responses::JpmorganPaymentsResponse> for PaymentsResponseData {
             connector_response_reference_id: Some(item.request_id.clone()),
             incremental_authorization_allowed: None,
             status_code: item.response_code.parse::<u16>().unwrap_or(0),
+            splits: None,
         })
     }
 }
@@ -1412,17 +1414,26 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card: Some(requests::JpmorganMitCardByNti {
                         account_number: card_data.card_number.clone(),
                         expiry,
-                        original_network_transaction_id: nti.clone(),
+                        original_network_transaction_id: nti.network_transaction_id.clone(),
                     }),
                     transaction_reference: None,
                 }
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotImplemented(
-                    "NetworkTokenWithNTI mandate reference is not implemented for \
-                     JPMorgan RepeatPayment"
+                    "NetworkTokenWithNTI mandate reference is not implemented for JPMorgan RepeatPayment"
                         .to_string(),
-                    Default::default(),
+                    IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use ConnectorMandateId for stored JPMorgan transaction_reference repeat payments, or use NetworkMandateId with card data for raw-card NTI MITs. NetworkTokenWithNTI is not mapped for JPMorgan RepeatPayment."
+                                .to_string(),
+                        ),
+                        doc_url: Some(JPMORGAN_GETTING_STARTED_DOC.to_owned()),
+                        additional_context: Some(
+                            "JPMorgan RepeatPayment received a NetworkTokenWithNTI mandate reference. This transformer builds either transaction_reference from connector_mandate_id or card.accountNumber, expiry, and originalNetworkTransactionId from NetworkMandateId; it does not build a JPMorgan MIT payload from network token credentials plus NTI."
+                                .to_string(),
+                        ),
+                    },
                 )
                 .into());
             }

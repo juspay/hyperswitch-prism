@@ -318,7 +318,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -402,7 +402,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Finix authorize only accepts a tokenized payment instrument ID as source. Raw card/wallet/bank data cannot be passed directly. is not supported by finix. The Finix POST /authorizations `source` field only accepts a Payment Instrument ID. See https://docs.finix.com/api/payment-instruments to tokenize first."
       },
       "Sofort": {
         "status": "not_supported",
@@ -542,7 +542,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by finix connector"
       }
     },
     "get": {
@@ -570,7 +571,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}"
+        }
       }
     },
     "incremental_authorization": {
@@ -580,6 +596,25 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"type\":\"updated\",\"entity\":\"transfer\",\"_embedded\":{\"transfers\":[{\"id\":\"TRsample000000000000000\",\"amount\":1000,\"currency\":\"USD\",\"state\":\"SUCCEEDED\",\"tags\":{},\"type\":\"DEBIT\"}]}}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

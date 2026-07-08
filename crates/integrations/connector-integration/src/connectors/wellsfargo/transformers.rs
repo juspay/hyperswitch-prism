@@ -1189,6 +1189,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             // Build error response using helper function
@@ -1263,6 +1264,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             // Build error response using helper function
@@ -1317,6 +1319,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             // Build error response using helper function
@@ -1371,6 +1374,7 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             // Build error response using helper function
@@ -1427,6 +1431,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                         connector_mandate_id: Some(instrument.id.clone().expose()),
                         payment_method_id: None, // Could potentially use token_information.customer.id here if needed
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     }
                 });
 
@@ -1452,7 +1457,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                     .and_then(|info| info.code.clone())
                     .or_else(|| Some(response.id.clone())),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
-
+                splits: None,
                 status_code: item.http_code,
             })
         } else {

@@ -666,7 +666,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )
@@ -777,7 +778,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
                         FiuuPaymentMethodData::try_from((
                             raw_card_details,
-                            network_transaction_id.clone(),
+                            network_transaction_id.network_transaction_id.clone(),
                         ))
                     }
                     _ => Err(IntegrationError::NotImplemented(
@@ -1033,7 +1034,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )
@@ -1376,6 +1378,7 @@ where
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 ..router_data
             }),
@@ -1423,6 +1426,7 @@ where
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         ..router_data
                     })
@@ -1437,6 +1441,7 @@ where
                                     connector_mandate_id: Some(token.clone().expose()),
                                     payment_method_id: None,
                                     connector_mandate_request_reference_id: None,
+                                    mandate_metadata: None,
                                 })
                             });
                     let status = match non_threeds_data.status.as_str() {
@@ -1483,6 +1488,7 @@ where
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         })
                     };
                     Ok(Self {
@@ -1536,6 +1542,7 @@ where
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 status_code: item.http_code,
+                                splits: None,
                             })
                         };
                         Self {
@@ -1559,6 +1566,7 @@ where
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         });
                         Self {
                             response,
@@ -1975,6 +1983,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: http_code,
+                    splits: None,
                 };
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
@@ -1999,6 +2008,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                             connector_mandate_id: Some(token.clone().expose()),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         }),
                         Err(_err) => None,
                     }
@@ -2035,6 +2045,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: http_code,
+                    splits: None,
                 };
                 Ok(Self {
                     resource_common_data: PaymentFlowData {
@@ -2250,6 +2261,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentCaptureResponse, Self>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2385,6 +2397,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentCancelResponse, Self>>
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -2853,6 +2866,7 @@ impl TryFrom<FiuuRefundSyncResponse> for RefundWebhookDetailsResponse {
         match notif {
             FiuuRefundSyncResponse::Webhook(fiuu_webhooks_refund_response) => Ok(Self {
                 connector_refund_id: Some(fiuu_webhooks_refund_response.refund_id),
+                merchant_transaction_id: None,
                 status: common_enums::RefundStatus::from(
                     fiuu_webhooks_refund_response.status.clone(),
                 ),

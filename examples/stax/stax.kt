@@ -213,8 +213,12 @@ fun tokenSetupRecurring(txnId: String, config: ConnectorConfig = _defaultConfig)
         setupMandateDetailsBuilder.apply {
             mandateTypeBuilder.apply {  // Type of mandate (single_use or multi_use) with amount details.
                 multiUseBuilder.apply {  // Multi use mandate with amount details (for recurring payments).
-                    amount = 0L  // Amount.
-                    currency = Currency.USD  // Currency code (ISO 4217).
+                    amount = 0L  // Use amount_money instead (will be removed in a future release).
+                    currency = Currency.USD  // Use amount_money.currency instead (will be removed in a future release).
+                    amountMoneyBuilder.apply {  // Amount in Money type.
+                        minorAmount = 0L  // Amount in minor units (e.g., 1000 = $10.00).
+                        currency = Currency.USD  // ISO 4217 currency code (e.g., "USD", "EUR").
+                    }
                 }
             }
         }

@@ -44,6 +44,10 @@ use error_stack::{Report, ResultExt};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+/// JWT segments are base64url WITHOUT padding (RFC 7515); used to decode the
+/// Flex Microform capture-context JWT payload.
+pub const BASE64_URL_SAFE_NO_PAD_ENGINE: base64::engine::GeneralPurpose =
+    base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
 use transformers::{
     self as cybersource, CybersourceAuthEnrollmentRequest, CybersourceAuthSetupRequest,
@@ -59,7 +63,7 @@ use transformers::{
     CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse, CybersourceRefundRequest,
     CybersourceRefundResponse, CybersourceRepeatPaymentRequest, CybersourceRsyncResponse,
     CybersourceTransactionResponse, CybersourceVoidPCRequest, CybersourceVoidRequest,
-    CybersourceZeroMandateRequest,
+    CybersourceZeroMandateRequest, ForeignTryFrom,
 };
 
 use super::macros;
@@ -603,6 +607,27 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}pts/v2/payments/", self.connector_base_url_payments(req)))
         }
+        fn get_5xx_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            // Cybersource returns a structured body on 5xx (e.g. HTTP 502
+            // `{"status":"SERVER_ERROR","reason":"SYSTEM_ERROR","message":"..."}`).
+            // `ErrorResponse::foreign_try_from(&res)` parses it so the shadow UCS
+            // `response.Err.{code,message}` mirror the Direct gateway (which maps
+            // `status` -> code) instead of the generic `bad_gateway` / HTTP-status
+            // discriminator. Falls back to the standard error handler when the body is
+            // not in the server-error shape.
+            match ErrorResponse::foreign_try_from(&res) {
+                Ok(error_response) => {
+                    with_error_response_body!(event_builder, error_response);
+                    Ok(error_response)
+                }
+                Err(_) => self.build_error_response(res, event_builder, connector_config),
+            }
+        }
     }
 );
 
@@ -1079,7 +1104,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payload = parts.get(1).ok_or_else(|| {
             Report::new(ConnectorError::response_handling_failed(res.status_code))
         })?;
-        let decoded_bytes = Engine::decode(&BASE64_ENGINE, payload)
+        // Flex capture-context JWT segments are base64url WITHOUT padding
+        // (RFC 7515); STANDARD base64 fails for ~3/4 of payloads depending on
+        // length (varies with targetOrigins, e.g. long tunnel domains).
+        let decoded_bytes = Engine::decode(&BASE64_URL_SAFE_NO_PAD_ENGINE, payload)
             .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
         let decoded_str = String::from_utf8(decoded_bytes)
             .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
@@ -1319,6 +1347,7 @@ macros::macro_connector_flow_status_impls!(
         CreateConnectorCustomer,
     ],
     not_supported: [
+        VoidPostRefund,
         SubmitEvidence,
         DefendDispute,
         Accept,

@@ -318,7 +318,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -402,7 +402,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Selected payment method through CryptoPay is not supported by Cryptopay"
       },
       "Sofort": {
         "status": "not_supported",
@@ -510,7 +510,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by cryptopay connector"
       }
     },
     "get": {
@@ -580,6 +581,11 @@
           "headers": {},
           "body": "{\"type\":\"Invoice\",\"event\":\"status_changed\",\"data\":{\"id\":\"probe_invoice_001\",\"status\":\"completed\",\"price_amount\":\"10.00\",\"price_currency\":\"USD\",\"name\":\"probe_charge\"}}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

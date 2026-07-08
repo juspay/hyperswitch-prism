@@ -479,7 +479,7 @@ macros::macro_connector_implementation!(
             let base_url = self.connector_base_url(req);
             match req.request.get_mandate_reference() {
                 MandateReferenceId::NetworkMandateId(_) => {
-                      if req.request.is_auto_capture() {
+                    if req.request.is_auto_capture() {
                         Ok(format!("{base_url}/api/payments/sale"))
                     } else {
                         Ok(format!("{base_url}/api/payments/authorization"))
@@ -554,6 +554,7 @@ macros::macro_connector_flow_status_impls!(
         SubmitEvidence,
     ],
     not_supported: [
+        VoidPostRefund,
         Authenticate,
         PostAuthenticate,
         PreAuthenticate,

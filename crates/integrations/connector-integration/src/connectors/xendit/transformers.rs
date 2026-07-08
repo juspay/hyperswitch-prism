@@ -510,6 +510,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         connector_mandate_id: Some(response.payment_method.id.expose()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     })),
                     false => None,
                 },
@@ -519,6 +520,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 connector_response_reference_id: Some(response.reference_id.peek().to_string()),
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             })
         };
 
@@ -598,6 +600,7 @@ impl<F> TryFrom<ResponseRouterData<XenditResponse, Self>>
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: http_code,
+                        splits: None,
                     })
                 };
 
@@ -722,6 +725,7 @@ impl<F> TryFrom<ResponseRouterData<XenditCaptureResponse, Self>>
                 ),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
         Ok(Self {

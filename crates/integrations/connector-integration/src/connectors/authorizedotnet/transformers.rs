@@ -939,7 +939,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     is_subsequent_auth: true,
                 }),
                 Some(SubsequentAuthInformation {
-                    original_network_trans_id: Secret::new(network_trans_id.clone()),
+                    original_network_trans_id: Secret::new(
+                        network_trans_id.network_transaction_id.clone(),
+                    ),
                     reason: Reason::Resubmission,
                 }),
             ),
@@ -2168,6 +2170,7 @@ impl<
                             )),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         });
 
                 // Build connector_metadata from account_number
@@ -2192,6 +2195,7 @@ impl<
                         ),
                         incremental_authorization_allowed: None,
                         status_code: http_code,
+                        splits: None,
                     }),
                 }
             }
@@ -2320,6 +2324,7 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                     connector_response_reference_id: Some(transaction.transaction_id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: http_code,
+                    splits: None,
                 });
 
                 Ok(new_router_data)
@@ -2693,6 +2698,7 @@ pub fn convert_to_payments_response_data_or_error(
                                 }),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         }
                     });
 
@@ -2711,6 +2717,7 @@ pub fn convert_to_payments_response_data_or_error(
                     connector_response_reference_id: Some(trans_res.transaction_id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: http_status_code,
+                    splits: None,
                 })
             }
         }
@@ -2748,6 +2755,7 @@ pub fn convert_to_payments_response_data_or_error(
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_status_code,
+                splits: None,
             })
         }
         None if status == AttemptStatus::VoidedPostCapture
@@ -2821,10 +2829,12 @@ impl From<SyncStatus> for AttemptStatus {
             SyncStatus::Voided => Self::Voided,
             SyncStatus::CouldNotVoid => Self::VoidFailed,
             SyncStatus::GeneralError => Self::Failure,
-            SyncStatus::RefundSettledSuccessfully
-            | SyncStatus::RefundPendingSettlement
-            | SyncStatus::FDSPendingReview
-            | SyncStatus::FDSAuthorizedPendingReview => Self::Pending,
+            SyncStatus::RefundSettledSuccessfully | SyncStatus::RefundPendingSettlement => {
+                Self::Charged
+            }
+            SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
+                Self::Unresolved
+            }
         }
     }
 }
@@ -3135,12 +3145,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(connector_mandate_id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })),
                 network_txn_id: None,
                 network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             });
         } else {
             let error_response = ErrorResponse {

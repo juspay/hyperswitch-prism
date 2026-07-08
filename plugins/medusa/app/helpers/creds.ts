@@ -93,6 +93,16 @@ export function transformMollieConfig(raw: any) {
   }
 }
 
+export function transformAuthorizedotnetConfig(raw: any) {
+  return {
+    // `name` = API Login ID, `transaction_key` = Transaction Key (both secret).
+    name: wrapSecret(raw.name)!,
+    transactionKey: wrapSecret(raw.transaction_key)!,
+    // Full sandbox/production endpoint (used directly as the request URL).
+    baseUrl: raw.base_url,
+  }
+}
+
 /**
  * Builds the connector→config map the app server expects (same shape as
  * app/run.ts loadCredentials()), including per-connector webhookSecret sourced
@@ -138,6 +148,10 @@ export function buildServerCredentials(raw: RawCreds | null): Record<string, any
 
   if (raw.mollie?.api_key) {
     creds.mollie = transformMollieConfig(raw.mollie)
+  }
+
+  if (raw.authorizedotnet?.name && raw.authorizedotnet?.transaction_key) {
+    creds.authorizedotnet = transformAuthorizedotnetConfig(raw.authorizedotnet)
   }
 
   const cybersource = Array.isArray(raw.cybersource)

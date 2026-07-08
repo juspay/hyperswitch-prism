@@ -170,6 +170,7 @@ fn create_repeat_payment_request(mandate_id: &str) -> RecurringPaymentServiceCha
                 connector_mandate_request_reference_id: None,
                 connector_mandate_id: Some(mandate_id.to_string()),
                 payment_method_id: None,
+                mandate_metadata: None,
             },
         )),
     };
@@ -217,33 +218,24 @@ async fn test_repeat_everything() {
         let mut register_grpc_request = Request::new(register_request);
         add_authorizenet_metadata(&mut register_grpc_request);
 
-        let register_response = client
-            .setup_recurring(register_grpc_request)
+        let register_response = Box::pin(client.setup_recurring(register_grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();
 
         // Verify we got a mandate reference
         assert!(
-            register_response.mandate_reference.is_some(),
+            register_response.mandate_reference_details.is_some(),
             "Mandate reference should be present"
         );
 
         let mandate_id = register_response
-            .mandate_reference
+            .mandate_reference_details
             .as_ref()
             .unwrap()
-            .mandate_id_type
-            .as_ref()
-            .expect("Mandate ID should be present");
-
-        let mandate_id = match mandate_id {
-            MandateIdType::ConnectorMandateId(connector_mandate) => connector_mandate
-                .connector_mandate_id
-                .clone()
-                .expect("Connector mandate ID should be present"),
-            _ => panic!("Expected ConnectorMandateId type for mandate reference"),
-        };
+            .connector_mandate_id
+            .clone()
+            .expect("Connector mandate ID should be present");
 
         // Now perform a repeat payment using the mandate
         let repeat_request = create_repeat_payment_request(&mandate_id);
@@ -252,8 +244,8 @@ async fn test_repeat_everything() {
         add_authorizenet_metadata(&mut repeat_grpc_request);
 
         // Send the repeat payment request
-        let repeat_response = recurring_client
-            .charge(repeat_grpc_request)
+        let repeat_response = Box::pin(recurring_client
+            .charge(repeat_grpc_request))
             .await
             .expect("gRPC recurring_client::charge call failed")
             .into_inner();
@@ -413,6 +405,7 @@ fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest 
         split_payments: None,
         merchant_request_id: None,
         payment_method_type: None,
+        mandate_reference: None,
     }
 }
 
@@ -436,7 +429,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
         state: None,
         test_mode: None,
         merchant_order_id: None,
-
+        split_payments: None,
         merchant_request_id: None,
     }
 }
@@ -996,8 +989,7 @@ async fn test_register() {
         add_authorizenet_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .setup_recurring(grpc_request)
+        let response = Box::pin(client.setup_recurring(grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();
@@ -1010,26 +1002,22 @@ async fn test_register() {
 
         // Check if we have a mandate reference
         assert!(
-            response.mandate_reference.is_some(),
+            response.mandate_reference_details.is_some(),
             "Mandate reference should be present"
         );
 
         // Verify the mandate reference has the expected structure
-        if let Some(mandate_ref) = &response.mandate_reference {
+        if let Some(mandate_ref) = &response.mandate_reference_details {
             // Verify the composite ID format (profile_id-payment_profile_id)
-            if let Some(MandateIdType::ConnectorMandateId(mandate_id)) =
-                &mandate_ref.mandate_id_type
-            {
+            assert!(
+                mandate_ref.connector_mandate_id.is_some(),
+                "Mandate ID should be present"
+            );
+            if let Some(mandate_id) = mandate_ref.connector_mandate_id.as_ref() {
                 assert!(
-                    mandate_id.connector_mandate_id.is_some(),
-                    "Mandate ID should be present"
+                    mandate_id.contains('-') || !mandate_id.is_empty(),
+                    "Mandate ID should be either a composite ID or a profile ID"
                 );
-                if let Some(mandate_id) = mandate_id.connector_mandate_id.as_ref() {
-                    assert!(
-                        mandate_id.contains('-') || !mandate_id.is_empty(),
-                        "Mandate ID should be either a composite ID or a profile ID"
-                    );
-                }
             }
         }
 

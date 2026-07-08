@@ -13,12 +13,13 @@ use common_utils::{
     types::MinorUnit,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
+    connector_flow::{Authorize, Capture, PSync, PaymentMethodEligibility, RSync, Refund, Void},
     connector_types::{
-        EventType, PaymentFlowData, PaymentVoidData, PaymentWebhookReference,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RequestDetails, ResponseId, WebhookResourceReference,
+        EventType, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RedirectDetailsResponse, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RequestDetails, ResponseId,
+        WebhookResourceReference,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -35,10 +36,10 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    TamaraAuthType, TamaraCaptureRequest, TamaraCaptureResponse, TamaraErrorResponse,
-    TamaraPSyncResponse, TamaraPaymentsRequest, TamaraPaymentsResponse, TamaraRSyncResponse,
-    TamaraRefundRequest, TamaraRefundResponse, TamaraVoidRequest, TamaraVoidResponse,
-    TamaraWebhookEventType,
+    TamaraAuthType, TamaraCaptureRequest, TamaraCaptureResponse, TamaraEligibilityRequest,
+    TamaraEligibilityResponse, TamaraErrorResponse, TamaraPSyncResponse, TamaraPaymentsRequest,
+    TamaraPaymentsResponse, TamaraRSyncResponse, TamaraRefundRequest, TamaraRefundResponse,
+    TamaraVoidRequest, TamaraVoidResponse, TamaraWebhookEventType,
 };
 
 use super::macros;
@@ -90,6 +91,12 @@ macros::create_all_prerequisites!(
             flow: RSync,
             response_body: TamaraRSyncResponse,
             router_data: RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
+        ),
+        (
+            flow: PaymentMethodEligibility,
+            request_body: TamaraEligibilityRequest,
+            response_body: TamaraEligibilityResponse,
+            router_data: RouterDataV2<PaymentMethodEligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
         )
     ],
     amount_converters: [
@@ -162,6 +169,11 @@ fn get_query_param(request: &RequestDetails, param_name: &str) -> Option<String>
 // ===== CONNECTOR SERVICE TRAIT IMPLEMENTATIONS =====
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Tamara<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentMethodEligibilityV2 for Tamara<T>
 {
 }
 
@@ -317,6 +329,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
                 connector_refund_id: None,
+                merchant_transaction_id: None,
                 status: RefundStatus::from(event.event_type),
                 connector_response_reference_id: None,
                 error_code: None,
@@ -403,6 +416,7 @@ macros::macro_connector_flow_status_impls!(
         ServerAuthenticationToken,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         VoidPC,
         Accept,
@@ -595,6 +609,29 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let order_id = req.request.connector_transaction_id.clone();
             Ok(format!("{}/orders/{}", self.connector_base_url_refunds(req), order_id))
+        }
+    }
+);
+
+// ===== ELIGIBILITY FLOW IMPLEMENTATION =====
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_headers, get_content_type, get_error_response_v2],
+    connector: Tamara,
+    curl_request: Json(TamaraEligibilityRequest),
+    curl_response: TamaraEligibilityResponse,
+    flow_name: PaymentMethodEligibility,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentMethodEligibilityData,
+    flow_response: PaymentMethodEligibilityResponse,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PaymentMethodEligibility, PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse>,
+        ) -> CustomResult<String, IntegrationError> {
+            Ok(format!("{}/pre-checkout/v1/eligibility", self.connector_base_url_payments(req)))
         }
     }
 );

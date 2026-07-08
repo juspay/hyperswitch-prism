@@ -6,6 +6,7 @@ import { GlobalPayPaymentButton } from "./GlobalPayPaymentButton";
 import { StripePaymentButton } from "./StripePaymentButton";
 import { AdyenPaymentButton } from "./AdyenPaymentButton";
 import { PayPalPaymentButton } from "./PayPalPaymentButton";
+import { MolliePaymentButton, type MolliePaymentButtonProps } from "./MolliePaymentButton";
 import { ManualTestPaymentButton } from "./ManualTestPaymentButton";
 
 /** Detect Stripe-like providers */
@@ -38,6 +39,14 @@ function isPayPalLike(providerId?: string) {
   );
 }
 
+/** Detect Mollie provider */
+function isMollieLike(providerId?: string) {
+  return (
+    providerId?.startsWith("pp_mollie") ||
+    providerId === "pp_hyperswitch-prism_mollie"
+  );
+}
+
 /** Detect manual / test payment */
 function isManual(providerId?: string) {
   return providerId?.startsWith("pp_system_default");
@@ -67,6 +76,8 @@ export function PaymentButton({
   onPlaceOrder,
   onUpdateCart,
   buttonComponent,
+  backendUrl,
+  publishableKey,
   "data-testid": dataTestId,
 }: PaymentButtonProps) {
   const baseProps = {
@@ -106,6 +117,24 @@ export function PaymentButton({
     return <PayPalPaymentButton {...baseProps} cart={cart} />;
   }
 
+  if (isMollieLike(providerId)) {
+    if (!cart) {
+      return (
+        <div style={{ color: "#c00" }}>
+          Cart prop is required for Mollie payment button
+        </div>
+      );
+    }
+    return (
+      <MolliePaymentButton
+        {...baseProps}
+        cart={cart as MolliePaymentButtonProps["cart"]}
+        backendUrl={backendUrl ?? ""}
+        publishableKey={publishableKey ?? ""}
+      />
+    );
+  }
+
   if (isManual(providerId)) {
     return <ManualTestPaymentButton {...baseProps} />;
   }
@@ -121,7 +150,9 @@ export { GlobalPayPaymentButton } from "./GlobalPayPaymentButton";
 export { StripePaymentButton } from "./StripePaymentButton";
 export { AdyenPaymentButton } from "./AdyenPaymentButton";
 export { PayPalPaymentButton } from "./PayPalPaymentButton";
+export { MolliePaymentButton } from "./MolliePaymentButton";
 export { ManualTestPaymentButton } from "./ManualTestPaymentButton";
+export type { MolliePaymentButtonProps } from "./MolliePaymentButton";
 export type {
   BasePaymentButtonProps,
   StripePaymentButtonProps,

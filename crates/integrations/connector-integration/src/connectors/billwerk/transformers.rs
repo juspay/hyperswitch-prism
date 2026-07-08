@@ -407,6 +407,7 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
                 connector_mandate_id: Some(rpm.clone()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
         let payments_response = PaymentsResponseData::TransactionResponse {
@@ -419,6 +420,7 @@ impl<F, T> TryFrom<ResponseRouterData<BillwerkPaymentsResponse, Self>>
             connector_response_reference_id: Some(response.handle),
             incremental_authorization_allowed: None,
             status_code: http_code,
+            splits: None,
         };
         Ok(Self {
             resource_common_data: PaymentFlowData {

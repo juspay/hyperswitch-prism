@@ -113,6 +113,7 @@ impl DisputeService for Disputes {
                         proxy_name,
                         tenant_id,
                         merchant_id,
+                        connector_latency,
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
@@ -168,6 +169,7 @@ impl DisputeService for Disputes {
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        connector_latency,
                     };
 
                     let response = Box::pin(
@@ -338,6 +340,7 @@ impl DisputeService for Disputes {
                         proxy_name,
                         tenant_id,
                         merchant_id,
+                        connector_latency,
                         ..
                     } = request_data.extracted_metadata;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
@@ -394,6 +397,7 @@ impl DisputeService for Disputes {
                         tenant_id: &tenant_id,
                         merchant_id: merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        connector_latency,
                     };
 
                     let response = Box::pin(

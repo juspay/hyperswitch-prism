@@ -384,7 +384,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -468,7 +468,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "Sofort": {
         "status": "not_supported",
@@ -687,7 +687,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by iatapay connector"
       }
     },
     "get": {
@@ -733,6 +734,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }

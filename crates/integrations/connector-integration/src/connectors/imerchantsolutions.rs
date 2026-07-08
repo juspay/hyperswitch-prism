@@ -277,6 +277,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(RefundWebhookDetailsResponse {
             connector_refund_id: Some(webhook_body.psp_reference.clone()),
+            merchant_transaction_id: None,
             status,
             connector_response_reference_id: Some(webhook_body.psp_reference),
             error_code,
@@ -721,6 +722,7 @@ macros::macro_connector_flow_status_impls!(
         VoidPC,
     ],
     not_supported: [
+        VoidPostRefund,
         IncrementalAuthorization,
         ClientAuthenticationToken,
         SubmitEvidence,

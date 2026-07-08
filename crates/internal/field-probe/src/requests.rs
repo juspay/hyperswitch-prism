@@ -39,7 +39,8 @@ use grpc_api_types::payments::{
     PaymentClientAuthenticationContext, PaymentMethod,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateRequest,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceTokenizeRequest,
     PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
     PaymentServiceGetRequest, PaymentServiceIncrementalAuthorizationRequest,
     PaymentServiceProxyAuthorizeRequest, PaymentServiceProxySetupRecurringRequest,
@@ -197,6 +198,7 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
                     connector_mandate_id: Some("probe-mandate-123".to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 },
             )),
         }),
@@ -212,6 +214,17 @@ pub(crate) fn base_customer_create_request() -> CustomerServiceCreateRequest {
         customer_name: Some("John Doe".to_string()),
         email: Some(Secret::new("test@example.com".to_string())),
         phone_number: Some(Secret::new("4155552671".to_string())),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_eligibility_request() -> PaymentMethodServiceEligibilityRequest {
+    PaymentMethodServiceEligibilityRequest {
+        amount: Some(usd_money(1000)),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            shipping_address: None,
+        }),
         ..Default::default()
     }
 }
@@ -390,9 +403,11 @@ pub(crate) fn base_tokenized_setup_recurring_request() -> PaymentServiceTokenSet
         setup_mandate_details: Some(proto::SetupMandateDetails {
             mandate_type: Some(proto::MandateType {
                 mandate_type: Some(proto::mandate_type::MandateType::MultiUse(
+                    #[allow(deprecated)]
                     proto::MandateAmountData {
                         amount: 0,
                         currency: proto::Currency::Usd as i32,
+                        amount_money: Some(usd_money(0)),
                         ..Default::default()
                     },
                 )),

@@ -317,8 +317,8 @@
         "error": "This feature is not implemented: Selected payment method through Truelayer"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Truelayer"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -401,8 +401,8 @@
         "error": "This feature is not implemented: Selected payment method through Truelayer"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Truelayer"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -519,7 +519,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by truelayer connector"
       }
     },
     "get": {
@@ -595,6 +596,11 @@
           "headers": {},
           "body": "{\"type\":\"payment_executed\",\"payment_id\":\"probe_payment_001\"}"
         }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
       }
     },
     "post_authenticate": {

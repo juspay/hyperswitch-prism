@@ -14,12 +14,18 @@ export { connectors, getConnector } from "./connectors";
 export { adyenConnector } from "./connectors/adyen";
 export { paypalConnector } from "./connectors/paypal";
 export { globalpayConnector } from "./connectors/globalpay";
+export { cybersourceConnector } from "./connectors/cybersource";
 
 // Re-export connector React wrappers for direct use
 export { AdyenWrapper } from "./connectors/adyen/AdyenWrapper";
 export { StripeWrapper } from "./connectors/stripe/StripeWrapper";
 export { PayPalWrapper } from "./connectors/paypal/PayPalWrapper";
 export { GlobalPayWrapper } from "./connectors/globalpay/GlobalPayWrapper";
+export { MollieWrapper } from "./connectors/mollie/MollieWrapper";
+export { CybersourceWrapper } from "./connectors/cybersource/CybersourceWrapper";
+export { MollieKlarnaForm } from "./connectors/mollie/MollieKlarnaForm";
+export type { MollieKlarnaBilling } from "./connectors/mollie/MollieKlarnaForm";
+export { AuthorizedotnetWrapper } from "./connectors/authorizedotnet/AuthorizedotnetWrapper";
 
 // Payment button components
 export {
@@ -28,6 +34,7 @@ export {
   StripePaymentButton,
   AdyenPaymentButton,
   PayPalPaymentButton,
+  MolliePaymentButton,
   ManualTestPaymentButton,
 } from "./components/payment-buttons";
 export type {
@@ -35,20 +42,28 @@ export type {
   StripePaymentButtonProps,
   GlobalPayPaymentButtonProps,
   PayPalPaymentButtonProps,
+  MolliePaymentButtonProps,
   PaymentButtonProps,
 } from "./components/payment-buttons";
 
 // Medusa storefront integration components
 export { HyperswitchPrismConnectorPanel } from "./components/HyperswitchPrismConnectorPanel";
 export { HyperswitchPrismPaymentButton } from "./components/HyperswitchPrismPaymentButton";
+export { MollieReturnHandler } from "./components/MollieReturnHandler";
+export type { MollieReturnHandlerProps } from "./components/MollieReturnHandler";
 
-// Provider ID predicates and constants
+// Provider ID predicates and constants.
+// NOTE: for Next.js SERVER components, import these from the server-safe subpath
+// "@juspay-tech/medusa-custom-payments-react/predicates" instead of this barrel
+// (the barrel pulls in "use client" components → createContext error).
 export {
   isHyperswitchPrism,
   isHyperswitchPrismStripe,
   isHyperswitchPrismAdyen,
   isHyperswitchPrismPaypal,
   isHyperswitchPrismGlobalpay,
+  isHyperswitchPrismMollie,
+  isHyperswitchPrismPanel,
   HYPERSWITCH_PRISM_PROVIDER_IDS,
 } from "./utils/predicates";
 

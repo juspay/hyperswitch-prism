@@ -6,11 +6,25 @@ use crate::request::RequestData;
 use crate::utils::{self, get_config_from_request, grpc_logging_wrapper_with_parser};
 use common_enums;
 use common_utils::events::FlowName;
-use connector_integration::types::{ConnectorData, ConnectorDataProvider, SurchargeConnectorData};
+use connector_integration::types::{
+    ConnectorData, ConnectorDataProvider, FrmConnectorData, SurchargeConnectorData,
+};
 use domain_types::{
-    connector_flow::{SurchargePaymentSucceeded, SurchargeRefundSucceeded, VerifyWebhookSource},
+    connector_flow::{
+        FrmChargebackReceived, FrmPaymentOutcome, FrmRefundProcessed, SurchargePaymentSucceeded,
+        SurchargeRefundSucceeded, VerifyWebhookSource,
+    },
     connector_types::{VerifyWebhookSourceFlowData, WebhookIntegrityCheck},
     errors::WebhookError,
+    frm::frm_types::{
+        FrmChargebackReceivedRequest, FrmChargebackReceivedResponse, FrmFlowData,
+        FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse, FrmRefundProcessedRequest,
+        FrmRefundProcessedResponse,
+    },
+    frm::types::{
+        generate_frm_chargeback_received_response, generate_frm_payment_outcome_response,
+        generate_frm_refund_processed_response,
+    },
     payment_method_data::DefaultPCIHolder,
     router_data::ConnectorSpecificConfig,
     router_data::ErrorResponse,
@@ -324,6 +338,31 @@ impl EventService for EventServiceImpl {
                             )
                             .await
                         }
+                        grpc_api_types::payments::NotifyEventType::FrmPaymentSucceeded
+                        | grpc_api_types::payments::NotifyEventType::FrmPaymentFailure => {
+                            Self::handle_frm_payment_outcome_notify(
+                                request_data,
+                                &service_name,
+                                config,
+                            )
+                            .await
+                        }
+                        grpc_api_types::payments::NotifyEventType::FrmRefundProcessed => {
+                            Self::handle_frm_refund_processed_notify(
+                                request_data,
+                                &service_name,
+                                config,
+                            )
+                            .await
+                        }
+                        grpc_api_types::payments::NotifyEventType::FrmChargebackReceived => {
+                            Self::handle_frm_chargeback_received_notify(
+                                request_data,
+                                &service_name,
+                                config,
+                            )
+                            .await
+                        }
                         other_event_type => Err(tonic::Status::invalid_argument(format!(
                             "Unsupported event type: {}",
                             other_event_type.as_str_name()
@@ -345,6 +384,7 @@ impl EventServiceImpl {
         tracing::info!("SURCHARGE_PAYMENT_SUCCEEDED_FLOW: initiated");
 
         let metadata_payload = request_data.extracted_metadata;
+        let masked_metadata = request_data.masked_metadata;
         let req = request_data.payload;
 
         let connector_data: SurchargeConnectorData = ConnectorDataProvider::from_connector_variant(
@@ -366,7 +406,7 @@ impl EventServiceImpl {
         let common_flow_data = SurchargeFlowData::foreign_try_from((
             req.clone(),
             config.connectors.clone(),
-            &common_utils::metadata::MaskedMetadata::default(),
+            &masked_metadata,
         ))
         .into_grpc_status()?;
 
@@ -398,6 +438,7 @@ impl EventServiceImpl {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
         };
 
         let response_result = Box::pin(
@@ -433,6 +474,7 @@ impl EventServiceImpl {
         tracing::info!("SURCHARGE_REFUND_SUCCEEDED_FLOW: initiated");
 
         let metadata_payload = request_data.extracted_metadata;
+        let masked_metadata = request_data.masked_metadata;
         let req = request_data.payload;
 
         let connector_data: SurchargeConnectorData = ConnectorDataProvider::from_connector_variant(
@@ -454,7 +496,7 @@ impl EventServiceImpl {
         let common_flow_data = SurchargeFlowData::foreign_try_from((
             req.clone(),
             config.connectors.clone(),
-            &common_utils::metadata::MaskedMetadata::default(),
+            &masked_metadata,
         ))
         .into_grpc_status()?;
 
@@ -486,6 +528,7 @@ impl EventServiceImpl {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
         };
 
         let response_result = Box::pin(
@@ -509,6 +552,267 @@ impl EventServiceImpl {
                 response_result,
             )
             .into_grpc_status()?;
+
+        Ok(tonic::Response::new(final_response))
+    }
+
+    async fn handle_frm_payment_outcome_notify(
+        request_data: RequestData<NotifyConnectorRequest>,
+        service_name: &str,
+        config: std::sync::Arc<Config>,
+    ) -> Result<tonic::Response<NotifyConnectorResponse>, tonic::Status> {
+        tracing::info!("FRM_PAYMENT_OUTCOME_FLOW: initiated");
+
+        let metadata_payload = request_data.extracted_metadata;
+        let masked_metadata = request_data.masked_metadata;
+        let req = request_data.payload;
+
+        let connector_data: FrmConnectorData = ConnectorDataProvider::from_connector_variant(
+            &metadata_payload.connector,
+        )
+        .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+
+        let connector_integration: BoxedConnectorIntegrationV2<
+            '_,
+            FrmPaymentOutcome,
+            FrmFlowData,
+            FrmPaymentOutcomeRequest,
+            FrmPaymentOutcomeResponse,
+        > = connector_data.connector.get_connector_integration_v2();
+
+        let request_data =
+            FrmPaymentOutcomeRequest::foreign_try_from(req.clone()).into_grpc_status()?;
+
+        let common_flow_data = FrmFlowData::foreign_try_from((
+            req.clone(),
+            config.connectors.clone(),
+            &masked_metadata,
+        ))
+        .into_grpc_status()?;
+
+        let router_data = RouterDataV2::<
+            FrmPaymentOutcome,
+            FrmFlowData,
+            FrmPaymentOutcomeRequest,
+            FrmPaymentOutcomeResponse,
+        > {
+            flow: std::marker::PhantomData,
+            resource_common_data: common_flow_data,
+            connector_config: metadata_payload.connector_config,
+            request: request_data,
+            response: Err(ErrorResponse::default()),
+        };
+
+        let event_params = EventProcessingParams {
+            connector_name: connector_data.connector.id(),
+            service_name,
+            service_type: utils::service_type_str(&config.server.type_),
+            flow_name: FlowName::NotifyConnector,
+            event_config: &config.events,
+            request_id: &req.event_id,
+            lineage_ids: &metadata_payload.lineage_ids,
+            reference_id: &metadata_payload.reference_id,
+            resource_id: &metadata_payload.resource_id,
+            shadow_mode: metadata_payload.shadow_mode,
+            proxy_name: metadata_payload.proxy_name.as_deref(),
+            tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
+            return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
+        };
+
+        let response_result = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                None,
+                common_enums::CallConnectorAction::Trigger,
+                None,
+                None,
+            ),
+        )
+        .await
+        .into_grpc_status()?;
+
+        let final_response =
+            generate_frm_payment_outcome_response(response_result).into_grpc_status()?;
+
+        Ok(tonic::Response::new(final_response))
+    }
+
+    async fn handle_frm_refund_processed_notify(
+        request_data: RequestData<NotifyConnectorRequest>,
+        service_name: &str,
+        config: std::sync::Arc<Config>,
+    ) -> Result<tonic::Response<NotifyConnectorResponse>, tonic::Status> {
+        tracing::info!("FRM_REFUND_PROCESSED_FLOW: initiated");
+
+        let metadata_payload = request_data.extracted_metadata;
+        let masked_metadata = request_data.masked_metadata;
+        let req = request_data.payload;
+
+        let connector_data: FrmConnectorData = ConnectorDataProvider::from_connector_variant(
+            &metadata_payload.connector,
+        )
+        .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+
+        let connector_integration: BoxedConnectorIntegrationV2<
+            '_,
+            FrmRefundProcessed,
+            FrmFlowData,
+            FrmRefundProcessedRequest,
+            FrmRefundProcessedResponse,
+        > = connector_data.connector.get_connector_integration_v2();
+
+        let request_data =
+            FrmRefundProcessedRequest::foreign_try_from(req.clone()).into_grpc_status()?;
+
+        let common_flow_data = FrmFlowData::foreign_try_from((
+            req.clone(),
+            config.connectors.clone(),
+            &masked_metadata,
+        ))
+        .into_grpc_status()?;
+
+        let router_data = RouterDataV2::<
+            FrmRefundProcessed,
+            FrmFlowData,
+            FrmRefundProcessedRequest,
+            FrmRefundProcessedResponse,
+        > {
+            flow: std::marker::PhantomData,
+            resource_common_data: common_flow_data,
+            connector_config: metadata_payload.connector_config,
+            request: request_data,
+            response: Err(ErrorResponse::default()),
+        };
+
+        let event_params = EventProcessingParams {
+            connector_name: connector_data.connector.id(),
+            service_name,
+            service_type: utils::service_type_str(&config.server.type_),
+            flow_name: FlowName::NotifyConnector,
+            event_config: &config.events,
+            request_id: &req.event_id,
+            lineage_ids: &metadata_payload.lineage_ids,
+            reference_id: &metadata_payload.reference_id,
+            resource_id: &metadata_payload.resource_id,
+            shadow_mode: metadata_payload.shadow_mode,
+            proxy_name: metadata_payload.proxy_name.as_deref(),
+            tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
+            return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
+        };
+
+        let response_result = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                None,
+                common_enums::CallConnectorAction::Trigger,
+                None,
+                None,
+            ),
+        )
+        .await
+        .into_grpc_status()?;
+
+        let final_response =
+            generate_frm_refund_processed_response(response_result).into_grpc_status()?;
+
+        Ok(tonic::Response::new(final_response))
+    }
+
+    async fn handle_frm_chargeback_received_notify(
+        request_data: RequestData<NotifyConnectorRequest>,
+        service_name: &str,
+        config: std::sync::Arc<Config>,
+    ) -> Result<tonic::Response<NotifyConnectorResponse>, tonic::Status> {
+        tracing::info!("FRM_CHARGEBACK_RECEIVED_FLOW: initiated");
+
+        let metadata_payload = request_data.extracted_metadata;
+        let masked_metadata = request_data.masked_metadata;
+        let req = request_data.payload;
+
+        let connector_data: FrmConnectorData = ConnectorDataProvider::from_connector_variant(
+            &metadata_payload.connector,
+        )
+        .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+
+        let connector_integration: BoxedConnectorIntegrationV2<
+            '_,
+            FrmChargebackReceived,
+            FrmFlowData,
+            FrmChargebackReceivedRequest,
+            FrmChargebackReceivedResponse,
+        > = connector_data.connector.get_connector_integration_v2();
+
+        let request_data =
+            FrmChargebackReceivedRequest::foreign_try_from(req.clone()).into_grpc_status()?;
+
+        let common_flow_data = FrmFlowData::foreign_try_from((
+            req.clone(),
+            config.connectors.clone(),
+            &masked_metadata,
+        ))
+        .into_grpc_status()?;
+
+        let router_data = RouterDataV2::<
+            FrmChargebackReceived,
+            FrmFlowData,
+            FrmChargebackReceivedRequest,
+            FrmChargebackReceivedResponse,
+        > {
+            flow: std::marker::PhantomData,
+            resource_common_data: common_flow_data,
+            connector_config: metadata_payload.connector_config,
+            request: request_data,
+            response: Err(ErrorResponse::default()),
+        };
+
+        let event_params = EventProcessingParams {
+            connector_name: connector_data.connector.id(),
+            service_name,
+            service_type: utils::service_type_str(&config.server.type_),
+            flow_name: FlowName::NotifyConnector,
+            event_config: &config.events,
+            request_id: &req.event_id,
+            lineage_ids: &metadata_payload.lineage_ids,
+            reference_id: &metadata_payload.reference_id,
+            resource_id: &metadata_payload.resource_id,
+            shadow_mode: metadata_payload.shadow_mode,
+            proxy_name: metadata_payload.proxy_name.as_deref(),
+            tenant_id: &metadata_payload.tenant_id,
+            merchant_id: metadata_payload.merchant_id.as_str(),
+            return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
+        };
+
+        let response_result = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                None,
+                common_enums::CallConnectorAction::Trigger,
+                None,
+                None,
+            ),
+        )
+        .await
+        .into_grpc_status()?;
+
+        let final_response =
+            generate_frm_chargeback_received_response(response_result).into_grpc_status()?;
 
         Ok(tonic::Response::new(final_response))
     }
@@ -582,6 +886,7 @@ async fn verify_webhook_source_external(
         tenant_id: &metadata_payload.tenant_id,
         merchant_id: metadata_payload.merchant_id.as_str(),
         return_raw_connector_data: config.common.return_raw_connector_data,
+        connector_latency: metadata_payload.connector_latency.clone(),
     };
 
     match Box::pin(

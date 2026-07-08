@@ -318,7 +318,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -402,7 +402,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Billwerk authorize only accepts a tokenized payment source (ct_ or ca_ prefixed token). Raw card data is not accepted. is not supported by billwerk. Billwerk requires a tokenized payment source (ct_ or ca_ prefixed token) in the source field. Raw card data is not accepted."
       },
       "Sofort": {
         "status": "not_supported",
@@ -527,7 +527,8 @@
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by billwerk connector"
       }
     },
     "get": {
@@ -566,6 +567,11 @@
       }
     },
     "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -747,7 +753,11 @@
             "mandate_type": {
               "multi_use": {
                 "amount": 0,
-                "currency": "USD"
+                "currency": "USD",
+                "amount_money": {
+                  "minor_amount": 0,
+                  "currency": "USD"
+                }
               }
             }
           },

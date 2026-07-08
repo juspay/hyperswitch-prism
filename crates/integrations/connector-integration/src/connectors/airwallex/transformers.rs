@@ -617,6 +617,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResp
                 connector_response_reference_id: item.response.payment_intent_id,
                 incremental_authorization_allowed: Some(false), // Airwallex doesn't support incremental auth
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -658,6 +659,7 @@ impl TryFrom<ResponseRouterData<AirwallexSyncResponse, Self>>
                 connector_response_reference_id: Some(intent_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -765,6 +767,7 @@ impl TryFrom<ResponseRouterData<AirwallexCaptureResponse, Self>>
                 connector_response_reference_id: item.response.payment_intent_id,
                 incremental_authorization_allowed: Some(false), // Airwallex doesn't support incremental auth
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1022,6 +1025,7 @@ impl TryFrom<ResponseRouterData<AirwallexVoidResponse, Self>>
                 connector_response_reference_id: item.response.payment_intent_id,
                 incremental_authorization_allowed: Some(false), // Airwallex doesn't support incremental auth
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1608,6 +1612,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexSetupMandate
                 // reference it as `payment_method.id`.
                 payment_method_id: airwallex_payment_method_id,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
             .map(Box::new);
 
@@ -1622,6 +1627,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexSetupMandate
                 connector_response_reference_id: item.response.payment_intent_id,
                 incremental_authorization_allowed: Some(false),
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1771,6 +1777,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexRepeatPaymen
                 connector_response_reference_id: item.response.payment_intent_id,
                 incremental_authorization_allowed: Some(false),
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

@@ -224,7 +224,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
-            | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 "Payment method".to_string(),
                 Default::default(),
             ))?,
@@ -1372,6 +1373,7 @@ where
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             });
 
         let auto_capture = matches!(
@@ -1411,6 +1413,7 @@ where
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -1570,6 +1573,7 @@ impl<F, T> TryFrom<ResponseRouterData<AciCaptureResponse, Self>>
                 connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
         Ok(Self {
@@ -1634,6 +1638,7 @@ impl<F, T> TryFrom<ResponseRouterData<AciVoidResponse, Self>>
                 connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
         Ok(Self {
@@ -1783,6 +1788,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         });
 
         let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {
@@ -1816,6 +1822,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 

@@ -117,6 +117,7 @@ mod tests {
 
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -146,6 +147,7 @@ mod tests {
                     }),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: Some(email.clone()),
                     customer_name: None,
                     currency: Currency::USD,
@@ -209,7 +211,9 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    mit_category: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -312,6 +316,7 @@ mod tests {
                     amount: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -340,6 +345,7 @@ mod tests {
                     }),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: None,
                     customer_name: None,
                     currency: Currency::USD,
@@ -382,7 +388,9 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    mit_category: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_01".to_string(),
@@ -459,6 +467,7 @@ mod tests {
                     amount: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -487,6 +496,7 @@ mod tests {
                     }),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: Some(email),
                     customer_name: None,
                     currency: Currency::USD,
@@ -529,7 +539,9 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    mit_category: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_02".to_string(),
@@ -629,6 +641,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -658,6 +671,7 @@ mod tests {
                     }),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: Some(email),
                     customer_name: None,
                     currency: Currency::USD,
@@ -721,7 +735,9 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    mit_category: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_00".to_string(),
@@ -995,6 +1011,7 @@ mod tests {
                 minor_amount_capturable: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
                 merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1023,6 +1040,7 @@ mod tests {
                 }),
                 amount: MinorUnit::new(1000),
                 order_tax_amount: None,
+                surcharge_amount: None,
                 email: Some(email),
                 customer_name: None,
                 currency: Currency::USD,
@@ -1084,7 +1102,9 @@ mod tests {
                 redirect_response: None,
                 threeds_method_comp_ind: None,
                 tokenization: None,
+                mit_category: None,
                 domain_data: None,
+                partner_merchant_identifier_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1199,6 +1219,7 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1226,6 +1247,7 @@ mod tests {
                 }),
                 amount: MinorUnit::new(1000),
                 order_tax_amount: None,
+                surcharge_amount: None,
                 email: Some(email),
                 customer_name: None,
                 currency: Currency::USD,
@@ -1287,7 +1309,9 @@ mod tests {
                 redirect_response: None,
                 threeds_method_comp_ind: None,
                 tokenization: None,
+                mit_category: None,
                 domain_data: None,
+                partner_merchant_identifier_details: None,
             },
             response: Err(ErrorResponse {
                 code: "HE_00".to_string(),
@@ -1403,6 +1427,7 @@ mod tests {
                     order_details: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1525,6 +1550,7 @@ mod tests {
                     l2_l3_data: None,
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1648,6 +1674,7 @@ mod tests {
                     order_details: None,
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
+                    settlement_status: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1676,6 +1703,7 @@ mod tests {
                     }),
                     amount: MinorUnit::new(1000),
                     order_tax_amount: None,
+                    surcharge_amount: None,
                     email: None,
                     customer_name: None,
                     currency: Currency::USD,
@@ -1718,7 +1746,9 @@ mod tests {
                     redirect_response: None,
                     threeds_method_comp_ind: None,
                     tokenization: None,
+                    mit_category: None,
                     domain_data: None,
+                    partner_merchant_identifier_details: None,
                 },
                 response: Err(ErrorResponse {
                     code: "HE_INVALID".to_string(),
@@ -1817,6 +1847,7 @@ mod tests {
                 l2_l3_data: None,
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1949,6 +1980,7 @@ mod tests {
                 order_details: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
                 merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
@@ -2071,6 +2103,7 @@ mod tests {
                 order_details: None,
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
+                settlement_status: None,
                 merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {

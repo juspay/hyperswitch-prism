@@ -60,8 +60,8 @@ def _build_parse_event_request():
         request_details=payment_pb2.RequestDetails(
             method=payment_pb2.HttpMethod.Value("HTTP_METHOD_POST"),  # HTTP method of the request (e.g., GET, POST).
             uri="https://example.com/webhook",  # URI of the request.
-            headers=payment_pb2.HeadersEntry(),  # Headers of the HTTP request.
-            body="{\"type\":\"payment_executed\",\"payment_id\":\"probe_payment_001\"}",  # Body of the HTTP request.
+            headers={},  # Headers of the HTTP request.
+            body="{\"type\":\"payment_executed\",\"payment_id\":\"probe_payment_001\"}".encode(),  # Body of the HTTP request.
         ),
     )
 
@@ -100,9 +100,9 @@ async def process_parse_event(merchant_transaction_id: str, config: sdk_config_p
     """Flow: EventService.ParseEvent"""
     event_client = EventClient(config)
 
-    parse_response = await event_client.parse_event(_build_parse_event_request())
+    parse_response = event_client.parse_event(_build_parse_event_request())
 
-    return {"status": parse_response.status}
+    return {"event_type": parse_response.event_type}
 
 
 async def process_refund_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

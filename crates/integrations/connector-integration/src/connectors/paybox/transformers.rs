@@ -357,6 +357,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxAuthorizeRespon
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status,
@@ -512,6 +513,7 @@ impl TryFrom<ResponseRouterData<PayboxPSyncResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -654,6 +656,7 @@ impl TryFrom<ResponseRouterData<PayboxCaptureResponse, Self>>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Charged,
@@ -816,6 +819,7 @@ impl TryFrom<ResponseRouterData<PayboxVoidResponse, Self>>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Voided,
@@ -1290,6 +1294,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateRes
                     .customer_id
                     .as_ref()
                     .map(|id| id.peek().to_string()),
+                mandate_metadata: None,
             }));
 
             Ok(Self {
@@ -1305,6 +1310,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxSetupMandateRes
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: AttemptStatus::Charged,
@@ -1545,6 +1551,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxRepeatPaymentRe
                                 .customer_id
                                 .as_ref()
                                 .map(|id| id.peek().to_string()),
+                            mandate_metadata: None,
                         })
                     });
 
@@ -1561,6 +1568,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PayboxRepeatPaymentRe
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status,

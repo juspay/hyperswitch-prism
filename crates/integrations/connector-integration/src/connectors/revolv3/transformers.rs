@@ -471,6 +471,7 @@ impl Revolv3SaleResponse {
                     connector_mandate_id: Some(connector_mandate_id.to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 }
             });
 
@@ -484,6 +485,7 @@ impl Revolv3SaleResponse {
                 connector_response_reference_id: self.merchant_invoice_ref_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code,
+                splits: None,
             })
         };
 
@@ -503,6 +505,7 @@ impl Revolv3AuthorizeResponse {
                     connector_mandate_id: Some(connector_mandate_id.to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 }
             })
         });
@@ -526,6 +529,7 @@ impl Revolv3AuthorizeResponse {
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code,
+                    splits: None,
                 }),
             }),
             _ => Ok(DerivedPaymentResponse {
@@ -681,6 +685,7 @@ impl TryFrom<ResponseRouterData<Revolv3PaymentSyncResponse, Self>>
                             connector_mandate_id: Some(connector_mandate_id.to_string()),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         },
                     )
             });
@@ -697,6 +702,7 @@ impl TryFrom<ResponseRouterData<Revolv3PaymentSyncResponse, Self>>
                 connector_response_reference_id: item.response.merchant_invoice_ref_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -1026,6 +1032,7 @@ impl TryFrom<ResponseRouterData<Revolv3AuthReversalResponse, Self>>
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Voided,

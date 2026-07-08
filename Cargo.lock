@@ -4098,6 +4098,7 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 1.0.69",
  "time 0.3.47",
+ "tracing",
  "tracing-actix-web",
  "ucs_common_enums",
  "ucs_common_utils",

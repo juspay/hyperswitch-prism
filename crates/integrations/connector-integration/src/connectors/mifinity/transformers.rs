@@ -232,7 +232,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Mifinity"),
                     Default::default(),
                 )
@@ -334,6 +335,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         connector_response_reference_id: Some(trace_id),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status: enums::AttemptStatus::AuthenticationPending,
@@ -353,6 +355,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: enums::AttemptStatus::AuthenticationPending,
@@ -426,6 +429,7 @@ impl<F> TryFrom<ResponseRouterData<MifinityPsyncResponse, Self>>
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
                                 status_code: item.http_code,
+                                splits: None,
                             }),
                             resource_common_data: PaymentFlowData {
                                 status: enums::AttemptStatus::from(status),
@@ -445,6 +449,7 @@ impl<F> TryFrom<ResponseRouterData<MifinityPsyncResponse, Self>>
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         }),
                         resource_common_data: PaymentFlowData {
                             status: enums::AttemptStatus::from(status),
@@ -465,6 +470,7 @@ impl<F> TryFrom<ResponseRouterData<MifinityPsyncResponse, Self>>
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 }),
                 resource_common_data: PaymentFlowData {
                     status: enums::AttemptStatus::Unspecified,
