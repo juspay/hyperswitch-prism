@@ -1394,10 +1394,6 @@ where
                     network_decline_code: None,
                     network_error_message: None,
                 }),
-                resource_common_data: PaymentFlowData {
-                    status: common_enums::AttemptStatus::Failure,
-                    ..router_data.resource_common_data
-                },
                 ..router_data
             }),
             FiuuPaymentsResponse::PaymentResponse(data) => match data.txn_data.request_data {
@@ -1444,21 +1440,11 @@ where
                                     mandate_metadata: None,
                                 })
                             });
-                    let status = match non_threeds_data.status.as_str() {
-                        "00" => Ok(if router_data.request.is_auto_capture() {
-                            common_enums::AttemptStatus::Charged
-                        } else {
-                            common_enums::AttemptStatus::Authorized
-                        }),
-                        "11" => Ok(common_enums::AttemptStatus::Failure),
-                        "22" => Ok(common_enums::AttemptStatus::Pending),
-                        other => Err(error_stack::Report::from(
-                            crate::utils::unexpected_response_fail(
-                                item.http_code,
-                            "fiuu: unexpected response for this operation; retry with idempotency keys and check connector status."),
-                        )
-                        .attach_printable(other.to_owned())),
-                    }?;
+                    let status = fiuu_authorize_non_threeds_status(
+                        non_threeds_data.status.as_str(),
+                        router_data.request.is_auto_capture(),
+                        item.http_code,
+                    )?;
                     let response = if status == common_enums::AttemptStatus::Failure {
                         Err(ErrorResponse {
                             code: non_threeds_data
@@ -2721,7 +2707,124 @@ impl From<FiuuRefundsWebhookStatus> for common_enums::RefundStatus {
     }
 }
 
-//new additions  structs
+fn add_primitive_form_field(
+    form: &mut MultipartData,
+    name: impl Into<String>,
+    value: impl Serialize,
+) {
+    match serde_json::to_value(value) {
+        Ok(Value::String(s)) => form.add_text(name, s),
+        Ok(Value::Number(n)) => form.add_text(name, n.to_string()),
+        Ok(Value::Bool(b)) => form.add_text(name, b.to_string()),
+        Ok(Value::Null) | Ok(Value::Array(_)) | Ok(Value::Object(_)) | Err(_) => {
+            form.add_text(name, "")
+        }
+    }
+}
+
+fn add_fiuu_payment_request_common_fields<T>(
+    form: &mut MultipartData,
+    request: &FiuuPaymentRequest<T>,
+) where
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+{
+    add_primitive_form_field(form, "MerchantID", &request.merchant_id);
+    add_primitive_form_field(form, "ReferenceNo", &request.reference_no);
+    add_primitive_form_field(form, "TxnType", &request.txn_type);
+    add_primitive_form_field(form, "TxnCurrency", &request.txn_currency);
+    add_primitive_form_field(form, "TxnAmount", &request.txn_amount);
+    add_primitive_form_field(form, "Signature", &request.signature);
+    add_primitive_form_field(form, "ReturnURL", &request.return_url);
+    add_primitive_form_field(form, "NotificationURL", &request.notification_url);
+}
+
+fn add_fiuu_google_pay_form_data<T>(
+    form: &mut MultipartData,
+    request: &FiuuPaymentRequest<T>,
+    data: &FiuuGooglePayData,
+) where
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+{
+    add_fiuu_payment_request_common_fields(form, request);
+    add_primitive_form_field(form, "TxnChannel", &data.txn_channel);
+    add_primitive_form_field(form, "GooglePay[apiVersion]", &data.api_version);
+    add_primitive_form_field(form, "GooglePay[apiVersionMinor]", &data.api_version_minor);
+    add_primitive_form_field(
+        form,
+        "GooglePay[paymentMethodData][info][assuranceDetails][accountVerified]",
+        &data.account_verified,
+    );
+    add_primitive_form_field(
+        form,
+        "GooglePay[paymentMethodData][info][assuranceDetails][cardHolderAuthenticated]",
+        &data.card_holder_authenticated,
+    );
+    add_primitive_form_field(
+        form,
+        "GooglePay[paymentMethodData][info][cardDetails]",
+        &data.card_details,
+    );
+    add_primitive_form_field(
+        form,
+        "GooglePay[paymentMethodData][info][cardNetwork]",
+        &data.card_network,
+    );
+    add_primitive_form_field(
+        form,
+        "GooglePay[paymentMethodData][tokenizationData][token]",
+        &data.token,
+    );
+    add_primitive_form_field(
+        form,
+        "GooglePay[paymentMethodData][tokenizationData][type]",
+        &data.tokenization_data_type,
+    );
+    add_primitive_form_field(form, "GooglePay[paymentMethodData][type]", &data.pm_type);
+    add_primitive_form_field(form, "TokenType", &data.token_type);
+    add_primitive_form_field(form, "non_3DS", &data.non_3ds);
+}
+
+fn add_fiuu_apple_pay_form_data<T>(
+    form: &mut MultipartData,
+    request: &FiuuPaymentRequest<T>,
+    data: &FiuuApplePayData,
+) where
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+{
+    add_fiuu_payment_request_common_fields(form, request);
+    add_primitive_form_field(form, "TxnChannel", &data.txn_channel);
+    add_primitive_form_field(form, "CC_MONTH", &data.cc_month);
+    add_primitive_form_field(form, "CC_YEAR", &data.cc_year);
+    add_primitive_form_field(form, "CC_TOKEN", &data.cc_token);
+    if let Some(eci) = &data.eci {
+        add_primitive_form_field(form, "ECI", eci);
+    }
+    add_primitive_form_field(form, "TOKEN_CRYPTOGRAM", &data.token_cryptogram);
+    add_primitive_form_field(form, "TOKEN_TYPE", &data.token_type);
+    add_primitive_form_field(form, "non_3DS", &data.non_3ds);
+}
+
+fn fiuu_authorize_non_threeds_status(
+    status: &str,
+    is_auto_capture: bool,
+    http_code: u16,
+) -> Result<common_enums::AttemptStatus, error_stack::Report<ConnectorError>> {
+    match status {
+        "00" => Ok(if is_auto_capture {
+            common_enums::AttemptStatus::Charged
+        } else {
+            common_enums::AttemptStatus::Authorized
+        }),
+        "11" => Ok(common_enums::AttemptStatus::Failure),
+        "22" => Ok(common_enums::AttemptStatus::Pending),
+        other => Err(error_stack::Report::from(crate::utils::unexpected_response_fail(
+            http_code,
+            "fiuu: unexpected response for this operation; retry with idempotency keys and check connector status.",
+        ))
+        .attach_printable(other.to_owned())),
+    }
+}
+
 #[derive(Serialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum FiuuPaymentsRequest<
@@ -2736,9 +2839,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 {
     fn get_form_data(&self) -> MultipartData {
         match self {
-            Self::FiuuPaymentRequest(req) => {
-                build_form_from_struct(req).unwrap_or_else(|_| MultipartData::new())
-            }
+            Self::FiuuPaymentRequest(req) => req.get_form_data(),
             Self::FiuuMandateRequest(req) => {
                 build_form_from_struct(req).unwrap_or_else(|_| MultipartData::new())
             }
@@ -2749,7 +2850,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     for FiuuPaymentRequest<T>
 {
     fn get_form_data(&self) -> MultipartData {
-        build_form_from_struct(self).unwrap_or_else(|_| MultipartData::new())
+        match &self.payment_method_data {
+            FiuuPaymentMethodData::FiuuGooglePayData(data) => {
+                let mut form = MultipartData::new();
+                add_fiuu_google_pay_form_data(&mut form, self, data);
+                form
+            }
+            FiuuPaymentMethodData::FiuuApplePayData(data) => {
+                let mut form = MultipartData::new();
+                add_fiuu_apple_pay_form_data(&mut form, self, data);
+                form
+            }
+            _ => build_form_from_struct(self).unwrap_or_else(|_| MultipartData::new()),
+        }
     }
 }
 impl GetFormData for FiuuPaymentSyncRequest {
