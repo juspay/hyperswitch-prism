@@ -7,14 +7,19 @@ use domain_types::errors::{
     ConnectorError, IntegrationError, IntegrationErrorContext, WebhookError,
 };
 use domain_types::{
-    connector_flow::{Authorize, Capture, CreateOrder, RSync, Refund},
+    connector_flow::{
+        Authorize, Capture, CreateOrder, RSync, Refund, ServerSessionAuthenticationToken,
+    },
     connector_types::{
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
         PaymentsCaptureData, PaymentsResponseData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, ResponseId,
+        RefundsResponseData, ResponseId, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        self, Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
+        BankRedirectData, Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        WalletData,
     },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -176,7 +181,6 @@ pub enum RazorpayCardSpecificData<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 > {
     Card(CardDetails<T>),
-    Wallet(RazorpayWalletType),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -260,7 +264,11 @@ impl TryFrom<&ConnectorSpecificConfig> for RazorpayAuthType {
                 }),
             },
             _ => Err(IntegrationError::FailedToObtainAuthType {
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some("Pass Razorpay credentials via x-connector-config with api_key and api_secret".to_owned()),
+                    doc_url: Some("https://razorpay.com/docs/api/#authentication".to_owned()),
+                    additional_context: Some("Expected ConnectorSpecificConfig::Razorpay with api_key (key_id) and api_secret (key_secret)".to_owned()),
+                },
             }),
         }
     }
@@ -296,7 +304,9 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             WalletData::BillDeskRedirect(_) => Ok(Self::BillDesk),
             WalletData::CashfreeRedirect(_) => Ok(Self::Cashfree),
             WalletData::PayURedirect(_) => Ok(Self::PayU),
-            WalletData::EaseBuzzRedirect(_) => Ok(Self::EaseBuzz),
+            WalletData::EaseBuzzRedirect(_) | WalletData::QwikcilverWalletDirect(_) => {
+                Ok(Self::EaseBuzz)
+            }
             WalletData::AliPayQr(_)
             | WalletData::AliPayRedirect(_)
             | WalletData::AliPayHkRedirect(_)
@@ -330,9 +340,11 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => Err(IntegrationError::not_implemented(format!(
-                "Payment Method {wallet_data:?} not supported for Razorpay"
-            ))),
+            | WalletData::Wero(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
+                format!("Payment Method {wallet_data:?} not supported for Razorpay"),
+                Default::default(),
+            )),
         }
     }
 }
@@ -426,7 +438,17 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .and_then(|phone| phone.number.clone())
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "contact",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide billing phone number in the address".to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://razorpay.com/docs/api/payments/#create-a-payment".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Razorpay requires a contact phone number for payment creation".to_owned(),
+                    ),
+                },
             })?;
 
         let billing_email = item
@@ -439,24 +461,47 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .or(item.router_data.request.email.clone())
             .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "email",
-                context: Default::default(),
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Provide customer email in billing address or request".to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://razorpay.com/docs/api/payments/#create-a-payment".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Razorpay requires a customer email for payment creation".to_owned(),
+                    ),
+                },
             })?;
 
         let order_id = item
             .router_data
             .resource_common_data
             .connector_order_id
-            .clone()
+            .as_ref()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "connector_order_id",
-                context: Default::default(),
-            })?;
+                field_name: "order_id (connector_order_id)",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Call `PaymentService.CreateOrder` first; the returned id is stored in \
+                         `connector_order_id` on the Authorize request."
+                            .to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://razorpay.com/docs/api/orders/#create-an-order".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Razorpay requires a pre-created `order_id` in the payment create \
+                         request; it cannot be omitted."
+                            .to_owned(),
+                    ),
+                },
+            })?
+            .clone();
 
-        let browser_info_opt = item.router_data.request.browser_info.as_ref();
         let customer_name = item.router_data.request.customer_name.clone();
+        let browser_info_opt = item.router_data.request.browser_info.as_ref();
 
-        // Dispatch per payment method: only Card and Wallet are supported.
-        // Authentication and browser fields are populated only for Card flows.
         let (method, card, wallet, authentication, browser) =
             match &item.router_data.request.payment_method_data {
                 PaymentMethodData::Card(card_data) => {
@@ -498,6 +543,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         None,
                     )
                 }
+                // Netbanking uses RazorpayNetbankingRequest via a separate flow
+                PaymentMethodData::BankRedirect(BankRedirectData::Netbanking { .. }) => {
+                    return Err(IntegrationError::NotImplemented(
+                        "Netbanking uses RazorpayNetbankingRequest, not RazorpayPaymentRequest"
+                            .to_string(),
+                        Default::default(),
+                    )
+                    .into())
+                }
                 pm @ (PaymentMethodData::CardRedirect(_)
                 | PaymentMethodData::PayLater(_)
                 | PaymentMethodData::BankRedirect(_)
@@ -516,9 +570,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::MobilePayment(_)
                 | PaymentMethodData::OpenBanking(_)) => {
-                    return Err(IntegrationError::not_implemented(format!(
-                        "Payment Method {pm:?} not supported for Razorpay"
-                    ))
+                    return Err(IntegrationError::NotImplemented(
+                        format!("Payment Method {pm:?} not supported for Razorpay"),
+                        Default::default(),
+                    )
                     .into())
                 }
             };
@@ -851,7 +906,13 @@ impl<F, Req>
                     .map(|action| action.url.clone())
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "next.url",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "3DS redirect URL missing in Razorpay authorize response"
+                                    .to_owned(),
+                            ),
+                            ..Default::default()
+                        },
                     })?;
 
                 let form_fields = HashMap::new();
@@ -867,10 +928,12 @@ impl<F, Req>
                     })),
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: data.resource_common_data.reference_id.clone(),
                     incremental_authorization_allowed: None,
                     mandate_reference: None,
                     status_code: _http_code,
+                    splits: None,
                 };
                 let error = None;
 
@@ -896,7 +959,7 @@ impl<F, Req>
                         domain_types::router_data::ConnectorResponseData::
                             with_additional_payment_method_data(
                                 domain_types::router_data::AdditionalPaymentMethodConnectorResponse::Upi {
-                                    upi_mode: Some(payment_method_data::UpiSource::UpiCc)
+                                    upi_mode: Some(domain_types::payment_method_data::UpiSource::UpiCc)
 },
                             )
                     });
@@ -906,10 +969,12 @@ impl<F, Req>
                     redirection_data: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: data.resource_common_data.reference_id.clone(),
                     incremental_authorization_allowed: None,
                     mandate_reference: None,
                     status_code: _http_code,
+                    splits: None,
                 };
                 let error = None;
 
@@ -1129,6 +1194,108 @@ impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16, bool)>
                 connector_order_id: Some(response.id),
                 ..data.resource_common_data
             },
+            ..data
+        })
+    }
+}
+
+// ================================
+// ServerSessionAuthenticationToken (SDKSessionToken) Flow
+// ================================
+//
+// Razorpay's Standard Checkout (SDK Session Token) flow creates an Order
+// server-side (POST /v1/orders, HTTP Basic auth) to obtain an `order_id`,
+// which is surfaced as the session token handed to the client-side
+// Razorpay Checkout JS SDK.
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct RazorpaySessionTokenRequest {
+    // `amount` and `currency` are mandatory because Razorpay's session-token flow creates
+    // an Order server-side (POST /v1/orders); order creation requires both fields.
+    pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub receipt: Option<String>,
+    // Always auto-capture for the standard checkout / SDK session flow, so this is not
+    // optional (Razorpay's `payment_capture` serializes as `1`).
+    pub payment_capture: i8,
+}
+
+impl
+    TryFrom<
+        &RazorpayRouterData<
+            &RouterDataV2<
+                ServerSessionAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+        >,
+    > for RazorpaySessionTokenRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: &RazorpayRouterData<
+            &RouterDataV2<
+                ServerSessionAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request_data = &item.router_data.request;
+
+        // Razorpay rejects orders whose `receipt` exceeds 40 characters, so the
+        // connector request reference id is truncated to stay within that limit.
+        let receipt = {
+            let reference = item
+                .router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone();
+            if reference.is_empty() {
+                None
+            } else {
+                Some(reference.chars().take(40).collect::<String>())
+            }
+        };
+
+        Ok(Self {
+            amount: item.amount,
+            currency: request_data.currency,
+            receipt,
+            // 1 = auto-capture; Razorpay captures the payment automatically once authorized.
+            payment_capture: 1,
+        })
+    }
+}
+
+// `RazorpayOrderResponse` is reused intentionally: the session-token endpoint IS
+// `POST /v1/orders`, so the response payload is an order response and its `id` is the
+// order id surfaced to the SDK as the session token.
+impl ForeignTryFrom<(RazorpayOrderResponse, Self, u16)>
+    for RouterDataV2<
+        ServerSessionAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
+    >
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (response, data, _status_code): (RazorpayOrderResponse, Self, u16),
+    ) -> Result<Self, Self::Error> {
+        // The order_id returned by Razorpay is the SDK session token.
+        let session_token = response.id.clone();
+
+        Ok(Self {
+            response: Ok(ServerSessionAuthenticationTokenResponseData {
+                session_token: session_token.clone(),
+            }),
             ..data
         })
     }
@@ -1371,10 +1538,12 @@ impl<F, Req> ForeignTryFrom<(RazorpayCaptureResponse, Self, u16)>
                 redirection_data: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(response.order_id),
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1502,7 +1671,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .as_ref()
                     .ok_or(IntegrationError::MissingRequiredField {
                         field_name: "vpa_id",
-                        context: Default::default(),
+                        context: IntegrationErrorContext {
+                            suggested_action: Some("Provide a valid VPA in upi_collect.vpa_id (e.g. user@upi)".to_owned()),
+                            doc_url: Some("https://razorpay.com/docs/api/payments/upi/#create-a-upi-payment".to_owned()),
+                            additional_context: Some("UPI collect requires a non-empty VPA to initiate a collect request".to_owned()),
+                        },
                     })?
                     .peek()
                     .to_string();
@@ -1520,8 +1693,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .connector_order_id
             .as_ref()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "connector_order_id",
-                context: Default::default(),
+                field_name: "order_id (connector_order_id)",
+                context: IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Call `PaymentService.CreateOrder` first; the returned id is stored in \
+                         `connector_order_id` on the Authorize request."
+                            .to_owned(),
+                    ),
+                    doc_url: Some(
+                        "https://razorpay.com/docs/api/orders/#create-an-order".to_owned(),
+                    ),
+                    additional_context: Some(
+                        "Razorpay requires a pre-created `order_id` in the payment create \
+                         request; it cannot be omitted."
+                            .to_owned(),
+                    ),
+                },
             })?
             .clone();
 
@@ -1734,7 +1921,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let bank_code = match &item.router_data.request.payment_method_data {
             PaymentMethodData::BankRedirect(
-                payment_method_data::BankRedirectData::Netbanking { issuer },
+                BankRedirectData::Netbanking { issuer },
             ) => map_bank_name_to_razorpay_code(issuer)?,
             _ => {
                 return Err(IntegrationError::MissingRequiredField {
@@ -1763,15 +1950,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_id = item
             .router_data
             .resource_common_data
-            .reference_id
+            .connector_order_id
             .as_ref()
             .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "order_id (reference_id)",
+                field_name: "order_id (connector_order_id)",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Call `PaymentService.CreateOrder` first and pass the returned order id \
-                         as `merchant_order_id` (which becomes `reference_id` internally) on the \
-                         Authorize request."
+                        "Call `PaymentService.CreateOrder` first; the returned id is stored in \
+                         `connector_order_id` on the Authorize request."
                             .to_owned(),
                     ),
                     doc_url: Some(
@@ -1939,9 +2125,11 @@ impl<F, Req>
             connector_metadata,
             mandate_reference: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: data.resource_common_data.reference_id.clone(),
             incremental_authorization_allowed: None,
             status_code: _status_code,
+            splits: None,
         };
 
         Ok(Self {

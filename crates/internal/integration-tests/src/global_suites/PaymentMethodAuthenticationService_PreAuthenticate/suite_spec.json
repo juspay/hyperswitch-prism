@@ -1,0 +1,6 @@
+{
+  "suite": "PaymentMethodAuthenticationService/PreAuthenticate",
+  "suite_type": "independent",
+  "depends_on": [],
+  "strict_dependencies": false
+}

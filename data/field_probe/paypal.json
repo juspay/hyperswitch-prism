@@ -3,53 +3,107 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for paypal"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Alfamart": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "error",
+        "error": "Stuck on field: apple_pay_decrypted_data — Missing required field: apple_pay_decrypted_data"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "state": {
+            "access_token": {
+              "token": "probe_access_token",
+              "expires_in_seconds": 3600,
+              "token_type": "Bearer"
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-m.sandbox.paypal.com/v2/checkout/orders",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_access_token",
+            "content-type": "application/json",
+            "paypal-partner-attribution-id": "HyperSwitchlegacy_Ecom",
+            "paypal-request-id": "probe_txn_001",
+            "prefer": "return=representation",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"apple_pay\":{\"id\":\"probe_txn_id\",\"decrypted_token\":{\"tokenized_card\":{\"number\":\"4111111111111111\",\"expiry\":\"2030-03\"},\"payment_data_type\":\"3DSECURE\",\"payment_data\":{\"cryptogram\":\"AAAAAA==\",\"eci_indicator\":\"05\"},\"transaction_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"device_manufacturer_id\":\"040010030273\"}}}}"
+        }
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Bacs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
@@ -64,8 +118,12 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "Becs": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
+      "BillDeskRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Bizum": {
         "status": "not_implemented",
@@ -76,8 +134,8 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
@@ -137,20 +195,28 @@
         }
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "ClassicReward": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -158,11 +224,15 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
+      "EaseBuzzRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Efecty": {
         "status": "not_implemented",
@@ -218,6 +288,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
       "Giropay": {
         "status": "supported",
         "proto_request": {
@@ -262,7 +336,11 @@
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -277,7 +355,7 @@
             "currency": "USD"
           },
           "payment_method": {
-            "google_pay": {
+            "google_pay_sdk": {
               "type": "CARD",
               "description": "Visa 1111",
               "info": {
@@ -324,8 +402,8 @@
         }
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Ideal": {
         "status": "supported",
@@ -393,13 +471,21 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Lawson": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
+      },
+      "LazyPayRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
@@ -414,18 +500,30 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "MiniStop": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Paypal"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
@@ -459,7 +557,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -479,7 +577,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "PaypalRedirect": {
         "status": "supported",
@@ -563,13 +665,21 @@
           "body": null
         }
       },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
+      },
+      "PhonePeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Pix": {
         "status": "not_implemented",
@@ -592,36 +702,40 @@
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Seicomart": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "Sepa": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "SevenEleven": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Sofort": {
         "status": "supported",
@@ -665,29 +779,45 @@
           "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_txn_001\",\"invoice_id\":\"probe_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"sofort\":{\"name\":\"John\",\"country_code\":\"US\",\"experience_context\":{\"return_url\":null,\"cancel_url\":null,\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
         }
       },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
       "Trustly": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through Paypal"
       },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "UpiIntent": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "UpiQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       }
     },
     "capture": {
@@ -725,12 +855,28 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_client_session_id": "probe_sdk_session_001",
+          "domain_context": {
+            "payment": {
+              "amount": {
+                "minor_amount": 1000,
+                "currency": "USD"
+              }
+            }
+          }
+        },
+        "sample": {
+          "url": "https://api-m.sandbox.paypal.com/v1/identity/generate-token",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfaWQ6cHJvYmVfc2VjcmV0",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{}"
+        }
       }
     },
     "create_order": {
@@ -783,17 +929,26 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by paypal connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for paypal"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for paypal"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for paypal"
       }
     },
     "dispute_get": {
@@ -803,12 +958,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for paypal"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by paypal connector"
       }
     },
     "get": {
@@ -846,10 +1003,50 @@
     },
     "handle_event": {
       "default": {
-        "status": "supported"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}"
+        }
       }
     },
     "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for paypal"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"event_type\":\"PAYMENT.CAPTURE.COMPLETED\",\"resource\":{\"id\":\"probe_capture_001\",\"status\":\"COMPLETED\",\"amount\":{\"value\":\"10.00\",\"currency_code\":\"USD\"}}}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
@@ -857,12 +1054,13 @@
     "post_authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: reference_id — Missing required field: reference_id (order_id)"
+        "error": "Failed to obtain authentication type"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for paypal"
       }
     },
     "proxy_authorize": {
@@ -879,7 +1077,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -906,7 +1105,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_proxy_txn_001\",\"invoice_id\":\"probe_proxy_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_proxy_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"2030-03\",\"name\":null,\"number\":\"4111111111111111\",\"security_code\":\"123\",\"attributes\":{\"vault\":null,\"verification\":null}}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"probe_proxy_txn_001\",\"invoice_id\":\"probe_proxy_txn_001\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice probe_proxy_txn_001\",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"{{$card_exp_year}}-{{$card_exp_month}}\",\"name\":null,\"number\":\"{{$card_number}}\",\"security_code\":\"{{$card_cvc}}\",\"attributes\":{\"vault\":null,\"verification\":null}}}}"
         }
       }
     },
@@ -924,7 +1123,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -954,7 +1154,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"2030-03\",\"name\":null,\"number\":\"4111111111111111\"}}}"
+          "body": "{\"payment_source\":{\"card\":{\"billing_address\":null,\"expiry\":\"{{$card_exp_year}}-{{$card_exp_month}}\",\"name\":null,\"number\":null}}}"
         }
       }
     },
@@ -1007,7 +1207,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for paypal"
       }
     },
     "refund": {
@@ -1077,7 +1278,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by paypal connector"
       }
     },
     "setup_recurring": {
@@ -1135,19 +1337,20 @@
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Paypal"
+        "status": "not_supported",
+        "error": "Selected payment method through Paypal is not supported by Paypal"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paypal"
       }
     },
     "verify_redirect": {

@@ -13,23 +13,27 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateOrder, PSync, PostAuthenticate, RepeatPayment,
-        VerifyWebhookSource,
+        Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, PostAuthenticate,
+        RepeatPayment, VerifyWebhookSource,
     },
     connector_types::{
-        MandateReference, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsPostAuthenticateData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, ServerAuthenticationTokenResponseData,
-        SetupMandateRequestData, VerifyWebhookSourceFlowData,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, MandateReference,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsPostAuthenticateData, PaymentsResponseData, PaymentsSyncData,
+        PaypalClientAuthenticationResponse as PaypalClientAuthenticationResponseDomain,
+        PaypalFlow as PaypalFlowDomain, PaypalTransactionInfo as PaypalTransactionInfoDomain,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ResponseId, SdkNextAction, ServerAuthenticationTokenResponseData, SetupMandateRequestData,
+        VerifyWebhookSourceFlowData,
     },
     errors::{ConnectorError, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankDebitData, BankRedirectData, BankTransferData, CardRedirectData, GiftCardData,
         GpayTokenizationData, PayLaterData, PaymentMethodData, PaymentMethodDataTypes,
         RawCardNumber, VoucherData, WalletData,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::{RedirectForm, VerifyWebhookSourceResponseData, VerifyWebhookStatus},
@@ -73,6 +77,13 @@ pub mod auth_headers {
     pub const PREFER: &str = "Prefer";
     pub const PAYPAL_REQUEST_ID: &str = "PayPal-Request-Id";
     pub const PAYPAL_AUTH_ASSERTION: &str = "PayPal-Auth-Assertion";
+}
+
+/// Constants for PayPal connector.
+pub mod constants {
+    pub const DEFAULT_NOTIFICATION_LANGUAGE: &str = "en-US";
+    pub const DEFAULT_PARTNER_ATTRIBUTION_ID: &str = "HyperSwitchPPCP_SP";
+    pub const DEFAULT_LEGACY_PARTNER_ATTRIBUTION_ID: &str = "HyperSwitchlegacy_Ecom";
 }
 
 const ORDER_QUANTITY: u16 = 1;
@@ -133,16 +144,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
-        let shipping_cost = item.router_data.request.shipping_cost.ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "shipping_cost",
-                context: Default::default(),
-            },
-        )?;
+        // Hyperswitch treats `shipping_cost` as optional for the Authorize flow,
+        // defaulting to zero when absent (req.request.shipping_cost.unwrap_or(MinorUnit::zero())).
+        // Mirror that here instead of hard-failing with MissingRequiredField, otherwise UCS
+        // returns gRPC InvalidArgument for card payments that carry no shipping_cost.
         let shipping_value = item
             .connector
             .amount_converter
-            .convert(shipping_cost, item.router_data.request.currency)
+            .convert(
+                item.router_data
+                    .request
+                    .shipping_cost
+                    .unwrap_or(common_utils::types::MinorUnit::zero()),
+                item.router_data.request.currency,
+            )
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
@@ -568,6 +583,44 @@ pub struct GooglePayRequest {
 }
 
 #[derive(Debug, Serialize)]
+pub struct ApplePayRequest {
+    pub id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+    pub decrypted_token: ApplePayDecryptedToken,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ApplePayDecryptedToken {
+    pub tokenized_card: ApplePayTokenizedCard,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_data_type: Option<String>,
+    pub payment_data: ApplePayPaymentDataRequest,
+    pub transaction_amount: OrderAmount,
+    // Required by PayPal for customer-initiated payments.
+    // This is the deviceManufacturerIdentifier from Apple's decrypted token.
+    // UCS domain_types does not currently carry this field through the gRPC layer,
+    // so we use the well-known Apple Pay identifier. A future improvement would
+    // thread the real value from ApplePayDecryptedData.
+    pub device_manufacturer_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ApplePayTokenizedCard {
+    pub number: Secret<String>,
+    pub expiry: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ApplePayPaymentDataRequest {
+    pub cryptogram: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci_indicator: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GooglePayPaymentMethod {
     Card,
@@ -651,6 +704,8 @@ pub struct AttributeResponse {
 pub struct PaypalVault {
     store_in_vault: StoreInVault,
     usage_type: UsageType,
+    // required for vaulting multiple payment tokens for a customer, as per Paypal's documentation. If false or not provided, only one payment token can be vaulted for a customer. If true, multiple payment tokens can be vaulted for a customer. and this will be required for returning customer flow.
+    permit_multiple_payment_tokens: Option<bool>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PaypalVaultResponse {
@@ -682,6 +737,8 @@ pub enum PaymentSourceItem<
     Paypal(PaypalRedirectionRequest),
     #[serde(rename = "google_pay")]
     GooglePay(GooglePayRequest),
+    #[serde(rename = "apple_pay")]
+    ApplePay(ApplePayRequest),
     IDeal(RedirectRequest),
     Eps(RedirectRequest),
     Giropay(RedirectRequest),
@@ -698,6 +755,12 @@ pub struct GooglePaySourceResponse {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ApplePaySourceResponse {
+    pub name: Option<Secret<String>>,
+    pub card: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentSourceItemResponse {
     Card(CardVaultResponse),
@@ -705,6 +768,7 @@ pub enum PaymentSourceItemResponse {
     Eps(EpsRedirectionResponse),
     Ideal(IdealRedirectionResponse),
     GooglePay(GooglePaySourceResponse),
+    ApplePay(ApplePaySourceResponse),
 }
 
 // ============================================================================
@@ -775,6 +839,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             Some(common_enums::FutureUsage::OffSession) => Some(PaypalVault {
                                 store_in_vault: StoreInVault::OnSuccess,
                                 usage_type: UsageType::Merchant,
+                                // only required for paypal
+                                permit_multiple_payment_tokens: Some(false),
                             }),
                             _ => None,
                         },
@@ -804,21 +870,46 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             vault: PaypalVault {
                                 store_in_vault: StoreInVault::OnSuccess,
                                 usage_type: UsageType::Merchant,
+                                permit_multiple_payment_tokens: Some(true),
                             },
                         }),
                         _ => None,
                     },
                 }),
             ),
-            PaymentMethodData::Wallet(_) => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            ))?,
+            PaymentMethodData::Wallet(WalletData::ApplePay(ref apple_pay_data)) => {
+                let amount_value = item
+                    .connector
+                    .amount_converter
+                    .convert(
+                        item.router_data.request.minor_amount,
+                        item.router_data.request.currency,
+                    )
+                    .change_context(IntegrationError::AmountConversionFailed {
+                        context: Default::default(),
+                    })?;
+                build_paypal_apple_pay_source(
+                    apple_pay_data,
+                    &item.router_data,
+                    amount_value,
+                    item.router_data.request.currency,
+                )?
+            }
+            PaymentMethodData::Wallet(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))?
+            }
             PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 get_payment_source(item.router_data.clone(), bank_redirection_data)?
             }
-            _ => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            ))?,
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                connector: "Paypal",
+                context: Default::default(),
+            }))?,
         };
 
         Ok(Self { payment_source })
@@ -1047,6 +1138,93 @@ pub struct Customer {
     id: String,
 }
 
+// Apple Pay (decrypted) for PayPal.
+//
+// Uses PayPal's dedicated `payment_source.apple_pay.decrypted_token` structure
+// (https://developer.paypal.com/docs/api/orders/v2/#definition-apple_pay_decrypted_token_data)
+// which carries the DPAN, expiry, cryptogram, and ECI indicator — preserving
+// the 3DS liability shift and correct interchange treatment.
+// Encrypted-only Apple Pay tokens are not supported and will return MissingRequiredField.
+fn build_paypal_apple_pay_source<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    apple_pay_data: &domain_types::payment_method_data::ApplePayWalletData,
+    router_data: &RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+    amount_value: StringMajorUnit,
+    currency: common_enums::Currency,
+) -> Result<PaymentSourceItem<T>, Report<IntegrationError>> {
+    let apple_pay_decrypted_data = apple_pay_data
+        .payment_data
+        .get_decrypted_apple_pay_payment_data_optional()
+        .ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "apple_pay_decrypted_data",
+                context: Default::default(),
+            })
+            .attach_printable(
+                "PayPal requires pre-decrypted Apple Pay data; \
+                 encrypted Apple Pay tokens are not supported.",
+            )
+        })?;
+
+    // PayPal decrypted_token expiry format is YYYY-MM.
+    let expiry = apple_pay_decrypted_data.get_expiry_date_as_yyyymm("-");
+
+    let card_number = Secret::new(
+        apple_pay_decrypted_data
+            .application_primary_account_number
+            .get_card_no(),
+    );
+
+    let cardholder_name = router_data
+        .resource_common_data
+        .get_optional_payment_billing_full_name();
+
+    let cryptogram = apple_pay_decrypted_data
+        .payment_data
+        .online_payment_cryptogram
+        .clone();
+    let eci_indicator = apple_pay_decrypted_data.payment_data.eci_indicator.clone();
+
+    Ok(PaymentSourceItem::ApplePay(ApplePayRequest {
+        id: apple_pay_data.transaction_identifier.clone(),
+        name: cardholder_name.clone(),
+        decrypted_token: ApplePayDecryptedToken {
+            tokenized_card: ApplePayTokenizedCard {
+                number: card_number,
+                expiry,
+                name: cardholder_name,
+            },
+            // PayPal supports two payment_data_type values: "3DSECURE" (cryptogram + ECI,
+            // standard outside China) and "EMV" (emv_data + pin, China only).
+            // UCS exclusively receives pre-decrypted Apple Pay tokens over gRPC, which
+            // always carry online_payment_cryptogram + eci_indicator — the 3DS Secure
+            // path. The EMV/China path is not supported by UCS.
+            payment_data_type: Some("3DSECURE".to_string()),
+            payment_data: ApplePayPaymentDataRequest {
+                cryptogram,
+                eci_indicator,
+            },
+            transaction_amount: OrderAmount {
+                currency_code: currency,
+                value: amount_value,
+            },
+            // TODO(#1149): Hardcoded fallback — `deviceManufacturerIdentifier` from Apple's
+            // decrypted token is not currently propagated through the UCS proto / domain_types.
+            // This works in sandbox but will cause failures in production where PayPal validates
+            // the field. Fix requires adding the field to `ApplePayDecryptedData` in
+            // payment_methods.proto, domain_types, and the HS decryption path.
+            // See: https://github.com/juspay/hyperswitch-prism/issues/1149
+            device_manufacturer_id: "040010030273".to_string(),
+        },
+    }))
+}
+
 fn get_address_info(
     payment_address: Option<&domain_types::payment_address::Address>,
 ) -> Option<Address> {
@@ -1147,8 +1325,9 @@ fn get_payment_source<
         })),
         BankRedirectData::BancontactCard { .. }
         | BankRedirectData::Blik { .. }
-        | BankRedirectData::Przelewy24 { .. } => Err(IntegrationError::not_implemented(
+        | BankRedirectData::Przelewy24 { .. } => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Paypal"),
+            Default::default(),
         )
         .into()),
         BankRedirectData::Bizum {}
@@ -1164,8 +1343,9 @@ fn get_payment_source<
         | BankRedirectData::OnlineBankingThailand { .. }
         | BankRedirectData::LocalBankRedirect {}
         | BankRedirectData::OpenBanking {}
-        | BankRedirectData::Netbanking { .. } => Err(IntegrationError::not_implemented(
+        | BankRedirectData::Netbanking { .. } => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("Paypal"),
+            Default::default(),
         ))?,
     }
 }
@@ -1268,6 +1448,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                     common_enums::FutureUsage::OffSession => Some(PaypalVault {
                                         store_in_vault: StoreInVault::OnSuccess,
                                         usage_type: UsageType::Merchant,
+                                        // only required for paypal
+                                        permit_multiple_payment_tokens: Some(false),
                                     }),
 
                                     common_enums::FutureUsage::OnSession => None,
@@ -1319,6 +1501,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                             vault: PaypalVault {
                                                 store_in_vault: StoreInVault::OnSuccess,
                                                 usage_type: UsageType::Merchant,
+                                                permit_multiple_payment_tokens: Some(true),
                                             },
                                         }),
                                         common_enums::FutureUsage::OnSession => None,
@@ -1351,6 +1534,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                             vault: PaypalVault {
                                                 store_in_vault: StoreInVault::OnSuccess,
                                                 usage_type: UsageType::Merchant,
+                                                permit_multiple_payment_tokens: Some(true),
                                             },
                                         }),
                                         common_enums::FutureUsage::OnSession => None,
@@ -1407,11 +1591,35 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             payment_source,
                         })
                     }
-                    GpayTokenizationData::Encrypted(_) => Err(IntegrationError::not_implemented(
+                    GpayTokenizationData::Encrypted(_) => Err(IntegrationError::NotImplemented(
                         "PayPal GooglePay encrypted flow".to_string(),
+                        Default::default(),
                     )
                     .into()),
                 },
+                WalletData::ApplePay(apple_pay_data) => {
+                    let amount_value = item
+                        .connector
+                        .amount_converter
+                        .convert(
+                            item.router_data.request.minor_amount,
+                            item.router_data.request.currency,
+                        )
+                        .change_context(IntegrationError::AmountConversionFailed {
+                            context: Default::default(),
+                        })?;
+                    let payment_source = Some(build_paypal_apple_pay_source(
+                        apple_pay_data,
+                        &item.router_data,
+                        amount_value,
+                        item.router_data.request.currency,
+                    )?);
+                    Ok(Self {
+                        intent,
+                        purchase_units,
+                        payment_source,
+                    })
+                }
                 WalletData::AliPayQr(_)
                 | WalletData::AliPayRedirect(_)
                 | WalletData::AliPayHkRedirect(_)
@@ -1420,7 +1628,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::KakaoPayRedirect(_)
                 | WalletData::GoPayRedirect(_)
                 | WalletData::GcashRedirect(_)
-                | WalletData::ApplePay(_)
                 | WalletData::ApplePayRedirect(_)
                 | WalletData::ApplePayThirdPartySdk(_)
                 | WalletData::DanaRedirect {}
@@ -1448,9 +1655,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::BillDeskRedirect(_)
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
-                | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                ))?,
+                | WalletData::EaseBuzzRedirect(_)
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                        connector: "Paypal",
+                        context: Default::default(),
+                    }))?
+                }
             },
             PaymentMethodData::BankRedirect(ref bank_redirection_data) => {
                 let payment_source = Some(get_payment_source(
@@ -1497,10 +1710,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -1515,10 +1729,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             CardRedirectData::Knet {}
             | CardRedirectData::Benefit {}
             | CardRedirectData::MomoAtm {}
-            | CardRedirectData::CardRedirect {} => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            )
-            .into()),
+            | CardRedirectData::CardRedirect {} => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))
+            }
         }
     }
 }
@@ -1536,10 +1753,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PayLaterData::PayBrightRedirect {}
             | PayLaterData::WalleyRedirect {}
             | PayLaterData::AlmaRedirect {}
-            | PayLaterData::AtomeRedirect {} => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            )
-            .into()),
+            | PayLaterData::TamaraRedirect {}
+            | PayLaterData::AtomeRedirect {} => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))
+            }
         }
     }
 }
@@ -1552,12 +1773,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         match value {
             BankDebitData::AchBankDebit { .. }
             | BankDebitData::SepaBankDebit { .. }
+            | BankDebitData::EftBankDebit { .. }
             | BankDebitData::SepaGuaranteedBankDebit { .. }
             | BankDebitData::BecsBankDebit { .. }
-            | BankDebitData::BacsBankDebit { .. } => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            )
-            .into()),
+            | BankDebitData::BacsBankDebit { .. } => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))
+            }
         }
     }
 }
@@ -1585,8 +1810,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::IndonesianBankTransfer { .. }
-            | BankTransferData::LocalBankTransfer { .. } => Err(IntegrationError::not_implemented(
+            | BankTransferData::LocalBankTransfer { .. } => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
+                Default::default(),
             )
             .into()),
         }
@@ -1612,8 +1838,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | VoucherData::MiniStop(_)
             | VoucherData::FamilyMart(_)
             | VoucherData::Seicomart(_)
-            | VoucherData::PayEasy(_) => Err(IntegrationError::not_implemented(
+            | VoucherData::PayEasy(_) => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
+                Default::default(),
             )
             .into()),
         }
@@ -1627,10 +1854,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(value: &GiftCardData) -> Result<Self, Self::Error> {
         match value {
             GiftCardData::Givex(_) | GiftCardData::PaySafeCard {} => {
-                Err(IntegrationError::not_implemented(
-                    utils::get_unimplemented_payment_method_error_message("Paypal"),
-                )
-                .into())
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))
             }
         }
     }
@@ -1648,7 +1876,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         PaypalRouterData<
             RouterDataV2<
                 domain_types::connector_flow::ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 domain_types::connector_types::ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -1661,7 +1889,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: PaypalRouterData<
             RouterDataV2<
                 domain_types::connector_flow::ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 domain_types::connector_types::ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -1686,7 +1914,7 @@ pub struct PaypalAuthUpdateResponse {
 }
 
 impl<F, T> TryFrom<ResponseRouterData<PaypalAuthUpdateResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
+    for RouterDataV2<F, MerchantAuthenticationFlowData, T, ServerAuthenticationTokenResponseData>
 {
     type Error = Report<ConnectorError>;
     fn try_from(
@@ -2012,7 +2240,12 @@ pub enum AuthenticationStatus {
 pub struct PaypalOrdersResponse {
     id: String,
     intent: PaypalPaymentIntent,
-    status: PaypalOrderStatus,
+    // PayPal can omit the top-level order `status` in some Orders v2 responses (observed in PSync
+    // for an order whose only capture was `DECLINED`). This field is kept optional so the response
+    // still deserializes when it is absent. The attempt status is not derived from this field
+    // anyway: for orders it is taken from the capture/authorization status inside `purchase_units`
+    // (see `TryFrom<ResponseRouterData<PaypalOrdersResponse, ..>>`).
+    status: Option<PaypalOrderStatus>,
     purchase_units: Vec<PurchaseUnitItem>,
     payment_source: Option<PaymentSourceItemResponse>,
 }
@@ -2217,6 +2450,9 @@ where
             item.http_code,
             "paypal",
         ))?;
+        // Derive the attempt status from the capture/authorization status rather than the
+        // top-level order `status`, which PayPal may omit (e.g. a declined capture). For example a
+        // `DECLINED` capture maps to `AttemptStatus::Failure` and is handled by the branch below.
         let status = payment_collection_item.status.clone();
         let status = common_enums::AttemptStatus::from(status);
 
@@ -2272,16 +2508,19 @@ where
                                 }
                                 PaymentSourceItemResponse::Eps(_)
                                 | PaymentSourceItemResponse::Ideal(_)
-                                | PaymentSourceItemResponse::GooglePay(_) => None,
+                                | PaymentSourceItemResponse::GooglePay(_)
+                                | PaymentSourceItemResponse::ApplePay(_) => None,
                             },
                             None => None,
                         },
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     })),
                     status_code: item.http_code,
                     connector_metadata: Some(connector_meta),
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: purchase_units
                         .invoice_id
                         .clone()
@@ -2290,6 +2529,7 @@ where
                         .router_data
                         .request
                         .get_request_incremental_authorization(),
+                    splits: None,
                 }),
                 ..item.router_data
             }),
@@ -2389,11 +2629,13 @@ impl TryFrom<ResponseRouterData<PaypalRedirectResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
                 ),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -2420,9 +2662,11 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalThreeDsSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -2501,9 +2745,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -2541,11 +2787,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 mandate_reference: None,
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(
                     purchase_units.map_or(item.response.id, |item| item.invoice_id.clone()),
                 ),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -2611,6 +2859,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsSyncResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item
                     .response
                     .invoice_id
@@ -2618,6 +2867,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsSyncResponse, Self>>
                     .or(Some(item.response.supplementary_data.related_ids.order_id)),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -2796,9 +3046,11 @@ impl TryFrom<ResponseRouterData<PaypalCaptureResponse, Self>>
                     order_id: None
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: invoice_id.or(Some(capture_id)),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -2840,12 +3092,14 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalPaymentsCancelResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item
                     .response
                     .invoice_id
                     .or(Some(item.response.id)),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -2865,6 +3119,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalSetupMandatesResponse, Self>>
             connector_mandate_id: Some(info_response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         }));
         // https://developer.paypal.com/docs/api/payment-tokens/v3/#payment-tokens_create
         // If 201 status code, then order is captured, other status codes are handled by the error handler
@@ -2884,9 +3139,11 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalSetupMandatesResponse, Self>>
                 mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(info_response.id.clone()),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -2949,9 +3206,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::MobilePayment(_) => Err(IntegrationError::not_implemented(
-                utils::get_unimplemented_payment_method_error_message("Paypal"),
-            ))?,
+            | PaymentMethodData::MobilePayment(_) => {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: utils::get_unimplemented_payment_method_error_message("Paypal"),
+                    connector: "Paypal",
+                    context: Default::default(),
+                }))?
+            }
         };
 
         Ok(Self { payment_source })
@@ -3054,7 +3315,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 ..item.router_data.resource_common_data
                             },
                             response: Err(domain_types::router_data::ErrorResponse {
-                                attempt_status: Some(common_enums::AttemptStatus::Failure),
+                                attempt_status: Some(FlowStatus::Payment(
+                                    common_enums::AttemptStatus::Failure,
+                                )),
                                 code: "authentication_failed".to_string(),
                                 message: "3DS authentication failed".to_string(),
                                 connector_transaction_id: None,
@@ -3543,8 +3806,9 @@ impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationReques
         // Parse the webhook body into serde_json::Value
         // With preserve_order feature enabled, this preserves field order (uses IndexMap, not BTreeMap)
         let webhook_event = serde_json::from_slice(&req.webhook_body)
-            .change_context(IntegrationError::not_implemented(
+            .change_context(IntegrationError::NotImplemented(
                 "webhook body decoding failed".to_string(),
+                Default::default(),
             ))
             .attach_printable("Webhook body is not valid JSON")?;
 
@@ -3587,8 +3851,9 @@ impl TryFrom<&VerifyWebhookSourceRequestData> for PaypalSourceVerificationReques
                 })?
                 .clone(),
             webhook_id: String::from_utf8(req.merchant_secret.secret.to_vec())
-                .change_context(IntegrationError::not_implemented(
+                .change_context(IntegrationError::NotImplemented(
                     "webhook verification secret not found".to_string(),
+                    Default::default(),
                 ))
                 .attach_printable("Could not convert secret to UTF-8")?,
             webhook_event,
@@ -3825,4 +4090,100 @@ fn get_paypal_error_message(error_code: &str) -> Option<&str> {
 pub struct PaypalAccessTokenErrorResponse {
     pub error: String,
     pub error_description: String,
+}
+
+// ---- ClientAuthenticationToken flow types ----
+
+/// PayPal client token request for SDK initialization.
+/// PayPal's v1/identity/generate-token endpoint accepts an optional customer_id
+/// and returns a client_token for the JS SDK. Passing customer_id scopes the
+/// token to the customer and enables vault-related features.
+#[derive(Debug, Serialize)]
+pub struct PaypalClientAuthTokenRequest {
+    /// Optional customer ID to scope the client token to a specific customer.
+    /// When provided, enables vault-related features in the PayPal JS SDK.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaypalRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PaypalClientAuthTokenRequest
+{
+    type Error = Report<IntegrationError>;
+    fn try_from(
+        item: PaypalRouterData<
+            RouterDataV2<
+                ClientAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ClientAuthenticationTokenRequestData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let customer_id = item
+            .router_data
+            .request
+            .customer_id
+            .as_ref()
+            .map(|id| id.get_string_repr().to_string());
+
+        Ok(Self { customer_id })
+    }
+}
+
+/// PayPal client token response from v1/identity/generate-token.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PaypalClientAuthTokenResponse {
+    pub client_token: String,
+}
+
+impl TryFrom<ResponseRouterData<PaypalClientAuthTokenResponse, Self>>
+    for RouterDataV2<
+        ClientAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ClientAuthenticationTokenRequestData,
+        PaymentsResponseData,
+    >
+{
+    type Error = Report<ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<PaypalClientAuthTokenResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let session_data = ClientAuthenticationTokenData::Paypal(Box::new(
+            PaypalClientAuthenticationResponseDomain {
+                connector: "paypal".to_string(),
+                session_token: response.client_token.clone(),
+                sdk_next_action: SdkNextAction {
+                    next_action: domain_types::connector_types::NextActionCall::Confirm,
+                },
+                client_token: Some(response.client_token),
+                transaction_info: Some(PaypalTransactionInfoDomain {
+                    flow: PaypalFlowDomain::Checkout,
+                    currency_code: item.router_data.request.currency,
+                    total_price: item.router_data.request.amount,
+                }),
+            },
+        ));
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::ClientAuthenticationTokenResponse {
+                session_data,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
 }

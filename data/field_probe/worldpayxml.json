@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for worldpayxml"
       }
     },
     "authorize": {
@@ -64,6 +65,10 @@
         "error": "Selected payment method is not supported by worldpayxml"
       },
       "Becs": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
+      "BillDeskRedirect": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
@@ -130,6 +135,10 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
+      "CashfreeRedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
       "CimbVaBankTransfer": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
@@ -140,7 +149,11 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -148,9 +161,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
@@ -170,13 +187,21 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
       "Giropay": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -218,11 +243,19 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
       "Klarna": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
       "Lawson": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
+      "LazyPayRedirect": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
@@ -250,7 +283,19 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
       "MultibancoBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
+      "Netbanking": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
@@ -284,7 +329,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_supported",
@@ -304,7 +349,11 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
+      "PayURedirect": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
       },
       "PaypalRedirect": {
         "status": "not_supported",
@@ -314,11 +363,19 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
+      "PhonePeRedirect": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
@@ -374,11 +431,27 @@
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
       "Sofort": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
       "Trustly": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
+      "Twint": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
@@ -391,6 +464,10 @@
         "error": "Selected payment method is not supported by worldpayxml"
       },
       "UpiQr": {
+        "status": "not_supported",
+        "error": "Selected payment method is not supported by worldpayxml"
+      },
+      "Vipps": {
         "status": "not_supported",
         "error": "Selected payment method is not supported by worldpayxml"
       },
@@ -428,37 +505,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for worldpayxml"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for worldpayxml"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for worldpayxml"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for worldpayxml"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for worldpayxml"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by worldpayxml connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for worldpayxml"
       }
     },
     "dispute_get": {
@@ -468,12 +552,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for worldpayxml"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by worldpayxml connector"
       }
     },
     "get": {
@@ -506,17 +592,30 @@
     },
     "incremental_authorization": {
       "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for worldpayxml"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
         "status": "not_implemented"
       }
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for worldpayxml"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for worldpayxml"
       }
     },
     "proxy_authorize": {
@@ -533,7 +632,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -550,23 +650,26 @@
             "content-type": "text/xml",
             "via": "HyperSwitch"
           },
-          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_proxy_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><CARD-SSL><cardNumber>4111111111111111</cardNumber><expiryDate><date month=\"03\" year=\"2030\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>123</cvc></CARD-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><submit><order orderCode=\"probe_proxy_txn_001\" captureDelay=\"0\"><description>Payment</description><amount value=\"1000\" currencyCode=\"USD\" exponent=\"2\"/><paymentDetails action=\"SALE\"><VISA-SSL><cardNumber>{{$card_number}}</cardNumber><expiryDate><date month=\"{{$card_exp_month}}\" year=\"{{$card_exp_year}}\"/></expiryDate><cardHolderName>John Doe</cardHolderName><cvc>{{$card_cvc}}</cvc></VISA-SSL></paymentDetails><shopper/><billingAddress><address/></billingAddress></order></submit></paymentService>"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for worldpayxml"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for worldpayxml"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for worldpayxml"
       }
     },
     "refund": {
@@ -616,12 +719,27 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfdXNlcjpwcm9iZV9wYXNz",
+            "content-type": "text/xml",
+            "via": "HyperSwitch"
+          },
+          "body": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE paymentService PUBLIC \"-//Worldpay//DTD Worldpay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">\n<paymentService version=\"1.4\" merchantCode=\"probe_merchant_code\"><modify><orderModification orderCode=\"probe_connector_txn_001\"><cancelOrRefund/></orderModification></modify></paymentService>"
+        }
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for worldpayxml"
       }
     },
     "token_authorize": {
@@ -632,12 +750,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for worldpayxml"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for worldpayxml"
       }
     },
     "verify_redirect": {

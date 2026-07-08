@@ -182,6 +182,7 @@ message ConnectorError {
   string error_message = 1;           // Human-readable description (e.g., "Expected JSON response, got HTML")
   string error_code = 2;              // Machine-readable code (e.g., "CONNECTOR_ERROR_RESPONSE")
   optional uint32 http_status_code = 3;  // HTTP status from connector (set for all variants when known)
+  optional ErrorInfo error_info = 4; // Standard structured error metadata  
 }
 
 // Result type for FFI operations with explicit type discrimination
@@ -192,6 +193,11 @@ message FfiResult {
     HTTP_RESPONSE = 1;
     INTEGRATION_ERROR = 2;
     CONNECTOR_ERROR = 3;
+    // Direct serialized protobuf response — no HTTP envelope.
+    // Used by single-step flows (e.g. webhook parse/handle) where there is no
+    // outgoing connector HTTP call. The bytes are decoded by the call site into
+    // the expected response proto type.
+    PROTO_RESPONSE = 4;
   }
 
   Type type = 1;
@@ -201,6 +207,7 @@ message FfiResult {
     FfiConnectorHttpResponse http_response = 3;
     IntegrationError integration_error = 4;
     ConnectorError connector_error = 5;
+    bytes proto_response = 6;
   }
 }
 // ============================================================

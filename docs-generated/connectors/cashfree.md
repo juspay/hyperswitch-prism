@@ -22,11 +22,14 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        cashfree=payment_pb2.CashfreeConfig(
+            app_id=payment_methods_pb2.SecretString(value="YOUR_APP_ID"),
+            secret_key=payment_methods_pb2.SecretString(value="YOUR_SECRET_KEY"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     cashfree=payment_pb2.CashfreeConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +41,18 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Cashfree',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.CASHFREE,
+    environment: Environment.SANDBOX,
+    auth: {
+        cashfree: {
+            appId: { value: 'YOUR_APP_ID' },
+            secretKey: { value: 'YOUR_SECRET_KEY' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +66,15 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Cashfree")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setCashfree(CashfreeConfig.newBuilder()
+                .setAppId(SecretString.newBuilder().setValue("YOUR_APP_ID").build())
+                .setSecretKey(SecretString.newBuilder().setValue("YOUR_SECRET_KEY").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +87,21 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Cashfree".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Cashfree(CashfreeConfig {
+                app_id: Some(hyperswitch_masking::Secret::new("YOUR_APP_ID".to_string())),  // Authentication credential
+                secret_key: Some(hyperswitch_masking::Secret::new("YOUR_SECRET_KEY".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -96,125 +115,79 @@ let config = ConnectorConfig {
 
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
-| [PaymentService.Authorize](#paymentserviceauthorize) | Payments | `PaymentServiceAuthorizeRequest` |
+| [PaymentService.Capture](#paymentservicecapture) | Payments | `PaymentServiceCaptureRequest` |
+| [PaymentService.CreateOrder](#paymentservicecreateorder) | Payments | `PaymentServiceCreateOrderRequest` |
+| [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
+| [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
+| [PaymentService.Void](#paymentservicevoid) | Payments | `PaymentServiceVoidRequest` |
 
 ### Payments
 
-#### PaymentService.Authorize
+#### PaymentService.Capture
 
-Authorize a payment amount on a payment method. This reserves funds without capturing them, essential for verifying availability before finalizing.
+Finalize an authorized payment by transferring funds. Captures the authorized amount to complete the transaction and move funds to your merchant account.
 
 | | Message |
 |---|---------|
-| **Request** | `PaymentServiceAuthorizeRequest` |
-| **Response** | `PaymentServiceAuthorizeResponse` |
+| **Request** | `PaymentServiceCaptureRequest` |
+| **Response** | `PaymentServiceCaptureResponse` |
 
-**Supported payment method types:**
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L91) · [Kotlin](../../examples/cashfree/cashfree.kt#L84) · [Rust](../../examples/cashfree/cashfree.rs)
 
-| Payment Method | Supported |
-|----------------|:---------:|
-| Card | x |
-| Bancontact | x |
-| Apple Pay | x |
-| Apple Pay Dec | x |
-| Apple Pay SDK | x |
-| Google Pay | x |
-| Google Pay Dec | x |
-| Google Pay SDK | x |
-| PayPal SDK | x |
-| Amazon Pay | x |
-| Cash App | x |
-| PayPal | x |
-| WeChat Pay | x |
-| Alipay | x |
-| Revolut Pay | x |
-| MiFinity | x |
-| Bluecode | x |
-| Paze | x |
-| Samsung Pay | x |
-| MB Way | x |
-| Satispay | x |
-| Wero | x |
-| Affirm | x |
-| Afterpay | x |
-| Klarna | x |
-| UPI Collect | ✓ |
-| UPI Intent | ✓ |
-| UPI QR | ✓ |
-| Thailand | x |
-| Czech | x |
-| Finland | x |
-| FPX | x |
-| Poland | x |
-| Slovakia | x |
-| UK | x |
-| PIS | x |
-| Generic | x |
-| Local | x |
-| iDEAL | x |
-| Sofort | x |
-| Trustly | x |
-| Giropay | x |
-| EPS | x |
-| Przelewy24 | x |
-| PSE | x |
-| BLIK | x |
-| Interac | x |
-| Bizum | x |
-| EFT | x |
-| DuitNow | x |
-| ACH | x |
-| SEPA | x |
-| BACS | x |
-| Multibanco | x |
-| Instant | x |
-| Instant FI | x |
-| Instant PL | x |
-| Pix | x |
-| Permata | x |
-| BCA | x |
-| BNI VA | x |
-| BRI VA | x |
-| CIMB VA | x |
-| Danamon VA | x |
-| Mandiri VA | x |
-| Local | x |
-| Indonesian | x |
-| ACH | x |
-| SEPA | x |
-| BACS | x |
-| BECS | x |
-| SEPA Guaranteed | x |
-| Crypto | x |
-| Reward | x |
-| Givex | x |
-| PaySafeCard | x |
-| E-Voucher | x |
-| Boleto | x |
-| Efecty | x |
-| Pago Efectivo | x |
-| Red Compra | x |
-| Red Pagos | x |
-| Alfamart | x |
-| Indomaret | x |
-| Oxxo | x |
-| 7-Eleven | x |
-| Lawson | x |
-| Mini Stop | x |
-| Family Mart | x |
-| Seicomart | x |
-| Pay Easy | x |
+#### PaymentService.CreateOrder
 
-**Payment method objects** — use these in the `payment_method` field of the Authorize request.
+Create a payment order for later processing. Establishes a transaction context that can be authorized or captured in subsequent API calls.
 
-##### UPI Collect
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceCreateOrderRequest` |
+| **Response** | `PaymentServiceCreateOrderResponse` |
 
-```python
-"payment_method": {
-    "upi_collect": {  # UPI Collect.
-        "vpa_id": {"value": "test@upi"}  # Virtual Payment Address.
-    }
-}
-```
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L100) · [Kotlin](../../examples/cashfree/cashfree.kt#L94) · [Rust](../../examples/cashfree/cashfree.rs)
 
-**Examples:** [Python](../../examples/cashfree/cashfree.py#L49) · [TypeScript](../../examples/cashfree/cashfree.ts#L48) · [Kotlin](../../examples/cashfree/cashfree.kt#L50) · [Rust](../../examples/cashfree/cashfree.rs#L53)
+#### PaymentService.Get
+
+Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceGetRequest` |
+| **Response** | `PaymentServiceGetResponse` |
+
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L109) · [Kotlin](../../examples/cashfree/cashfree.kt#L108) · [Rust](../../examples/cashfree/cashfree.rs)
+
+#### PaymentService.Refund
+
+Process a partial or full refund for a captured payment. Returns funds to the customer when goods are returned or services are cancelled.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceRefundRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L118) · [Kotlin](../../examples/cashfree/cashfree.kt#L116) · [Rust](../../examples/cashfree/cashfree.rs)
+
+#### PaymentService.Void
+
+Cancel an authorized payment that has not been captured. Releases held funds back to the customer's payment method when a transaction cannot be completed.
+
+| | Message |
+|---|---------|
+| **Request** | `PaymentServiceVoidRequest` |
+| **Response** | `PaymentServiceVoidResponse` |
+
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts) · [Kotlin](../../examples/cashfree/cashfree.kt#L138) · [Rust](../../examples/cashfree/cashfree.rs)
+
+### Refunds
+
+#### RefundService.Get
+
+Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication.
+
+| | Message |
+|---|---------|
+| **Request** | `RefundServiceGetRequest` |
+| **Response** | `RefundResponse` |
+
+**Examples:** [Python](../../examples/cashfree/cashfree.py) · [TypeScript](../../examples/cashfree/cashfree.ts#L127) · [Kotlin](../../examples/cashfree/cashfree.kt#L126) · [Rust](../../examples/cashfree/cashfree.rs)

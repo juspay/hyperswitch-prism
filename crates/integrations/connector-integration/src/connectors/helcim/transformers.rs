@@ -142,7 +142,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 card_number: card.card_number.clone(),
                 card_c_v_v: card.card_cvc.clone(),
             },
-            _ => return Err(IntegrationError::not_implemented("payment method").into()),
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    ("payment method").into(),
+                    Default::default(),
+                )
+                .into())
+            }
         };
 
         let req_address = item
@@ -301,10 +307,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 redirection_data: None,
                 connector_metadata,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -334,10 +342,12 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                         redirection_data: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: item.response.invoice_number.clone(),
                         incremental_authorization_allowed: None,
                         mandate_reference: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     resource_common_data: PaymentFlowData {
                         status,
@@ -436,10 +446,12 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                 redirection_data: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -510,10 +522,12 @@ impl<F> TryFrom<ResponseRouterData<HelcimPaymentsResponse, Self>>
                 redirection_data: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -573,7 +587,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 card_number: card.card_number.clone(),
                 card_c_v_v: card.card_cvc.clone(),
             },
-            _ => return Err(IntegrationError::not_implemented("payment method").into()),
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    ("payment method").into(),
+                    Default::default(),
+                )
+                .into())
+            }
         };
 
         let req_address = item
@@ -660,6 +680,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             connector_mandate_id: Some(item.response.transaction_id.to_string()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         };
 
         Ok(Self {
@@ -670,10 +691,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 redirection_data: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.invoice_number.clone(),
                 incremental_authorization_allowed: None,
                 mandate_reference: Some(Box::new(mandate_reference)),
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,

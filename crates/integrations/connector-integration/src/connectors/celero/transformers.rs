@@ -2,7 +2,6 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::{pii::Email, MinorUnit};
 use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, Void},
     connector_types::{
@@ -14,6 +13,7 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
+use domain_types::{errors::IntegrationError, router_data::FlowStatus};
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
@@ -293,14 +293,16 @@ impl<T: PaymentMethodDataTypes>
                 },
             },
             PaymentMethodData::BankDebit(_bank_debit_data) => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "ACH payments not yet implemented".to_string(),
+                    Default::default(),
                 )
                 .into())
             }
             _ => {
-                return Err(IntegrationError::not_implemented(
+                return Err(IntegrationError::NotImplemented(
                     "Payment method not supported".to_string(),
+                    Default::default(),
                 )
                 .into())
             }
@@ -441,9 +443,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<CeleroPaymentsRespons
                                     mandate_reference: None, // Mandates not yet implemented in UCS
                                     connector_metadata: None,
                                     network_txn_id: None,
+                                    network_txn_link_id: None,
                                     connector_response_reference_id: response.auth_code.clone(),
                                     incremental_authorization_allowed: None,
                                     status_code: item.http_code,
+                                    splits: None,
                                 }),
                                 resource_common_data: PaymentFlowData {
                                     status: final_status,
@@ -602,7 +606,7 @@ impl TryFrom<ResponseRouterData<CeleroSyncResponse, Self>>
                         response.status
                     )),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -664,9 +668,11 @@ impl TryFrom<ResponseRouterData<CeleroSyncResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: card_response.and_then(|c| c.auth_code.clone()),
+            network_txn_link_id: None,
             connector_response_reference_id: transaction_data.order_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -791,7 +797,7 @@ impl TryFrom<ResponseRouterData<CeleroCaptureResponse, Self>>
                         response.status
                     )),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(connector_transaction_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -808,9 +814,11 @@ impl TryFrom<ResponseRouterData<CeleroCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -906,7 +914,7 @@ impl TryFrom<ResponseRouterData<CeleroRefundResponse, Self>>
                         response.status
                     )),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: Some(
                         router_data.request.connector_transaction_id.clone(),
                     ),
@@ -1092,7 +1100,7 @@ impl TryFrom<ResponseRouterData<CeleroVoidResponse, Self>>
                         response.status
                     )),
                     status_code: item.http_code,
-                    attempt_status: Some(AttemptStatus::VoidFailed),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
                     connector_transaction_id: Some(connector_transaction_id.clone()),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1109,9 +1117,11 @@ impl TryFrom<ResponseRouterData<CeleroVoidResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {

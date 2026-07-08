@@ -331,8 +331,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     card_data.clone(),
                 )?
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
+                Default::default(),
             ))?,
         };
 
@@ -470,6 +471,7 @@ impl Revolv3SaleResponse {
                     connector_mandate_id: Some(connector_mandate_id.to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 }
             });
 
@@ -479,9 +481,11 @@ impl Revolv3SaleResponse {
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: Some(serde_json::json!(Revolv3OperationMetadata::PsyncAllowed)),
                 network_txn_id: self.network_transaction_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: self.merchant_invoice_ref_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code,
+                splits: None,
             })
         };
 
@@ -501,6 +505,7 @@ impl Revolv3AuthorizeResponse {
                     connector_mandate_id: Some(connector_mandate_id.to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 }
             })
         });
@@ -520,9 +525,11 @@ impl Revolv3AuthorizeResponse {
                     mandate_reference: mandate_reference.map(Box::new),
                     connector_metadata: None,
                     network_txn_id: self.network_transaction_id.clone(),
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     status_code,
+                    splits: None,
                 }),
             }),
             _ => Ok(DerivedPaymentResponse {
@@ -678,6 +685,7 @@ impl TryFrom<ResponseRouterData<Revolv3PaymentSyncResponse, Self>>
                             connector_mandate_id: Some(connector_mandate_id.to_string()),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         },
                     )
             });
@@ -690,9 +698,11 @@ impl TryFrom<ResponseRouterData<Revolv3PaymentSyncResponse, Self>>
                 mandate_reference: mandate_reference.map(Box::new),
                 connector_metadata: None,
                 network_txn_id: item.response.network_transaction_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.merchant_invoice_ref_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             })
         };
 
@@ -1018,9 +1028,11 @@ impl TryFrom<ResponseRouterData<Revolv3AuthReversalResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status: AttemptStatus::Voided,
@@ -1129,8 +1141,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )?
             }
             PaymentMethodData::MandatePayment => Revolv3PaymentMethodData::set_mandate_data()?,
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
+                Default::default(),
             ))?,
         };
 
@@ -1269,8 +1282,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 })
             }
-            _ => Err(IntegrationError::not_implemented(
+            _ => Err(IntegrationError::NotImplemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("revolv3"),
+                Default::default(),
             ))?,
         };
 

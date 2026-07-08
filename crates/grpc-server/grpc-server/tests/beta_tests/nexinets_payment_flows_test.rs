@@ -173,8 +173,9 @@ fn create_payment_sync_request(
         capture_method: None,
         amount: TEST_AMOUNT,
         currency: i32::from(Currency::Eur),
-        handle_response: None,
         state: None,
+        payment_method_type: None,
+        mandate_reference: None,
     }
 }
 

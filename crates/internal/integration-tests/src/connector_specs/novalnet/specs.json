@@ -1,13 +1,14 @@
 {
   "connector": "novalnet",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "get",
-    "recurring_charge",
-    "refund",
-    "refund_sync",
-    "setup_recurring",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/Get",
+    "PaymentService/IncrementalAuthorization",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void"
   ]
 }

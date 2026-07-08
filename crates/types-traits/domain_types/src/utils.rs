@@ -5,7 +5,9 @@ use std::{
 
 use base64::Engine;
 use common_enums::{CurrencyUnit, PaymentMethodType};
-use common_utils::{consts, metadata::MaskedMetadata, AmountConvertor, CustomResult, MinorUnit};
+use common_utils::{
+    consts, fp_utils::when, metadata::MaskedMetadata, AmountConvertor, CustomResult, MinorUnit,
+};
 use error_stack::{report, Result, ResultExt};
 use regex::Regex;
 use serde::Serialize;
@@ -382,6 +384,14 @@ pub(crate) fn extract_connector_request_reference_id(identifier: &Option<String>
 pub fn get_card_issuer(
     card_number: &str,
 ) -> core::result::Result<CardIssuer, error_stack::Report<IntegrationError>> {
+    // Vault template tokens (e.g. {{$card_number}}) are not real card numbers —
+    // card issuer detection is not supported for proxy/vault flows.
+    when(card_number.contains("{{"), || {
+        Err(error_stack::Report::new(IntegrationError::NotImplemented(
+            "Card issuer detection is not supported for vault token placeholders".into(),
+            Default::default(),
+        )))
+    })?;
     for (k, v) in CARD_REGEX.iter() {
         let regex: Regex = v
             .clone()
@@ -392,8 +402,9 @@ pub fn get_card_issuer(
             return Ok(*k);
         }
     }
-    Err(error_stack::Report::new(IntegrationError::not_implemented(
-        "Card Type",
+    Err(error_stack::Report::new(IntegrationError::NotImplemented(
+        ("Card Type").into(),
+        Default::default(),
     )))
 }
 
@@ -636,5 +647,28 @@ pub fn convert_spain_state_to_code(state: &str) -> Result<String, crate::errors:
             field_name: "address.state",
             context: Default::default(),
         })?,
+    }
+}
+
+/// Split a full name into (first_name, last_name) on the last whitespace.
+/// Single-token names go to first_name only. `None` / empty / whitespace-only input
+/// returns `(None, None)`.
+pub fn split_full_name(
+    full_name: Option<hyperswitch_masking::Secret<String>>,
+) -> (
+    Option<hyperswitch_masking::Secret<String>>,
+    Option<hyperswitch_masking::Secret<String>>,
+) {
+    use hyperswitch_masking::{ExposeInterface, Secret};
+    let trimmed = full_name.map(|name| name.expose().trim().to_string());
+    match trimmed {
+        Some(name) if !name.is_empty() => match name.rsplit_once(' ') {
+            Some((first, last)) => (
+                Some(Secret::new(first.to_string())),
+                Some(Secret::new(last.to_string())),
+            ),
+            None => (Some(Secret::new(name)), None),
+        },
+        _ => (None, None),
     }
 }

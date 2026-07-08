@@ -1,0 +1,15 @@
+{
+  "suite": "RecurringPaymentService/Charge",
+  "suite_type": "dependent",
+  "depends_on": [
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "CustomerService/Create",
+    {
+      "suite": "PaymentService/SetupRecurring",
+      "context_map": {
+        "connector_recurring_payment_id.connector_mandate_id.connector_mandate_id": "res.mandate_reference.connector_mandate_id.connector_mandate_id"
+      }
+    }
+  ],
+  "strict_dependencies": false
+}

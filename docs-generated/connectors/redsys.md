@@ -22,11 +22,15 @@ from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
 config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
+    connector_config=payment_pb2.ConnectorSpecificConfig(
+        redsys=payment_pb2.RedsysConfig(
+            merchant_id=payment_methods_pb2.SecretString(value="YOUR_MERCHANT_ID"),
+            terminal_id=payment_methods_pb2.SecretString(value="YOUR_TERMINAL_ID"),
+            sha256_pwd=payment_methods_pb2.SecretString(value="YOUR_SHA256_PWD"),
+            base_url="YOUR_BASE_URL",
+        ),
+    ),
 )
-# Set credentials before running (field names depend on connector auth type):
-# config.connector_config.CopyFrom(payment_pb2.ConnectorSpecificConfig(
-#     redsys=payment_pb2.RedsysConfig(api_key=...),
-# ))
 
 ```
 
@@ -38,14 +42,19 @@ config = sdk_config_pb2.ConnectorConfig(
 <details><summary>JavaScript</summary>
 
 ```javascript
-const { ConnectorClient } = require('connector-service-node-ffi');
+const { PaymentClient } = require('hyperswitch-prism');
+const { ConnectorConfig, Environment, Connector } = require('hyperswitch-prism').types;
 
-// Reuse this client for all flows
-const client = new ConnectorClient({
-    connector: 'Redsys',
-    environment: 'sandbox',
-    connector_auth_type: {
-        header_key: { api_key: 'YOUR_API_KEY' },
+const config = ConnectorConfig.create({
+    connector: Connector.REDSYS,
+    environment: Environment.SANDBOX,
+    auth: {
+        redsys: {
+            merchantId: { value: 'YOUR_MERCHANT_ID' },
+            terminalId: { value: 'YOUR_TERMINAL_ID' },
+            sha256Pwd: { value: 'YOUR_SHA256_PWD' },
+            baseUrl: 'YOUR_BASE_URL',
+        }
     },
 });
 ```
@@ -59,11 +68,16 @@ const client = new ConnectorClient({
 
 ```kotlin
 val config = ConnectorConfig.newBuilder()
-    .setConnector("Redsys")
-    .setEnvironment(Environment.SANDBOX)
-    .setAuth(
-        ConnectorAuthType.newBuilder()
-            .setHeaderKey(HeaderKey.newBuilder().setApiKey("YOUR_API_KEY"))
+    .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
+    .setConnectorConfig(
+        ConnectorSpecificConfig.newBuilder()
+            .setRedsys(RedsysConfig.newBuilder()
+                .setMerchantId(SecretString.newBuilder().setValue("YOUR_MERCHANT_ID").build())
+                .setTerminalId(SecretString.newBuilder().setValue("YOUR_TERMINAL_ID").build())
+                .setSha256Pwd(SecretString.newBuilder().setValue("YOUR_SHA256_PWD").build())
+                .setBaseUrl("YOUR_BASE_URL")
+                .build())
+            .build()
     )
     .build()
 ```
@@ -76,13 +90,22 @@ val config = ConnectorConfig.newBuilder()
 <details><summary>Rust</summary>
 
 ```rust
-use connector_service_sdk::{ConnectorClient, ConnectorConfig};
+use grpc_api_types::payments::*;
+use grpc_api_types::payments::connector_specific_config;
 
 let config = ConnectorConfig {
-    connector: "Redsys".to_string(),
-    environment: Environment::Sandbox,
-    auth: ConnectorAuth::HeaderKey { api_key: "YOUR_API_KEY".into() },
-    ..Default::default()
+    connector_config: Some(ConnectorSpecificConfig {
+            config: Some(connector_specific_config::Config::Redsys(RedsysConfig {
+                merchant_id: Some(hyperswitch_masking::Secret::new("YOUR_MERCHANT_ID".to_string())),  // Authentication credential
+                terminal_id: Some(hyperswitch_masking::Secret::new("YOUR_TERMINAL_ID".to_string())),  // Authentication credential
+                sha256_pwd: Some(hyperswitch_masking::Secret::new("YOUR_SHA256_PWD".to_string())),  // Authentication credential
+                base_url: Some("https://sandbox.example.com".to_string()),  // Base URL for API calls
+                ..Default::default()
+            })),
+        }),
+    options: Some(SdkOptions {
+        environment: Environment::Sandbox.into(),
+    }),
 };
 ```
 
@@ -115,7 +138,7 @@ Finalize an authorized payment by transferring funds. Captures the authorized am
 | **Request** | `PaymentServiceCaptureRequest` |
 | **Response** | `PaymentServiceCaptureResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py#L171) · [TypeScript](../../examples/redsys/redsys.ts#L156) · [Kotlin](../../examples/redsys/redsys.kt#L127) · [Rust](../../examples/redsys/redsys.rs#L160)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L161) · [Kotlin](../../examples/redsys/redsys.kt#L136) · [Rust](../../examples/redsys/redsys.rs)
 
 #### PaymentService.Get
 
@@ -126,7 +149,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py#L180) · [TypeScript](../../examples/redsys/redsys.ts#L165) · [Kotlin](../../examples/redsys/redsys.kt#L137) · [Rust](../../examples/redsys/redsys.rs#L167)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L170) · [Kotlin](../../examples/redsys/redsys.kt#L146) · [Rust](../../examples/redsys/redsys.rs)
 
 #### PaymentService.Refund
 
@@ -137,7 +160,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py#L198) · [TypeScript](../../examples/redsys/redsys.ts#L183) · [Kotlin](../../examples/redsys/redsys.kt#L173) · [Rust](../../examples/redsys/redsys.rs#L181)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L188) · [Kotlin](../../examples/redsys/redsys.kt#L182) · [Rust](../../examples/redsys/redsys.rs)
 
 #### PaymentService.Void
 
@@ -148,7 +171,7 @@ Cancel an authorized payment that has not been captured. Releases held funds bac
 | **Request** | `PaymentServiceVoidRequest` |
 | **Response** | `PaymentServiceVoidResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py#L216) · [TypeScript](../../examples/redsys/redsys.ts) · [Kotlin](../../examples/redsys/redsys.kt#L195) · [Rust](../../examples/redsys/redsys.rs#L195)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts) · [Kotlin](../../examples/redsys/redsys.kt#L204) · [Rust](../../examples/redsys/redsys.rs)
 
 ### Refunds
 
@@ -161,7 +184,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py#L207) · [TypeScript](../../examples/redsys/redsys.ts#L192) · [Kotlin](../../examples/redsys/redsys.kt#L183) · [Rust](../../examples/redsys/redsys.rs#L188)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L197) · [Kotlin](../../examples/redsys/redsys.kt#L192) · [Rust](../../examples/redsys/redsys.rs)
 
 ### Authentication
 
@@ -174,7 +197,7 @@ Execute 3DS challenge or frictionless verification. Authenticates customer via b
 | **Request** | `PaymentMethodAuthenticationServiceAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServiceAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py#L162) · [TypeScript](../../examples/redsys/redsys.ts#L147) · [Kotlin](../../examples/redsys/redsys.kt#L79) · [Rust](../../examples/redsys/redsys.rs#L153)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L152) · [Kotlin](../../examples/redsys/redsys.kt#L88) · [Rust](../../examples/redsys/redsys.rs)
 
 #### PaymentMethodAuthenticationService.PreAuthenticate
 
@@ -185,4 +208,4 @@ Initiate 3DS flow before payment authorization. Collects device data and prepare
 | **Request** | `PaymentMethodAuthenticationServicePreAuthenticateRequest` |
 | **Response** | `PaymentMethodAuthenticationServicePreAuthenticateResponse` |
 
-**Examples:** [Python](../../examples/redsys/redsys.py#L189) · [TypeScript](../../examples/redsys/redsys.ts#L174) · [Kotlin](../../examples/redsys/redsys.kt#L145) · [Rust](../../examples/redsys/redsys.rs#L174)
+**Examples:** [Python](../../examples/redsys/redsys.py) · [TypeScript](../../examples/redsys/redsys.ts#L179) · [Kotlin](../../examples/redsys/redsys.kt#L154) · [Rust](../../examples/redsys/redsys.rs)

@@ -1,3 +1,4 @@
+use domain_types::router_data::ConnectorSpecificConfig;
 use std::fmt::Debug;
 
 use common_utils::{
@@ -10,26 +11,19 @@ use common_utils::{
 };
 use domain_types::{
     connector_flow::{
-        Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
-        SubmitEvidence, Void, VoidPC,
+        Authenticate, Authorize, Capture, ClientAuthenticationToken, IncrementalAuthorization,
+        MandateRevoke, PSync, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
+        SetupMandate, Void, VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
-        ConnectorCustomerResponse, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData,
+        ClientAuthenticationTokenRequestData, MandateRevokeRequestData, MandateRevokeResponseData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPreAuthenticateData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        RepeatPaymentData, SetupMandateRequestData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     router_data::ErrorResponse,
     router_data_v2::RouterDataV2,
@@ -50,19 +44,26 @@ use error_stack::{Report, ResultExt};
 use ring::{digest, hmac};
 use time::OffsetDateTime;
 pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+/// JWT segments are base64url WITHOUT padding (RFC 7515); used to decode the
+/// Flex Microform capture-context JWT payload.
+pub const BASE64_URL_SAFE_NO_PAD_ENGINE: base64::engine::GeneralPurpose =
+    base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
 use transformers::{
     self as cybersource, CybersourceAuthEnrollmentRequest, CybersourceAuthSetupRequest,
     CybersourceAuthSetupResponse, CybersourceAuthValidateRequest, CybersourceAuthenticateResponse,
     CybersourceAuthenticateResponse as CybersourcePostAuthenticateResponse,
     CybersourceClientAuthRequest, CybersourceClientAuthResponse, CybersourcePaymentsCaptureRequest,
-    CybersourcePaymentsRequest, CybersourcePaymentsResponse,
-    CybersourcePaymentsResponse as CybersourceCaptureResponse,
+    CybersourcePaymentsIncrementalAuthorizationRequest,
+    CybersourcePaymentsIncrementalAuthorizationResponse, CybersourcePaymentsRequest,
+    CybersourcePaymentsResponse, CybersourcePaymentsResponse as CybersourceCaptureResponse,
+    CybersourcePaymentsResponse as CybersourceVoidPCResponse,
     CybersourcePaymentsResponse as CybersourceVoidResponse,
     CybersourcePaymentsResponse as CybersourceSetupMandateResponse,
     CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse, CybersourceRefundRequest,
     CybersourceRefundResponse, CybersourceRepeatPaymentRequest, CybersourceRsyncResponse,
-    CybersourceTransactionResponse, CybersourceVoidRequest, CybersourceZeroMandateRequest,
+    CybersourceTransactionResponse, CybersourceVoidPCRequest, CybersourceVoidRequest,
+    CybersourceZeroMandateRequest, ForeignTryFrom,
 };
 
 use super::macros;
@@ -76,18 +77,6 @@ pub(crate) mod headers {
     pub(crate) const CONNECTOR_UNAUTHORIZED_ERROR: &str = "Authentication Error from the connector";
 }
 
-// Trait implementations with generic type parameters
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        IncrementalAuthorization,
-        PaymentFlowData,
-        PaymentsIncrementalAuthorizationData,
-        PaymentsResponseData,
-    > for Cybersource<T>
-{
-}
-
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ClientAuthentication for Cybersource<T>
 {
@@ -97,12 +86,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ConnectorServiceTrait<T> for Cybersource<T>
 {
 }
-
-macros::macro_connector_payout_implementation!(
-    connector: Cybersource,
-    generic_type: T,
-    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize]
-);
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentAuthorizeV2<T> for Cybersource<T>
@@ -121,15 +104,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
-        VoidPC,
-        PaymentFlowData,
-        PaymentsCancelPostCaptureData,
-        PaymentsResponseData,
-    > for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RefundSyncV2 for Cybersource<T>
 {
 }
@@ -144,10 +118,41 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Cybersource<T>
 {
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentOrderCreate for Cybersource<T>
-{
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: common_enums::PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == common_enums::PaymentMethod::Card
+        {
+            match (redirect_state, completed_step) {
+                (RedirectState::InitialRequest, _) => AuthenticationStep::PreAuthenticate,
+
+                (RedirectState::RedirectWithParams, None) => AuthenticationStep::Authenticate,
+
+                (RedirectState::RedirectWithParams, Some(AuthenticationStep::Authenticate)) => {
+                    AuthenticationStep::Authorize
+                }
+
+                (RedirectState::RedirectWithoutParams, None) => {
+                    AuthenticationStep::PostAuthenticate
+                }
+
+                (
+                    RedirectState::RedirectWithoutParams,
+                    Some(AuthenticationStep::PostAuthenticate),
+                ) => AuthenticationStep::Authorize,
+
+                _ => AuthenticationStep::Authorize,
+            }
+        } else {
+            AuthenticationStep::Authorize
+        }
+    }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::SetupMandateV2<T> for Cybersource<T>
@@ -158,19 +163,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::AcceptDispute for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::SubmitEvidenceV2 for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentIncrementalAuthorization for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::DisputeDefend for Cybersource<T>
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -190,18 +183,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Body
 {
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerSessionAuthentication for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::ServerAuthentication for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::PaymentTokenV2<T> for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::PaymentPreAuthenticateV2<T> for Cybersource<T>
 {
 }
@@ -216,10 +197,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
 }
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    connector_types::CreateConnectorCustomer for Cybersource<T>
-{
-}
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::MandateRevokeV2 for Cybersource<T>
 {
@@ -271,6 +248,12 @@ macros::create_all_prerequisites!(
             router_data: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ),
         (
+            flow: VoidPC,
+            request_body: CybersourceVoidPCRequest,
+            response_body: CybersourceVoidPCResponse,
+            router_data: RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ),
+        (
             flow: Refund,
             request_body: CybersourceRefundRequest,
             response_body: CybersourceRefundResponse,
@@ -297,7 +280,13 @@ macros::create_all_prerequisites!(
             flow: ClientAuthenticationToken,
             request_body: CybersourceClientAuthRequest,
             response_body: CybersourceClientAuthResponse,
-            router_data: RouterDataV2<ClientAuthenticationToken, PaymentFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+            router_data: RouterDataV2<ClientAuthenticationToken, MerchantAuthenticationFlowData, ClientAuthenticationTokenRequestData, PaymentsResponseData>,
+        ),
+        (
+            flow: IncrementalAuthorization,
+            request_body: CybersourcePaymentsIncrementalAuthorizationRequest,
+            response_body: CybersourcePaymentsIncrementalAuthorizationResponse,
+            router_data: RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
         )
     ],
     amount_converters: [
@@ -383,6 +372,13 @@ macros::create_all_prerequisites!(
             &req.resource_common_data.connectors.cybersource.base_url
         }
 
+        pub fn connector_base_url_merchant_auth<'a, F, Req, Res>(
+            &self,
+            req: &'a RouterDataV2<F, MerchantAuthenticationFlowData, Req, Res>,
+        ) -> &'a str {
+            &req.resource_common_data.connectors.cybersource.base_url
+        }
+
         pub fn generate_digest(&self, payload: &[u8]) -> String {
             let payload_digest = digest::digest(&digest::SHA256, payload);
             BASE64_ENGINE.encode(payload_digest)
@@ -462,6 +458,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: Result<
             cybersource::CybersourceErrorResponse,
@@ -609,6 +606,27 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}pts/v2/payments/", self.connector_base_url_payments(req)))
+        }
+        fn get_5xx_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            // Cybersource returns a structured body on 5xx (e.g. HTTP 502
+            // `{"status":"SERVER_ERROR","reason":"SYSTEM_ERROR","message":"..."}`).
+            // `ErrorResponse::foreign_try_from(&res)` parses it so the shadow UCS
+            // `response.Err.{code,message}` mirror the Direct gateway (which maps
+            // `status` -> code) instead of the generic `bad_gateway` / HTTP-status
+            // discriminator. Falls back to the standard error handler when the body is
+            // not in the server-error shape.
+            match ErrorResponse::foreign_try_from(&res) {
+                Ok(error_response) => {
+                    with_error_response_body!(event_builder, error_response);
+                    Ok(error_response)
+                }
+                Err(_) => self.build_error_response(res, event_builder, connector_config),
+            }
         }
     }
 );
@@ -842,6 +860,44 @@ macros::macro_connector_implementation!(
     }
 );
 
+// Add implementation for VoidPC (post-capture reversal)
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Cybersource,
+    curl_request: Json(CybersourceVoidPCRequest),
+    curl_response: CybersourceVoidPCResponse,
+    flow_name: VoidPC,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsCancelPostCaptureData,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<VoidPC, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // VoidPostCapture voids a CAPTURE (not an authorization).
+            // CyberSource uses a dedicated endpoint for capture voids:
+            //   POST /pts/v2/captures/{capture_id}/voids
+            // The authorization-reversal endpoint (/pts/v2/payments/{id}/reversals)
+            // is for pre-capture reversals only and requires reversalInformation.amountDetails.
+            let capture_id = req.request.connector_transaction_id.clone();
+            Ok(format!(
+                "{}pts/v2/captures/{capture_id}/voids",
+                self.connector_base_url_payments(req),
+            ))
+        }
+    }
+);
+
 // Add implementation for Refund
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
@@ -947,7 +1003,7 @@ macros::macro_connector_implementation!(
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ConnectorIntegrationV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     > for Cybersource<T>
@@ -962,7 +1018,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         req: &RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
@@ -973,21 +1029,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         req: &RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
     ) -> CustomResult<String, IntegrationError> {
         Ok(format!(
-            "{}flex/v2/sessions",
-            self.connector_base_url_payments(req)
+            "{}microform/v2/sessions",
+            self.connector_base_url_merchant_auth(req)
         ))
     }
     fn get_request_body(
         &self,
         req: &RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
@@ -1006,7 +1062,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         data: &RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
@@ -1015,18 +1071,72 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> CustomResult<
         RouterDataV2<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >,
         ConnectorError,
     > {
-        // Cybersource Flex v2 sessions API returns a raw JWT string (content-type: application/jwt)
-        let capture_context_jwt = String::from_utf8(res.response.to_vec())
+        let response_bytes = res.response.to_vec();
+        let response_str = String::from_utf8(response_bytes.clone())
             .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
+
+        // Cybersource Microform v2 sessions API returns JSON with captureContext field
+        // Flex v2 sessions API returns a raw JWT string (content-type: application/jwt)
+        let capture_context_jwt =
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&response_str) {
+                json.get("captureContext")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string())
+                    .unwrap_or(response_str)
+            } else {
+                response_str
+            };
+
+        // Decode JWT payload to extract client library info
+        let parts: Vec<&str> = capture_context_jwt.split('.').collect();
+        if parts.len() < 2 {
+            return Err(Report::new(ConnectorError::response_handling_failed(
+                res.status_code,
+            )));
+        }
+
+        let payload = parts.get(1).ok_or_else(|| {
+            Report::new(ConnectorError::response_handling_failed(res.status_code))
+        })?;
+        // Flex capture-context JWT segments are base64url WITHOUT padding
+        // (RFC 7515); STANDARD base64 fails for ~3/4 of payloads depending on
+        // length (varies with targetOrigins, e.g. long tunnel domains).
+        let decoded_bytes = Engine::decode(&BASE64_URL_SAFE_NO_PAD_ENGINE, payload)
+            .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
+        let decoded_str = String::from_utf8(decoded_bytes)
+            .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
+        let decoded: serde_json::Value = serde_json::from_str(&decoded_str)
+            .map_err(|_| ConnectorError::response_handling_failed(res.status_code))?;
+
+        let client_library = decoded
+            .get("ctx")
+            .and_then(|ctx| ctx.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|item| item.get("data"))
+            .and_then(|data| data.get("clientLibrary"))
+            .and_then(|val| val.as_str())
+            .unwrap_or_default()
+            .to_string();
+        let client_library_integrity = decoded
+            .get("ctx")
+            .and_then(|ctx| ctx.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|item| item.get("data"))
+            .and_then(|data| data.get("clientLibraryIntegrity"))
+            .and_then(|val| val.as_str())
+            .unwrap_or_default()
+            .to_string();
 
         let response_body = CybersourceClientAuthResponse {
             capture_context: capture_context_jwt,
+            client_library,
+            client_library_integrity,
         };
         event_builder.map(|i| i.set_connector_response(&response_body));
 
@@ -1038,7 +1148,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         let result = RouterDataV2::<
             ClientAuthenticationToken,
-            PaymentFlowData,
+            MerchantAuthenticationFlowData,
             ClientAuthenticationTokenRequestData,
             PaymentsResponseData,
         >::try_from(response_router_data)
@@ -1050,10 +1160,53 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
+        self.build_error_response(res, event_builder, _connector_config)
     }
 }
+
+// IncrementalAuthorization implementation — PATCH to
+// /pts/v2/payments/{connector_transaction_id}.
+// CyberSource's native incremental authorization uses PATCH on the original
+// payment resource (not a sub-resource) with an `additionalAmount` delta.
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Cybersource,
+    curl_request: Json(CybersourcePaymentsIncrementalAuthorizationRequest),
+    curl_response: CybersourcePaymentsIncrementalAuthorizationResponse,
+    flow_name: IncrementalAuthorization,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsIncrementalAuthorizationData,
+    flow_response: PaymentsResponseData,
+    http_method: Patch,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<IncrementalAuthorization, PaymentFlowData, PaymentsIncrementalAuthorizationData, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            let connector_payment_id = req
+                .request
+                .connector_transaction_id
+                .get_connector_transaction_id()
+                .change_context(IntegrationError::MissingConnectorTransactionID { context: Default::default() })
+                .attach_printable("Missing connector_transaction_id for incremental authorization")?;
+            Ok(format!(
+                "{}pts/v2/payments/{}",
+                self.connector_base_url_payments(req),
+                connector_payment_id
+            ))
+        }
+    }
+);
 
 // Manual implementation for MandateRevoke with correct event builder
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -1176,79 +1329,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         &self,
         res: Response,
         event_builder: Option<&mut events::Event>,
+        _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
+        self.build_error_response(res, event_builder, _connector_config)
     }
 }
 
-// Stub implementations for unsupported flows
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
+macros::macro_connector_flow_status_impls!(
+    connector: Cybersource,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    not_implemented: [
         CreateOrder,
-        PaymentFlowData,
-        PaymentCreateOrderData,
-        PaymentCreateOrderResponse,
-    > for Cybersource<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<SubmitEvidence, DisputeFlowData, SubmitEvidenceData, DisputeResponseData>
-    for Cybersource<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<DefendDispute, DisputeFlowData, DisputeDefendData, DisputeResponseData>
-    for Cybersource<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<Accept, DisputeFlowData, AcceptDisputeData, DisputeResponseData>
-    for Cybersource<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         ServerSessionAuthenticationToken,
-        PaymentFlowData,
-        ServerSessionAuthenticationTokenRequestData,
-        ServerSessionAuthenticationTokenResponseData,
-    > for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         PaymentMethodToken,
-        PaymentFlowData,
-        PaymentMethodTokenizationData<T>,
-        PaymentMethodTokenResponse,
-    > for Cybersource<T>
-{
-}
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         ServerAuthenticationToken,
-        PaymentFlowData,
-        ServerAuthenticationTokenRequestData,
-        ServerAuthenticationTokenResponseData,
-    > for Cybersource<T>
-{
-}
-
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
-    ConnectorIntegrationV2<
         CreateConnectorCustomer,
-        PaymentFlowData,
-        ConnectorCustomerData,
-        ConnectorCustomerResponse,
-    > for Cybersource<T>
-{
-}
-
-// SourceVerification implementations for all flows
-
-// Authentication flow SourceVerification implementations
+    ],
+    not_supported: [
+        VoidPostRefund,
+        SubmitEvidence,
+        DefendDispute,
+        Accept,
+    ],
+);

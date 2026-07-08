@@ -305,11 +305,11 @@ export class UniffiClient {
       
       // Enum-based type checking
       switch (resultMsg.type) {
-        case types.FfiResult.Type.HTTP_RESPONSE:
-          if (!resultMsg.httpResponse) {
-            throw new Error("Expected httpResponse in FfiResult, but got null/undefined");
+        case types.FfiResult.Type.PROTO_RESPONSE:
+          if (!resultMsg.protoResponse) {
+            throw new Error("Expected protoResponse in FfiResult, but got null/undefined");
           }
-          return Buffer.from(types.FfiConnectorHttpResponse.encode(resultMsg.httpResponse).finish());
+          return Buffer.from(resultMsg.protoResponse);
         case types.FfiResult.Type.CONNECTOR_ERROR:
           if (!resultMsg.connectorError) {
             throw new Error("Expected connectorError in FfiResult, but got null/undefined");

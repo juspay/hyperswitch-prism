@@ -286,8 +286,9 @@ where
             | Some(PaymentMethodData::NetworkToken(..))
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
-            | None => Err(IntegrationError::not_implemented(
+            | None => Err(IntegrationError::NotImplemented(
                 domain_types::utils::get_unimplemented_payment_method_error_message("redsys"),
+                Default::default(),
             )
             .into()),
         }
@@ -732,9 +733,11 @@ fn get_payments_response(
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             })
         } else {
             Ok(PaymentsResponseData::AuthenticateResponse {
@@ -743,6 +746,7 @@ fn get_payments_response(
                 )),
                 redirection_data: None,
                 authentication_data,
+                connector_feature_data: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 status_code: http_code,
             })
@@ -764,9 +768,11 @@ fn get_payments_response(
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             })
         } else {
             Ok(PaymentsResponseData::AuthenticateResponse {
@@ -775,6 +781,7 @@ fn get_payments_response(
                 )),
                 redirection_data: redirection_form.map(Box::new),
                 authentication_data,
+                connector_feature_data: None,
                 connector_response_reference_id: Some(redsys_payments_response.ds_order.clone()),
                 status_code: http_code,
             })
@@ -937,6 +944,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                         ..item.router_data.resource_common_data
                     },
                     response: Ok(PaymentsResponseData::PreAuthenticateResponse {
+                        resource_id: None,
                         redirection_data,
                         connector_response_reference_id: response_ref_id,
                         status_code: item.http_code,
@@ -952,8 +960,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone(),
-                    reason: Some(err.error_code_description.clone()),
+                    message: err
+                        .error_code_description
+                        .clone()
+                        .unwrap_or_else(|| err.error_code.clone()),
+                    reason: err.error_code_description.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1141,8 +1152,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone(),
-                    reason: Some(err.error_code_description.clone()),
+                    message: err
+                        .error_code_description
+                        .clone()
+                        .unwrap_or_else(|| err.error_code.clone()),
+                    reason: err.error_code_description.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1459,8 +1473,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<responses::RedsysResp
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone(),
-                    reason: Some(err.error_code_description.clone()),
+                    message: err
+                        .error_code_description
+                        .clone()
+                        .unwrap_or_else(|| err.error_code.clone()),
+                    reason: err.error_code_description.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1559,9 +1576,11 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(response_data.ds_order),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })
@@ -1573,8 +1592,11 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone(),
-                    reason: Some(err.error_code_description.clone()),
+                    message: err
+                        .error_code_description
+                        .clone()
+                        .unwrap_or_else(|| err.error_code.clone()),
+                    reason: err.error_code_description.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1677,9 +1699,11 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(response_data.ds_order),
                         incremental_authorization_allowed: None,
                         status_code: item.http_code,
+                        splits: None,
                     }),
                     ..item.router_data
                 })
@@ -1691,8 +1715,11 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
                 },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone(),
-                    reason: Some(err.error_code_description.clone()),
+                    message: err
+                        .error_code_description
+                        .clone()
+                        .unwrap_or_else(|| err.error_code.clone()),
+                    reason: err.error_code_description.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
@@ -1833,9 +1860,11 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(latest_response.ds_order.clone()),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         });
                         (attempt_status, payment_response)
                     } else {
@@ -1870,9 +1899,11 @@ impl TryFrom<ResponseRouterData<responses::RedsysSyncResponse, Self>>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: Some(latest_response.ds_order.clone()),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         });
                         (status, payment_response)
                     }
@@ -1994,8 +2025,11 @@ impl TryFrom<ResponseRouterData<responses::RedsysResponse, Self>>
             responses::RedsysResponse::RedsysErrorResponse(ref err) => {
                 Err(domain_types::router_data::ErrorResponse {
                     code: err.error_code.clone(),
-                    message: err.error_code_description.clone(),
-                    reason: Some(err.error_code_description.clone()),
+                    message: err
+                        .error_code_description
+                        .clone()
+                        .unwrap_or_else(|| err.error_code.clone()),
+                    reason: err.error_code_description.clone(),
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,

@@ -1,0 +1,11 @@
+{
+  "connector": "easebuzz",
+  "supported_suites": [
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "PaymentService/CreateOrder",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get"
+  ]
+}

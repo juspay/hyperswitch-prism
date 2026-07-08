@@ -227,10 +227,11 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         }),
         // all_keys_required: None,
         capture_method: None,
-        handle_response: None,
         amount: TEST_AMOUNT,
         currency: i32::from(Currency::Usd),
         state: None,
+        payment_method_type: None,
+        mandate_reference: None,
     }
 }
 
@@ -305,6 +306,7 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
         capture_method: None,
         request_ref_id: None, // all_keys_required: None,
         state: None,
+        payment_method: None,
     }
 }
 

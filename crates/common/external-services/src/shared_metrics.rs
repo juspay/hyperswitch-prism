@@ -122,6 +122,10 @@ where
         // Extract connector from request headers/metadata
         let connector = extract_connector_from_request(&req);
 
+        // Rollout mode: "primary" unless HS marks the request shadow.
+        #[cfg(feature = "otel")]
+        let mode = extract_mode_from_request(&req);
+
         // Increment total requests counter
         GRPC_SERVER_REQUESTS_TOTAL
             .with_label_values(&[&method_name, &service_name, &connector])
@@ -130,19 +134,18 @@ where
         Box::pin(async move {
             let result = inner.call(req).await;
 
-            // Record metrics based on response
-            match &result {
-                Ok(response) => {
-                    // Check gRPC status from response
-                    if is_grpc_success(response) {
-                        GRPC_SERVER_REQUESTS_SUCCESSFUL
-                            .with_label_values(&[&method_name, &service_name, &connector])
-                            .inc();
-                    }
-                }
-                Err(_) => {
-                    // Network/transport level error
-                }
+            // Determine the gRPC status code for this request: OK for a successful
+            // response, UNAVAILABLE for a transport-level failure (no gRPC status
+            // was produced).
+            let grpc_status = match &result {
+                Ok(response) => extract_grpc_status_code(response),
+                Err(_) => tonic::Code::Unavailable,
+            };
+
+            if grpc_status == tonic::Code::Ok {
+                GRPC_SERVER_REQUESTS_SUCCESSFUL
+                    .with_label_values(&[&method_name, &service_name, &connector])
+                    .inc();
             }
 
             // Record latency
@@ -150,6 +153,17 @@ where
             GRPC_SERVER_REQUEST_LATENCY
                 .with_label_values(&[&method_name, &service_name, &connector])
                 .observe(duration);
+
+            // Mirror the same observation to the OTLP-exported instruments.
+            #[cfg(feature = "otel")]
+            crate::otel_metrics::record_grpc_request(
+                &method_name,
+                &service_name,
+                &connector,
+                mode,
+                grpc_status,
+                duration,
+            );
 
             result.map_err(|e| {
                 tonic::Status::internal(format!("GrpcMetricsService inner call error: {e:?}"))
@@ -194,25 +208,30 @@ fn extract_connector_from_request<B>(req: &hyper::Request<B>) -> String {
     "unknown".to_string()
 }
 
-// Check if gRPC response indicates success
-fn is_grpc_success<B>(response: &hyper::Response<B>) -> bool {
-    // gRPC success is based on grpc-status header, not HTTP status
-    if let Some(grpc_status) = response.headers().get("grpc-status") {
-        if let Ok(status_str) = grpc_status.to_str() {
-            if let Ok(status_code) = status_str.parse::<i32>() {
-                if status_code == 0 {
-                    return true; // gRPC OK
-                } else {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-        } else {
-            return false;
-        }
+// Rollout mode from the `x-shadow-mode` header: "shadow" when explicitly true,
+// otherwise "primary" (the default when HS does not mark the request as shadow).
+#[cfg(feature = "otel")]
+fn extract_mode_from_request<B>(req: &hyper::Request<B>) -> &'static str {
+    match req
+        .headers()
+        .get("x-shadow-mode")
+        .and_then(|value| value.to_str().ok())
+    {
+        Some(value) if value.eq_ignore_ascii_case("true") => "shadow",
+        _ => "primary",
     }
-    true
+}
+
+// Read the gRPC status code from the `grpc-status` response field, defaulting
+// to OK when absent, matching gRPC semantics.
+fn extract_grpc_status_code<B>(response: &hyper::Response<B>) -> tonic::Code {
+    response
+        .headers()
+        .get("grpc-status")
+        .and_then(|value| value.to_str().ok())
+        .and_then(|status| status.parse::<i32>().ok())
+        .map(tonic::Code::from)
+        .unwrap_or(tonic::Code::Ok)
 }
 
 // Metrics handler

@@ -4,7 +4,7 @@ use crate::types::Connectors;
 use crate::utils::{extract_merchant_id_from_metadata, ForeignFrom, ForeignTryFrom};
 use common_utils::metadata::MaskedMetadata;
 use error_stack::ResultExt;
-use hyperswitch_masking::PeekInterface;
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use payouts::payouts_types::PayoutFlowData;
 
 impl
@@ -43,6 +43,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: value.description.clone(),
         })
     }
 }
@@ -123,6 +124,10 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceCreateRequest>
             connector_payout_method_id: value.connector_payout_method_id.clone(),
             webhook_url: value.webhook_url.clone(),
             payout_method_data,
+            source_bank_data: value
+                .source_bank_data
+                .map(payouts::payout_method_data::Bank::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -574,39 +579,74 @@ impl ForeignTryFrom<grpc_api_types::payouts::PixBankTransferPayout>
         Ok(payouts::payout_method_data::PixBankTransfer {
             bank_name,
             bank_branch: pix.bank_branch,
-            bank_account_number: ::hyperswitch_masking::Secret::new(
-                pix.bank_account_number
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "bank_account_number",
-                            context: IntegrationErrorContext {
-                                additional_context: Some(
-                                    "Bank account number is required for Pix".to_owned()
-                                ),
-                                ..Default::default()
-                            },
-                        })
-                    })?
-                    .peek()
-                    .to_string(),
-            ),
-            pix_key: ::hyperswitch_masking::Secret::new(
-                pix.pix_key
-                    .ok_or_else(|| {
-                        error_stack::report!(IntegrationError::MissingRequiredField {
-                            field_name: "pix_key",
-                            context: IntegrationErrorContext {
-                                additional_context: Some("Pix key is required for Pix".to_owned()),
-                                ..Default::default()
-                            },
-                        })
-                    })?
-                    .peek()
-                    .to_string(),
-            ),
-            tax_id: pix
-                .tax_id
-                .map(|t| ::hyperswitch_masking::Secret::new(t.peek().to_string())),
+            bank_account_number: pix.bank_account_number.ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "bank_account_number",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Bank account number is required for Pix bank transfer".to_owned()
+                        ),
+                        suggested_action: Some(
+                            "Provide the recipient's bank account number in the `bank_account_number` field of the Pix payout method data".to_owned()
+                        ),
+                        doc_url: None,
+                    },
+                })
+            })?,
+            tax_id: pix.tax_id,
+            ispb: pix.ispb,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payouts::PixKeyBankTransferPayout>
+    for payouts::payout_method_data::PixKeyBankTransfer
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        pix: grpc_api_types::payouts::PixKeyBankTransferPayout,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(payouts::payout_method_data::PixKeyBankTransfer {
+            pix_key: pix.pix_key.ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "pix_key",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Pix key is required for Pix key bank transfer".to_owned()
+                        ),
+                        suggested_action: Some(
+                            "Provide the recipient's Pix key (CPF, CNPJ, phone, email, or random key) in the `pix_key` field of the Pix key payout method data".to_owned()
+                        ),
+                        doc_url: None,
+                    },
+                })
+            })?,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payouts::PixEmvBankTransferPayout>
+    for payouts::payout_method_data::PixEmvBankTransfer
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        pix: grpc_api_types::payouts::PixEmvBankTransferPayout,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(payouts::payout_method_data::PixEmvBankTransfer {
+            emv: pix.emv.ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "emv",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "EMV is required for Pix EMV bank transfer".to_owned()
+                        ),
+                        suggested_action: Some(
+                            "Provide the EMV QR code payload in the `emv` field of the Pix EMV payout method data".to_owned()
+                        ),
+                        doc_url: None,
+                    },
+                })
+            })?,
         })
     }
 }
@@ -898,6 +938,16 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
                     payouts::payout_method_data::PixBankTransfer::foreign_try_from(pix)?,
                 )))
             }
+            grpc_api_types::payouts::payout_method::PayoutMethodData::PixKey(pix_key) => {
+                Ok(Self::Bank(payouts::payout_method_data::Bank::PixKey(
+                    payouts::payout_method_data::PixKeyBankTransfer::foreign_try_from(pix_key)?,
+                )))
+            }
+            grpc_api_types::payouts::payout_method::PayoutMethodData::PixEmv(pix_emv) => {
+                Ok(Self::Bank(payouts::payout_method_data::Bank::PixEmv(
+                    payouts::payout_method_data::PixEmvBankTransfer::foreign_try_from(pix_emv)?,
+                )))
+            }
             grpc_api_types::payouts::payout_method::PayoutMethodData::ApplePayDecrypt(
                 apple_pay_decrypt,
             ) => Ok(Self::Wallet(
@@ -932,6 +982,51 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
             grpc_api_types::payouts::payout_method::PayoutMethodData::Passthrough(passthrough) => {
                 Ok(Self::Passthrough(
                     payouts::payout_method_data::Passthrough::foreign_try_from(passthrough)?,
+                ))
+            }
+        }
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payouts::SourceBankData> for payouts::payout_method_data::Bank {
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        value: grpc_api_types::payouts::SourceBankData,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let data = value.source_bank_data.ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "source_bank_data",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Source bank data is required".to_owned()),
+                    suggested_action: Some(
+                        "Provide the source bank details (ACH, BACS, SEPA, Pix, etc.) in the `source_bank_data` field of the payout request".to_owned()
+                    ),
+                    doc_url: None,
+                },
+            })
+        })?;
+
+        match data {
+            grpc_api_types::payouts::source_bank_data::SourceBankData::Ach(ach) => Ok(Self::Ach(
+                payouts::payout_method_data::AchBankTransfer::foreign_try_from(ach)?,
+            )),
+            grpc_api_types::payouts::source_bank_data::SourceBankData::Bacs(bacs) => Ok(
+                Self::Bacs(payouts::payout_method_data::BacsBankTransfer::foreign_try_from(bacs)?),
+            ),
+            grpc_api_types::payouts::source_bank_data::SourceBankData::Sepa(sepa) => Ok(
+                Self::Sepa(payouts::payout_method_data::SepaBankTransfer::foreign_try_from(sepa)?),
+            ),
+            grpc_api_types::payouts::source_bank_data::SourceBankData::Pix(pix) => Ok(Self::Pix(
+                payouts::payout_method_data::PixBankTransfer::foreign_try_from(pix)?,
+            )),
+            grpc_api_types::payouts::source_bank_data::SourceBankData::PixKey(pix_key) => {
+                Ok(Self::PixKey(
+                    payouts::payout_method_data::PixKeyBankTransfer::foreign_try_from(pix_key)?,
+                ))
+            }
+            grpc_api_types::payouts::source_bank_data::SourceBankData::PixEmv(pix_emv) => {
+                Ok(Self::PixEmv(
+                    payouts::payout_method_data::PixEmvBankTransfer::foreign_try_from(pix_emv)?,
                 ))
             }
         }
@@ -1006,6 +1101,43 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
             .map(common_enums::PayoutPriority::foreign_try_from)
             .transpose()?;
 
+        let customer = value
+            .customer
+            .map(
+                |customer| -> Result<_, error_stack::Report<IntegrationError>> {
+                    let email = customer
+                        .email
+                        .map(|email_str| {
+                            common_utils::pii::Email::try_from(email_str.expose()).map_err(|e| {
+                                error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                                    field_name: "email",
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some("Invalid email".to_owned()),
+                                        ..Default::default()
+                                    },
+                                })
+                                .attach_printable(format!("{e:?}"))
+                            })
+                        })
+                        .transpose()?;
+
+                    Ok(payouts::payouts_types::PayoutCustomer {
+                        name: customer.name,
+                        email,
+                        merchant_customer_id: customer.id,
+                        connector_customer_id: customer.connector_customer_id,
+                        phone_number: customer.phone_number,
+                        phone_country_code: customer.phone_country_code,
+                    })
+                },
+            )
+            .transpose()?;
+
+        let address = value
+            .address
+            .map(payouts::payouts_types::PayoutAddress::foreign_try_from)
+            .transpose()?;
+
         Ok(Self {
             merchant_payout_id: value.merchant_payout_id.clone(),
             connector_quote_id: value.connector_quote_id.clone(),
@@ -1017,8 +1149,55 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
             connector_payout_method_id: value.connector_payout_method_id,
             webhook_url: value.webhook_url,
             payout_method_data,
+            source_bank_data: value
+                .source_bank_data
+                .map(payouts::payout_method_data::Bank::foreign_try_from)
+                .transpose()?,
+            customer,
+            address,
         })
     }
+}
+
+impl ForeignTryFrom<grpc_api_types::payouts::PayoutAddress>
+    for payouts::payouts_types::PayoutAddress
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payouts::PayoutAddress,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        Ok(Self {
+            shipping_address: value
+                .shipping_address
+                .map(convert_payouts_address_to_domain)
+                .transpose()?,
+            billing_address: value
+                .billing_address
+                .map(convert_payouts_address_to_domain)
+                .transpose()?,
+        })
+    }
+}
+
+fn convert_payouts_address_to_domain(
+    addr: grpc_api_types::payouts::Address,
+) -> Result<crate::payment_address::Address, error_stack::Report<IntegrationError>> {
+    let payments_addr = grpc_api_types::payments::Address {
+        first_name: addr.first_name,
+        last_name: addr.last_name,
+        line1: addr.line1,
+        line2: addr.line2,
+        line3: addr.line3,
+        city: addr.city,
+        state: addr.state,
+        zip_code: addr.zip_code,
+        country_alpha2_code: addr.country_alpha2_code,
+        email: addr.email,
+        phone_number: addr.phone_number,
+        phone_country_code: addr.phone_country_code,
+    };
+    crate::payment_address::Address::foreign_try_from(payments_addr)
 }
 
 impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceGetRequest>
@@ -1339,6 +1518,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: value.description.clone(),
         })
     }
 }
@@ -1379,6 +1559,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1419,6 +1600,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1459,6 +1641,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1499,6 +1682,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1539,6 +1723,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1579,6 +1764,7 @@ impl
                 }
             }),
             test_mode: None,
+            description: None,
         })
     }
 }
@@ -1610,6 +1796,8 @@ pub fn generate_payout_create_response(
                     code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
                     reason: err.reason.clone(),
+                    connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -1654,6 +1842,8 @@ pub fn generate_payout_transfer_response(
                     code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
                     reason: err.reason.clone(),
+                    connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -1698,6 +1888,8 @@ pub fn generate_payout_get_response(
                     code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
                     reason: err.reason.clone(),
+                    connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -1742,6 +1934,8 @@ pub fn generate_payout_void_response(
                     code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
                     reason: err.reason.clone(),
+                    connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -1786,6 +1980,8 @@ pub fn generate_payout_stage_response(
                     code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
                     reason: err.reason.clone(),
+                    connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -1830,6 +2026,8 @@ pub fn generate_payout_create_link_response(
                     code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
                     reason: err.reason.clone(),
+                    connector_transaction_id: err.connector_transaction_id.clone(),
+                    status: None,
                 }),
                 issuer_details: None,
             }),
@@ -1877,6 +2075,8 @@ pub fn generate_payout_create_recipient_response(
                         code: Some(err.code.clone()),
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
+                        connector_transaction_id: err.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),
@@ -1925,6 +2125,8 @@ pub fn generate_payout_enroll_disburse_account_response(
                         code: Some(err.code.clone()),
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
+                        connector_transaction_id: err.connector_transaction_id.clone(),
+                        status: None,
                     }),
                     issuer_details: None,
                 }),

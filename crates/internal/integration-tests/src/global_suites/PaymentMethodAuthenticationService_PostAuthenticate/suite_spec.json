@@ -1,0 +1,17 @@
+{
+  "suite": "PaymentMethodAuthenticationService/PostAuthenticate",
+  "suite_type": "dependent",
+  "depends_on": [
+    {
+      "suite": "PaymentMethodAuthenticationService/Authenticate",
+      "context_map": {
+        "merchant_order_id": "res.merchant_order_id",
+        "connector_order_reference_id": "res.merchant_order_id",
+        "state": "res.state",
+        "authentication_data": "res.authentication_data",
+        "redirection_response.payload.transaction_id": "res.authentication_data.connector_transaction_id"
+      }
+    }
+  ],
+  "strict_dependencies": false
+}

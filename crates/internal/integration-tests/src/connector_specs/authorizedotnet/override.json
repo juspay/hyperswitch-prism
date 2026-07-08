@@ -1,5 +1,5 @@
 {
-  "refund": {
+  "PaymentService/Refund": {
     "refund_full_amount": {
       "assert": {
         "status": {
@@ -64,8 +64,8 @@
       }
     }
   },
-  "refund_sync": {
-    "refund_sync": {
+  "RefundService/Get": {
+    "RefundService/Get": {
       "grpc_req": {
         "merchant_refund_id": "auto_generate",
         "refund_id": "authnet_refund_reference"

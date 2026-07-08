@@ -2,6 +2,7 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, RefundStatus};
 use common_utils::consts;
 use domain_types::errors::{ConnectorError, IntegrationError};
+use domain_types::payment_method_data::Card as DomainCard;
 use domain_types::payment_method_data::RawCardNumber;
 use domain_types::{
     connector_flow::{Authorize, Capture, RSync, Refund, SetupMandate, Void},
@@ -11,9 +12,11 @@ use domain_types::{
         ResponseId, SetupMandateRequestData,
     },
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse, FlowStatus,
+    },
     router_data_v2::RouterDataV2,
-    utils::CardIssuer,
+    utils::{get_card_issuer, CardIssuer},
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -21,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 // Re-export from common utils for use in this connector
+use crate::utils::CardTypeCode;
 pub use crate::utils::{convert_metadata_to_merchant_defined_info, MerchantDefinedInformation};
 
 // Type alias for WellsfargoRouterData to avoid using super::
@@ -475,6 +479,31 @@ fn card_issuer_to_string(card_issuer: CardIssuer) -> String {
     card_type.to_string()
 }
 
+/// Get card type code.
+/// - If BIN detection succeeds (real card number), use the card issuer code.
+/// - If BIN detection fails (e.g. vault token placeholder), fall back to card_network.
+fn get_card_type_code(
+    card_data: &DomainCard<impl PaymentMethodDataTypes>,
+) -> Result<String, Report<IntegrationError>> {
+    match get_card_issuer(card_data.card_number.peek()) {
+        Ok(card_issuer) => Ok(card_issuer_to_string(card_issuer)),
+        Err(_) => match card_data
+            .card_network
+            .as_ref()
+            .and_then(|network| network.type_code())
+        {
+            Some(code) => Ok(code.to_string()),
+            None => Err(IntegrationError::MissingRequiredField {
+                field_name: "card_type",
+                context: Default::default(),
+            })
+            .attach_printable(
+                "Unable to determine card type: BIN detection failed and no card_network provided",
+            ),
+        },
+    }
+}
+
 /// Helper function to build error response from Wellsfargo response
 /// Used across all response transformations to avoid code duplication
 fn build_error_response(
@@ -505,7 +534,7 @@ fn build_error_response(
         message: error_message.clone(),
         reason: Some(error_message),
         status_code: http_code,
-        attempt_status: status,
+        attempt_status: status.map(FlowStatus::Payment),
         connector_transaction_id: Some(response.id.clone()),
         network_decline_code: response
             .processor_information
@@ -553,15 +582,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Get payment method data
         let payment_information = match &request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                // Use get_card_issuer for robust card type detection
-                let card_issuer =
-                    domain_types::utils::get_card_issuer(card_data.card_number.peek())
-                        .change_context(IntegrationError::MissingRequiredField {
-                            field_name: "card_type",
-                            context: Default::default(),
-                        })
-                        .attach_printable("Unable to determine card issuer from card number")?;
-                let card_type = card_issuer_to_string(card_issuer);
+                let card_type = get_card_type_code(card_data)?;
 
                 let card = Card {
                     number: card_data.card_number.clone(),
@@ -575,8 +596,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // Connector supports these but not yet implemented
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::PaymentMethodToken(_)
-            | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::not_implemented(
+            | PaymentMethodData::NetworkToken(_) => Err(IntegrationError::NotImplemented(
                 "Payment method supported by connector but not yet implemented".to_string(),
+                Default::default(),
             ))?,
             // Connector does not support these payment methods
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
@@ -1090,14 +1112,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         // Payment information from card
         let payment_information = match &request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
-                let card_issuer =
-                    domain_types::utils::get_card_issuer(card_data.card_number.peek())
-                        .change_context(IntegrationError::MissingRequiredField {
-                            field_name: "card_type",
-                            context: Default::default(),
-                        })
-                        .attach_printable("Unable to determine card issuer from card number")?;
-                let card_type = card_issuer_to_string(card_issuer);
+                let card_type = get_card_type_code(card_data)?;
                 PaymentInformation::Cards(Box::new(CardPaymentInformation {
                     card: Card {
                         number: card_data.card_number.clone(),
@@ -1109,10 +1124,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 }))
             }
             _ => {
-                return Err(IntegrationError::not_implemented(
-                    "Payment method not supported for SetupMandate".to_string(),
-                )
-                .into());
+                return Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Payment method not supported for SetupMandate".to_string(),
+                    connector: "Wellsfargo",
+                    context: Default::default(),
+                }));
             }
         };
 
@@ -1166,12 +1182,14 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             // Build error response using helper function
@@ -1239,12 +1257,14 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             // Build error response using helper function
@@ -1292,12 +1312,14 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             // Build error response using helper function
@@ -1345,12 +1367,14 @@ impl TryFrom<ResponseRouterData<WellsfargoPaymentsResponse, Self>>
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
                     .and_then(|info| info.code.clone()),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
                 status_code: item.http_code,
+                splits: None,
             })
         } else {
             // Build error response using helper function
@@ -1407,6 +1431,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                         connector_mandate_id: Some(instrument.id.clone().expose()),
                         payment_method_id: None, // Could potentially use token_information.customer.id here if needed
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     }
                 });
 
@@ -1425,13 +1450,14 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                     .processor_information
                     .as_ref()
                     .and_then(|info| info.network_transaction_id.clone()),
+                network_txn_link_id: None,
                 connector_response_reference_id: response
                     .client_reference_information
                     .as_ref()
                     .and_then(|info| info.code.clone())
                     .or_else(|| Some(response.id.clone())),
                 incremental_authorization_allowed: Some(status == AttemptStatus::Authorized),
-
+                splits: None,
                 status_code: item.http_code,
             })
         } else {

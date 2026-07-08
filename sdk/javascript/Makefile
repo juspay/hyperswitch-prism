@@ -15,7 +15,7 @@ include $(SDK_ROOT)/../common.mk
 # SDK-specific paths continued
 GENERATED_OUT    := $(SDK_ROOT)/src/payments/generated
 PACKAGE_DIR      := $(ARTIFACTS_DIR)/sdk-javascript
-PACKAGE_VERSION  := $(shell node -p "require('$(SDK_ROOT)/package.json').version")
+PACKAGE_VERSION  := $(if $(VERSION),$(VERSION),$(shell node -p "require('$(SDK_ROOT)/package.json').version"))
 JS_TARBALL       := $(PACKAGE_DIR)/hyperswitch-prism-$(PACKAGE_VERSION).tgz
 
 # ---------------------------------------------------------------------------
@@ -65,14 +65,19 @@ generate-bindings:
 # from the .proto files using protobufjs (pbjs/pbts). Output is placed in the
 # generated output directory alongside the native FFI library.
 # ---------------------------------------------------------------------------
+PROTO_EXCLUDES_JS := health_check.proto composite_payment.proto composite_services.proto
+
+# Auto-discover proto files (excluding known internal ones)
+PROTO_FILES_JS := $(shell ls $(PROTO_DIR)/*.proto | xargs -n1 basename | grep -v -E "$(subst . ,|,$(PROTO_EXCLUDES_JS))")
+
 generate-proto: install-deps
 	@echo "Generating static protobuf JS module..."
+	@echo "  Proto files: $(PROTO_FILES_JS)"
 	@mkdir -p $(GENERATED_OUT)
 	@cd $(SDK_ROOT) && ./node_modules/.bin/pbjs \
 		-t static-module -w commonjs --no-delimited --no-convert --alt-comment \
 		-p $(PROTO_DIR) \
-		$(PROTO_DIR)/payment.proto $(PROTO_DIR)/payouts.proto $(PROTO_DIR)/payment_methods.proto \
-		$(PROTO_DIR)/sdk_config.proto \
+		$(addprefix $(PROTO_DIR)/,$(PROTO_FILES_JS)) \
 		-o $(GENERATED_OUT)/proto.js
 	@echo "Proto JS generated: $(GENERATED_OUT)/proto.js"
 	@cd $(SDK_ROOT) && ./node_modules/.bin/pbts \
@@ -130,8 +135,32 @@ build-ts: install-deps
 pack-archive: build-ts
 	@echo "Packing npm archive..."
 	@mkdir -p $(PACKAGE_DIR)
+ifdef VERSION
+	@cd $(SDK_ROOT) && npm version $(VERSION) --no-git-tag-version --allow-same-version
+endif
 	@npm pack --pack-destination $(PACKAGE_DIR)
+ifdef VERSION
+	@cd $(SDK_ROOT) && npm version 0.0.0-dev --no-git-tag-version --allow-same-version
+endif
 	@echo "Tarball created: $(JS_TARBALL)"
+
+# ---------------------------------------------------------------------------
+# dist
+# Builds the distribution package for all supported platforms.
+# Copies pre-built native binaries for each target platform into the generated
+# output directory, generates proto stubs, then packs the archive. Assumes
+# generated/ already contains the proto files from a prior generate-proto step
+# or downloaded CI artifact.
+# ---------------------------------------------------------------------------
+dist:
+	@echo "Building JavaScript SDK distribution package..."
+	@mkdir -p $(GENERATED_OUT)
+	@cp -f $(REPO_ROOT)/target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so \
+		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: Linux x86_64 binary not found (skipping)"
+	@cp -f $(REPO_ROOT)/target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib \
+		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: macOS aarch64 binary not found (skipping)"
+	@$(MAKE) -C $(SDK_ROOT) pack-archive
+	@echo "Distribution package created in $(PACKAGE_DIR)/"
 
 # ---------------------------------------------------------------------------
 # install
@@ -177,6 +206,17 @@ test-package: build-ffi-lib generate-all build-ts pack-archive
 		NODE_PATH=/tmp/test-hyperswitch-js-composite/node_modules node test_smoke_composite.js \
 		--connectors $(CONNECTORS) --examples-dir $(REPO_ROOT)/examples
 	@rm -rf /tmp/test-hyperswitch-js-composite
+	@echo "Running webhook smoke test..."
+	@rm -rf /tmp/test-hyperswitch-js-webhook
+	@mkdir -p /tmp/test-hyperswitch-js-webhook
+	@test -f $(JS_TARBALL) || (echo "Error: Tarball not found: $(JS_TARBALL)" && exit 1)
+	@cd /tmp/test-hyperswitch-js-webhook && npm init -y --silent && \
+		npm install $(JS_TARBALL) typescript @types/node --silent
+	@cp $(SDK_ROOT)/smoke-test/test_smoke_webhook.ts /tmp/test-hyperswitch-js-webhook/
+	@cp $(SDK_ROOT)/smoke-test/tsconfig.json /tmp/test-hyperswitch-js-webhook/
+	@cd /tmp/test-hyperswitch-js-webhook && \
+		NODE_PATH=/tmp/test-hyperswitch-js-webhook/node_modules npx tsx test_smoke_webhook.ts
+	@rm -rf /tmp/test-hyperswitch-js-webhook
 
 # ---------------------------------------------------------------------------
 # test-composite
@@ -202,7 +242,7 @@ test-composite: build-ffi-lib generate-all build-ts pack-archive
 # ---------------------------------------------------------------------------
 # test-package-mock
 # Same as test-package but runs in MOCK mode (no real HTTP calls).
-# Uses generated harnesses instead of examples and verifies req_transformer only.
+# Uses examples/connector/connector.ts files and verifies req_transformer only.
 # ---------------------------------------------------------------------------
 test-package-mock: build-ffi-lib generate-all build-ts pack-archive
 	@echo "Testing in MOCK mode (HTTP intercepted)..."
@@ -217,9 +257,9 @@ test-package-mock: build-ffi-lib generate-all build-ts pack-archive
 	@if [ -f $(REPO_ROOT)/creds_dummy.json ]; then \
 		cp $(REPO_ROOT)/creds_dummy.json /tmp/test-hyperswitch-js-mock/creds.json; \
 	fi
-	@# Copy harness to the location test_smoke.ts expects in mock mode
+	@# Copy example to the location test_smoke.ts expects in mock mode
 	@mkdir -p /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)
-	@cp $(SDK_ROOT)/smoke-test/generated/$(CONNECTORS)/$(CONNECTORS).ts /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)/
+	@cp $(REPO_ROOT)/examples/$(CONNECTORS)/$(CONNECTORS).ts /tmp/test-hyperswitch-js-mock/smoke-test/generated/$(CONNECTORS)/
 	@cd /tmp/test-hyperswitch-js-mock && \
 		NODE_PATH=/tmp/test-hyperswitch-js-mock/node_modules npx tsx test_smoke.ts \
 		--connectors $(CONNECTORS) --creds-file creds.json --mock --examples-dir ./smoke-test/generated

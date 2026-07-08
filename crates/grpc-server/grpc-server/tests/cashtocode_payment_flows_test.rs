@@ -90,12 +90,16 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             )),
         }),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: Some("cust_1233".to_string()),
             connector_customer_id: Some("cust_1233".to_string()),
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
         }),
         return_url: Some("https://hyperswitch.io/connector-service".to_string()),
         webhook_url: Some("https://hyperswitch.io/connector-service".to_string()),
@@ -141,8 +145,7 @@ async fn test_payment_authorization() {
         add_cashtocode_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();

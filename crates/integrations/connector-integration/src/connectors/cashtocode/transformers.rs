@@ -122,7 +122,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 email: item.router_data.request.email.clone(),
                 mid,
             }),
-            _ => Err(IntegrationError::not_implemented("Payment methods".to_string()).into()),
+            _ => Err(error_stack::report!(IntegrationError::NotSupported {
+                message: "Payment methods".to_string(),
+                connector: "Cashtocode",
+                context: Default::default(),
+            })),
         }
     }
 }
@@ -329,9 +333,11 @@ impl<
                         mandate_reference: None,
                         connector_metadata: None,
                         network_txn_id: None,
+                        network_txn_link_id: None,
                         connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         status_code: http_code,
+                        splits: None,
                     }),
                 )
             }

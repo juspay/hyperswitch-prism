@@ -1,0 +1,300 @@
+name: Release medusa-custom-payments
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version bump type'
+        required: true
+        default: 'none'
+        type: choice
+        options:
+          - none
+          - patch
+          - minor
+          - major
+      preview_only:
+        description: 'Preview only (do not actually publish)'
+        required: false
+        default: false
+        type: boolean
+      publish_npm:
+        description: 'Publish to npm'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  bump-version:
+    name: Bump Version
+    runs-on: ubuntu-latest
+    if: ${{ inputs.version_bump != 'none' && inputs.preview_only == false }}
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.push.outputs.sha }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump package version
+        id: bump
+        run: |
+          OLD_VERSION=$(node -p "require('./plugins/medusa/medusa-custom-payments/package.json').version")
+          (cd plugins/medusa/medusa-custom-payments && npm version ${{ inputs.version_bump }} --no-git-tag-version)
+          NEW_VERSION=$(node -p "require('./plugins/medusa/medusa-custom-payments/package.json').version")
+          echo "old_version=$OLD_VERSION" >> "$GITHUB_OUTPUT"
+          echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          git add plugins/medusa/medusa-custom-payments/package.json
+          git commit -m "medusa-custom-payments-v${NEW_VERSION}"
+          git tag "medusa-custom-payments-v${NEW_VERSION}"
+
+      - name: Push version bump and tag
+        id: push
+        run: |
+          git push --follow-tags
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Version bump summary
+        run: |
+          echo "✅ Version bumped from ${{ steps.bump.outputs.old_version }} to ${{ steps.bump.outputs.new_version }}"
+
+  build:
+    name: Build Package
+    runs-on: ubuntu-latest
+    needs: [bump-version]
+    if: always() && (needs.bump-version.result == 'success' || needs.bump-version.result == 'skipped')
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump-version.outputs.sha || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and build
+        run: |
+          cd plugins/medusa/medusa-custom-payments
+          npm install
+          npm run build
+
+      - name: Verify build output
+        run: |
+          echo "Verifying build artifacts..."
+          test -f plugins/medusa/medusa-custom-payments/dist/index.js || (echo "❌ plugins/medusa/medusa-custom-payments/dist/index.js not found" && exit 1)
+          test -f plugins/medusa/medusa-custom-payments/dist/index.d.ts || (echo "❌ plugins/medusa/medusa-custom-payments/dist/index.d.ts not found" && exit 1)
+          echo "✅ Build output verified"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: plugins/medusa/medusa-custom-payments/dist/
+
+  package:
+    name: Package for npm
+    runs-on: ubuntu-latest
+    needs: [build, bump-version]
+    if: always() && needs.build.result == 'success'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.bump-version.outputs.sha || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: plugins/medusa/medusa-custom-payments/dist/
+
+      - name: Create npm package tarball
+        run: |
+          cd plugins/medusa/medusa-custom-payments
+          cp ../../../LICENSE LICENSE
+          npm install --ignore-scripts
+          npm pack
+
+      - name: Upload package tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-tarball
+          path: 'plugins/medusa/medusa-custom-payments/*.tgz'
+
+  preview:
+    name: Preview What Will Be Published
+    runs-on: ubuntu-latest
+    needs: [package]
+    if: always() && needs.package.result == 'success'
+    steps:
+      - name: Download package tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: package-tarball
+
+      - name: Show Preview
+        run: |
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║        📦 PACKAGE PUBLICATION PREVIEW                          ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "Package tarball:"
+          ls -la *.tgz 2>/dev/null || echo "  ❌ No tarball found"
+          echo ""
+          echo "Package contents preview:"
+          tar -tzf *.tgz | head -40
+          echo ""
+          echo "═══════════════════════════════════════════════════════════════════"
+          echo ""
+          if [ "${{ inputs.preview_only }}" == "true" ]; then
+            echo "PREVIEW ONLY MODE - Package will not be published"
+          elif [ "${{ inputs.publish_npm }}" == "true" ]; then
+            echo "Package will be published to npm"
+          else
+            echo "Publishing not enabled (publish_npm not checked)"
+          fi
+          echo ""
+          echo "═══════════════════════════════════════════════════════════════════"
+
+  pre-publish-check:
+    name: Pre-Publish Validation
+    runs-on: ubuntu-latest
+    needs: [package]
+    if: always() && needs.package.result == 'success' && (inputs.preview_only == true || inputs.publish_npm == true)
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download package tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: package-tarball
+
+      - name: Check npm authentication
+        id: check-npm-auth
+        continue-on-error: true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Checking npm authentication..."
+          npm whoami
+          echo "✅ npm authentication successful"
+
+      - name: Check version availability
+        id: check-version
+        continue-on-error: true
+        run: |
+          echo "Checking if version already exists on npm..."
+          tar -xf *.tgz package/package.json
+          VERSION=$(node -p "require('./package/package.json').version")
+          NAME=$(node -p "require('./package/package.json').name")
+          echo "Package: $NAME, Version: $VERSION"
+          if npm view "$NAME@$VERSION" version > /dev/null 2>&1; then
+            echo "❌ Version $VERSION already exists on npm"
+            exit 1
+          else
+            echo "✅ Version $VERSION is available for publish"
+          fi
+
+      - name: Dry-run publish check
+        id: check-dryrun
+        continue-on-error: true
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Running npm publish --dry-run..."
+          npm publish *.tgz --dry-run
+
+      - name: Pre-Publish Check Summary
+        run: |
+          echo "╔════════════════════════════════════════════════════════════════╗"
+          echo "║        📋 PRE-PUBLISH CHECK SUMMARY                            ║"
+          echo "╚════════════════════════════════════════════════════════════════╝"
+          echo ""
+          auth="${{ steps.check-npm-auth.outcome }}"
+          ver="${{ steps.check-version.outcome }}"
+          dry="${{ steps.check-dryrun.outcome }}"
+
+          FAILED=0
+          echo "Checks:"
+          echo "  npm auth:      $auth"
+          echo "  version check: $ver"
+          echo "  dry-run:       $dry"
+          echo ""
+
+          if [ "$auth" == "failure" ] || [ "$ver" == "failure" ] || [ "$dry" == "failure" ]; then
+            echo "❌ One or more pre-publish checks FAILED"
+            FAILED=1
+          else
+            echo "✅ All pre-publish checks PASSED"
+          fi
+          echo ""
+
+          if [ "${{ inputs.publish_npm }}" == "true" ] && [ "$FAILED" -eq 1 ]; then
+            echo "Publishing will be BLOCKED due to failed checks."
+            exit 1
+          fi
+          echo "═══════════════════════════════════════════════════════════════════"
+
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    needs: [preview, pre-publish-check]
+    if: always() && needs.preview.result == 'success' && needs.pre-publish-check.result == 'success' && inputs.publish_npm == true && inputs.preview_only == false
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download package tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: package-tarball
+
+      - name: Check what will be published
+        run: |
+          echo "=== Publication Preview ==="
+          echo "Package tarball:"
+          ls -la *.tgz
+          echo ""
+          echo "Package contents:"
+          tar -tzf *.tgz | head -30
+          echo ""
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Publishing package..."
+          npm publish *.tgz --access public
+          echo "✅ Package published successfully"

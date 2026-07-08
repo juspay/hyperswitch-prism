@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by stax connector"
       }
     },
     "authorize": {
@@ -67,6 +68,10 @@
         "status": "error",
         "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       },
+      "BillDeskRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
       "Bizum": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
@@ -99,6 +104,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
+      "CashfreeRedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
@@ -109,7 +118,11 @@
       },
       "Crypto": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -117,9 +130,13 @@
       },
       "DuitNow": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
+      "EaseBuzzRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
@@ -139,13 +156,21 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
       "Giropay": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Givex": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -187,11 +212,19 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
       "Klarna": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Lawson": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
+      "LazyPayRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
@@ -219,7 +252,19 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
       "MultibancoBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
+      "Netbanking": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
@@ -253,7 +298,7 @@
       },
       "OpenBankingPis": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
         "status": "not_implemented",
@@ -272,8 +317,12 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
+      "PayURedirect": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
@@ -283,11 +332,19 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
       "Paze": {
         "status": "not_supported",
-        "error": "Invalid data format: unknown. Unsupported payment method"
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
+      "PhonePeRedirect": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
@@ -343,11 +400,27 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
       "Sofort": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
       "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
+      "Twint": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
@@ -360,6 +433,10 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
+      },
+      "Vipps": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
@@ -397,10 +474,29 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for stax"
       }
     },
-    "create_customer": {
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by stax connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for stax"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for stax"
+      }
+    },
+    "customer_create": {
       "default": {
         "status": "supported",
         "proto_request": {
@@ -421,29 +517,16 @@
         }
       }
     },
-    "create_order": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_server_authentication_token": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_server_session_authentication_token": {
-      "default": {
-        "status": "not_implemented"
-      }
-    },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by stax connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by stax connector"
       }
     },
     "dispute_get": {
@@ -453,12 +536,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by stax connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by stax connector"
       }
     },
     "get": {
@@ -490,17 +575,30 @@
     },
     "incremental_authorization": {
       "default": {
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by stax connector"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
         "status": "not_implemented"
       }
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by stax connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by stax connector"
       }
     },
     "proxy_authorize": {
@@ -511,17 +609,51 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "connector_recurring_payment_id": {
+            "mandate_id_type": {
+              "connector_mandate_id": {
+                "connector_mandate_id": "probe-mandate-123"
+              }
+            }
+          },
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "token": {
+              "token": "probe_pm_token"
+            }
+          },
+          "return_url": "https://example.com/recurring-return",
+          "connector_customer_id": "cust_probe_123",
+          "payment_method_type": "PAY_PAL",
+          "off_session": true
+        },
+        "sample": {
+          "url": "https://apiprod.fattlabs.com/charge",
+          "method": "Post",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"total\":10.0,\"payment_method_id\":\"probe_pm_token\",\"is_refundable\":true,\"pre_auth\":false,\"meta\":{\"tax\":0},\"idempotency_id\":\"\"}"
+        }
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by stax connector"
       }
     },
     "refund": {
@@ -570,12 +702,14 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by stax connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "error",
+        "error": "Stuck on field: payment_method_token — Missing required field: payment_method_token (from PaymentMethodToken flow) or connector_mandate_id (for saved payment methods)"
       }
     },
     "token_authorize": {
@@ -608,43 +742,55 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "tokenize": {
-      "default": {
         "status": "supported",
         "proto_request": {
+          "merchant_recurring_payment_id": "probe_tokenized_mandate_001",
           "amount": {
-            "minor_amount": 1000,
+            "minor_amount": 0,
             "currency": "USD"
           },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "customer": {
-            "id": "cust_probe_123"
-          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
           "address": {
             "billing_address": {}
-          }
+          },
+          "customer_acceptance": {
+            "acceptance_type": "ONLINE",
+            "accepted_at": 0,
+            "online_mandate_details": {
+              "ip_address": "127.0.0.1",
+              "user_agent": "Mozilla/5.0"
+            }
+          },
+          "setup_mandate_details": {
+            "mandate_type": {
+              "multi_use": {
+                "amount": 0,
+                "currency": "USD",
+                "amount_money": {
+                  "minor_amount": 0,
+                  "currency": "USD"
+                }
+              }
+            }
+          },
+          "setup_future_usage": "OFF_SESSION"
         },
         "sample": {
-          "url": "https://apiprod.fattlabs.com/payment-method/",
+          "url": "https://apiprod.fattlabs.com/charge",
           "method": "Post",
           "headers": {
             "authorization": "Bearer probe_key",
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"method\":\"card\",\"person_name\":\"John Doe\",\"card_number\":\"4111111111111111\",\"card_exp\":\"0330\",\"card_cvv\":\"737\",\"customer_id\":\"cust_probe_123\"}"
+          "body": "{\"total\":0.0,\"payment_method_id\":\"pm_1AbcXyzStripeTestToken\",\"is_refundable\":false,\"pre_auth\":true,\"meta\":{\"tax\":0},\"idempotency_id\":\"probe_tokenized_mandate_001\"}"
         }
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
       }
     },
     "verify_redirect": {

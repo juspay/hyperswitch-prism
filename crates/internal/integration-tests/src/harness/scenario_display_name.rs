@@ -76,7 +76,15 @@ fn subject_from_tokens(tokens: &[&str]) -> String {
 }
 
 fn suite_label(suite: &str) -> String {
-    title_case_phrase(&suite.split('_').collect::<Vec<_>>())
+    let flow = suite.split('/').nth(1).unwrap_or(suite);
+    let mut label = String::new();
+    for (i, ch) in flow.chars().enumerate() {
+        if i > 0 && ch.is_uppercase() {
+            label.push(' ');
+        }
+        label.push(ch);
+    }
+    label
 }
 
 /// Generates a style-A display name from scenario key data.
@@ -115,8 +123,17 @@ pub fn generate_style_a_display_name(suite: &str, scenario: &str) -> String {
         None
     };
 
-    let suite_tokens = suite.split('_').collect::<Vec<_>>();
-    strip_prefix_tokens(&mut tokens, &suite_tokens);
+    let flow = suite.split('/').nth(1).unwrap_or(suite);
+    let suite_tokens: Vec<String> = flow.chars().fold(Vec::new(), |mut words: Vec<String>, ch| {
+        if ch.is_uppercase() || words.is_empty() {
+            words.push(ch.to_lowercase().to_string());
+        } else {
+            words.last_mut().unwrap().push(ch);
+        }
+        words
+    });
+    let suite_token_refs: Vec<&str> = suite_tokens.iter().map(|s| s.as_str()).collect();
+    strip_prefix_tokens(&mut tokens, &suite_token_refs);
     strip_prefix_tokens(&mut tokens, &["with"]);
 
     let subject = if tokens.is_empty() {
@@ -164,8 +181,10 @@ mod tests {
 
     #[test]
     fn authorize_style_a_name_uses_subject_auth_capture_order() {
-        let name =
-            generate_style_a_display_name("authorize", "no3ds_auto_capture_google_pay_encrypted");
+        let name = generate_style_a_display_name(
+            "PaymentService/Authorize",
+            "no3ds_auto_capture_google_pay_encrypted",
+        );
         assert_eq!(
             name,
             "Google Pay (Encrypted Token) | No 3DS | Automatic Capture"
@@ -174,13 +193,19 @@ mod tests {
 
     #[test]
     fn authorize_manual_capture_threeds_is_rendered() {
-        let name = generate_style_a_display_name("authorize", "threeds_manual_capture_credit_card");
+        let name = generate_style_a_display_name(
+            "PaymentService/Authorize",
+            "threeds_manual_capture_credit_card",
+        );
         assert_eq!(name, "Credit Card | 3DS | Manual Capture");
     }
 
     #[test]
     fn capture_merchant_order_id_name_is_human_readable() {
-        let name = generate_style_a_display_name("capture", "capture_with_merchant_order_id");
+        let name = generate_style_a_display_name(
+            "PaymentService/Capture",
+            "capture_with_merchant_order_id",
+        );
         assert_eq!(name, "Capture | Merchant Order ID Reference");
     }
 }

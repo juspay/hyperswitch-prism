@@ -1,0 +1,218 @@
+{
+  "connector": "twoc_twop_paco",
+  "notes": "2C2P PACO is a JOSE-encrypted gateway (PS256 + RSA-OAEP/A128CBC-HS256). All Payment/Settlement/Void/Refund bodies are wire-encrypted, so field-probe captures of request/response samples are limited to the JOSE envelope; the inner JSON schema is captured in tests and the connector module docs.",
+  "flows": {
+    "authorize": {
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": { "minor_amount": 10000, "currency": "PHP" },
+          "payment_method": {
+            "card": {
+              "card_number": { "value": "4111111111111111" },
+              "card_exp_month": { "value": "12" },
+              "card_exp_year": { "value": "2027" },
+              "card_cvc": { "value": "123" },
+              "card_holder_name": { "value": "Test Customer" },
+              "card_type": "credit"
+            }
+          },
+          "address": { "billing_address": { "country_alpha2_code": "PH" } },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://core.demo-paco.2c2p.com/api/2.0/Payment/nonUi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/jose",
+            "accept": "application/jose",
+            "token": "probe_key"
+          }
+        }
+      },
+      "GcashRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_002",
+          "amount": { "minor_amount": 10000, "currency": "PHP" },
+          "payment_method": { "gcash_redirect": {} },
+          "address": { "billing_address": { "country_alpha2_code": "PH" } },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "webhook_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://core.demo-paco.2c2p.com/api/2.0/Payment/prepaymentUi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/jose",
+            "accept": "application/jose",
+            "token": "probe_key"
+          }
+        }
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "sample": {
+          "url": "https://core.demo-paco.2c2p.com/api/2.0/Inquiry/transactionStatus?merchantId=probe_merchant&orderNo=probe_txn_001",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "application/json",
+            "apikey": "probe_key"
+          }
+        }
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "supported",
+        "sample": {
+          "url": "https://core.demo-paco.2c2p.com/api/2.0/Settlement",
+          "method": "Put",
+          "headers": {
+            "content-type": "application/jose",
+            "accept": "application/jose",
+            "token": "probe_key"
+          }
+        }
+      }
+    },
+    "void": {
+      "default": {
+        "status": "supported",
+        "sample": {
+          "url": "https://core.demo-paco.2c2p.com/api/2.0/Void",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/jose",
+            "accept": "application/jose",
+            "token": "probe_key"
+          }
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "supported",
+        "notes": "VoidPC routes to the same /api/2.0/Void endpoint as Void; the prism flow marker is the only differentiator.",
+        "sample": {
+          "url": "https://core.demo-paco.2c2p.com/api/2.0/Void",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/jose",
+            "accept": "application/jose",
+            "token": "probe_key"
+          }
+        }
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "notes": "The merchant MUST pass the original Authorize orderNo via either refund_metadata (preferred) or connector_feature_data on the proto request. PACO matches refunds against the original transaction's orderNo, not the refund_id.",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "CEBU0000000000000",
+          "payment_amount": 10000,
+          "refund_amount": { "minor_amount": 10000, "currency": "PHP" },
+          "reason": "customer request",
+          "refund_metadata": { "value": "{\"original_order_no\":\"probe_txn_001\"}" }
+        },
+        "sample": {
+          "url": "https://core.demo-paco.2c2p.com/api/2.0/Refund/refund",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/jose",
+            "accept": "application/jose",
+            "token": "probe_key"
+          }
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "notes": "RSync hits the same /api/2.0/Inquiry/transactionStatus endpoint as PSync.",
+        "sample": {
+          "url": "https://core.demo-paco.2c2p.com/api/2.0/Inquiry/transactionStatus?merchantId=probe_merchant&orderNo=probe_txn_001",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "application/json",
+            "apikey": "probe_key"
+          }
+        }
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "PACO has no merchant-facing DDC endpoint; PreAuthenticate is an empty marker impl (same convention as Stripe / Adyen / PayPal / Checkout / Nuvei). Merchants invoke Authenticate directly for 3DS."
+      }
+    },
+    "authenticate": {
+      "Card": {
+        "status": "supported",
+        "notes": "Hits /api/2.0/Payment/nonUi with request3dsFlag=Y. Returns either authenticationData { cavv, eci, ... } (frictionless) or redirectionData.form { acsURL, creq, threeDSSessionData } (challenge).",
+        "proto_request": {
+          "merchant_order_id": "probe_txn_001",
+          "amount": { "minor_amount": 10000, "currency": "PHP" },
+          "payment_method": {
+            "card": {
+              "card_number": { "value": "4111111111111111" },
+              "card_exp_month": { "value": "12" },
+              "card_exp_year": { "value": "2027" },
+              "card_cvc": { "value": "123" },
+              "card_holder_name": { "value": "Test Customer" },
+              "card_type": "credit"
+            }
+          },
+          "address": { "billing_address": { "country_alpha2_code": "PH" } },
+          "browser_info": {
+            "user_agent": "Mozilla/5.0",
+            "accept_header": "text/html,application/xhtml+xml",
+            "language": "en-US",
+            "color_depth": 24,
+            "screen_height": 1080,
+            "screen_width": 1920,
+            "time_zone_offset_minutes": -480,
+            "java_enabled": false,
+            "java_script_enabled": true,
+            "ip_address": "203.0.113.1"
+          },
+          "return_url": "https://example.com/return",
+          "continue_redirection_url": "https://example.com/webhook"
+        },
+        "sample": {
+          "url": "https://core.demo-paco.2c2p.com/api/2.0/Payment/nonUi",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/jose",
+            "accept": "application/jose",
+            "token": "probe_key"
+          }
+        }
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "supported",
+        "sample": {
+          "url": "https://core.demo-paco.2c2p.com/api/2.0/Inquiry/transactionStatus?merchantId=probe_merchant&orderNo=probe_txn_001",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "accept": "application/json",
+            "apikey": "probe_key"
+          }
+        }
+      }
+    }
+  }
+}

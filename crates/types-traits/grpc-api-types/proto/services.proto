@@ -32,6 +32,9 @@
 //   │ RecurringPaymentService              │ Charge and revoke recurring payments. Process subscription billing and      │
 //   │                                      │ cancel mandates when customers end their recurring agreements.              │
 //   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
+//   │ SurchargeService                     │ Calculate additional fees for payment processing based on payment method,   │
+//   │                                      │ network, or regional regulations to ensure accurate cost recovery.          │
+//   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
 //   │ RefundService                        │ Retrieve and synchronize refund statuses. Track refund progress across      │
 //   │                                      │ payment processors to ensure accurate settlement of customer refunds.       │
 //   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
@@ -52,6 +55,9 @@
 //   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
 //   │ PaymentMethodAuthenticationService   │ Execute 3D Secure authentication flows. Verify cardholder identity through  │
 //   │                                      │ frictionless or challenge-based checks to reduce fraud liability.           │
+//   ├──────────────────────────────────────┼─────────────────────────────────────────────────────────────────────────────┤
+//   │ FraudAndRiskManagementService        │ Evaluate fraud risk before and after payment processing. Analyze            │
+//   │                                      │ transaction details to approve, reject, or flag payments for review.        │
 //   └──────────────────────────────────────┴─────────────────────────────────────────────────────────────────────────────┘
 //
 //
@@ -65,6 +71,8 @@ package types;
 
 import "payment.proto";
 import "payouts.proto";
+import "surcharge.proto";
+import "frm.proto";
 
 option go_package = "github.com/juspay/connector-service/crates/types-traits/grpc-api-types/proto;proto";
 
@@ -73,14 +81,23 @@ option go_package = "github.com/juspay/connector-service/crates/types-traits/grp
 // ============================================================================
 
 // ============================================================================
-// EVENT SERVICE — Common event handler for processing inbound connector
-//                  webhooks across all services.
+// EVENT SERVICE — Two-phase inbound webhook processing.
+//   1. ParseEvent   — parse payload, return reference + event type (no credentials).
+//   2. HandleEvent  — verify source, return unified typed response (PSync/RSync/Dispute shape).
+// For single-call processing when secrets are known upfront, use CompositeEventService.
 // ============================================================================
 
 service EventService {
-  // Process webhook notifications from connectors. Translates connector events
-  // into standardized responses for asynchronous payment state updates.
+  // Parse a raw webhook payload without credentials.
+  // Returns resource reference and event type — sufficient to resolve secrets or early-exit.
+  rpc ParseEvent(EventServiceParseRequest) returns (EventServiceParseResponse);
+
+  // Verify webhook source and return a unified typed response.
+  // Response mirrors PaymentService.Get / RefundService.Get / DisputeService.Get.
   rpc HandleEvent(EventServiceHandleRequest) returns (EventServiceHandleResponse);
+
+  // Notify connectors about events (payment succeeded, refund succeeded, refund failed).
+  rpc NotifyConnector(NotifyConnectorRequest) returns (NotifyConnectorResponse);
 }
 
 // ============================================================================
@@ -164,6 +181,7 @@ service PaymentService {
 
   // Setup recurring mandate using vault-aliased card data.
   rpc ProxySetupRecurring(PaymentServiceProxySetupRecurringRequest) returns (PaymentServiceSetupRecurringResponse);
+
 }
 
 // ======================================================================================
@@ -190,6 +208,10 @@ service RefundService {
   // Retrieve refund status from the payment processor. Tracks refund progress
   // through processor settlement for accurate customer communication.
   rpc Get(RefundServiceGetRequest) returns (RefundResponse);
+
+  // Void/reverse a refund before processor settlement.
+  rpc VoidPostRefund(RefundServiceVoidPostRefundRequest)
+      returns (RefundResponse);
 }
 
 // ============================================================================
@@ -225,11 +247,17 @@ service PaymentMethodService {
   // with secure token for one-click payments and recurring billing.
   rpc Tokenize(PaymentMethodServiceTokenizeRequest) returns (PaymentMethodServiceTokenizeResponse);
 
-  // // Retrieves payment method details from the payment processor or vault.
-  // rpc Get(PaymentMethodServiceGetRequest) returns (PaymentMethodServiceGetResponse);
+  // Create payment method at connector. Establishes a new payment method and returns connector-specific details.
+  rpc Create(PaymentMethodServiceCreateRequest) returns (PaymentMethodServiceCreateResponse);
 
-  // Check if the payout method is eligible for the transaction
-  rpc Eligibility(PayoutMethodEligibilityRequest) returns (PayoutMethodEligibilityResponse);
+  // Retrieve payment method details from the payment processor.
+  rpc Get(PaymentMethodServiceGetRequest) returns (PaymentMethodServiceGetResponse);
+
+  // Recharge a payment method (wallet, gift card, prepaid card) with funds.
+  rpc Recharge(PaymentMethodServiceRechargeRequest) returns (PaymentMethodServiceRechargeResponse);
+
+  // Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+  rpc Eligibility(PaymentMethodServiceEligibilityRequest) returns (PaymentMethodServiceEligibilityResponse);
 }
 
 // ============================================================================
@@ -319,5 +347,33 @@ service PayoutService {
 
   // Enroll disburse account.
   rpc EnrollDisburseAccount(PayoutServiceEnrollDisburseAccountRequest) returns (PayoutServiceEnrollDisburseAccountResponse);
+
+  // Check if the payout method is eligible for the transaction
+  rpc Eligibility(PayoutMethodEligibilityRequest) returns (PayoutMethodEligibilityResponse);
+}
+
+// ============================================================================
+// SURCHARGE SERVICE — Calculates payment processing fees 
+// ============================================================================
+
+service SurchargeService {
+  // Calculate surcharge fees for a payment amount before processing.
+  rpc Calculate(SurchargeServiceCalculateRequest) returns (SurchargeServiceCalculateResponse);
+}
+
+// ============================================================================
+// FRAUD AND RISK MANAGEMENT SERVICE -- Evaluates transactions for fraud
+//                                          risk before and after payment processing.
+// ============================================================================
+
+service FraudAndRiskManagementService {
+  // Evaluate fraud risk before payment processing. Analyzes transaction details,
+  // customer behavior, and device fingerprints to determine if the payment
+  // should proceed, be rejected, or flagged for manual review.
+  rpc PreRiskCheck(FrmServicePreRiskCheckRequest) returns (FrmServicePreRiskCheckResponse);
+
+  // Evaluate fraud risk after payment processing. Analyzes payment outcomes
+  // and post-transaction signals to refine risk models and detect chargeback fraud.
+  rpc PostRiskCheck(FrmServicePostRiskCheckRequest) returns (FrmServicePostRiskCheckResponse);
 }
 

@@ -170,6 +170,7 @@ fn create_repeat_payment_request(mandate_id: &str) -> RecurringPaymentServiceCha
                 connector_mandate_request_reference_id: None,
                 connector_mandate_id: Some(mandate_id.to_string()),
                 payment_method_id: None,
+                mandate_metadata: None,
             },
         )),
     };
@@ -217,33 +218,24 @@ async fn test_repeat_everything() {
         let mut register_grpc_request = Request::new(register_request);
         add_authorizenet_metadata(&mut register_grpc_request);
 
-        let register_response = client
-            .setup_recurring(register_grpc_request)
+        let register_response = Box::pin(client.setup_recurring(register_grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();
 
         // Verify we got a mandate reference
         assert!(
-            register_response.mandate_reference.is_some(),
+            register_response.mandate_reference_details.is_some(),
             "Mandate reference should be present"
         );
 
         let mandate_id = register_response
-            .mandate_reference
+            .mandate_reference_details
             .as_ref()
             .unwrap()
-            .mandate_id_type
-            .as_ref()
-            .expect("Mandate ID should be present");
-
-        let mandate_id = match mandate_id {
-            MandateIdType::ConnectorMandateId(connector_mandate) => connector_mandate
-                .connector_mandate_id
-                .clone()
-                .expect("Connector mandate ID should be present"),
-            _ => panic!("Expected ConnectorMandateId type for mandate reference"),
-        };
+            .connector_mandate_id
+            .clone()
+            .expect("Connector mandate ID should be present");
 
         // Now perform a repeat payment using the mandate
         let repeat_request = create_repeat_payment_request(&mandate_id);
@@ -252,8 +244,8 @@ async fn test_repeat_everything() {
         add_authorizenet_metadata(&mut repeat_grpc_request);
 
         // Send the repeat payment request
-        let repeat_response = recurring_client
-            .charge(repeat_grpc_request)
+        let repeat_response = Box::pin(recurring_client
+            .charge(repeat_grpc_request))
             .await
             .expect("gRPC recurring_client::charge call failed")
             .into_inner();
@@ -311,12 +303,16 @@ fn create_payment_authorize_request(
     });
 
     request.customer = Some(grpc_api_types::payments::Customer {
+        customer_document_details: None,
         email: Some(generate_unique_email().into()),
         name: None,
         id: Some("TEST_CONNECTOR".to_string()),
         connector_customer_id: Some("TEST_CONNECTOR".to_string()),
         phone_number: None,
         phone_country_code: None,
+        first_name: None,
+        last_name: None,
+        salutation: None,
     });
     // Generate random names for billing to prevent duplicate transaction errors
     let billing_first_name = random_name();
@@ -393,7 +389,6 @@ fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest 
         connector_transaction_id: transaction_id.to_string(),
         encoded_data: None,
         capture_method: None,
-        handle_response: None,
         merchant_transaction_id: None,
         amount: Some(grpc_api_types::payments::Money {
             minor_amount: TEST_AMOUNT,
@@ -407,6 +402,10 @@ fn create_payment_get_request(transaction_id: &str) -> PaymentServiceGetRequest 
         connector_order_reference_id: None,
         test_mode: None,
         payment_experience: None,
+        split_payments: None,
+        merchant_request_id: None,
+        payment_method_type: None,
+        mandate_reference: None,
     }
 }
 
@@ -421,6 +420,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
             minor_amount: TEST_AMOUNT,
             currency: i32::from(Currency::Usd),
         }),
+        order_tax_amount: None,
         multiple_capture_data: None,
         metadata: None,
         connector_feature_data: None,
@@ -429,6 +429,8 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
         state: None,
         test_mode: None,
         merchant_order_id: None,
+        split_payments: None,
+        merchant_request_id: None,
     }
 }
 
@@ -483,6 +485,10 @@ fn create_refund_request(transaction_id: &str) -> PaymentServiceRefundRequest {
         state: None,
         payment_method_type: None,
         customer_id: Some("TEST_CONNECTOR".to_string()),
+        split_refunds: None,
+        merchant_request_id: None,
+        connector_order_id: None,
+        payment_method: None,
     }
 }
 
@@ -492,6 +498,7 @@ fn create_refund_get_request(transaction_id: &str, refund_id: &str) -> RefundSer
         merchant_refund_id: Some(generate_unique_request_ref_id("refund_get")),
         connector_transaction_id: transaction_id.to_string(),
         refund_id: refund_id.to_string(),
+        connector_refund_id: refund_id.to_string(),
         browser_info: None,
         refund_reason: None,
         test_mode: Some(true),
@@ -499,6 +506,10 @@ fn create_refund_get_request(transaction_id: &str, refund_id: &str) -> RefundSer
         state: None,
         connector_feature_data: None,
         payment_method_type: None,
+        refund_amount: None,
+        split_refunds: None,
+        merchant_request_id: None,
+        connector_order_id: None,
     }
 }
 
@@ -534,12 +545,16 @@ fn create_register_request() -> PaymentServiceSetupRecurringRequest {
 
     // Set customer information with unique email
     request.customer = Some(grpc_api_types::payments::Customer {
+        customer_document_details: None,
         email: Some(generate_unique_email().into()),
         name: Some(TEST_CARD_HOLDER.to_string()),
         id: None,
         connector_customer_id: Some("TEST_CONNECTOR_CUSTOMER_ID".to_string()),
         phone_number: None,
         phone_country_code: None,
+        first_name: None,
+        last_name: None,
+        salutation: None,
     });
 
     // Add customer acceptance as required by the server (matching your JSON: "acceptance_type": "OFFLINE")
@@ -618,8 +633,7 @@ async fn test_payment_authorization_auto_capture() {
         add_authorizenet_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
@@ -666,8 +680,7 @@ async fn test_payment_authorization_manual_capture() {
         add_authorizenet_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
@@ -747,8 +760,7 @@ async fn test_payment_sync() {
         add_authorizenet_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
@@ -818,8 +830,7 @@ async fn test_void() {
         add_authorizenet_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
@@ -897,8 +908,7 @@ async fn test_refund() {
         add_authorizenet_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
@@ -979,8 +989,7 @@ async fn test_register() {
         add_authorizenet_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .setup_recurring(grpc_request)
+        let response = Box::pin(client.setup_recurring(grpc_request))
             .await
             .expect("gRPC setup_recurring call failed")
             .into_inner();
@@ -993,26 +1002,22 @@ async fn test_register() {
 
         // Check if we have a mandate reference
         assert!(
-            response.mandate_reference.is_some(),
+            response.mandate_reference_details.is_some(),
             "Mandate reference should be present"
         );
 
         // Verify the mandate reference has the expected structure
-        if let Some(mandate_ref) = &response.mandate_reference {
+        if let Some(mandate_ref) = &response.mandate_reference_details {
             // Verify the composite ID format (profile_id-payment_profile_id)
-            if let Some(MandateIdType::ConnectorMandateId(mandate_id)) =
-                &mandate_ref.mandate_id_type
-            {
+            assert!(
+                mandate_ref.connector_mandate_id.is_some(),
+                "Mandate ID should be present"
+            );
+            if let Some(mandate_id) = mandate_ref.connector_mandate_id.as_ref() {
                 assert!(
-                    mandate_id.connector_mandate_id.is_some(),
-                    "Mandate ID should be present"
+                    mandate_id.contains('-') || !mandate_id.is_empty(),
+                    "Mandate ID should be either a composite ID or a profile ID"
                 );
-                if let Some(mandate_id) = mandate_id.connector_mandate_id.as_ref() {
-                    assert!(
-                        mandate_id.contains('-') || !mandate_id.is_empty(),
-                        "Mandate ID should be either a composite ID or a profile ID"
-                    );
-                }
             }
         }
 
@@ -1044,8 +1049,7 @@ async fn test_authorize_with_setup_future_usage() {
         add_authorizenet_metadata(&mut auth_grpc_request);
 
         // Send the authorization request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC authorize with setup_future_usage call failed")
             .into_inner();

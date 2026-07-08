@@ -1,7 +1,12 @@
 {
   "connector": "phonepe",
   "supported_suites": [
-    "authorize",
-    "get"
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "EventService/HandleEvent"
   ]
 }

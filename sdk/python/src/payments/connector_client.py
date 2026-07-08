@@ -78,18 +78,14 @@ class ConnectorError(Exception):
 
 def check_req(result_bytes: bytes) -> Any:
     """
-    Parse FFI req_transformer bytes using FfiResult proto with enum-based type checking.
-
-    Args:
-        result_bytes: Raw bytes returned by the req_transformer FFI call.
+    Parse raw bytes from req_transformer FFI call.
 
     Returns:
-        FfiConnectorHttpRequest on success (HTTP_REQUEST type).
+        FfiConnectorHttpRequest on success.
 
     Raises:
-        IntegrationError: If the result type is INTEGRATION_ERROR.
-        ConnectorError: If the result type is CONNECTOR_ERROR.
-        ValueError: If the result type is unknown or invalid.
+        IntegrationError: On integration-level failure.
+        ConnectorError: On connector-level failure.
     """
     result = FfiResult()
     result.ParseFromString(result_bytes)
@@ -105,23 +101,19 @@ def check_req(result_bytes: bytes) -> Any:
     elif result_type == FfiResult.CONNECTOR_ERROR:
         raise ConnectorError(result.connector_error)
     else:
-        raise ValueError(f"Unknown result type: {result_type}")
+        raise RuntimeError(f"Internal error: unhandled result type {result_type}")
 
 
 def check_res(result_bytes: bytes) -> Any:
     """
-    Parse FFI res_transformer bytes using FfiResult proto with enum-based type checking.
-
-    Args:
-        result_bytes: Raw bytes returned by the res_transformer FFI call.
+    Parse raw bytes from res_transformer FFI call.
 
     Returns:
-        FfiConnectorHttpResponse on success (HTTP_RESPONSE type).
+        FfiConnectorHttpResponse on success.
 
     Raises:
-        ConnectorError: If the result type is CONNECTOR_ERROR.
-        IntegrationError: If the result type is INTEGRATION_ERROR.
-        ValueError: If the result type is unknown or invalid.
+        ConnectorError: On connector-level failure.
+        IntegrationError: On integration-level failure.
     """
     result = FfiResult()
     result.ParseFromString(result_bytes)
@@ -137,7 +129,7 @@ def check_res(result_bytes: bytes) -> Any:
     elif result_type == FfiResult.INTEGRATION_ERROR:
         raise IntegrationError(result.integration_error)
     else:
-        raise ValueError(f"Unknown result type: {result_type}")
+        raise RuntimeError(f"Internal error: unhandled result type {result_type}")
 
 class _ConnectorClientBase:
     """Base class for per-service connector clients. Do not instantiate directly."""
@@ -291,7 +283,7 @@ class _ConnectorClientBase:
         Execute a single-step flow: FFI transformer called directly, no HTTP round-trip.
 
         Used for inbound flows like webhook processing where the connector sends
-        data to us. Errors are raised as ConnectorError directly.
+        data to us. Errors are raised as ConnectorError or IntegrationError directly.
 
         Args:
             flow: Flow name matching the FFI transformer (e.g. "handle_event").
@@ -304,6 +296,7 @@ class _ConnectorClientBase:
 
         Raises:
             ConnectorError: On FFI transformer failures.
+            IntegrationError: On FFI transformer integration failures.
         """
         transformer = getattr(_ffi, f"{flow}_transformer")
 
@@ -315,13 +308,21 @@ class _ConnectorClientBase:
 
         result_bytes = transformer(request_bytes, options_bytes)
 
-        # Parse result bytes - check_res returns FfiConnectorHttpResponse, extract body
-        http_response = check_res(result_bytes)
-        
-        # Deserialize the domain response from the body
-        domain_response = response_cls()
-        domain_response.ParseFromString(http_response.body)
-        return domain_response
+        # Parse FfiResult — direct flows return PROTO_RESPONSE (raw proto bytes),
+        # not an HTTP envelope. Errors come back as CONNECTOR_ERROR / INTEGRATION_ERROR.
+        result = FfiResult()
+        result.ParseFromString(result_bytes)
+
+        if result.type == FfiResult.PROTO_RESPONSE:
+            domain_response = response_cls()
+            domain_response.ParseFromString(result.proto_response)
+            return domain_response
+        elif result.type == FfiResult.CONNECTOR_ERROR:
+            raise ConnectorError(result.connector_error)
+        elif result.type == FfiResult.INTEGRATION_ERROR:
+            raise IntegrationError(result.integration_error)
+        else:
+            raise RuntimeError(f"Internal error: unhandled result type {result.type} for flow '{flow}'")
 
     async def close(self):
         """Close all underlying asynchronous connection pools."""
