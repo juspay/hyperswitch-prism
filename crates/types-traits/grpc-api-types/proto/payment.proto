@@ -3428,6 +3428,7 @@ message RecurringPaymentServiceChargeRequest {
 
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 35;
 
+  optional AuthenticationType auth_type = 36;
 }
 
 // Response message for repeat payment operation

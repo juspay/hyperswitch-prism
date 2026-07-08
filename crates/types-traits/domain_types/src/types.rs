@@ -5036,7 +5036,7 @@ impl
             status: common_enums::AttemptStatus::Pending,
             payment_method: PaymentMethod::Card, //TODO
             address,
-            auth_type: common_enums::AuthenticationType::default(),
+            auth_type: common_enums::AuthenticationType::foreign_try_from(value.auth_type())?,
             connector_request_reference_id: extract_connector_request_reference_id(
                 &value.merchant_charge_id,
             ),
