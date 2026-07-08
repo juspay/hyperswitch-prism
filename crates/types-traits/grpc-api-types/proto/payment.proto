@@ -1091,6 +1091,16 @@ message NetworkParams {
   optional CartesBancairesParams cartes_bancaires = 1;
 }
 
+// Type of decoupled (external) 3DS authentication that was performed.
+enum DecoupledAuthenticationType {
+  // Unspecified/default value.
+  DECOUPLED_AUTHENTICATION_TYPE_UNSPECIFIED = 0;
+  // Challenge flow - the cardholder was challenged by the ACS.
+  DECOUPLED_AUTHENTICATION_TYPE_CHALLENGE = 1;
+  // Frictionless flow - authentication completed without a challenge.
+  DECOUPLED_AUTHENTICATION_TYPE_FRICTIONLESS = 2;
+}
+
 // Additional authentication data, typically from 3DS
 message AuthenticationData {
   // Electronic Commerce Indicator (ECI) from 3DS.
@@ -1120,6 +1130,22 @@ message AuthenticationData {
   // authentication was performed. Used by connectors (e.g. Cybersource) that
   // send an authenticationDate in their request.
   optional int64 created_at = 12;
+  // 3DS challenge code from the ACS challenge flow (e.g. Cybersource
+  // challengeCode).
+  optional string challenge_code = 13;
+  // 3DS challenge cancellation indicator (e.g. Cybersource
+  // challengeCancelCode).
+  optional string challenge_cancel = 14;
+  // Reason associated with the 3DS challenge code (e.g. Cybersource
+  // signedParesStatusReason).
+  optional string challenge_code_reason = 15;
+  // JSON-serialized 3DS message extension attributes (e.g. Cartes Bancaires
+  // score used for Cybersource networkScore).
+  optional string message_extension = 16;
+  // Type of decoupled (external) authentication performed (challenge vs
+  // frictionless). Used by connectors (e.g. Cybersource
+  // effectiveAuthenticationType).
+  optional DecoupledAuthenticationType authentication_type = 17;
 }
 
 // Details of customer acceptance for mandates or terms

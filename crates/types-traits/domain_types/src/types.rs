@@ -5386,6 +5386,18 @@ impl ForeignTryFrom<router_request_types::AuthenticationData>
             created_at: value
                 .created_at
                 .map(|created_at| created_at.assume_utc().unix_timestamp()),
+            challenge_code: value.challenge_code,
+            challenge_cancel: value.challenge_cancel,
+            challenge_code_reason: value.challenge_code_reason,
+            message_extension: value
+                .message_extension
+                .map(|message_extension| message_extension.expose().to_string()),
+            authentication_type: value.authentication_type.map(|authentication_type| {
+                grpc_api_types::payments::DecoupledAuthenticationType::foreign_from(
+                    authentication_type,
+                )
+                .into()
+            }),
         })
     }
 }
@@ -5420,6 +5432,17 @@ impl ForeignFrom<grpc_api_types::payments::TransactionStatus> for common_enums::
             grpc_api_types::payments::TransactionStatus::ChallengeRequired => Self::ChallengeRequired,
             grpc_api_types::payments::TransactionStatus::ChallengeRequiredDecoupledAuthentication => Self::ChallengeRequiredDecoupledAuthentication,
             grpc_api_types::payments::TransactionStatus::InformationOnly => Self::InformationOnly,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::DecoupledAuthenticationType>
+    for grpc_api_types::payments::DecoupledAuthenticationType
+{
+    fn foreign_from(value: common_enums::DecoupledAuthenticationType) -> Self {
+        match value {
+            common_enums::DecoupledAuthenticationType::Challenge => Self::Challenge,
+            common_enums::DecoupledAuthenticationType::Frictionless => Self::Frictionless,
         }
     }
 }

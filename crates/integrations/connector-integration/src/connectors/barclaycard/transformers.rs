@@ -1994,6 +1994,11 @@ fn get_authentication_data_for_validation_response(
         exemption_indicator: None,
         network_params: None,
         created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 
@@ -2023,6 +2028,11 @@ fn get_authentication_data_for_authenticate_response(
         exemption_indicator: None,
         network_params: None,
         created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 

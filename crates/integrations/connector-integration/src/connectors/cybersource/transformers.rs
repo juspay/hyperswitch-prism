@@ -378,41 +378,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .authentication_data
                     .as_ref()
                     .map(|authn_data| {
-                        let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
-                            if ccard.card_network == Some(common_enums::CardNetwork::Mastercard) {
-                                (authn_data.cavv.clone(), None, Some("2".to_string()))
-                            } else {
-                                (None, authn_data.cavv.clone(), None)
-                            };
-                        CybersourceConsumerAuthInformation {
-                            pares_status: Some(CybersourceParesStatus::AuthenticationSuccessful),
-                            ucaf_collection_indicator,
-                            cavv,
-                            ucaf_authentication_data,
-                            xid: None,
-                            directory_server_transaction_id: authn_data
-                                .ds_trans_id
-                                .clone()
-                                .map(Secret::new),
-                            specification_version: authn_data.message_version.clone(),
-                            pa_specification_version: authn_data.message_version.clone(),
-                            veres_enrolled: Some("Y".to_string()),
-                            eci_raw: authn_data.eci.clone(),
-                            authentication_date: authn_data.created_at.and_then(|created_at| {
-                                common_utils::date_time::format_date(
-                                    created_at,
-                                    common_utils::date_time::DateFormat::YYYYMMDDHHmmss,
-                                )
-                                .ok()
-                            }),
-                            effective_authentication_type: None,
-                            challenge_code: None,
-                            signed_pares_status_reason: None,
-                            challenge_cancel_code: None,
-                            network_score: None,
-                            acs_transaction_id: authn_data.acs_transaction_id.clone(),
-                            cavv_algorithm: Some("2".to_string()),
-                        }
+                        build_consumer_auth_information(authn_data, ccard.card_network.as_ref())
                     }),
                 _ => None,
             };
@@ -549,6 +515,11 @@ fn get_authentication_data_for_validation_response(
         exemption_indicator: None,
         network_params: None,
         created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 
@@ -595,6 +566,11 @@ fn get_authentication_data_for_authenticate_response(
         exemption_indicator: None,
         network_params: None,
         created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 
@@ -638,46 +614,6 @@ pub struct CybersourceConsumerAuthInformation {
     acs_transaction_id: Option<String>,
     /// This is the algorithm for generating a cardholder authentication verification value (CAVV) or universal cardholder authentication field (UCAF) data.
     cavv_algorithm: Option<String>,
-}
-
-impl From<router_request_types::AuthenticationData> for CybersourceConsumerAuthInformation {
-    fn from(value: router_request_types::AuthenticationData) -> Self {
-        let router_request_types::AuthenticationData {
-            eci: _,
-            cavv,
-            threeds_server_transaction_id: _,
-            message_version,
-            ds_trans_id,
-            trans_status: _,
-            acs_transaction_id: _,
-            transaction_id,
-            ucaf_collection_indicator,
-            exemption_indicator: _,
-            network_params: _,
-            created_at: _,
-        } = value;
-
-        Self {
-            pares_status: None,
-            ucaf_collection_indicator,
-            ucaf_authentication_data: cavv.clone(),
-            xid: transaction_id,
-            cavv,
-            directory_server_transaction_id: ds_trans_id.map(Secret::new),
-            specification_version: None,
-            pa_specification_version: message_version,
-            veres_enrolled: None,
-            eci_raw: None,
-            authentication_date: None,
-            effective_authentication_type: None,
-            challenge_code: None,
-            signed_pares_status_reason: None,
-            challenge_cancel_code: None,
-            network_score: None,
-            acs_transaction_id: None,
-            cavv_algorithm: None,
-        }
-    }
 }
 
 #[derive(Debug, Serialize)]
@@ -1409,6 +1345,91 @@ fn build_bill_to(
     }
 }
 
+fn extract_score_id(message_extensions: &[MessageExtensionAttribute]) -> Option<u32> {
+    message_extensions.iter().find_map(|attr| {
+        attr.id
+            .ends_with("CB-SCORE")
+            .then(|| {
+                attr.id
+                    .split('_')
+                    .next()
+                    .and_then(|p| p.strip_prefix('A'))
+                    .and_then(|s| {
+                        s.parse::<u32>().map(Some).unwrap_or_else(|err| {
+                            tracing::error!("Failed to parse score_id from '{}': {}", s, err);
+                            None
+                        })
+                    })
+                    .or_else(|| {
+                        tracing::error!("Unexpected prefix format in id: {}", attr.id);
+                        None
+                    })
+            })
+            .flatten()
+    })
+}
+
+/// Builds the Cybersource `consumerAuthenticationInformation` block from external 3DS
+/// authentication data, mirroring Hyperswitch's construction at every call site: the
+/// card-network-aware ucaf/cavv split (Mastercard), `authenticationDate` formatted from
+/// `created_at`, and the Cartes Bancaires `networkScore` extracted from `message_extension`.
+fn build_consumer_auth_information(
+    authn_data: &router_request_types::AuthenticationData,
+    card_network: Option<&common_enums::CardNetwork>,
+) -> CybersourceConsumerAuthInformation {
+    let effective_authentication_type = authn_data.authentication_type.as_ref().map(Into::into);
+    let (ucaf_authentication_data, cavv, ucaf_collection_indicator) =
+        if card_network == Some(&common_enums::CardNetwork::Mastercard) {
+            (authn_data.cavv.clone(), None, Some("2".to_string()))
+        } else {
+            (None, authn_data.cavv.clone(), None)
+        };
+    let network_score = (card_network == Some(&common_enums::CardNetwork::CartesBancaires))
+        .then_some(authn_data.message_extension.as_ref())
+        .flatten()
+        .map(|secret| secret.clone().expose())
+        .and_then(|exposed| {
+            serde_json::from_value::<Vec<MessageExtensionAttribute>>(exposed)
+                .map_err(|err| {
+                    tracing::error!("Failed to deserialize message_extension: {:?}", err);
+                })
+                .ok()
+                .and_then(|exts| extract_score_id(&exts))
+        });
+    CybersourceConsumerAuthInformation {
+        // For all card payments, we are explicitly setting `pares_status` to
+        // `AuthenticationSuccessful` to indicate that the Payer Authentication was
+        // successful, regardless of actual ACS response (mirrors Hyperswitch).
+        pares_status: Some(CybersourceParesStatus::AuthenticationSuccessful),
+        ucaf_collection_indicator,
+        cavv,
+        ucaf_authentication_data,
+        xid: None,
+        directory_server_transaction_id: authn_data.ds_trans_id.clone().map(Secret::new),
+        specification_version: authn_data.message_version.clone(),
+        pa_specification_version: authn_data.message_version.clone(),
+        veres_enrolled: Some("Y".to_string()),
+        eci_raw: authn_data.eci.clone(),
+        authentication_date: authn_data.created_at.and_then(|created_at| {
+            common_utils::date_time::format_date(
+                created_at,
+                common_utils::date_time::DateFormat::YYYYMMDDHHmmss,
+            )
+            .ok()
+        }),
+        effective_authentication_type,
+        challenge_code: authn_data.challenge_code.clone(),
+        signed_pares_status_reason: authn_data.challenge_code_reason.clone(),
+        challenge_cancel_code: authn_data.challenge_cancel.clone(),
+        network_score,
+        acs_transaction_id: authn_data.acs_transaction_id.clone(),
+        // The 3DS Server might not include the `cavvAlgorithm` field in the challenge
+        // response. Default to "2" (CVV with ATN), the most common value for 3DS 2.0
+        // (mirrors Hyperswitch).
+        cavv_algorithm: Some("2".to_string()),
+    }
+}
+
 impl From<&common_enums::DecoupledAuthenticationType> for EffectiveAuthenticationType {
     fn from(auth_type: &common_enums::DecoupledAuthenticationType) -> Self {
         match auth_type {
@@ -1459,7 +1480,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_information = OrderInformationWithBill::try_from((item, Some(bill_to)))?;
 
         let raw_card_type = ccard.card_network.clone();
-        let is_mastercard = raw_card_type == Some(common_enums::CardNetwork::Mastercard);
+        let card_network = ccard.card_network.clone();
 
         let card_type = match raw_card_type.clone().and_then(get_cybersource_card_type) {
             Some(card_network) => Some(card_network.to_string()),
@@ -1496,51 +1517,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Mirror Hyperswitch's cybersource authorize builder: when external 3DS
         // authentication data is present on a card payment, populate
-        // consumerAuthenticationInformation so the UCS request matches HS (the lossy
-        // `From<AuthenticationData>` only set ucafAuthenticationData and dropped
-        // pares_status/specification_version/veres_enrolled/eci_raw/authentication_date/
-        // cavv_algorithm).
+        // consumerAuthenticationInformation so the UCS request matches HS.
         let consumer_authentication_information = item
             .router_data
             .request
             .authentication_data
             .as_ref()
-            .map(|authn_data| {
-                let (ucaf_authentication_data, cavv, ucaf_collection_indicator) = if is_mastercard {
-                    (authn_data.cavv.clone(), None, Some("2".to_string()))
-                } else {
-                    (None, authn_data.cavv.clone(), None)
-                };
-                CybersourceConsumerAuthInformation {
-                    pares_status: Some(CybersourceParesStatus::AuthenticationSuccessful),
-                    ucaf_collection_indicator,
-                    cavv,
-                    ucaf_authentication_data,
-                    xid: None,
-                    directory_server_transaction_id: authn_data
-                        .ds_trans_id
-                        .clone()
-                        .map(Secret::new),
-                    specification_version: authn_data.message_version.clone(),
-                    pa_specification_version: authn_data.message_version.clone(),
-                    veres_enrolled: Some("Y".to_string()),
-                    eci_raw: authn_data.eci.clone(),
-                    authentication_date: authn_data.created_at.and_then(|created_at| {
-                        common_utils::date_time::format_date(
-                            created_at,
-                            common_utils::date_time::DateFormat::YYYYMMDDHHmmss,
-                        )
-                        .ok()
-                    }),
-                    effective_authentication_type: None,
-                    challenge_code: None,
-                    signed_pares_status_reason: None,
-                    challenge_cancel_code: None,
-                    network_score: None,
-                    acs_transaction_id: authn_data.acs_transaction_id.clone(),
-                    cavv_algorithm: Some("2".to_string()),
-                }
-            });
+            .map(|authn_data| build_consumer_auth_information(authn_data, card_network.as_ref()));
         Ok(Self {
             processing_information,
             payment_information,
@@ -5275,8 +5258,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .router_data
             .request
             .authentication_data
-            .clone()
-            .map(From::from);
+            .as_ref()
+            .map(|authn_data| {
+                build_consumer_auth_information(authn_data, ccard.card_network.as_ref())
+            });
 
         Ok(Self {
             processing_information,
@@ -5363,8 +5348,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .router_data
             .request
             .authentication_data
-            .clone()
-            .map(From::from);
+            .as_ref()
+            .map(|authn_data| {
+                build_consumer_auth_information(authn_data, token_data.card_network.as_ref())
+            });
 
         Ok(Self {
             processing_information,
