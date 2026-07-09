@@ -13348,11 +13348,20 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                 Ok(
                     grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
                         connector_transaction_id: Option::foreign_try_from(resource_id)?,
-                        redirection_data: redirection_data
-                            .map(|form| {
-                                grpc_api_types::payments::RedirectForm::foreign_try_from(*form)
-                            })
-                            .transpose()?,
+                        redirection_data: redirection_data.and_then(|form| {
+                            // A repeat-payment redirect only ever comes from PayPal here, which
+                            // emits RedirectForm::Form — a proto-representable variant — so this
+                            // conversion does not fail in practice. Degrade to None on the
+                            // unreachable error arm rather than failing an otherwise-successful
+                            // charge response, mirroring the connector_response handling above.
+                            match grpc_api_types::payments::RedirectForm::foreign_try_from(*form) {
+                                Ok(form) => Some(form),
+                                Err(err) => {
+                                    tracing::error!("Failed to convert RedirectForm: {err:?}");
+                                    None
+                                }
+                            }
+                        }),
                         status: grpc_status as i32,
                         error: None,
                         network_transaction_id: network_txn_id,
