@@ -1158,7 +1158,7 @@
             "prefer": "return=representation",
             "via": "HyperSwitch"
           },
-          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"\",\"invoice_id\":\"\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice \",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"paypal\":{\"vault_id\":\"probe-mandate-123\"}}}"
+          "body": "{\"intent\":\"CAPTURE\",\"purchase_units\":[{\"reference_id\":\"\",\"invoice_id\":\"\",\"custom_id\":null,\"amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\",\"breakdown\":{\"item_total\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax_total\":null,\"shipping\":{\"currency_code\":\"USD\",\"value\":\"0.00\"}}},\"shipping\":{\"address\":null,\"name\":{\"full_name\":null}},\"items\":[{\"name\":\"Payment for invoice \",\"quantity\":1,\"unit_amount\":{\"currency_code\":\"USD\",\"value\":\"10.00\"},\"tax\":null}]}],\"payment_source\":{\"paypal\":{\"vault_id\":\"probe-mandate-123\",\"experience_context\":{\"return_url\":\"https://example.com/recurring-return\",\"cancel_url\":\"https://example.com/recurring-return\",\"user_action\":\"PAY_NOW\",\"shipping_preference\":\"GET_FROM_FILE\"}}}}"
         }
       }
     },
