@@ -741,16 +741,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // PaypalSdk wallet: no body needed, buyer approved via SDK
             None
         } else if req.resource_common_data.connector_order_id.is_some() {
-            // Completing existing order from CreateOrder — send only payment_source
-            let connector_router_data = PaypalRouterData {
-                connector: self.to_owned(),
-                router_data: req.to_owned(),
-            };
-            let connector_req =
-                paypal::PaypalOrderAuthorizeRequest::try_from(connector_router_data)?;
-            Some(common_utils::request::RequestContent::Json(Box::new(
-                connector_req,
-            )))
+            None
         } else {
             // Build full request body for creating new order (like HS Authorize)
             let connector_router_data = PaypalRouterData {
