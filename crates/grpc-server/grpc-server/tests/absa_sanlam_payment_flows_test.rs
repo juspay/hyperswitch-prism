@@ -179,33 +179,33 @@ fn create_authorize_request(merchant_transaction_id: &str) -> PaymentServiceAuth
     }
 }
 
-fn kafka_enabled_config(topic_prefix: &str) -> configs::Config {
-    let mut config = configs::Config::new().expect("Failed while parsing config");
-    config.connector_request_kafka.enabled = true;
-    config.connector_request_kafka.brokers = vec![KAFKA_BROKER.to_string()];
-    config.connectors.absa_sanlam.base_url = topic_prefix.to_string();
-    config
+fn set_kafka_config_env() {
+    std::env::set_var("CS__CONNECTOR_REQUEST_KAFKA__ENABLED", "true");
+    std::env::set_var("CS__CONNECTOR_REQUEST_KAFKA__BROKERS", KAFKA_BROKER);
+}
+
+fn default_absa_sanlam_topic() -> String {
+    let config = configs::Config::new().expect("Failed while parsing config");
+    format!("{}_payments_queue", config.connectors.absa_sanlam.base_url)
 }
 
 #[tokio::test]
 #[serial]
 async fn test_absa_sanlam_authorize_publishes_eft_debit_to_kafka() {
     let merchant_transaction_id = format!("absa_sanlam_authorize_{}", Uuid::new_v4().simple());
-    let topic_prefix = format!("absa_sanlam_{}", Uuid::new_v4().simple());
-    let topic = format!("{topic_prefix}_payments_queue");
-    let config = kafka_enabled_config(&topic_prefix);
-    
+    let topic = default_absa_sanlam_topic();
+
+    set_kafka_config_env();
     let consumer = kafka_consumer();
     consumer
         .subscribe(&[topic.as_str()])
         .expect("Failed to subscribe to Kafka topic");
 
-    grpc_test!(client, PaymentServiceClient<Channel>, config, {
+    grpc_test!(client, PaymentServiceClient<Channel>, {
         let mut request = Request::new(create_authorize_request(&merchant_transaction_id));
         add_absa_sanlam_metadata(&mut request);
 
-        let response = Box::pin(client
-            .authorize(request))
+        let response = Box::pin(client.authorize(request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
