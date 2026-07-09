@@ -193,11 +193,8 @@ async fn test_absa_sanlam_authorize_publishes_eft_debit_to_kafka() {
     let merchant_transaction_id = format!("absa_sanlam_authorize_{}", Uuid::new_v4().simple());
     let topic_prefix = format!("absa_sanlam_{}", Uuid::new_v4().simple());
     let topic = format!("{topic_prefix}_payments_queue");
-
     let config = kafka_enabled_config(&topic_prefix);
-    connector_request_kafka::init_kafka_producer(&config.connector_request_kafka)
-        .expect("Failed to initialize Kafka producer");
-
+    
     let consumer = kafka_consumer();
     consumer
         .subscribe(&[topic.as_str()])
@@ -207,8 +204,8 @@ async fn test_absa_sanlam_authorize_publishes_eft_debit_to_kafka() {
         let mut request = Request::new(create_authorize_request(&merchant_transaction_id));
         add_absa_sanlam_metadata(&mut request);
 
-        let response = client
-            .authorize(request)
+        let response = Box::pin(client
+            .authorize(request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
