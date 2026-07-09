@@ -77,6 +77,7 @@ pub enum ConnectorEnum {
     Payu,
     Cashtocode,
     Novalnet,
+    Netcetera,
     Nexinets,
     Noon,
     Braintree,

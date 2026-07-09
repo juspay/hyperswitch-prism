@@ -749,12 +749,15 @@ macro_rules! implement_connector_operation {
         response_type: $response_type:ty,
         flow_marker: $flow_marker:ty,
         resource_common_data_type: $resource_common_data_type:ty,
-        request_data_type: $request_data_type:ty,
+        // Base type constructors (macro applies `<T>`); a single flow has exactly one
+        // payment-method-data holder (`DefaultPCIHolder` or `VaultTokenHolder`) at runtime,
+        // so the proxy and non-proxy paths differ only in that generic `T`.
+        request_data_type: $request_data_type:ident,
         response_data_type: $response_data_type:ty,
         request_data_constructor: $request_data_constructor:path,
         common_flow_data_constructor: $common_flow_data_constructor:path,
         generate_response_fn: $generate_response_fn:path,
-        connector_data_type: $connector_data_type:ty,
+        connector_data: $connector_data:ident,
         all_keys_required: $all_keys_required:expr,
         has_payment_method_data: option
     ) => {
@@ -785,56 +788,23 @@ macro_rules! implement_connector_operation {
             let request_id = metadata_payload.request_id.clone();
             let connector_config = metadata_payload.connector_config.clone();
 
-            // Get connector data using ConnectorDataProvider trait
-            let connector_data: $connector_data_type =
-                connector_integration::types::ConnectorDataProvider::from_connector_variant(&metadata_payload.connector)
-                    .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+            // Inspect the payment method up front so the vault-aliased card-proxy
+            // (VGS / Basis Theory / Spreedly) flows can build `Some(token_data)` and
+            // route through the external-services injector, exactly as the payment
+            // Authorize flow does. A non-proxy request keeps the existing direct
+            // connector call with `token_data = None`.
+            let payment_method_data_action = match payload.payment_method.clone() {
+                Some(pm) => Some(
+                    domain_types::types::PaymentMethodDataAction::get_payment_method_data_action(pm)
+                        .into_grpc_status()?,
+                ),
+                None => None,
+            };
 
-            // Get connector integration
-            let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
-                '_,
-                $flow_marker,
-                $resource_common_data_type,
-                $request_data_type,
-                $response_data_type,
-            > = connector_data.connector.get_connector_integration_v2();
-
-            let payment_method_data: Option<domain_types::payment_method_data::PaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>> =
-                match payload.payment_method.clone() {
-                    Some(pm) => match domain_types::types::PaymentMethodDataAction::get_payment_method_data_action(pm.clone()).into_grpc_status()? {
-                        domain_types::types::PaymentMethodDataAction::Card(card_details) => {
-                            Some(domain_types::payment_method_data::PaymentMethodData::Card(
-                                domain_types::payment_method_data::Card::<domain_types::payment_method_data::DefaultPCIHolder>::foreign_try_from(card_details)
-                                    .into_grpc_status()?
-                            ))
-                        }
-                        domain_types::types::PaymentMethodDataAction::Default => {
-                            Some(domain_types::payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(pm).into_grpc_status()?)
-                        }
-                        _ => None,
-                    },
-                    None => None,
-                };
-            let specific_request_data = $request_data_constructor((payload.clone(), payment_method_data))
-                .into_grpc_status()?;
-
-            // Create common request data
+            // Create common request data (shared by both the direct and proxy paths;
+            // it already carries the parsed `x-external-vault-metadata` vault headers).
             let common_flow_data = $common_flow_data_constructor((payload.clone(), config.connectors.clone(), &masked_metadata))
                 .into_grpc_status()?;
-
-            // Create router data
-            let router_data = domain_types::router_data_v2::RouterDataV2::<
-                $flow_marker,
-                $resource_common_data_type,
-                $request_data_type,
-                $response_data_type,
-            > {
-                flow: std::marker::PhantomData,
-                resource_common_data: common_flow_data,
-                connector_config,
-                request: specific_request_data,
-                response: Err(domain_types::router_data::ErrorResponse::default()),
-            };
 
             // Calculate flow name for dynamic flow-specific configurations
             let flow_name = $crate::utils::flow_marker_to_flow_name::<$flow_marker>();
@@ -867,24 +837,180 @@ macro_rules! implement_connector_operation {
                 return_raw_connector_data: config.common.return_raw_connector_data,
                 connector_latency: metadata_payload.connector_latency.clone(),
             };
-            let call_connector_action = connector_integration.get_call_connector_action();
-            let response_result = external_services::service::execute_connector_processing_step(
-                &config.proxy,
-                connector_integration,
-                router_data,
-                $all_keys_required,
-                event_params,
-                None,
-                call_connector_action,
-                test_context,
-                api_tag,
-            )
-            .await
-            .into_grpc_status()?;
 
-            // Generate response
-            let final_response = $generate_response_fn(response_result)
+            // The connector round-trip is identical for both holders → written once,
+            // generic over `T`. Each match arm only builds the holder-specific request
+            // (+ optional injector token) and picks the monomorphisation; the two
+            // `RouterDataV2` types never need to share a binding.
+            #[allow(clippy::too_many_arguments)]
+            async fn run_holder_flow<
+                T: domain_types::payment_method_data::PaymentMethodDataTypes
+                    + std::fmt::Debug
+                    + Default
+                    + Send
+                    + Sync
+                    + 'static
+                    + serde::Serialize,
+            >(
+                connector: &domain_types::connector_types::ConnectorVariant,
+                request: $request_data_type<T>,
+                common_flow_data: $resource_common_data_type,
+                connector_config: domain_types::router_data::ConnectorSpecificConfig,
+                token_data: Option<injector::TokenData>,
+                proxy: &domain_types::types::ProxyConfig,
+                all_keys_required: Option<bool>,
+                event_params: external_services::service::EventProcessingParams<'_>,
+                test_context: Option<external_services::service::TestContext>,
+                api_tag: Option<String>,
+            ) -> Result<$response_type, tonic::Status>
+            where
+                $connector_data<T>: connector_integration::types::ConnectorDataProvider,
+            {
+                let connector_data: $connector_data<T> =
+                    connector_integration::types::ConnectorDataProvider::from_connector_variant(connector)
+                        .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+
+                let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
+                    '_,
+                    $flow_marker,
+                    $resource_common_data_type,
+                    $request_data_type<T>,
+                    $response_data_type,
+                > = connector_data.connector.get_connector_integration_v2();
+
+                let router_data = domain_types::router_data_v2::RouterDataV2::<
+                    $flow_marker,
+                    $resource_common_data_type,
+                    $request_data_type<T>,
+                    $response_data_type,
+                > {
+                    flow: std::marker::PhantomData,
+                    resource_common_data: common_flow_data,
+                    connector_config,
+                    request,
+                    response: Err(domain_types::router_data::ErrorResponse::default()),
+                };
+
+                let call_connector_action = connector_integration.get_call_connector_action();
+                let response_result = external_services::service::execute_connector_processing_step(
+                    proxy,
+                    connector_integration,
+                    router_data,
+                    all_keys_required,
+                    event_params,
+                    token_data,
+                    call_connector_action,
+                    test_context,
+                    api_tag,
+                )
+                .await
                 .into_grpc_status()?;
+
+                $generate_response_fn(response_result).into_grpc_status()
+            }
+
+            // Exhaustive dispatch (no `_`/`other`): a new `PaymentMethodDataAction`
+            // variant or holder breaks compilation here until its routing is decided.
+            let final_response = match payment_method_data_action {
+                // ── Vault-aliased card proxy → VaultTokenHolder + injector ───────────
+                Some(domain_types::types::PaymentMethodDataAction::CardProxy(proxy_card_details)) => {
+                    tracing::info!(concat!($log_prefix, "_FLOW: INJECTOR: processing card-proxy request through injector"));
+
+                    let token_data = <$crate::types::InjectorTokenData as domain_types::utils::ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetails>>::foreign_try_from(&proxy_card_details)
+                        .into_grpc_status()?
+                        .0;
+
+                    let payment_method_data = domain_types::payment_method_data::PaymentMethodData::Card(
+                        <domain_types::payment_method_data::Card<domain_types::payment_method_data::VaultTokenHolder> as domain_types::utils::ForeignTryFrom<grpc_api_types::payments::ProxyCardDetails>>::foreign_try_from(proxy_card_details)
+                            .into_grpc_status()?,
+                    );
+
+                    let request = $request_data_constructor((payload.clone(), Some(payment_method_data)))
+                        .into_grpc_status()?;
+
+                    run_holder_flow::<domain_types::payment_method_data::VaultTokenHolder>(
+                        &metadata_payload.connector,
+                        request,
+                        common_flow_data,
+                        connector_config,
+                        Some(token_data),
+                        &config.proxy,
+                        $all_keys_required,
+                        event_params,
+                        test_context,
+                        api_tag,
+                    )
+                    .await?
+                }
+                // ── Regular card → DefaultPCIHolder, direct connector call ───────────
+                Some(domain_types::types::PaymentMethodDataAction::Card(card_details)) => {
+                    let payment_method_data = domain_types::payment_method_data::PaymentMethodData::Card(
+                        domain_types::payment_method_data::Card::<domain_types::payment_method_data::DefaultPCIHolder>::foreign_try_from(card_details)
+                            .into_grpc_status()?,
+                    );
+
+                    let request = $request_data_constructor((payload.clone(), Some(payment_method_data)))
+                        .into_grpc_status()?;
+
+                    run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                        &metadata_payload.connector,
+                        request,
+                        common_flow_data,
+                        connector_config,
+                        None,
+                        &config.proxy,
+                        $all_keys_required,
+                        event_params,
+                        test_context,
+                        api_tag,
+                    )
+                    .await?
+                }
+                // ── Non-card (Default) → DefaultPCIHolder, direct connector call ─────
+                Some(domain_types::types::PaymentMethodDataAction::Default) => {
+                    let payment_method_data: Option<domain_types::payment_method_data::PaymentMethodData<domain_types::payment_method_data::DefaultPCIHolder>> =
+                        match payload.payment_method.clone() {
+                            Some(pm) => Some(domain_types::payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(pm).into_grpc_status()?),
+                            None => None,
+                        };
+
+                    let request = $request_data_constructor((payload.clone(), payment_method_data))
+                        .into_grpc_status()?;
+
+                    run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                        &metadata_payload.connector,
+                        request,
+                        common_flow_data,
+                        connector_config,
+                        None,
+                        &config.proxy,
+                        $all_keys_required,
+                        event_params,
+                        test_context,
+                        api_tag,
+                    )
+                    .await?
+                }
+                // ── No payment method data → DefaultPCIHolder, direct connector call ─
+                None => {
+                    let request = $request_data_constructor((payload.clone(), None))
+                        .into_grpc_status()?;
+
+                    run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                        &metadata_payload.connector,
+                        request,
+                        common_flow_data,
+                        connector_config,
+                        None,
+                        &config.proxy,
+                        $all_keys_required,
+                        event_params,
+                        test_context,
+                        api_tag,
+                    )
+                    .await?
+                }
+            };
 
             Ok(tonic::Response::new(final_response))
         }).await;
