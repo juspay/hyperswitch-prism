@@ -17,7 +17,7 @@ use domain_types::{
     router_request_types::AuthoriseIntegrityObject,
     router_response_types::RedirectForm,
 };
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -77,6 +77,9 @@ const FLYWIRE_EVENT_LISTENER_TEMPLATE: &str = r#"window.addEventListener("messag
   if (!d || typeof d !== 'object') return;
   if (d.source !== 'checkout_session') return;
   if (d.success === true && d.confirm_url) {
+    window.location.href = __RETURN_URL__;
+  } else if (d.success === false) {
+    // Decline / error / payer-closed: redirect back so euler /pay/response can PSync and finalize the failed txn.
     window.location.href = __RETURN_URL__;
   }
 });"#;
@@ -193,28 +196,23 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone();
         let payor_id = payment_ref.clone();
 
-        // Recipient fields: must be provided by the merchant in connector_feature_data
-        // under the key `flywire_recipient_fields`. They are institution-specific and
-        // cannot be defaulted.
-        let recipient_fields =
-            build_recipient_fields(&router_data.resource_common_data.connector_feature_data)
-                .ok_or_else(|| {
-                    error_stack::report!(IntegrationError::MissingRequiredField {
-                        field_name: "connector_feature_data.flywire_recipient_fields",
-                        context: domain_types::errors::IntegrationErrorContext {
-                            suggested_action: Some(
-                                "Pass `flywire_recipient_fields` as a JSON array in \
-                                 connector_feature_data. Each entry must have `id` and `value` \
-                                 matching the recipient's configured field schema."
-                                    .to_string(),
-                            ),
-                            doc_url: Some(
-                                "https://developers.flywire.com/docs/checkout-session".to_string(),
-                            ),
-                            additional_context: None,
-                        },
-                    })
-                })?;
+        // Domain data on the request. Extracted generically so future vertical
+        // sub-fields (beyond education / student details) can be read from here too.
+        let domain_data = router_data.request.domain_data.as_ref().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "domain_data",
+                context: domain_types::errors::IntegrationErrorContext {
+                    suggested_action: Some("Pass `domain_data` on the request.".to_string()),
+                    doc_url: Some(
+                        "https://developers.flywire.com/docs/checkout-session".to_string(),
+                    ),
+                    additional_context: None,
+                },
+            })
+        })?;
+
+        // Recipient fields: mapped from the supported domain vertical.
+        let recipient_fields = domain_data_to_recipient_fields(domain_data)?;
 
         // Payor (name, address, email): from billing address on resource_common_data.
         let payor = build_payor_from_billing(&router_data.resource_common_data);
@@ -242,23 +240,84 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     }
 }
 
-fn build_recipient_fields(
-    metadata: &Option<Secret<serde_json::Value>>,
-) -> Option<Vec<FlywireRecipientField>> {
-    use hyperswitch_masking::PeekInterface;
-    let value = metadata.as_ref().map(|m| m.peek())?;
-    let fields_value = value.get("flywire_recipient_fields")?;
-    // `collect::<Option<Vec<_>>>` short-circuits to `None` if any entry is
-    // missing `id`/`value`, matching the previous loop's `?` behaviour.
-    fields_value
-        .as_array()?
-        .iter()
-        .map(|entry| {
-            let id = entry.get("id").and_then(|v| v.as_str())?.to_string();
-            let value = entry.get("value").and_then(|v| v.as_str())?.to_string();
-            Some(FlywireRecipientField { id, value })
-        })
-        .collect()
+// Flywire recipient field ids for the student_details (student) schema.
+const FIELD_STUDENT_ID: &str = "student_id";
+const FIELD_STUDENT_FIRST_NAME: &str = "student_first_name";
+const FIELD_STUDENT_LAST_NAME: &str = "student_last_name";
+const FIELD_STUDENT_EMAIL: &str = "student_email";
+
+/// Maps typed domain data to Flywire's `recipient.fields` id/value pairs.
+/// Flywire only supports the education (student) vertical; any other vertical is
+/// rejected. For student details, only fields the merchant actually supplied are
+/// emitted (absent fields are skipped) so we never send empty recipient values.
+fn domain_data_to_recipient_fields(
+    domain_data: &domain_types::connector_types::DomainData,
+) -> Result<Vec<FlywireRecipientField>, error_stack::Report<IntegrationError>> {
+    match domain_data {
+        // Education / student payments: map the supplied student details.
+        domain_types::connector_types::DomainData {
+            education_data: Some(education_data),
+            ..
+        } => {
+            let student_details = education_data.student_details.as_ref().ok_or_else(|| {
+                error_stack::report!(IntegrationError::MissingRequiredField {
+                    field_name: "domain_data.education_data.student_details",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Pass student details in `domain_data.education_data.student_details` \
+                             (student_id, student_first_name, student_last_name, student_email)."
+                                .to_string(),
+                        ),
+                        doc_url: Some(
+                            "https://developers.flywire.com/docs/checkout-session".to_string(),
+                        ),
+                        additional_context: None,
+                    },
+                })
+            })?;
+            Ok([
+                (FIELD_STUDENT_ID, student_details.student_id.clone()),
+                (
+                    FIELD_STUDENT_FIRST_NAME,
+                    student_details.student_first_name.clone(),
+                ),
+                (
+                    FIELD_STUDENT_LAST_NAME,
+                    student_details.student_last_name.clone(),
+                ),
+                (
+                    FIELD_STUDENT_EMAIL,
+                    // student_email is secret; expose it only into the outbound request.
+                    student_details
+                        .student_email
+                        .as_ref()
+                        .map(|e| e.peek().clone()),
+                ),
+            ]
+            .into_iter()
+            .filter_map(|(id, value)| {
+                value.map(|value| FlywireRecipientField {
+                    id: id.to_string(),
+                    value,
+                })
+            })
+            .collect())
+        }
+        // Any other vertical (e.g. airline) is not supported by Flywire.
+        _ => Err(error_stack::report!(IntegrationError::NotSupported {
+            message: "the supplied domain_data vertical".to_string(),
+            connector: "flywire",
+            context: domain_types::errors::IntegrationErrorContext {
+                suggested_action: Some(
+                    "Flywire only supports education payments; pass \
+                     `domain_data.education_data.student_details`."
+                        .to_string(),
+                ),
+                doc_url: Some("https://developers.flywire.com/docs/checkout-session".to_string()),
+                additional_context: None,
+            },
+        })),
+    }
 }
 
 fn build_payor_from_billing(common: &PaymentFlowData) -> Option<FlywirePayor> {

@@ -337,7 +337,12 @@ fn derive_stored_replay_off_session_without_mit_category_is_cit_using_stored() {
     let mandate = domain_types::connector_types::MandateIds {
         mandate_id: None,
         mandate_reference_id: Some(
-            domain_types::connector_types::MandateReferenceId::NetworkMandateId("VTL1".into()),
+            domain_types::connector_types::MandateReferenceId::NetworkMandateId(
+                domain_types::connector_types::NetworkMandateIdRef {
+                    network_transaction_id: "VTL1".to_string(),
+                    transaction_link_id: None,
+                },
+            ),
         ),
     };
     assert_eq!(
@@ -351,7 +356,12 @@ fn derive_stored_replay_with_mit_category_is_mit() {
     let mandate = domain_types::connector_types::MandateIds {
         mandate_id: None,
         mandate_reference_id: Some(
-            domain_types::connector_types::MandateReferenceId::NetworkMandateId("VTL1".into()),
+            domain_types::connector_types::MandateReferenceId::NetworkMandateId(
+                domain_types::connector_types::NetworkMandateIdRef {
+                    network_transaction_id: "VTL1".to_string(),
+                    transaction_link_id: None,
+                },
+            ),
         ),
     };
     assert_eq!(

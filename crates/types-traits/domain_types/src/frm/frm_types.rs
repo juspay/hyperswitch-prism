@@ -73,7 +73,7 @@ pub struct PreRiskCheckRequest {
     pub test_mode: Option<bool>,
     /// Recurring / subscription details for risk scoring (shared MandateAmountData;
     /// `amount` is the per-period billing amount, `frequency` the billing period).
-    pub mandate_info: Option<MandateAmountData>,
+    pub mandate_details: Option<MandateAmountData>,
     /// Merchant details (id + MCC) for risk scoring.
     pub merchant_details: Option<MerchantDetails>,
     /// Payment method sub-type (e.g. `Card`, `GooglePay`, `UpiCollect`) for risk scoring.

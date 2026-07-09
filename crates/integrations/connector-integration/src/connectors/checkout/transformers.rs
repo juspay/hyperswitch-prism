@@ -930,7 +930,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         };
                         Ok((
                             payment_source,
-                            Some(network_transaction_id.clone()),
+                            Some(network_transaction_id.network_transaction_id.clone()),
                             Some(true),
                             p_type,
                             None,
@@ -980,7 +980,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                         Ok((
                             payment_source,
-                            Some(network_transaction_id.clone()),
+                            Some(network_transaction_id.network_transaction_id.clone()),
                             Some(true),
                             p_type,
                             None,
@@ -1667,6 +1667,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                    mandate_metadata: None,
                 })
         } else {
             None
@@ -1787,6 +1788,7 @@ impl<
                         connector_mandate_id: Some(id),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                        mandate_metadata: None,
                     });
 
                 let additional_information =
@@ -1910,6 +1912,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 connector_mandate_id: Some(id),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                mandate_metadata: None,
             });
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -2008,6 +2011,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentsResponse, Self>>
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                    mandate_metadata: None,
                 })
         } else {
             None

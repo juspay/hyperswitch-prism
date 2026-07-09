@@ -2267,7 +2267,7 @@ pub fn execute_tonic_request_from_payload(
                     &connector_request_reference_id,
                 );
                 let mut client = grpc_api_types::payments::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient::new(channel.clone());
-                let response = client.authenticate(request).await.map_err(|error| {
+                let response = Box::pin(client.authenticate(request)).await.map_err(|error| {
                     ScenarioError::GrpcurlExecution {
                         message: format!(
                             "tonic execution failed for '{suite}/{scenario}': {error}"
@@ -5774,6 +5774,11 @@ grpc-status: 0
             normalized["connector_recurring_payment_id"]["mandate_id_type"]["ConnectorMandateId"]
                 ["connector_mandate_id"],
             json!("mandate_123")
+        );
+        assert!(
+            normalized["connector_recurring_payment_id"]["mandate_id_type"]["ConnectorMandateId"]
+                .get("update_history")
+                .is_none()
         );
     }
 

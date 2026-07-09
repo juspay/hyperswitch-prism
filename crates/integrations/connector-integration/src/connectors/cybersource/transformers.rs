@@ -313,7 +313,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     | WalletData::CashfreeRedirect(_)
                     | WalletData::PayURedirect(_)
                     | WalletData::EaseBuzzRedirect(_)
-                    | WalletData::QwikcilverWalletDirect(_) => {
+                    | WalletData::QwikcilverWalletDirect(_)
+                    | WalletData::Skrill(_) => {
                         Err(error_stack::report!(IntegrationError::NotSupported {
                             message:
                                 domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -2432,7 +2433,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::QwikcilverWalletDirect(_) => {
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message:
                             domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -3365,6 +3367,7 @@ fn get_payment_response(
                             .map(|payment_instrument| payment_instrument.id.expose()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     });
 
             Ok(PaymentsResponseData::TransactionResponse {
@@ -4318,6 +4321,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                         .map(|payment_instrument| payment_instrument.id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 });
         let mut mandate_status = map_cybersource_attempt_status(
             item.response
@@ -5480,7 +5484,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
                             reason: Some("7".to_string()),
                             original_authorized_amount,
-                            previous_transaction_id: Some(Secret::new(network_transaction_id)),
+                            previous_transaction_id: Some(Secret::new(
+                                network_transaction_id.network_transaction_id,
+                            )),
                         }),
                         ignore_avs_result: connector_merchant_config.disable_avs,
                         ignore_cv_result: connector_merchant_config.disable_cvn,

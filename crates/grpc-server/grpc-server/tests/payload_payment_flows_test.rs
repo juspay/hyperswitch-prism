@@ -256,6 +256,7 @@ fn create_repeat_payment_request(mandate_id: &str) -> RecurringPaymentServiceCha
                 connector_mandate_request_reference_id: None,
                 connector_mandate_id: Some(mandate_id.to_string()),
                 payment_method_id: None,
+                mandate_metadata: None,
             },
         )),
     };
@@ -377,7 +378,6 @@ fn create_register_request_with_prefix(_prefix: &str) -> PaymentServiceSetupRecu
                     frequency: Some("monthly".to_string()),
                     initial_billing_amount: None,
                     external_subscription_id: None,
-                    status: None,
                     next_billing_date: None,
                     billing_cycle: None,
                     description: None,
@@ -587,13 +587,11 @@ async fn test_setup_mandate() {
 
         // Verify we got a mandate reference
         assert!(
-            response.mandate_reference.is_some(),
+            response.mandate_reference_details.is_some(),
             "Mandate reference should be present"
         );
 
-        if let Some(MandateIdType::ConnectorMandateId(mandate_ref)) =
-            &response.mandate_reference.and_then(|m| m.mandate_id_type)
-        {
+        if let Some(mandate_ref) = &response.mandate_reference_details {
             assert!(
                 mandate_ref.connector_mandate_id.is_some()
                     || mandate_ref.payment_method_id.is_some(),
@@ -636,7 +634,7 @@ async fn test_repeat_payment() {
             .expect("gRPC setup_recurring call failed")
             .into_inner();
 
-        if register_response.mandate_reference.is_none() {
+        if register_response.mandate_reference_details.is_none() {
             panic!(
                 "Mandate reference should be present. Status: {}, Error: {:?}",
                 register_response.status,
@@ -648,20 +646,14 @@ async fn test_repeat_payment() {
         }
 
         let mandate_ref = register_response
-            .mandate_reference
+            .mandate_reference_details
             .as_ref()
             .expect("Mandate reference should be present");
 
-        let mandate_id_opt = mandate_ref
-            .mandate_id_type
-            .clone()
-            .and_then(|id| match id {
-                MandateIdType::ConnectorMandateId(connector_id) => {
-                    connector_id.connector_mandate_id
-                }
-                _ => None,
-            });
-        let mandate_id = mandate_id_opt.as_deref().expect("mandate_id should be present");
+        let mandate_id = mandate_ref
+            .connector_mandate_id
+            .as_deref()
+            .expect("mandate_id should be present");
 
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 

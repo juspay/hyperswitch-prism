@@ -458,8 +458,8 @@
         "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -569,8 +569,8 @@
         "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through nexinets"
       },
       "Sofort": {
         "status": "supported",
