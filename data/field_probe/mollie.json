@@ -662,7 +662,7 @@
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Payment method not yet implemented for Mollie"
+        "error": "This feature is not implemented: Selected wallet payment method is not implemented for Mollie"
       },
       "Sofort": {
         "status": "supported",
