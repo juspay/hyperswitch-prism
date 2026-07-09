@@ -92,6 +92,7 @@ rand = "0.8.5"
 uuid = { workspace = true, features = ["v4"] }
 reqwest = { version = "0.11", features = ["json"] }
 serial_test = "3.2.0"
+rdkafka = "0.36"
 
 
 [features]

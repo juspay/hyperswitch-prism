@@ -303,6 +303,22 @@ macro_rules! grpc_test {
             _ = response => {}
         }
     };
+    ($client:ident, $c_type:ty, $config:expr, $body:block) => {
+        let config = $config;
+        let base_config = std::sync::Arc::new(config);
+        let server = app::Service::new(base_config.clone()).await;
+        let (server_fut, mut $client) =
+            common::server_and_client_stub::<$c_type>(server, base_config)
+                .await
+                .expect("Failed to create the server client pair");
+        let response = async { $body };
+
+        // The in-process server must be polled while the client future runs.
+        tokio::select! {
+            _ = server_fut => panic!("Server failed"),
+            _ = response => {}
+        }
+    };
     ([$($client:ident: $c_type:ty),+], $body:block) => {
         let config = configs::Config::new().expect("Failed while parsing config");
         let base_config = std::sync::Arc::new(config);

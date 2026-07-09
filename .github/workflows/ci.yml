@@ -430,6 +430,32 @@ jobs:
        needs.changes.outputs.ci == 'true')
     runs-on: ubuntu-latest
 
+    services:
+      kafka:
+        image: confluentinc/cp-kafka:7.6.1
+        ports:
+          - 9092:9092
+        env:
+          CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+          KAFKA_NODE_ID: 1
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:29093
+          KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+        options: >-
+          --health-cmd "kafka-topics --bootstrap-server localhost:9092 --list"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+
     env:
       RUSTFLAGS: "-D warnings"
       # Compile test artifacts with minimal debug info (line tables only) to keep
@@ -543,6 +569,7 @@ jobs:
             done
             echo "🔍 Connector-only PR — scoping tests to: $CONNECTOR_NAMES"
             cargo nextest run \
+              --features grpc-server/connector-request-kafka \
               --config-file .nextest.toml \
               --profile ci \
               --no-tests=warn \
@@ -550,6 +577,7 @@ jobs:
           else
             echo "🔍 Running full test suite (event=$EVENT)"
             cargo nextest run \
+              --features grpc-server/connector-request-kafka \
               --config-file .nextest.toml \
               --profile ci \
               -E "$SCHEMA_EXCLUDE"
@@ -758,4 +786,3 @@ jobs:
             fi
           done
           echo "✅ All CI checks passed (or were skipped due to path filtering)"
-
