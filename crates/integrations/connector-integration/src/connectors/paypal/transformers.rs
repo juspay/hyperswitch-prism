@@ -3289,10 +3289,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .router_data
                     .resource_common_data
                     .get_optional_billing_full_name(),
-                // Parse the raw PAN into a concrete `cards::CardNumber` (the mandate request
-                // is not generic over `PaymentMethodDataTypes`). Propagate a real error on an
-                // unparseable PAN instead of silently dropping it with `.ok()`, matching the
-                // reference which never discards the card number.
                 number: Some(
                     ccard
                         .card_number
