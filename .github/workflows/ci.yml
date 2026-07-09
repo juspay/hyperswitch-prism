@@ -545,6 +545,18 @@ jobs:
           df -h
           du -sh target 2>/dev/null || echo "No target dir"
 
+      - name: Create Kafka topics
+        if: ${{ env.RUN_TESTS == 'true' }}
+        shell: bash
+        run: |
+          docker exec "${{ job.services.kafka.id }}" kafka-topics \
+            --bootstrap-server localhost:9092 \
+            --create \
+            --if-not-exists \
+            --topic dev_payments_queue \
+            --partitions 1 \
+            --replication-factor 1
+
       - name: Run Tests
         if: ${{ env.RUN_TESTS == 'true' }}
         shell: bash
