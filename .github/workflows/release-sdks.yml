@@ -633,13 +633,54 @@ jobs:
           # Copy the JAR to build/libs where Gradle expects it
           mkdir -p sdk/java/build/libs
           cp artifacts/sdk-java/*.jar sdk/java/build/libs/
+          # gradlew bundleArtifacts repackages the jar from src/main/resources/native/,
+          # not from the pre-built jar above — without this copy the bundle it verifies
+          # silently ships with no native libraries at all.
+          mkdir -p sdk/java/src/main/resources/native
+          cp -f target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so \
+            sdk/java/src/main/resources/native/ || (echo "ERROR: Linux .so not found for Java dry-run bundle" && exit 1)
+          cp -f target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib \
+            sdk/java/src/main/resources/native/ || (echo "ERROR: macOS .dylib not found for Java dry-run bundle" && exit 1)
           make -C sdk/java publish-check-dry-run
 
-      - name: Python dry-run (twine check)
+      - name: Download Python SDK artifact for dry-run
+        if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_python == 'true' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: sdk-python
+          path: artifacts/sdk-python
+
+      - name: Python dry-run (twine check + verify both native libs)
         id: check-python-dryrun
         if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_python == 'true' }}
         continue-on-error: true
-        run: make -C sdk/python publish-check-dry-run
+        run: |
+          # Validate the actual pre-built wheel from package-sdk-python (the exact
+          # artifact publish-python will upload) rather than rebuilding one here via
+          # pack-archive — a rebuild in this job's own generated/ dir never picks up
+          # the Linux .so, which would make this check fail (or pass) against a wheel
+          # nobody will ever publish.
+          WHEEL=$(ls artifacts/sdk-python/*.whl 2>/dev/null | head -1)
+          if [ -z "$WHEEL" ]; then
+            echo "ERROR: no wheel found in artifacts/sdk-python/"
+            exit 1
+          fi
+          echo "Validating wheel: $WHEEL"
+          python3 -m twine check "$WHEEL"
+          echo "Checking both native libraries are present in wheel..."
+          has_so=$(unzip -l "$WHEEL" | grep -c "\.so" || true)
+          has_dylib=$(unzip -l "$WHEEL" | grep -c "\.dylib" || true)
+          echo "  .so files: $has_so"
+          echo "  .dylib files: $has_dylib"
+          if [ "$has_so" -eq 0 ]; then
+            echo "ERROR: wheel is missing Linux .so — Linux users will not be able to install"
+            exit 1
+          fi
+          if [ "$has_dylib" -eq 0 ]; then
+            echo "ERROR: wheel is missing macOS .dylib — macOS users will not be able to install"
+            exit 1
+          fi
+          echo "Both native libraries present ✓"
 
       - name: Download JavaScript SDK artifact for dry-run
         if: ${{ needs.setup.outputs.preview_only == 'true' || needs.setup.outputs.publish_javascript == 'true' }}
@@ -777,6 +818,14 @@ jobs:
           # Copy the JAR to build/libs where Gradle expects it
           mkdir -p sdk/java/build/libs
           cp artifacts/sdk-java/*.jar sdk/java/build/libs/
+          # gradlew publishToCentral rebuilds the jar via Gradle's own `jar` task from
+          # src/main/resources/native/, ignoring the pre-built jar copied above — without
+          # this copy the published jar silently ships with no native libraries at all.
+          mkdir -p sdk/java/src/main/resources/native
+          cp -f target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so \
+            sdk/java/src/main/resources/native/ || (echo "ERROR: Linux .so not found for Java publish" && exit 1)
+          cp -f target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib \
+            sdk/java/src/main/resources/native/ || (echo "ERROR: macOS .dylib not found for Java publish" && exit 1)
           make -C sdk/java publish
 
   publish-python:
@@ -787,57 +836,31 @@ jobs:
     env:
       VERSION: ${{ needs.setup.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
       - name: Install twine
         run: pip install twine
-      - name: Download SDK artifacts
+      - name: Download pre-built Python SDK wheel
         uses: actions/download-artifact@v4
         with:
           name: sdk-python
           path: artifacts/sdk-python
-      - name: Download generated Python files
-        uses: actions/download-artifact@v4
-        with:
-          name: generated-python
-          path: sdk/python/src/payments/generated/
-      - name: Download Linux binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-x86_64-unknown-linux-gnu
-          path: target/x86_64-unknown-linux-gnu/release
-      - name: Download macOS binary
-        uses: actions/download-artifact@v4
-        with:
-          name: binary-aarch64-apple-darwin
-          path: target/aarch64-apple-darwin/release
-      - name: Check what will be published (Python)
+      - name: Verify wheel contains both native libraries
         run: |
-          echo "=== Python SDK Publication Preview ==="
-          echo "Wheel location: artifacts/sdk-python/"
+          echo "=== Python SDK wheel contents ==="
           ls -la artifacts/sdk-python/
           echo ""
-          echo "Wheel metadata:"
-          cd artifacts/sdk-python && unzip -l *.whl | head -30
+          echo "Native libraries in wheel:"
+          unzip -l artifacts/sdk-python/*.whl | grep -E "\.so|\.dylib|\.dll" || echo "  WARNING: no native libraries found"
           echo ""
-          echo "Package info:"
-          pip show artifacts/sdk-python/*.whl 2>/dev/null || echo "pip show failed"
-          echo ""
-          if [ "${{ inputs.preview_only }}" == "true" ]; then
-            echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
-          else
-            echo "✅ Will publish to PyPI"
-          fi
+          echo "Full wheel contents:"
+          unzip -l artifacts/sdk-python/*.whl | head -40
       - name: Publish to PyPI
-        if: ${{ needs.setup.outputs.preview_only == 'false' }}
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: make -C sdk/python publish
+        run: python3 -m twine upload artifacts/sdk-python/*.whl
 
   publish-javascript:
     name: Publish JavaScript SDK to npm
