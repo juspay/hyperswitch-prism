@@ -434,6 +434,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             });
         Ok(Self {
             resource_common_data: PaymentFlowData {
@@ -895,7 +896,8 @@ fn get_wallet_details<
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
-        | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+        | WalletData::QwikcilverWalletDirect(_)
+        | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
             utils::get_unimplemented_payment_method_error_message("nexinets"),
             Default::default(),
         ))?,
@@ -1226,6 +1228,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 });
 
         // Promote Authorized to Charged so the zero/low-amount mandate setup
@@ -1434,6 +1437,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 });
 
         let status = get_status(

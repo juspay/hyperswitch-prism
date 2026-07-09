@@ -44,6 +44,9 @@ pub use self::cashtocode::Cashtocode;
 pub mod novalnet;
 pub use self::novalnet::Novalnet;
 
+pub mod netcetera;
+pub use self::netcetera::Netcetera;
+
 pub mod nexinets;
 pub use self::nexinets::Nexinets;
 
@@ -274,6 +277,11 @@ pub mod hyperswitch;
 pub use self::hyperswitch::Hyperswitch;
 pub mod qwikcilver;
 pub use self::qwikcilver::Qwikcilver;
+
+pub mod flywire;
+pub use self::flywire::Flywire;
+pub mod affirm;
+pub use self::affirm::Affirm;
 
 pub mod kount;
 pub use self::kount::Kount;

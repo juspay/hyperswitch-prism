@@ -27,6 +27,7 @@ kount.base_url = "https://api-sandbox.kount.com"
 kount.secondary_base_url = "https://login.kount.com"
 hyperswitch.base_url = "https://sandbox.hyperswitch.io"
 payconex.base_url = "https://cert.payconex.net"
+affirm.base_url = "https://sandbox.affirm.com"
 tamara.base_url = "https://api-sandbox.tamara.co"
 juspay.base_url = "https://sandbox.juspay.in/"
 qwikcilver.base_url = "https://qc3.qwikcilver.com/"
@@ -134,6 +135,10 @@ easebuzz.base_url = "https://testpay.easebuzz.in"
 easebuzz.secondary_base_url = "https://testdashboard.easebuzz.in"
 axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
 tsys_transit.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Server"
+# {{merchant_endpoint_prefix}} is a per-merchant Netcetera endpoint prefix; see
+# the TODO(netcetera) in connectors/netcetera.rs base_url for prefix resolution.
+netcetera.base_url = "https://{{merchant_endpoint_prefix}}.3ds-server.prev.netcetera-cloud-payment.ch"
+flywire.base_url = "https://api-platform-sandbox.flywire.com"
 
 # Generic Events Configuration
 [events]

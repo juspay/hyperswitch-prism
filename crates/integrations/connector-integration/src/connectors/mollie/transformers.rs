@@ -956,6 +956,7 @@ impl MolliePaymentsResponse {
                 connector_mandate_id: Some(id.clone().expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         })
     }

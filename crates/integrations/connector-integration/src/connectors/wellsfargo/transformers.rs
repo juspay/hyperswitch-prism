@@ -1431,6 +1431,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<WellsfargoPaymentsRes
                         connector_mandate_id: Some(instrument.id.clone().expose()),
                         payment_method_id: None, // Could potentially use token_information.customer.id here if needed
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     }
                 });
 

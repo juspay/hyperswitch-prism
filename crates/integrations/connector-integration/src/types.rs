@@ -55,6 +55,7 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Paytm => Box::new(connectors::Paytm::new()),
             ConnectorEnum::Cashtocode => Box::new(connectors::Cashtocode::new()),
             ConnectorEnum::Novalnet => Box::new(connectors::Novalnet::new()),
+            ConnectorEnum::Netcetera => Box::new(connectors::Netcetera::new()),
             ConnectorEnum::Nexinets => Box::new(connectors::Nexinets::new()),
             ConnectorEnum::Noon => Box::new(connectors::Noon::new()),
             ConnectorEnum::Volt => Box::new(connectors::Volt::new()),
@@ -130,6 +131,8 @@ impl<T: PaymentMethodDataTypes + Debug + Default + Send + Sync + 'static + serde
             ConnectorEnum::Tamara => Box::new(connectors::Tamara::<T>::new()),
             ConnectorEnum::Hyperswitch => Box::new(connectors::Hyperswitch::<T>::new()),
             ConnectorEnum::Qwikcilver => Box::new(connectors::Qwikcilver::<T>::new()),
+            ConnectorEnum::Flywire => Box::new(connectors::Flywire::new()),
+            ConnectorEnum::Affirm => Box::new(connectors::Affirm::<T>::new()),
             ConnectorEnum::Kount => Box::new(connectors::Kount::<T>::new()),
         }
     }

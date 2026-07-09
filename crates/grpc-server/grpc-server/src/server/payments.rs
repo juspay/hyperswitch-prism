@@ -116,6 +116,7 @@ struct EventParams<'a> {
     proxy_name: Option<&'a str>,
     tenant_id: &'a str,
     merchant_id: &'a str,
+    connector_latency: common_utils::request_metrics::ConnectorLatencyTracker,
 }
 
 /// Helper function for converting CardDetails to TokenData with structured types
@@ -425,6 +426,7 @@ impl CustomerService for Customer {
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
                     let response = Box::pin(
@@ -556,19 +558,22 @@ impl Payments {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
         };
 
         // Execute connector processing - ONLY the authorize call
-        let response = external_services::service::execute_connector_processing_step(
-            &config.proxy,
-            connector_integration,
-            router_data,
-            None,
-            event_params,
-            token_data,
-            common_enums::CallConnectorAction::Trigger,
-            test_context,
-            api_tag,
+        let response = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                token_data,
+                common_enums::CallConnectorAction::Trigger,
+                test_context,
+                api_tag,
+            ),
         )
         .await;
 
@@ -679,6 +684,7 @@ impl Payments {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
         };
 
         let response = Box::pin(
@@ -1070,6 +1076,7 @@ impl PaymentService for Payments {
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
                     // handle_response field removed from proto (field 5 reserved)
@@ -1830,7 +1837,7 @@ impl PaymentService for Payments {
             .unwrap_or_else(|| "PaymentService".to_string());
         let config = get_config_from_request(&request)?;
 
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config.clone(),
@@ -1882,7 +1889,7 @@ impl PaymentService for Payments {
                     }
                 })
             },
-        )
+        ))
         .await
     }
 
@@ -2433,6 +2440,7 @@ impl PaymentMethod {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
         };
 
         let response = Box::pin(
@@ -2543,6 +2551,7 @@ impl MerchantAuthentication {
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: event_params.connector_latency.clone(),
         };
 
         // Execute connector processing
@@ -2665,6 +2674,7 @@ impl MerchantAuthentication {
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: event_params.connector_latency.clone(),
         };
 
         let response = Box::pin(
@@ -2840,6 +2850,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
                     let session_response = Box::pin(self.handle_session_token(
@@ -2953,6 +2964,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
                     let server_auth_token_response = Box::pin(self.handle_access_token(
@@ -3164,6 +3176,7 @@ impl RecurringPaymentService for RecurringPayments {
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
                     let response = Box::pin(
@@ -3243,12 +3256,12 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         response_type: PaymentMethodAuthenticationServicePreAuthenticateResponse,
         flow_marker: PreAuthenticate,
         resource_common_data_type: PaymentFlowData,
-        request_data_type: PaymentsPreAuthenticateData<DefaultPCIHolder>,
+        request_data_type: PaymentsPreAuthenticateData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: PaymentsPreAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_pre_authenticate_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data: ConnectorData,
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3260,12 +3273,12 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         response_type: PaymentMethodAuthenticationServiceAuthenticateResponse,
         flow_marker: Authenticate,
         resource_common_data_type: PaymentFlowData,
-        request_data_type: PaymentsAuthenticateData<DefaultPCIHolder>,
+        request_data_type: PaymentsAuthenticateData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: PaymentsAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_authenticate_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data: ConnectorData,
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3277,12 +3290,12 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         response_type: PaymentMethodAuthenticationServicePostAuthenticateResponse,
         flow_marker: PostAuthenticate,
         resource_common_data_type: PaymentFlowData,
-        request_data_type: PaymentsPostAuthenticateData<DefaultPCIHolder>,
+        request_data_type: PaymentsPostAuthenticateData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: PaymentsPostAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_post_authenticate_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data: ConnectorData,
         all_keys_required: None,
         has_payment_method_data: option
     );

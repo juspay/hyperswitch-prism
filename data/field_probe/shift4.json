@@ -400,8 +400,8 @@
         "error": "This feature is not implemented: Payment method"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -484,8 +484,8 @@
         "error": "This feature is not implemented: Payment method"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Sofort": {
         "status": "not_supported",

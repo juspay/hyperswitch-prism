@@ -77,6 +77,7 @@ pub enum ConnectorEnum {
     Payu,
     Cashtocode,
     Novalnet,
+    Netcetera,
     Nexinets,
     Noon,
     Braintree,
@@ -152,6 +153,8 @@ pub enum ConnectorEnum {
     Tamara,
     Hyperswitch,
     Qwikcilver,
+    Flywire,
+    Affirm,
     Kount,
 }
 
@@ -449,6 +452,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Tamara => Ok(Self::Tamara),
             grpc_api_types::payments::Connector::Hyperswitch => Ok(Self::Hyperswitch),
             grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
+            grpc_api_types::payments::Connector::Flywire => Ok(Self::Flywire),
             grpc_api_types::payments::Connector::Kount => Ok(Self::Kount),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
@@ -553,6 +557,9 @@ pub trait ConnectorResponseHeaders {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
 pub struct NetworkTokenWithNTIRef {
     pub network_transaction_id: String,
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
     pub token_exp_month: Option<Secret<String>>,
     pub token_exp_year: Option<Secret<String>>,
 }
@@ -560,8 +567,17 @@ pub struct NetworkTokenWithNTIRef {
 #[derive(Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub enum MandateReferenceId {
     ConnectorMandateId(ConnectorMandateReferenceId), // mandate_id sent by connector
-    NetworkMandateId(String), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with card data
+    NetworkMandateId(NetworkMandateIdRef), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with card data
     NetworkTokenWithNTI(NetworkTokenWithNTIRef), // network_txns_id sent by Issuer to connector, Used for PG agnostic mandate txns along with network token data
+}
+
+/// Scheme-level identifiers for PSP-agnostic MIT flows (raw card path).
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, Eq, PartialEq)]
+pub struct NetworkMandateIdRef {
+    pub network_transaction_id: String,
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Default, Eq, PartialEq, Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -582,6 +598,24 @@ impl MandateIds {
         Self {
             mandate_id: Some(mandate_id),
             mandate_reference_id: None,
+        }
+    }
+
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        match &self.mandate_reference_id {
+            Some(MandateReferenceId::ConnectorMandateId(data)) => data.connector_mandate_id.clone(),
+            Some(MandateReferenceId::NetworkMandateId(_))
+            | Some(MandateReferenceId::NetworkTokenWithNTI(_))
+            | None => None,
+        }
+    }
+
+    pub fn get_connector_mandate_metadata(&self) -> Option<SecretSerdeValue> {
+        match &self.mandate_reference_id {
+            Some(MandateReferenceId::ConnectorMandateId(data)) => data.mandate_metadata.clone(),
+            Some(MandateReferenceId::NetworkMandateId(_))
+            | Some(MandateReferenceId::NetworkTokenWithNTI(_))
+            | None => None,
         }
     }
 }
@@ -1650,7 +1684,7 @@ impl<T: PaymentMethodDataTypes> PaymentsAuthorizeData<T> {
             .as_ref()
             .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
                 Some(MandateReferenceId::NetworkMandateId(network_transaction_id)) => {
-                    Some(network_transaction_id.clone())
+                    Some(network_transaction_id.network_transaction_id.clone())
                 }
                 Some(MandateReferenceId::ConnectorMandateId(_))
                 | Some(MandateReferenceId::NetworkTokenWithNTI(_))
@@ -1885,6 +1919,7 @@ pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
     pub payment_method_id: Option<String>,
     pub connector_mandate_request_reference_id: Option<String>,
+    pub mandate_metadata: Option<SecretSerdeValue>,
 }
 
 #[derive(Debug, Clone)]
@@ -2037,6 +2072,8 @@ pub struct PaymentsPreAuthenticateData<T: PaymentMethodDataTypes> {
     pub redirect_response: Option<ContinueRedirectionResponse>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub mandate_reference: Option<MandateReferenceId>,
+    /// Merchant transaction id, used to derive the FRM DDC sessionId (e.g. Kount).
+    pub merchant_transaction_id: Option<String>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
@@ -2071,6 +2108,9 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub redirect_response: Option<ContinueRedirectionResponse>,
     pub capture_method: Option<common_enums::CaptureMethod>,
     pub authentication_data: Option<router_request_types::AuthenticationData>,
+    pub webhook_url: Option<String>,
+    /// Domain-specific data (e.g. student fields) for connectors that need it.
+    pub domain_data: Option<DomainData>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
@@ -2639,6 +2679,7 @@ pub struct PayoutWebhookReference {
 #[derive(Debug, Clone)]
 pub struct RefundWebhookDetailsResponse {
     pub connector_refund_id: Option<String>,
+    pub merchant_transaction_id: Option<String>,
     pub status: common_enums::RefundStatus,
     pub connector_response_reference_id: Option<String>,
     pub error_code: Option<String>,
@@ -2726,6 +2767,7 @@ pub enum EventType {
     // Refund events
     RefundFailure,
     RefundSuccess,
+    RefundProcessing,
 
     // Dispute events
     DisputeOpened,
@@ -2796,7 +2838,7 @@ impl EventType {
     pub fn is_refund_event(&self) -> bool {
         matches!(
             self,
-            Self::RefundFailure | Self::RefundSuccess | Self::Refund
+            Self::RefundFailure | Self::RefundSuccess | Self::RefundProcessing | Self::Refund
         )
     }
 
@@ -2916,6 +2958,9 @@ impl ForeignTryFrom<grpc_api_types::payments::WebhookEventType> for EventType {
             grpc_api_types::payments::WebhookEventType::WebhookRefundSuccess => {
                 Ok(Self::RefundSuccess)
             }
+            grpc_api_types::payments::WebhookEventType::WebhookRefundProcessing => {
+                Ok(Self::RefundProcessing)
+            }
             grpc_api_types::payments::WebhookEventType::WebhookDisputeOpened => {
                 Ok(Self::DisputeOpened)
             }
@@ -2999,6 +3044,7 @@ impl ForeignTryFrom<EventType> for grpc_api_types::payments::WebhookEventType {
             EventType::SourceTransactionCreated => Ok(Self::SourceTransactionCreated),
             EventType::RefundFailure => Ok(Self::WebhookRefundFailure),
             EventType::RefundSuccess => Ok(Self::WebhookRefundSuccess),
+            EventType::RefundProcessing => Ok(Self::WebhookRefundProcessing),
             EventType::DisputeOpened => Ok(Self::WebhookDisputeOpened),
             EventType::DisputeExpired => Ok(Self::WebhookDisputeExpired),
             EventType::DisputeAccepted => Ok(Self::WebhookDisputeAccepted),
@@ -3466,7 +3512,7 @@ impl<T: PaymentMethodDataTypes> RepeatPaymentData<T> {
     pub fn get_network_mandate_id(&self) -> Option<String> {
         match &self.mandate_reference {
             MandateReferenceId::NetworkMandateId(network_mandate_id) => {
-                Some(network_mandate_id.to_string())
+                Some(network_mandate_id.network_transaction_id.clone())
             }
             MandateReferenceId::ConnectorMandateId(_)
             | MandateReferenceId::NetworkTokenWithNTI(_) => None,
@@ -3740,6 +3786,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
                 payment_method_data::WalletData::QwikcilverWalletDirect(_) => {
                     Self::QwikcilverWalletDirect
                 }
+                payment_method_data::WalletData::Skrill(_) => Self::Skrill,
             },
             PaymentMethodData::PayLater(pay_later_data) => match pay_later_data {
                 payment_method_data::PayLaterData::KlarnaRedirect { .. } => Self::KlarnaRedirect,
@@ -4112,6 +4159,22 @@ pub struct PartnerMerchantIdentifierDetails {
 #[derive(Debug, Clone, Default)]
 pub struct DomainData {
     pub airline_data: Option<AirlineData>,
+    pub education_data: Option<EducationData>,
+}
+
+/// Connector-agnostic education data (e.g. Flywire tuition payments).
+#[derive(Debug, Clone, Default)]
+pub struct EducationData {
+    pub student_details: Option<StudentDetails>,
+}
+
+/// Student details for education payments (e.g. Flywire recipient fields).
+#[derive(Debug, Clone, Default)]
+pub struct StudentDetails {
+    pub student_id: Option<String>,
+    pub student_first_name: Option<String>,
+    pub student_last_name: Option<String>,
+    pub student_email: Option<Secret<String>>,
 }
 
 /// Connector-agnostic airline / travel itinerary data — the union of fields
@@ -5200,6 +5263,8 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Placetopay(_) => Ok(Self::Payment(ConnectorEnum::Placetopay)),
             AuthType::Finix(_) => Ok(Self::Payment(ConnectorEnum::Finix)),
             AuthType::Tamara(_) => Ok(Self::Payment(ConnectorEnum::Tamara)),
+            AuthType::Flywire(_) => Ok(Self::Payment(ConnectorEnum::Flywire)),
+            AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
         }
     }
 }
