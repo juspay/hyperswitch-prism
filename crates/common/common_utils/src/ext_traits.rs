@@ -196,7 +196,7 @@ impl ByteSliceExt for [u8] {
     {
         serde_json::from_slice(self)
             .change_context(errors::ParsingError::StructParseFailure(type_name))
-            .attach_printable_lazy(|| format!("Unable to parse {type_name} from &[u8] {:?}", &self))
+            .attach_printable_lazy(|| format!("Unable to parse {type_name} from &[u8] {self:?}"))
     }
 }
 
@@ -305,10 +305,7 @@ impl ValueExt for serde_json::Value {
     where
         T: serde::de::DeserializeOwned,
     {
-        let debug = format!(
-            "Unable to parse {type_name} from serde_json::Value: {:?}",
-            &self
-        );
+        let debug = format!("Unable to parse {type_name} from serde_json::Value: {self:?}");
         serde_json::from_value::<T>(self)
             .change_context(errors::ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| debug)
@@ -566,7 +563,7 @@ impl<T> StringExt<T> for String {
         serde_json::from_str::<T>(self)
             .change_context(errors::ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| {
-                format!("Unable to parse {type_name} from string {:?}", &self)
+                format!("Unable to parse {type_name} from string {self:?}")
             })
     }
 }
