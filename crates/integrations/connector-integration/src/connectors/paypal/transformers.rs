@@ -535,6 +535,10 @@ pub struct CardRequestStruct<
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VaultStruct {
     vault_id: Secret<String>,
+    // Buyer-return context for a vaulted PayPal (wallet) charge that requires
+    // re-approval. Only valid on `payment_source.paypal`; omitted for card vault.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    experience_context: Option<ContextStruct>,
 }
 
 #[derive(Debug, Serialize)]
@@ -569,7 +573,7 @@ pub struct RedirectRequest {
     experience_context: ContextStruct,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextStruct {
     return_url: Option<String>,
     cancel_url: Option<String>,
@@ -645,13 +649,13 @@ pub struct GooglePayDecryptedCard {
     pub expiry: Secret<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum UserAction {
     #[serde(rename = "PAY_NOW")]
     PayNow,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ShippingPreference {
     #[serde(rename = "SET_PROVIDED_ADDRESS")]
     SetProvidedAddress,
@@ -3701,11 +3705,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             common_enums::PaymentMethodType::Card => Some(PaymentSourceItem::Card(
                 CardRequest::CardVaultStruct(VaultStruct {
                     vault_id: Secret::new(connector_mandate_id),
+                    // Card vault charges never redirect; no return context.
+                    experience_context: None,
                 }),
             )),
             common_enums::PaymentMethodType::Paypal => Some(PaymentSourceItem::Paypal(
                 PaypalRedirectionRequest::PaypalVaultStruct(VaultStruct {
                     vault_id: Secret::new(connector_mandate_id),
+                    // If PayPal requires buyer re-approval for this wallet MIT, return the
+                    // buyer to Hyperswitch's complete-authorize endpoint so the order can be
+                    // captured on return. Falls back to router_return_url when unset.
+                    experience_context: item
+                        .router_data
+                        .request
+                        .complete_authorize_url
+                        .clone()
+                        .or_else(|| item.router_data.request.router_return_url.clone())
+                        .map(|url| ContextStruct {
+                            return_url: Some(url.clone()),
+                            cancel_url: Some(url),
+                            user_action: Some(UserAction::PayNow),
+                            shipping_preference: ShippingPreference::GetFromFile,
+                        }),
                 }),
             )),
             _ => {

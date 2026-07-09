@@ -13199,6 +13199,7 @@ impl<
                 .transpose()?,
             webhook_url,
             router_return_url: value.return_url,
+            complete_authorize_url: value.complete_authorize_url,
             integrity_object: None,
             capture_method: Some(CaptureMethod::foreign_try_from(capture_method)?),
             email,
@@ -13321,6 +13322,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
         Ok(response) => match response {
             PaymentsResponseData::TransactionResponse {
                 resource_id,
+                redirection_data,
                 network_txn_id,
                 network_txn_link_id: _,
                 connector_response_reference_id,
@@ -13346,6 +13348,11 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                 Ok(
                     grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
                         connector_transaction_id: Option::foreign_try_from(resource_id)?,
+                        redirection_data: redirection_data
+                            .map(|form| {
+                                grpc_api_types::payments::RedirectForm::foreign_try_from(*form)
+                            })
+                            .transpose()?,
                         status: grpc_status as i32,
                         error: None,
                         network_transaction_id: network_txn_id,
@@ -13395,6 +13402,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
             Ok(
                 grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
                     connector_transaction_id: err.connector_transaction_id.clone(),
+                    redirection_data: None,
                     status: status as i32,
                     error: Some(grpc_api_types::payments::ErrorInfo {
                         unified_details: None,
