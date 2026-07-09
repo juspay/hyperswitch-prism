@@ -41,10 +41,10 @@ export function createStoreRoutes(credentials?: Record<string, any>) {
   })
 
   // Initiates a payment session for a payment collection.
-  // Body: { provider_id }
+  // Body: { provider_id, return_url? }
   router.post("/payment-collections/:collectionId/payment-sessions", async (req, res) => {
     const { collectionId } = req.params
-    const { provider_id } = req.body
+    const { provider_id, return_url } = req.body
     if (!provider_id) {
       return res.status(400).json({ error: "provider_id is required" })
     }
@@ -68,11 +68,19 @@ export function createStoreRoutes(credentials?: Record<string, any>) {
     }
 
     try {
+      // Cybersource Flex Microform requires a return_url (it sets the session's
+      // target_origins). Prefer the storefront-supplied origin, else derive it
+      // from the request so non-browser callers (e.g. API tests) still work.
+      const resolvedReturnUrl =
+        (return_url as string | undefined) ??
+        (req.headers.origin as string | undefined) ??
+        `${req.protocol}://${req.get("host")}`
+
       const result = await prismService.initiatePayment({
         currency_code: collection.currencyCode,
         amount: collection.amount,
         data: {},
-        context: { cart_id: collection.cartId },
+        context: { cart_id: collection.cartId, return_url: resolvedReturnUrl },
       })
 
       const resultData = result.data as Record<string, unknown>

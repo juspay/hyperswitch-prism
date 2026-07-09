@@ -16,8 +16,12 @@ use common_utils::{
     Method,
 };
 use domain_types::{
-    connector_flow::{PayoutEligibility, PayoutGet, PayoutTransfer},
-    errors::{ConnectorError, IntegrationError},
+    connector_flow::{PayoutEligibility, PayoutGet, PayoutTransfer, ServerAuthenticationToken},
+    connector_types::{
+        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
+    },
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::PaymentMethodDataTypes,
     payouts::payouts_types::{
         PayoutEligibilityRequest, PayoutEligibilityResponse, PayoutFlowData, PayoutGetRequest,
@@ -32,7 +36,10 @@ use hyperswitch_masking::{ExposeInterface, Mask, Maskable, Secret};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
-    connector_types::{PayoutEligibilityV2, PayoutGetV2, PayoutServiceTrait, PayoutTransferV2},
+    connector_types::{
+        PayoutEligibilityV2, PayoutGetV2, PayoutServiceTrait, PayoutTransferV2,
+        ServerAuthentication,
+    },
 };
 use serde::Serialize;
 
@@ -343,6 +350,39 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
     }
 }
 
+// ===== SERVER AUTHENTICATION (not implemented) =====
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ServerAuthentication
+    for DeutschebankPayouts<T>
+{
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    ConnectorIntegrationV2<
+        ServerAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
+    > for DeutschebankPayouts<T>
+{
+    fn get_url(
+        &self,
+        _req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
+    ) -> CustomResult<String, IntegrationError> {
+        Err(IntegrationError::connector_flow_not_implemented(
+            ConnectorCommon::id(self),
+            "server_authentication_token",
+            IntegrationErrorContext::default(),
+        )
+        .into())
+    }
+}
+
 // ===== PAYOUT SERVICE TRAIT + REAL-FLOW MARKERS =====
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> PayoutServiceTrait
@@ -524,7 +564,7 @@ macros::macro_connector_implementation!(
             let vop_id = req.request.connector_payout_id.clone().ok_or_else(|| {
                 IntegrationError::MissingRequiredField {
                     field_name: "connector_payout_id",
-                    context: domain_types::errors::IntegrationErrorContext {
+                    context: IntegrationErrorContext {
                         additional_context: Some(
                             "Deutsche Bank SEPA payment requires the VoP-ID from a prior \
                              PayoutEligibility call in `connector_payout_id`"

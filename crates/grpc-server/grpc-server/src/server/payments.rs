@@ -7,7 +7,9 @@ use crate::{
 };
 use common_enums;
 use common_utils::{events::FlowName, lineage, metadata::MaskedMetadata, SecretSerdeValue};
-use connector_integration::types::{ConnectorData, ConnectorDataProvider};
+use connector_integration::types::{
+    ConnectorData, ConnectorDataProvider, FrmConnectorData, PayoutConnectorData,
+};
 use domain_types::payment_method_data;
 use domain_types::{
     connector_flow::{
@@ -114,6 +116,7 @@ struct EventParams<'a> {
     proxy_name: Option<&'a str>,
     tenant_id: &'a str,
     merchant_id: &'a str,
+    connector_latency: common_utils::request_metrics::ConnectorLatencyTracker,
 }
 
 /// Helper function for converting CardDetails to TokenData with structured types
@@ -423,6 +426,7 @@ impl CustomerService for Customer {
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                        connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
                     let response = Box::pin(
@@ -554,19 +558,22 @@ impl Payments {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
         };
 
         // Execute connector processing - ONLY the authorize call
-        let response = external_services::service::execute_connector_processing_step(
-            &config.proxy,
-            connector_integration,
-            router_data,
-            None,
-            event_params,
-            token_data,
-            common_enums::CallConnectorAction::Trigger,
-            test_context,
-            api_tag,
+        let response = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                token_data,
+                common_enums::CallConnectorAction::Trigger,
+                test_context,
+                api_tag,
+            ),
         )
         .await;
 
@@ -677,6 +684,7 @@ impl Payments {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
         };
 
         let response = Box::pin(
@@ -1068,6 +1076,7 @@ impl PaymentService for Payments {
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
                     // handle_response field removed from proto (field 5 reserved)
@@ -1828,7 +1837,7 @@ impl PaymentService for Payments {
             .unwrap_or_else(|| "PaymentService".to_string());
         let config = get_config_from_request(&request)?;
 
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config.clone(),
@@ -1880,7 +1889,7 @@ impl PaymentService for Payments {
                     }
                 })
             },
-        )
+        ))
         .await
     }
 
@@ -2431,6 +2440,7 @@ impl PaymentMethod {
             tenant_id: &metadata_payload.tenant_id,
             merchant_id: metadata_payload.merchant_id.as_str(),
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: metadata_payload.connector_latency.clone(),
         };
 
         let response = Box::pin(
@@ -2541,6 +2551,7 @@ impl MerchantAuthentication {
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: event_params.connector_latency.clone(),
         };
 
         // Execute connector processing
@@ -2576,21 +2587,10 @@ impl MerchantAuthentication {
     }
 
     #[allow(clippy::too_many_arguments)]
-    async fn handle_access_token<
-        T: PaymentMethodDataTypes
-            + Default
-            + Eq
-            + Debug
-            + Send
-            + serde::Serialize
-            + serde::de::DeserializeOwned
-            + Clone
-            + Sync
-            + 'static,
-    >(
+    async fn handle_access_token(
         &self,
         config: &Arc<Config>,
-        connector_data: ConnectorData<T>,
+        connector_variant: &ConnectorVariant,
         merchant_auth_flow_data: &MerchantAuthenticationFlowData,
         connector_config: ConnectorSpecificConfig,
         connector_name: &str,
@@ -2601,14 +2601,31 @@ impl MerchantAuthentication {
         ServerAuthenticationTokenRequestData:
             for<'a> ForeignTryFrom<&'a ConnectorSpecificConfig, Error = IntegrationError>,
     {
-        // Get connector integration for ServerAuthenticationToken flow
+        // Resolve connector integration for ServerAuthenticationToken flow
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,
             ServerAuthenticationToken,
             MerchantAuthenticationFlowData,
             ServerAuthenticationTokenRequestData,
             ServerAuthenticationTokenResponseData,
-        > = connector_data.connector.get_connector_integration_v2();
+        > = match connector_variant {
+            ConnectorVariant::Payment(conn) => {
+                ConnectorData::<DefaultPCIHolder>::get_connector_by_name(conn)
+                    .connector
+                    .get_connector_integration_v2()
+            }
+            ConnectorVariant::Frm(conn) => FrmConnectorData::get_connector_by_name(conn)
+                .connector
+                .get_connector_integration_v2(),
+            ConnectorVariant::Payout(conn) => PayoutConnectorData::get_connector_by_name(conn)
+                .connector
+                .get_connector_integration_v2(),
+            ConnectorVariant::Surcharge(_) => {
+                return Err(tonic::Status::invalid_argument(
+                    "Surcharge connectors do not support server authentication tokens",
+                ));
+            }
+        };
 
         // Create access token request data - grant type determined by connector
         let access_token_request_data = ServerAuthenticationTokenRequestData::foreign_try_from(
@@ -2657,6 +2674,7 @@ impl MerchantAuthentication {
             tenant_id: event_params.tenant_id,
             merchant_id: event_params.merchant_id,
             return_raw_connector_data: config.common.return_raw_connector_data,
+            connector_latency: event_params.connector_latency.clone(),
         };
 
         let response = Box::pin(
@@ -2832,6 +2850,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
                     let session_response = Box::pin(self.handle_session_token(
@@ -2916,11 +2935,6 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         (metadata_payload.request_id, metadata_payload.lineage_ids);
                     let connector_config = &metadata_payload.connector_config;
 
-                    let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::from_connector_variant(&metadata_payload.connector)
-                            .ok_or_else(|| {
-                                tonic::Status::invalid_argument("Invalid Connector Received")
-                            })?;
                     let access_token_create_request = request_data.payload;
                     let connectors = utils::connectors_with_connector_config_overrides(
                         connector_config,
@@ -2950,13 +2964,12 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         proxy_name: metadata_payload.proxy_name.as_deref(),
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
+                        connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
-                    // Reuse the existing handle_access_token function which now uses
-                    // generate_access_token_response for consistent error handling
                     let server_auth_token_response = Box::pin(self.handle_access_token(
                         &config,
-                        connector_data,
+                        &metadata_payload.connector,
                         &merchant_auth_flow_data,
                         connector_config.clone(),
                         &metadata_payload.connector.get_connector_name(),
@@ -3163,6 +3176,7 @@ impl RecurringPaymentService for RecurringPayments {
                         tenant_id: &metadata_payload.tenant_id,
                         merchant_id: metadata_payload.merchant_id.as_str(),
                         return_raw_connector_data: config.common.return_raw_connector_data,
+                connector_latency: metadata_payload.connector_latency.clone(),
                     };
 
                     let response = Box::pin(

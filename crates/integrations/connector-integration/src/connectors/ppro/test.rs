@@ -333,8 +333,21 @@ mod tests {
     #[test]
     fn test_process_refund_webhook_success() -> Result<(), Box<dyn std::error::Error>> {
         let connector = connectors::ppro::Ppro::<DefaultPCIHolder>::new();
-        let body = charge_webhook("PAYMENT_CHARGE_REFUND_SUCCEEDED", "REFUNDED");
-        let details = connector.process_refund_webhook(make_request(&body), None, None)?;
+        let body = r#"{
+            "specversion": "1.0",
+            "type": "PAYMENT_CHARGE_REFUND_SUCCEEDED",
+            "source": "https://api.sandbox.eu.ppro.com",
+            "id": "evt_test_refund_success",
+            "time": "2024-01-01T00:00:00Z",
+            "data": {
+                "paymentChargeId": "pc_test_123",
+                "paymentChargeStatus": "REFUNDED",
+                "refundId": "rf_test_123",
+                "merchantRefundReference": "merchant_rf_123"
+            }
+        }"#
+        .as_bytes();
+        let details = connector.process_refund_webhook(make_request(body), None, None)?;
         ensure_eq!(
             details.status,
             common_enums::RefundStatus::Success,
@@ -342,7 +355,7 @@ mod tests {
         );
         ensure!(
             details.connector_refund_id.is_some(),
-            "connector_refund_id should be set from charge.id"
+            "connector_refund_id should be set from charge.refundId"
         );
         Ok(())
     }
@@ -663,6 +676,7 @@ mod tests {
             "data": {
                 "paymentChargeId": "pc_refund_fail_detail",
                 "paymentChargeStatus": "FAILED",
+                "refundId": "rf_refund_fail_detail",
                 "failure": {
                     "failureType": "REFUND",
                     "failureCode": "REFUND_LIMIT_EXCEEDED",
@@ -903,6 +917,7 @@ mod transformer_tests {
     fn test_refund_request_serialization_with_reason() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproRefundRequest {
             amount: MinorUnit::new(500),
+            merchant_refund_reference: "ref_500".to_string(),
             refund_reason: Some(PproRefundReason::Fraud),
         };
         let json: serde_json::Value = serde_json::to_value(&req)?;
@@ -918,6 +933,7 @@ mod transformer_tests {
     fn test_refund_request_serialization_no_reason() -> Result<(), Box<dyn std::error::Error>> {
         let req = PproRefundRequest {
             amount: MinorUnit::new(300),
+            merchant_refund_reference: "ref_300".to_string(),
             refund_reason: None,
         };
         let json: serde_json::Value = serde_json::to_value(&req)?;

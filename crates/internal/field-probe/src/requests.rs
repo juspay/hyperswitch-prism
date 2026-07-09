@@ -198,6 +198,7 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
                     connector_mandate_id: Some("probe-mandate-123".to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 },
             )),
         }),
@@ -402,9 +403,11 @@ pub(crate) fn base_tokenized_setup_recurring_request() -> PaymentServiceTokenSet
         setup_mandate_details: Some(proto::SetupMandateDetails {
             mandate_type: Some(proto::MandateType {
                 mandate_type: Some(proto::mandate_type::MandateType::MultiUse(
+                    #[allow(deprecated)]
                     proto::MandateAmountData {
                         amount: 0,
                         currency: proto::Currency::Usd as i32,
+                        amount_money: Some(usd_money(0)),
                         ..Default::default()
                     },
                 )),

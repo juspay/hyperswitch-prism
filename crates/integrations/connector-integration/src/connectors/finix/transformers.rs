@@ -565,6 +565,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             connector_mandate_id: response.source.clone().map(|id| id.expose()),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         })),
                         connector_metadata: None,
                         network_txn_id: None,
@@ -683,6 +684,7 @@ impl TryFrom<ResponseRouterData<FinixPSyncResponse, Self>>
             connector_mandate_id: response.source.as_ref().map(|s| s.clone().expose()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         }));
         let connector_response = build_finix_connector_response(response);
 
@@ -820,6 +822,7 @@ impl TryFrom<ResponseRouterData<FinixCaptureResponse, Self>>
                     connector_mandate_id: response.source.clone().map(|id| id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })),
                 connector_metadata: None,
                 network_txn_id: None,
@@ -1544,6 +1547,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(id.clone()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 }));
 
                 Ok(Self {
@@ -1743,6 +1747,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: response.source.clone().map(|id| id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })),
                 connector_metadata: None,
                 network_txn_id: None,

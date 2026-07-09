@@ -1,0 +1,3522 @@
+{
+  "connector": "flywire",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "error",
+        "error": "Stuck on field: domain_data — Missing required field: domain_data"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach": {
+              "account_number": "000123456789",
+              "routing_number": "110000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "AchBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ach_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Affirm": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "affirm": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Afterpay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "afterpay_clearpay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Alfamart": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "alfamart": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "AliPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ali_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "AmazonPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "amazon_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "ApplePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "encrypted_data": "eyJ2ZXJzaW9uIjoiRUNfdjEiLCJkYXRhIjoicHJvYmUiLCJzaWduYXR1cmUiOiJwcm9iZSJ9"
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "ApplePayDecrypted": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_sdk": {
+              "payment_data": {
+                "decrypted_data": {
+                  "application_primary_account_number": "4111111111111111",
+                  "application_expiration_month": "03",
+                  "application_expiration_year": "2030",
+                  "payment_data": {
+                    "online_payment_cryptogram": "AAAAAA==",
+                    "eci_indicator": "05"
+                  }
+                }
+              },
+              "payment_method": {
+                "display_name": "Visa 1111",
+                "network": "Visa",
+                "type": "debit"
+              },
+              "transaction_identifier": "probe_txn_id"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "apple_pay_third_party_sdk": {
+              "token": "probe_apple_pay_third_party_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Bacs": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bacs": {
+              "account_number": "55779911",
+              "sort_code": "200000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "BacsBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bacs_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "BancontactCard": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bancontact_card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "BcaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bca_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Becs": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "becs": {
+              "account_number": "000123456",
+              "bsb_number": "000000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "BillDeskRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "billdesk_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Bizum": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bizum": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Blik": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "blik": {
+              "blik_code": "777124"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Bluecode": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bluecode_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "BniVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bni_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Boleto": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "boleto": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "BriVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "bri_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Card": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "CashappQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "cashapp_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "CashfreeRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "cashfree_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "CimbVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "cimb_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "ClassicReward": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "classic_reward": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "dana_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "DanamonVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "danamon_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "e_voucher": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "EaseBuzzRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "easebuzz_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Efecty": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "efecty": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Eft": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eft_bank_redirect": {
+              "provider": "ozow"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Eps": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "eps": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "FamilyMart": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "family_mart": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "GCash": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "gcash_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Giropay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "giropay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "go_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "GooglePay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "encrypted_data": {
+                  "token_type": "PAYMENT_GATEWAY",
+                  "token": "{\"id\":\"tok_probe_gpay\",\"object\":\"token\",\"type\":\"card\"}"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "GooglePayDecrypted": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_sdk": {
+              "type": "CARD",
+              "description": "Visa 1111",
+              "info": {
+                "card_network": "VISA",
+                "card_details": "1111"
+              },
+              "tokenization_data": {
+                "decrypted_data": {
+                  "card_exp_month": "03",
+                  "card_exp_year": "2030",
+                  "application_primary_account_number": "4111111111111111",
+                  "cryptogram": "AAAAAA==",
+                  "eci_indicator": "05"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "google_pay_third_party_sdk": {
+              "token": "probe_google_pay_third_party_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Ideal": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "ideal": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Indomaret": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "indomaret": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "IndonesianBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "indonesian_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "InstantBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "InstantBankTransferFinland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer_finland": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "InstantBankTransferPoland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "instant_bank_transfer_poland": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Interac": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "interac": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "KakaoPay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "kakao_pay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Klarna": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "klarna": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Lawson": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "lawson": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "LazyPayRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "lazypay_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "LocalBankRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "local_bank_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "LocalBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "local_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "MandiriVaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mandiri_va_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "MbWay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mb_way": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Mifinity": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mifinity_redirect": {
+              "date_of_birth": "1990-01-01",
+              "language_preference": "en"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "MiniStop": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "mini_stop": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "momo_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "MultibancoBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "multibanco_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Netbanking": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "netbanking": {
+              "issuer": "HdfcBank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_czech_republic": {
+              "issuer": "CeskaSporitelna"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "OnlineBankingFinland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_finland": {
+              "email": "test@example.com"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "OnlineBankingFpx": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_fpx": {
+              "issuer": "Maybank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "OnlineBankingPoland": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_poland": {
+              "issuer": "BankPekaoSa"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "OnlineBankingSlovakia": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_slovakia": {
+              "issuer": "TatraPay"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "OnlineBankingThailand": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "online_banking_thailand": {
+              "issuer": "BangkokBank"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "OpenBanking": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "open_banking": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "open_banking_uk": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Oxxo": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "oxxo": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "PagoEfectivo": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pago_efectivo": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "PayEasy": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pay_easy": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "PaySafeCard": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PayURedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "payu_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "PaypalRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_redirect": {
+              "email": "test@example.com"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "PaypalSdk": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "paypal_sdk": {
+              "token": "probe_paypal_sdk_token"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "permata_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "PhonePeRedirect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "phonepe_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Pix": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pix": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Przelewy24": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "przelewy24": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Pse": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pse": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "RedCompra": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "red_compra": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "RedPagos": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "red_pagos": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "RevolutPay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "revolut_pay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "SamsungPay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "samsung_pay_sdk": {
+              "payment_credential": {
+                "method": "3DS",
+                "recurring_payment": false,
+                "card_brand": "VISA",
+                "card_last_four_digits": "1234",
+                "token_data": {
+                  "type": "S",
+                  "version": "100",
+                  "data": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InNhbXN1bmdfcHJvYmVfa2V5XzEyMyJ9.eyJwYXltZW50TWV0aG9kVG9rZW4iOiJwcm9iZV9zYW1zdW5nX3Rva2VuIn0.ZHVtbXlfc2lnbmF0dXJl"
+                }
+              }
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Satispay": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "satispay": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Seicomart": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "seicomart": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Sepa": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa": {
+              "iban": "DE89370400440532013000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "SepaBankTransfer": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa_bank_transfer": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "SepaGuaranteedDebit": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sepa_guaranteed_debit": {
+              "iban": "DE89370400440532013000",
+              "bank_account_holder_name": "John Doe"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "SevenEleven": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "seven_eleven": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Sofort": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "sofort": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Swish": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "swish_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "TouchNGo": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "touch_n_go_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Trustly": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "trustly": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Twint": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "twint_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "UpiCollect": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_collect": {
+              "vpa_id": "test@upi"
+            }
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "UpiIntent": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_intent": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "UpiQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "upi_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Vipps": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "vipps_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "WeChatPayQr": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "we_chat_pay_qr": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      },
+      "Wero": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "wero": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for flywire"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for flywire"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_order flow not supported by flywire connector"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for flywire"
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for flywire"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for flywire"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for flywire"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for flywire"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for flywire"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by flywire connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_merchant_txn_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          }
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/payments/probe_connector_txn_001",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": null
+        }
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}"
+        }
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for flywire"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"event_type\":\"guaranteed\",\"event_date\":\"2026-01-01T00:00:00Z\",\"event_resource\":\"payments\",\"data\":{\"payment_id\":\"probe_pay_001\",\"status\":\"guaranteed\",\"external_reference\":\"probe_ref_001\"}}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for flywire"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for flywire"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_proxy_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for flywire"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for flywire"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for flywire"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "payment_amount": 1000,
+          "refund_amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "reason": "customer_request"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/payments/probe_connector_txn_001/refunds",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{\"amount\":1000,\"external_reference\":\"probe_refund_001\",\"enable_payer_email_notifications\":false}"
+        }
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_refund_id": "probe_refund_001",
+          "connector_transaction_id": "probe_connector_txn_001",
+          "refund_id": "probe_refund_id_001"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/refunds/probe_refund_id_001",
+          "method": "Get",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": null
+        }
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by flywire connector"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for flywire"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_tokenized_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "connector_token": "pm_1AbcXyzStripeTestToken",
+          "address": {
+            "billing_address": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for flywire"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by flywire connector"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "supported"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for flywire"
+      }
+    }
+  }
+}
