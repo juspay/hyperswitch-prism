@@ -19,6 +19,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.09.1
+
+### Features
+
+- **netcetera:** External 3DS (EMVCo) connector for VGS external-vaul… ([#1788](https://github.com/juspay/connector-service/pull/1788)) ([`4dd9850`](https://github.com/juspay/connector-service/commit/4dd9850d8adb427b700b03ae68c074f517ead8d2))
+
+**Full Changelog:** [`2026.07.09.0...2026.07.09.1`](https://github.com/juspay/connector-service/compare/2026.07.09.0...2026.07.09.1)
+
+- - -
+
+## 2026.07.09.0
+
+### Bug Fixes
+
+- **connector:** Novalnet request parity fix ([#1846](https://github.com/juspay/connector-service/pull/1846)) ([`3fe29fc`](https://github.com/juspay/connector-service/commit/3fe29fc7d526a0d880a216b641e61c01ea779711))
+
+**Full Changelog:** [`2026.07.08.1...2026.07.09.0`](https://github.com/juspay/connector-service/compare/2026.07.08.1...2026.07.09.0)
+
+- - -
+
 ## 2026.07.08.1
 
 ### Features
