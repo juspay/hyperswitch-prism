@@ -5447,6 +5447,22 @@ impl ForeignFrom<common_enums::DecoupledAuthenticationType>
     }
 }
 
+impl ForeignFrom<grpc_api_types::payments::DecoupledAuthenticationType>
+    for Option<common_enums::DecoupledAuthenticationType>
+{
+    fn foreign_from(value: grpc_api_types::payments::DecoupledAuthenticationType) -> Self {
+        match value {
+            grpc_api_types::payments::DecoupledAuthenticationType::Challenge => {
+                Some(common_enums::DecoupledAuthenticationType::Challenge)
+            }
+            grpc_api_types::payments::DecoupledAuthenticationType::Frictionless => {
+                Some(common_enums::DecoupledAuthenticationType::Frictionless)
+            }
+            grpc_api_types::payments::DecoupledAuthenticationType::Unspecified => None,
+        }
+    }
+}
+
 impl ForeignFrom<common_enums::ExemptionIndicator>
     for grpc_api_types::payments::ExemptionIndicator
 {

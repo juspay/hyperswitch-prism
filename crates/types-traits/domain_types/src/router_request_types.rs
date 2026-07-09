@@ -200,15 +200,7 @@ impl TryFrom<payments::AuthenticationData> for AuthenticationData {
             .and_then(|authentication_type| {
                 payments::DecoupledAuthenticationType::try_from(authentication_type).ok()
             })
-            .and_then(|authentication_type| match authentication_type {
-                payments::DecoupledAuthenticationType::Challenge => {
-                    Some(common_enums::DecoupledAuthenticationType::Challenge)
-                }
-                payments::DecoupledAuthenticationType::Frictionless => {
-                    Some(common_enums::DecoupledAuthenticationType::Frictionless)
-                }
-                payments::DecoupledAuthenticationType::Unspecified => None,
-            });
+            .and_then(Option::<common_enums::DecoupledAuthenticationType>::foreign_from);
         let message_version = message_version.map(|message_version|{
             SemanticVersion::from_str(&message_version).change_context(errors::IntegrationError::InvalidDataFormat {
                 field_name: "message_version",
