@@ -2796,9 +2796,7 @@ fn add_fiuu_apple_pay_form_data<T>(
     add_primitive_form_field(form, "CC_MONTH", &data.cc_month);
     add_primitive_form_field(form, "CC_YEAR", &data.cc_year);
     add_primitive_form_field(form, "CC_TOKEN", &data.cc_token);
-    if let Some(eci) = &data.eci {
-        add_primitive_form_field(form, "ECI", eci);
-    }
+    add_primitive_form_field(form, "ECI", &data.eci);
     add_primitive_form_field(form, "TOKEN_CRYPTOGRAM", &data.token_cryptogram);
     add_primitive_form_field(form, "TOKEN_TYPE", &data.token_type);
     add_primitive_form_field(form, "non_3DS", &data.non_3ds);
