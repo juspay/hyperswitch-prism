@@ -534,8 +534,8 @@
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -618,8 +618,8 @@
         "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method not supported by Nuvei in this transformer"
       },
       "Sofort": {
         "status": "supported",

@@ -202,6 +202,7 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::PayURedirect(_) => "payu_redirect",
         WalletData::EaseBuzzRedirect(_) => "easebuzz_redirect",
         WalletData::QwikcilverWalletDirect(_) => "qwikcilver_wallet_direct",
+        WalletData::Skrill(_) => "skrill",
     }
 }
 

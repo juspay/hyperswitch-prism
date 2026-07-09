@@ -487,13 +487,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::CashfreeRedirect(_)
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
-                | WalletDataPaymentMethod::QwikcilverWalletDirect(_) => {
-                    Err(IntegrationError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("novalnet"),
-                        Default::default(),
-                    )
-                    .into())
-                }
+                | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
+                | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                    Default::default(),
+                )
+                .into()),
             },
             PaymentMethodData::BankDebit(ref bank_debit_data) => {
                 let payment_type = NovalNetPaymentTypes::try_from(
@@ -640,6 +639,7 @@ pub enum NovalnetTransactionStatus {
     Pending,
     Deactivated,
     Progress,
+    Error,
 }
 
 #[derive(Debug, Copy, Display, Clone, Serialize, Deserialize, PartialEq)]
@@ -660,7 +660,7 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
             NovalnetTransactionStatus::Pending => Self::Pending,
             NovalnetTransactionStatus::Progress => Self::AuthenticationPending,
             NovalnetTransactionStatus::Deactivated => Self::Voided,
-            NovalnetTransactionStatus::Failure => Self::Failure,
+            NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error => Self::Failure,
         }
     }
 }
@@ -1299,6 +1299,7 @@ impl From<NovalnetTransactionStatus> for common_enums::RefundStatus {
             }
             NovalnetTransactionStatus::Pending => Self::Pending,
             NovalnetTransactionStatus::Failure
+            | NovalnetTransactionStatus::Error
             | NovalnetTransactionStatus::OnHold
             | NovalnetTransactionStatus::Deactivated
             | NovalnetTransactionStatus::Progress => Self::Failure,
@@ -2234,12 +2235,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletDataPaymentMethod::CashfreeRedirect(_)
                 | WalletDataPaymentMethod::PayURedirect(_)
                 | WalletDataPaymentMethod::EaseBuzzRedirect(_)
-                | WalletDataPaymentMethod::QwikcilverWalletDirect(_) => {
-                    Err(IntegrationError::NotImplemented(
-                        utils::get_unimplemented_payment_method_error_message("novalnet"),
-                        Default::default(),
-                    ))?
-                }
+                | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
+                | WalletDataPaymentMethod::Skrill(_) => Err(IntegrationError::NotImplemented(
+                    utils::get_unimplemented_payment_method_error_message("novalnet"),
+                    Default::default(),
+                ))?,
             },
             _ => Err(IntegrationError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("novalnet"),
@@ -2763,6 +2763,7 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                         common_enums::AuthorizationStatus::Processing
                     }
                     Some(NovalnetTransactionStatus::Failure)
+                    | Some(NovalnetTransactionStatus::Error)
                     | Some(NovalnetTransactionStatus::Deactivated) => {
                         common_enums::AuthorizationStatus::Failure
                     }

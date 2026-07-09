@@ -465,7 +465,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "payment method pay_safe_card is not supported by PPRO is not supported by ppro"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -577,7 +577,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "payment method skrill is not supported by PPRO is not supported by ppro"
       },
       "Sofort": {
         "status": "not_supported",
