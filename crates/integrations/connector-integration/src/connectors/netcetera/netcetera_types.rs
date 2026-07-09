@@ -209,6 +209,7 @@ pub enum ThreeDSRequestorChallengeIndicator {
 #[serde(rename_all = "camelCase")]
 pub struct CardholderAccount<T: PaymentMethodDataTypes> {
     /// Expiry date of the PAN supplied to the 3DS Requestor. Format `YYMM`.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub card_expiry_date: Option<Secret<String>>,
     /// Account number used in the authorization request. UCS uses `RawCardNumber<T>`
     /// (no Luhn) so VGS aliases pass through.
@@ -216,6 +217,7 @@ pub struct CardholderAccount<T: PaymentMethodDataTypes> {
     /// Scheme id of the account, recommended when the card is cobadged.
     pub scheme_id: Option<SchemeId>,
     /// Three or four-digit security code printed on the card.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub card_security_code: Option<Secret<String>>,
 }
 

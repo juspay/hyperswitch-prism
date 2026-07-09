@@ -50,7 +50,13 @@ impl ForeignTryFrom<&grpc_api_types::payments::ProxyCardDetails> for InjectorTok
                     .card_cvc
                     .as_ref()
                     .map(|cvc| cvc.clone().expose().to_string())
-                    .unwrap_or_default(),
+                    .filter(|cvc| !cvc.is_empty())
+                    .ok_or_else(|| {
+                        error_stack::report!(IntegrationError::MissingRequiredField {
+                            field_name: "card_cvc",
+                            context: Default::default(),
+                        })
+                    })?,
             ),
             card_exp_month: Secret::new(
                 proxy_card_details
