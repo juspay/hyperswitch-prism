@@ -3429,12 +3429,9 @@ message RecurringPaymentServiceChargeRequest {
 
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 35;
 
-  // Merchant-hosted URL the connector should use as the buyer return target after a
-  // redirect (e.g. PayPal wallet-MIT re-approval), so the buyer returns to
-  // Hyperswitch's complete-authorize endpoint rather than the merchant URL. Mirrors
-  // PaymentServiceAuthorizeRequest.complete_authorize_url.
-  optional string complete_authorize_url = 36;
-
+  optional AuthenticationType auth_type = 36;
+  
+  optional string complete_authorize_url = 37;
 }
 
 // Response message for repeat payment operation
