@@ -270,7 +270,9 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         pre_authn_response.three_ds_server_trans_id.clone(),
                     ),
                     message_version: Some(maximum_supported_3ds_version),
-                    ds_trans_id: None,
+                    ds_trans_id: card_range
+                        .as_ref()
+                        .and_then(|range| range.directory_server_id.clone()),
                     acs_transaction_id: None,
                     transaction_id: None,
                     network_params: None,
