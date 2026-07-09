@@ -14664,8 +14664,24 @@ impl<
                 .domain_data
                 .map(connector_types::DomainData::foreign_try_from)
                 .transpose()?,
+            sdk_information: value
+                .metadata
+                .as_ref()
+                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
+                .and_then(|m| m.sdk_information),
+            device_channel: value
+                .metadata
+                .as_ref()
+                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
+                .and_then(|m| m.device_channel),
         })
     }
+}
+
+#[derive(serde::Deserialize)]
+struct AuthenticateSdkMetadata {
+    device_channel: Option<connector_types::DeviceChannel>,
+    sdk_information: Option<connector_types::SdkInformation>,
 }
 
 impl<
