@@ -194,7 +194,7 @@ async fn test_absa_sanlam_authorize_publishes_eft_debit_to_kafka() {
     let topic_prefix = format!("absa_sanlam_{}", Uuid::new_v4().simple());
     let topic = format!("{topic_prefix}_payments_queue");
     let config = kafka_enabled_config(&topic_prefix);
-    
+
     let consumer = kafka_consumer();
     consumer
         .subscribe(&[topic.as_str()])
@@ -204,8 +204,7 @@ async fn test_absa_sanlam_authorize_publishes_eft_debit_to_kafka() {
         let mut request = Request::new(create_authorize_request(&merchant_transaction_id));
         add_absa_sanlam_metadata(&mut request);
 
-        let response = Box::pin(client
-            .authorize(request))
+        let response = Box::pin(client.authorize(request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();
