@@ -2731,7 +2731,7 @@ fn add_fiuu_payment_request_common_fields<T>(
     add_primitive_form_field(form, "MerchantID", &request.merchant_id);
     add_primitive_form_field(form, "ReferenceNo", &request.reference_no);
     add_primitive_form_field(form, "TxnType", &request.txn_type);
-    add_primitive_form_field(form, "TxnCurrency", &request.txn_currency);
+    add_primitive_form_field(form, "TxnCurrency", request.txn_currency);
     add_primitive_form_field(form, "TxnAmount", &request.txn_amount);
     add_primitive_form_field(form, "Signature", &request.signature);
     add_primitive_form_field(form, "ReturnURL", &request.return_url);
@@ -2747,17 +2747,17 @@ fn add_fiuu_google_pay_form_data<T>(
 {
     add_fiuu_payment_request_common_fields(form, request);
     add_primitive_form_field(form, "TxnChannel", &data.txn_channel);
-    add_primitive_form_field(form, "GooglePay[apiVersion]", &data.api_version);
-    add_primitive_form_field(form, "GooglePay[apiVersionMinor]", &data.api_version_minor);
+    add_primitive_form_field(form, "GooglePay[apiVersion]", data.api_version);
+    add_primitive_form_field(form, "GooglePay[apiVersionMinor]", data.api_version_minor);
     add_primitive_form_field(
         form,
         "GooglePay[paymentMethodData][info][assuranceDetails][accountVerified]",
-        &data.account_verified,
+        data.account_verified,
     );
     add_primitive_form_field(
         form,
         "GooglePay[paymentMethodData][info][assuranceDetails][cardHolderAuthenticated]",
-        &data.card_holder_authenticated,
+        data.card_holder_authenticated,
     );
     add_primitive_form_field(
         form,
@@ -2781,7 +2781,7 @@ fn add_fiuu_google_pay_form_data<T>(
     );
     add_primitive_form_field(form, "GooglePay[paymentMethodData][type]", &data.pm_type);
     add_primitive_form_field(form, "TokenType", &data.token_type);
-    add_primitive_form_field(form, "non_3DS", &data.non_3ds);
+    add_primitive_form_field(form, "non_3DS", data.non_3ds);
 }
 
 fn add_fiuu_apple_pay_form_data<T>(
@@ -2799,7 +2799,7 @@ fn add_fiuu_apple_pay_form_data<T>(
     add_primitive_form_field(form, "ECI", &data.eci);
     add_primitive_form_field(form, "TOKEN_CRYPTOGRAM", &data.token_cryptogram);
     add_primitive_form_field(form, "TOKEN_TYPE", &data.token_type);
-    add_primitive_form_field(form, "non_3DS", &data.non_3ds);
+    add_primitive_form_field(form, "non_3DS", data.non_3ds);
 }
 
 fn fiuu_authorize_non_threeds_status(
