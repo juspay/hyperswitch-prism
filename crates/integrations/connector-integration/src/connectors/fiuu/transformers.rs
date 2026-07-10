@@ -1389,7 +1389,7 @@ where
                     reason: Some(error.error_desc),
                     status_code: item.http_code,
                     attempt_status: None,
-                    connector_transaction_id: None,
+                    connector_transaction_id: error.txn_id,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1743,6 +1743,8 @@ impl<F> TryFrom<ResponseRouterData<FiuuRefundResponse, Self>>
 pub struct FiuuErrorResponse {
     pub error_code: String,
     pub error_desc: String,
+    #[serde(rename = "TxnID", alias = "tranID", alias = "TranID", alias = "txID")]
+    pub txn_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
