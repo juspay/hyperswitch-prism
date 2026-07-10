@@ -639,7 +639,6 @@ pub enum NovalnetTransactionStatus {
     Pending,
     Deactivated,
     Progress,
-    Error,
 }
 
 #[derive(Debug, Copy, Display, Clone, Serialize, Deserialize, PartialEq)]
@@ -660,7 +659,7 @@ impl From<NovalnetTransactionStatus> for common_enums::AttemptStatus {
             NovalnetTransactionStatus::Pending => Self::Pending,
             NovalnetTransactionStatus::Progress => Self::AuthenticationPending,
             NovalnetTransactionStatus::Deactivated => Self::Voided,
-            NovalnetTransactionStatus::Failure | NovalnetTransactionStatus::Error => Self::Failure,
+            NovalnetTransactionStatus::Failure => Self::Failure,
         }
     }
 }
@@ -932,6 +931,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     transaction_id,
                 ));
                 Ok(Self {
+                    resource_common_data: PaymentFlowData {
+                        status: common_enums::AttemptStatus::Failure,
+                        ..item.router_data.resource_common_data
+                    },
                     response,
                     ..item.router_data
                 })
@@ -1295,7 +1298,6 @@ impl From<NovalnetTransactionStatus> for common_enums::RefundStatus {
             }
             NovalnetTransactionStatus::Pending => Self::Pending,
             NovalnetTransactionStatus::Failure
-            | NovalnetTransactionStatus::Error
             | NovalnetTransactionStatus::OnHold
             | NovalnetTransactionStatus::Deactivated
             | NovalnetTransactionStatus::Progress => Self::Failure,
@@ -2759,7 +2761,6 @@ impl TryFrom<ResponseRouterData<NovalnetIncrementalAuthResponse, Self>>
                         common_enums::AuthorizationStatus::Processing
                     }
                     Some(NovalnetTransactionStatus::Failure)
-                    | Some(NovalnetTransactionStatus::Error)
                     | Some(NovalnetTransactionStatus::Deactivated) => {
                         common_enums::AuthorizationStatus::Failure
                     }
