@@ -814,6 +814,7 @@ enum Connector {
   TSYS_TRANSIT = 127;
   KOUNT = 128;
   FLYWIRE = 129;
+  GIVEPAYMENTS = 130;
 }
 
 // Payment method types
@@ -4971,6 +4972,11 @@ message ImerchantsolutionsConfig {
   optional string base_url = 3;
 }
 
+message GivepaymentsConfig {
+  SecretString api_key = 1;
+  optional string base_url = 2;
+}
+
 message AxisbankConfig {
   SecretString merchant_kid = 3;
   SecretString juspay_kid = 4;
@@ -5371,6 +5377,9 @@ message ConnectorSpecificConfig {
     AffirmConfig affirm = 135;
     // FLYWIRE = 129
     FlywireConfig flywire = 136;
+
+    // GIVEPAYMENTS = 137
+    GivepaymentsConfig givepayments = 137;
   }
 }
 

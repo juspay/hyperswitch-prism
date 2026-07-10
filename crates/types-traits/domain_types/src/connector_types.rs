@@ -155,6 +155,7 @@ pub enum ConnectorEnum {
     Flywire,
     Affirm,
     Kount,
+    Givepayments,
 }
 
 // snake case for enum variants
@@ -453,6 +454,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
             grpc_api_types::payments::Connector::Flywire => Ok(Self::Flywire),
             grpc_api_types::payments::Connector::Kount => Ok(Self::Kount),
+            grpc_api_types::payments::Connector::Givepayments => Ok(Self::Givepayments),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -5214,6 +5216,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Tamara(_) => Ok(Self::Payment(ConnectorEnum::Tamara)),
             AuthType::Flywire(_) => Ok(Self::Payment(ConnectorEnum::Flywire)),
             AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
+            AuthType::Givepayments(_) => Ok(Self::Payment(ConnectorEnum::Givepayments)),
         }
     }
 }

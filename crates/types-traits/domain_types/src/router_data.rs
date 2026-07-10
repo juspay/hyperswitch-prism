@@ -287,6 +287,10 @@ pub enum ConnectorSpecificConfig {
         base_url: Option<String>,
         secondary_base_url: Option<String>,
     },
+    Givepayments {
+        api_key: Secret<String>,
+        base_url: Option<String>,
+    },
 
     // --- Two-field connectors ---
     Razorpay {
@@ -1162,6 +1166,7 @@ impl ConnectorSpecificConfig {
                 public_key,
                 private_key
             },
+            Givepayments { api_key },
         )
     }
 
@@ -1604,6 +1609,7 @@ impl ConnectorSpecificConfig {
                     public_key,
                     private_key
                 },
+                Givepayments { api_key },
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -2234,6 +2240,10 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 private_key: affirm.private_key.ok_or_else(err)?,
                 base_url: affirm.base_url,
             }),
+            AuthType::Givepayments(givepayments) => Ok(Self::Givepayments {
+                api_key: givepayments.api_key.ok_or_else(err)?,
+                base_url: givepayments.base_url,
+            }),
         }
     }
 }
@@ -2332,6 +2342,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 },
                 ConnectorEnum::Xendit => match auth {
                     ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Xendit {
+                        api_key: api_key.clone(),
+                        base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                ConnectorEnum::Givepayments => match auth {
+                    ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Givepayments {
                         api_key: api_key.clone(),
                         base_url: None,
                     }),
