@@ -302,6 +302,14 @@ payment_methods: Interac
 flows: authorize, get, refund
 examples_python: none
 
+## Givepayments
+connector_id: givepayments
+doc: docs/connectors/givepayments.md
+scenarios: none
+payment_methods: none
+flows: get, recurring_charge, refund, refund_get
+examples_python: none
+
 ## Globalpay
 connector_id: globalpay
 doc: docs/connectors/globalpay.md
