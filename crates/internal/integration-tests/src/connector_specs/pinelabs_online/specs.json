@@ -1,13 +1,13 @@
 {
   "connector": "pinelabs_online",
   "supported_suites": [
-    "authorize",
-    "get",
-    "capture",
-    "void",
-    "refund",
-    "refund_sync",
-    "server_authentication_token",
-    "create_order"
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Capture",
+    "PaymentService/Void",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentService/CreateOrder"
   ]
 }

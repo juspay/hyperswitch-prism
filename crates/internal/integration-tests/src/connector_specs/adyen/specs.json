@@ -1,16 +1,16 @@
 {
   "connector": "adyen",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "client_authentication_token",
-    "create_order",
-    "get",
-    "incremental_authorization",
-    "recurring_charge",
-    "refund",
-    "setup_recurring",
-    "void",
-    "handle_event"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/CreateOrder",
+    "PaymentService/Get",
+    "PaymentService/IncrementalAuthorization",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "PaymentService/SetupRecurring",
+    "PaymentService/Void",
+    "EventService/HandleEvent"
   ]
 }

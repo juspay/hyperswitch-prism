@@ -1,6 +1,9 @@
 use cards::CardNumber;
 use common_utils::Email;
+use error_stack::Report;
 use hyperswitch_masking::Secret;
+
+use crate::errors::IntegrationError;
 
 /// The payout method information required for carrying out a payout
 #[derive(Debug, Clone)]
@@ -15,6 +18,38 @@ pub enum PayoutMethodData {
 impl Default for PayoutMethodData {
     fn default() -> Self {
         Self::Card(CardPayout::default())
+    }
+}
+
+impl PayoutMethodData {
+    pub fn get_card(&self) -> Result<&CardPayout, Report<IntegrationError>> {
+        match self {
+            Self::Card(card) => Ok(card),
+            _ => Err(IntegrationError::MismatchedPaymentData {
+                context: crate::errors::IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Expected card payout method data, but received {}",
+                        self.variant_name()
+                    )),
+                    suggested_action: Some(
+                        "Provide card payout method data for this flow".to_string(),
+                    ),
+                    doc_url: None,
+                },
+            }
+            .into()),
+        }
+    }
+
+    /// Name of the active `PayoutMethodData` variant, used for error context.
+    fn variant_name(&self) -> &'static str {
+        match self {
+            Self::Card(_) => "Card",
+            Self::Bank(_) => "Bank",
+            Self::Wallet(_) => "Wallet",
+            Self::BankRedirect(_) => "BankRedirect",
+            Self::Passthrough(_) => "Passthrough",
+        }
     }
 }
 
@@ -42,6 +77,8 @@ pub enum Bank {
     Bacs(BacsBankTransfer),
     Sepa(SepaBankTransfer),
     Pix(PixBankTransfer),
+    PixKey(PixKeyBankTransfer),
+    PixEmv(PixEmvBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -110,11 +147,23 @@ pub struct PixBankTransfer {
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     pub bank_account_number: Secret<String>,
 
-    /// Unique key for pix customer
-    pub pix_key: Secret<String>,
-
     /// Individual taxpayer identification number
     pub tax_id: Option<Secret<String>>,
+
+    /// An 8-digit routing code that uniquely identifies the specific bank, fintech, or payment institution
+    pub ispb: Option<Secret<String>>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct PixKeyBankTransfer {
+    /// Unique key for pix customer
+    pub pix_key: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct PixEmvBankTransfer {
+    /// EMV data for pix
+    pub emv: Secret<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]

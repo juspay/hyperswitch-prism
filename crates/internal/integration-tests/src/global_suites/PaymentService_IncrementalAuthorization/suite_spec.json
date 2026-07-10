@@ -1,0 +1,9 @@
+{
+  "suite": "PaymentService/IncrementalAuthorization",
+  "suite_type": "dependent",
+  "depends_on": [
+    "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+    "PaymentService/Authorize"
+  ],
+  "strict_dependencies": true
+}

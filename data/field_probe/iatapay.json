@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by iatapay connector"
       }
     },
     "authorize": {
@@ -119,6 +120,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
@@ -151,6 +156,10 @@
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "Giropay": {
         "status": "not_supported",
         "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
@@ -158,6 +167,10 @@
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -232,6 +245,10 @@
         "status": "not_supported",
         "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "Klarna": {
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
@@ -301,6 +318,14 @@
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "MultibancoBankTransfer": {
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
@@ -359,7 +384,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -372,6 +397,10 @@
       "PaypalSdk": {
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Paze": {
         "status": "not_supported",
@@ -437,13 +466,29 @@
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "Sofort": {
         "status": "not_supported",
         "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
       },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "Trustly": {
         "status": "not_supported",
         "error": "Unsupported bank redirect type for Iatapay is not supported by Iatapay"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
       },
       "UpiCollect": {
         "status": "supported",
@@ -558,6 +603,10 @@
           "body": "{\"merchantId\":\"probe_merchant\",\"merchantPaymentId\":\"probe_txn_001\",\"amount\":10.0,\"currency\":\"USD\",\"country\":\"IN\",\"locale\":\"en-IN\",\"redirectUrls\":{\"successUrl\":\"https://example.com/return\",\"failureUrl\":\"https://example.com/return\"},\"notificationUrl\":\"https://example.com/webhook\"}"
         }
       },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Payment method not supported by Iatapay is not supported by Iatapay"
+      },
       "WeChatPayQr": {
         "status": "not_supported",
         "error": "Payment method not supported by Iatapay is not supported by Iatapay"
@@ -569,22 +618,20 @@
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "capture flow not supported by iatapay connector"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for iatapay"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for iatapay"
       }
     },
     "create_server_authentication_token": {
@@ -605,17 +652,26 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for iatapay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by iatapay connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by iatapay connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by iatapay connector"
       }
     },
     "dispute_get": {
@@ -625,12 +681,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by iatapay connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by iatapay connector"
       }
     },
     "get": {
@@ -671,7 +729,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by iatapay connector"
       }
     },
     "parse_event": {
@@ -679,14 +738,21 @@
         "status": "not_implemented"
       }
     },
-    "post_authenticate": {
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by iatapay connector"
+      }
+    },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by iatapay connector"
       }
     },
     "proxy_authorize": {
@@ -697,17 +763,20 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for iatapay"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for iatapay"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by iatapay connector"
       }
     },
     "refund": {
@@ -772,12 +841,14 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by iatapay connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for iatapay"
       }
     },
     "token_authorize": {
@@ -788,12 +859,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for iatapay"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for iatapay"
       }
     },
     "verify_redirect": {
@@ -803,7 +876,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void flow not supported by iatapay connector"
       }
     }
   }

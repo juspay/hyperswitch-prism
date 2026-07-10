@@ -14,6 +14,10 @@ use connector_service_ffi::utils::ffi_headers_to_masked_metadata;
 use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::router_response_types::Response;
 use domain_types::utils::ForeignTryFrom;
+use grpc_api_types::frm::{
+    FrmServicePostRiskCheckRequest, FrmServicePostRiskCheckResponse, FrmServicePreRiskCheckRequest,
+    FrmServicePreRiskCheckResponse,
+};
 use grpc_api_types::payments::NetworkErrorCode;
 use grpc_api_types::payments::{ConnectorConfig, FfiOptions, RequestConfig};
 use grpc_api_types::payments::{
@@ -32,14 +36,15 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceTokenizeRequest,
-    PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
-    PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
-    PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
-    PaymentServiceGetResponse, PaymentServiceIncrementalAuthorizationRequest,
-    PaymentServiceIncrementalAuthorizationResponse, PaymentServiceProxyAuthorizeRequest,
-    PaymentServiceProxySetupRecurringRequest, PaymentServiceRefundRequest,
-    PaymentServiceReverseRequest, PaymentServiceReverseResponse,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse,
+    PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest,
+    PaymentServiceCaptureResponse, PaymentServiceCreateOrderRequest,
+    PaymentServiceCreateOrderResponse, PaymentServiceGetRequest, PaymentServiceGetResponse,
+    PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
+    PaymentServiceProxyAuthorizeRequest, PaymentServiceProxySetupRecurringRequest,
+    PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceReverseResponse,
     PaymentServiceSetupRecurringRequest, PaymentServiceSetupRecurringResponse,
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
     PaymentServiceVoidRequest, PaymentServiceVoidResponse, RecurringPaymentServiceChargeRequest,
@@ -54,6 +59,9 @@ use grpc_api_types::payouts::{
     PayoutServiceGetRequest, PayoutServiceGetResponse, PayoutServiceStageRequest,
     PayoutServiceStageResponse, PayoutServiceTransferRequest, PayoutServiceTransferResponse,
     PayoutServiceVoidRequest, PayoutServiceVoidResponse,
+};
+use grpc_api_types::surcharge::{
+    SurchargeServiceCalculateRequest, SurchargeServiceCalculateResponse,
 };
 
 /// ConnectorClient — high-level Rust wrapper for the Connector Service.
@@ -272,8 +280,8 @@ impl ConnectorClient {
         create_customer,
         CustomerServiceCreateRequest,
         CustomerServiceCreateResponse,
-        create_req_handler,
-        create_res_handler
+        customer_create_req_handler,
+        customer_create_res_handler
     );
     // ── DisputeService flows ───────────────────────────────────────────────────
     impl_flow_method!(
@@ -354,6 +362,21 @@ impl ConnectorClient {
         };
         parse_event_handler(ffi_request, environment).map_err(SdkError::from)
     }
+    // ── FraudAndRiskManagementService flows ───────────────────────────────────────────────────
+    impl_flow_method!(
+        post_risk_check,
+        FrmServicePostRiskCheckRequest,
+        FrmServicePostRiskCheckResponse,
+        post_risk_check_req_handler,
+        post_risk_check_res_handler
+    );
+    impl_flow_method!(
+        pre_risk_check,
+        FrmServicePreRiskCheckRequest,
+        FrmServicePreRiskCheckResponse,
+        pre_risk_check_req_handler,
+        pre_risk_check_res_handler
+    );
     // ── MerchantAuthenticationService flows ───────────────────────────────────────────────────
     impl_flow_method!(
         create_client_authentication_token,
@@ -399,6 +422,13 @@ impl ConnectorClient {
         pre_authenticate_res_handler
     );
     // ── PaymentMethodService flows ───────────────────────────────────────────────────
+    impl_flow_method!(
+        eligibility,
+        PaymentMethodServiceEligibilityRequest,
+        PaymentMethodServiceEligibilityResponse,
+        eligibility_req_handler,
+        eligibility_res_handler
+    );
     impl_flow_method!(
         tokenize,
         PaymentMethodServiceTokenizeRequest,
@@ -579,6 +609,14 @@ impl ConnectorClient {
         refund_get_req_handler,
         refund_get_res_handler
     );
+    // ── SurchargeService flows ───────────────────────────────────────────────────
+    impl_flow_method!(
+        calculate,
+        SurchargeServiceCalculateRequest,
+        SurchargeServiceCalculateResponse,
+        surcharge_calculate_req_handler,
+        surcharge_calculate_res_handler
+    );
 }
 
 /// Internal helper to build the context-heavy FfiRequestData from raw inputs.
@@ -614,13 +652,13 @@ pub fn build_ffi_request<T>(
             })?;
 
     let connector =
-        domain_types::connector_types::ConnectorEnum::foreign_try_from(config_variant.clone())
+        domain_types::connector_types::ConnectorVariant::foreign_try_from(config_variant.clone())
             .map_err(|e| SdkError::IntegrationError {
-                error_code: "CONNECTOR_MAPPING_FAILED".to_string(),
-                error_message: format!("Connector mapping failed: {e}"),
-                suggested_action: None,
-                doc_url: None,
-            })?;
+            error_code: "CONNECTOR_MAPPING_FAILED".to_string(),
+            error_message: format!("Connector mapping failed: {e}"),
+            suggested_action: None,
+            doc_url: None,
+        })?;
 
     let connector_config = ConnectorSpecificConfig::foreign_try_from(proto_config.clone())
         .map_err(|e| SdkError::IntegrationError {

@@ -8,8 +8,9 @@ use domain_types::{
         ServerAuthenticationTokenResponseData,
     },
     errors::{ConnectorError, IntegrationError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, UpiData},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 use hyperswitch_masking::{PeekInterface, Secret};
@@ -389,7 +390,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         PinelabsOnlineRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -403,7 +404,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
         item: PinelabsOnlineRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -422,7 +423,7 @@ impl<T: PaymentMethodDataTypes + Debug + Send + Sync + 'static + Serialize>
 // ========== TryFrom: AccessToken Response ==========
 
 impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineAccessTokenResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
+    for RouterDataV2<F, MerchantAuthenticationFlowData, T, ServerAuthenticationTokenResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
 
@@ -589,7 +590,7 @@ impl TryFrom<ResponseRouterData<PinelabsOnlineCreateOrderResponse, Self>>
                     code: error.code.unwrap_or_else(|| "UNKNOWN".to_string()),
                     message: error.message.unwrap_or_else(|| "Unknown error".to_string()),
                     reason: None,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
@@ -888,9 +889,11 @@ impl<F, Req> TryFrom<ResponseRouterData<PinelabsOnlineResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.data.merchant_order_reference,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 });
 
                 Ok(Self {
@@ -908,7 +911,7 @@ impl<F, Req> TryFrom<ResponseRouterData<PinelabsOnlineResponse, Self>>
                     code: error.code.unwrap_or_else(|| "UNKNOWN".to_string()),
                     message: error.message.unwrap_or_else(|| "Unknown error".to_string()),
                     reason: None,
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
@@ -954,9 +957,11 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineCaptureResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.data.merchant_order_reference,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 });
 
                 Ok(Self {
@@ -974,7 +979,7 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineCaptureResponse, Self>>
                     code: error.code.unwrap_or_else(|| "UNKNOWN".to_string()),
                     message: error.message.unwrap_or_else(|| "Unknown error".to_string()),
                     reason: None,
-                    attempt_status: Some(AttemptStatus::CaptureFailed),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::CaptureFailed)),
                     connector_transaction_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
@@ -1019,9 +1024,11 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineVoidResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: response.data.merchant_order_reference,
                     incremental_authorization_allowed: None,
                     status_code: item.http_code,
+                    splits: None,
                 });
 
                 Ok(Self {
@@ -1039,7 +1046,7 @@ impl<F, T> TryFrom<ResponseRouterData<PinelabsOnlineVoidResponse, Self>>
                     code: error.code.unwrap_or_else(|| "UNKNOWN".to_string()),
                     message: error.message.unwrap_or_else(|| "Unknown error".to_string()),
                     reason: None,
-                    attempt_status: Some(AttemptStatus::VoidFailed),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::VoidFailed)),
                     connector_transaction_id: None,
                     network_advice_code: None,
                     network_decline_code: None,

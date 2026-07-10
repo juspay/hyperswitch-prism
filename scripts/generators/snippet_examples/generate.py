@@ -115,7 +115,11 @@ def _get_client_method(flow_key: str) -> str:
     """Map flow key to ConnectorClient method name.
     
     Handles special prefixes like dispute_*, webhook_*, etc.
+    For customer_create, the SDK uses create_customer.
     """
+    # Special case: customer_create -> create_customer (SDK uses unprefixed name)
+    if flow_key == "customer_create":
+        return "create_customer"
     # Strip dispute_ prefix for dispute flows
     if flow_key.startswith("dispute_"):
         return flow_key[8:]  # Remove "dispute_" prefix
@@ -128,6 +132,17 @@ def _get_client_method(flow_key: str) -> str:
 _UNSUPPORTED_FLOWS: frozenset[str] = frozenset({
     "handle_event",
     "verify_redirect",
+})
+
+# EventService "direct" flows whose Python SDK client method runs synchronously
+# (dispatched via `_execute_direct`, not `_execute_flow`). Their call returns the
+# response object directly — it is NOT awaitable — and the response has no
+# `.status` field, so the generated example must neither `await` the call nor
+# read `.status`.
+_DIRECT_SYNC_FLOWS: frozenset[str] = frozenset({
+    "parse_event",
+    "handle_event",
+    "verify_redirect_response",
 })
 
 
@@ -261,13 +276,13 @@ def _generate_connector_config_typescript(
         fields_str = "\n".join(field_lines)
         return (
             f"    {config_field}: {{\n"
-            f"        {connector_name}: {{\n"
+            f"        {_to_camel(connector_name)}: {{\n"
             f"{fields_str}\n"
             f"        }}\n"
             f"    }},"
         )
     # Fallback — no proto metadata found for this connector
-    return f"    // {config_field}: {{ {connector_name}: {{ apiKey: {{ value: 'YOUR_API_KEY' }} }} }},"
+    return f"    // {config_field}: {{ {_to_camel(connector_name)}: {{ apiKey: {{ value: 'YOUR_API_KEY' }} }} }},"
 
 
 def _generate_connector_config_kotlin(connector_name: str, indent: str = "    ") -> str:
@@ -562,7 +577,7 @@ JS_RESERVED = frozenset({"void", "delete", "return", "new", "in", "do", "for", "
 # All other flows use the flow key directly as the method name (snake_case).
 _FLOW_KEY_TO_METHOD: dict[str, str] = {
     "recurring_charge":          "charge",                    # RecurringPaymentService.charge()
-    "create_customer":           "create",                    # CustomerClient.create()
+    "create_customer":           "customer_create",           # CustomerClient.customerCreate() (JS/TS), create_customer (Rust/Python)
     "dispute_accept":            "accept",                    # DisputeClient.accept()
     "dispute_defend":            "defend",                    # DisputeClient.defend()
     "dispute_submit_evidence":   "submit_evidence",           # DisputeClient.submit_evidence()
@@ -1552,6 +1567,14 @@ def _py_direct_lines(
         child_msg = db.get_type(msg_name, key)
         cmt_part  = f"  # {comment}" if comment else ""
 
+        # map<K,V> fields are constructed from a dict literal, NOT a synthetic
+        # `<Field>Entry` message — that entry type is nested under its parent
+        # (e.g. RequestDetails.HeadersEntry) and is not a module-level pb2
+        # attribute, so `payment_pb2.HeadersEntry()` raises AttributeError.
+        if key in _PROTO_MAP_FIELDS.get(msg_name, set()) and isinstance(val, dict):
+            lines.append(f"{pad}{key}={json.dumps(val)},{cmt_part}")
+            continue
+
         if key in variable_fields:
             if child_msg and _is_proto_enum(child_msg):
                 em = _py_module_for_type(child_msg)
@@ -1613,7 +1636,11 @@ def _py_direct_lines(
         elif isinstance(val, (int, float)):
             lines.append(f"{pad}{key}={val},{cmt_part}")
         elif isinstance(val, str):
-            if child_msg and _is_proto_enum(child_msg):
+            if child_msg == "bytes":
+                # proto `bytes` field — protobuf-python requires a bytes value,
+                # so encode the probe string rather than passing a raw str.
+                lines.append(f"{pad}{key}={json.dumps(val)}.encode(),{cmt_part}")
+            elif child_msg and _is_proto_enum(child_msg):
                 em = _py_module_for_type(child_msg)
                 lines.append(f"{pad}{key}={em}.{child_msg}.Value({json.dumps(val)}),{cmt_part}")
             elif child_msg and child_msg in _PYTHON_WRAPPER_TYPES:
@@ -2014,14 +2041,16 @@ def render_consolidated_python(
         resp_var   = f"{flow_key.split('_')[0]}_response"
         pm_part    = f" ({pm_label})" if pm_label else ""
 
+        # `_execute_direct` EventService flows are synchronous — do not `await`.
+        await_kw = "" if flow_key in _DIRECT_SYNC_FLOWS else "await "
         body_lines: list[str] = [f"    {client_var} = {client_cls}(config)", ""]
         if flow_key in has_builder:
             if flow_key in _FLOW_BUILDER_EXTRA_PARAM:
                 param_name  = _FLOW_BUILDER_EXTRA_PARAM[flow_key][0]
                 default_val = proto_req.get(param_name, "AUTOMATIC" if param_name == "capture_method" else "probe_connector_txn_001")
-                body_lines.append(f'    {resp_var} = await {client_var}.{method}(_build_{flow_key}_request("{default_val}"))')
+                body_lines.append(f'    {resp_var} = {await_kw}{client_var}.{method}(_build_{flow_key}_request("{default_val}"))')
             else:
-                body_lines.append(f'    {resp_var} = await {client_var}.{method}(_build_{flow_key}_request())')
+                body_lines.append(f'    {resp_var} = {await_kw}{client_var}.{method}(_build_{flow_key}_request())')
             body_lines.append("")
         else:
             body_lines.extend(_scenario_step_python("_standalone_", flow_key, 1, proto_req, grpc_req, client_var, db))
@@ -2029,12 +2058,15 @@ def render_consolidated_python(
             body_lines.append(f'    return {{"status": {resp_var}.status, "transaction_id": {resp_var}.connector_transaction_id}}')
         elif flow_key == "setup_recurring":
             body_lines.append(f'    return {{"status": {resp_var}.status, "mandate_id": {resp_var}.connector_recurring_payment_id}}')
-        elif flow_key == "create_customer":
+        elif flow_key in ("create_customer", "customer_create"):
             body_lines.append(f'    return {{"customer_id": {resp_var}.connector_customer_id}}')
         elif flow_key == "tokenize":
             body_lines.append(f'    return {{"token": {resp_var}.payment_method_token}}')
         elif flow_key == "create_client_authentication_token":
             body_lines.append(f'    return {{"session_data": {resp_var}.session_data}}')
+        elif flow_key == "parse_event":
+            # EventServiceParseResponse has no `.status`; surface the parsed event type.
+            body_lines.append(f'    return {{"event_type": {resp_var}.event_type}}')
         else:
             body_lines.append(f'    return {{"status": {resp_var}.status}}')
 
@@ -2339,7 +2371,12 @@ def render_consolidated_javascript(
                 "",
             ]
         else:
-            body_lines = list(_scenario_step_javascript("_standalone_", flow_key, 1, proto_req, grpc_req, db, client_var, ts_mode=True))
+            # Flow without builder — create client manually then call method
+            body_lines = [
+                f"    const {client_var} = new {cls}(config);",
+                "",
+            ]
+            body_lines.extend(_scenario_step_javascript("_standalone_", flow_key, 1, proto_req, grpc_req, db, client_var, ts_mode=True))
         # These standalone flow functions return the raw response to avoid type issues
         # with responses that don't have a status field (e.g., EventServiceHandleResponse)
         body_lines.append(f"    return {var_name};")
@@ -2512,6 +2549,7 @@ def render_scenario_section(
 _KT_FLOW_STATUS_BLOCK: dict[str, str] = {
     "tokenize":                             '    println("Token: ${response.paymentMethodToken}")',
     "create_customer":                      '    println("Customer: ${response.connectorCustomerId}")',
+    "customer_create":                      '    println("Customer: ${response.connectorCustomerId}")',  # Alias for create_customer (probe uses customer_create)
     "dispute_accept":                       '    println("Dispute status: ${response.disputeStatus.name}")',
     "dispute_defend":                       '    println("Dispute status: ${response.disputeStatus.name}")',
     "dispute_submit_evidence":              '    println("Dispute status: ${response.disputeStatus.name}")',
@@ -2870,9 +2908,13 @@ def _rust_struct_lines(
             lines.append(f"{pad}{field}: {wrap(str(val))},{cmt_part}")
         elif isinstance(val, str):
             if child_msg and _is_proto_enum(child_msg):
-                # For proto enums, convert string value to enum variant
-                # e.g., "USD" -> Currency::Usd
-                variant = "".join(word.capitalize() for word in val.lower().split("_"))
+                # For proto enums, convert the proto value to the prost variant.
+                # prost strips the enum-name prefix from each value (e.g. HttpMethod +
+                # HTTP_METHOD_POST -> Post), so replicate that before PascalCasing.
+                # Enums whose values lack the prefix are unaffected (Currency + USD -> Usd).
+                _screaming = re.sub(r"(?<!^)(?=[A-Z])", "_", child_msg).upper()
+                _val = val[len(_screaming) + 1:] if val.upper().startswith(_screaming + "_") else val
+                variant = "".join(word.capitalize() for word in _val.lower().split("_"))
                 expr = f"{child_msg}::{variant}.into()"
                 lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
                 continue
@@ -2887,6 +2929,10 @@ def _rust_struct_lines(
                 expr = f"Secret::new({json.dumps(val)}.to_string())"
                 lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
                 continue
+            elif child_msg == "bytes":
+                # `bytes` proto fields are Vec<u8> in prost, not String.
+                expr = f"{json.dumps(val)}.as_bytes().to_vec()"
+                lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
             else:
                 expr = f"{json.dumps(val)}.to_string()"
                 lines.append(f"{pad}{field}: {wrap(expr)},{cmt_part}")
@@ -3417,7 +3463,11 @@ def render_consolidated_rust(
         # Also account for the variable field that's passed as a parameter
         missing = set(proto_fields.keys()) - payload_fields - {param_name}
         default_suffix = "\n        ..Default::default()" if missing else ""
+        # Inbound-only flows (e.g. handle_event) have no runnable process_ fn, so their builder
+        # is uncalled; allow(dead_code) matches the suppression already used on process_* fns.
+        allow = "#[allow(dead_code)]\n" if flow_key in _UNSUPPORTED_FLOWS else ""
         return (
+            f"{allow}"
             f"pub fn build_{flow_key}_request({param_name}: {param_type}) -> {grpc_req_b} {{\n"
             f"    {grpc_req_b} {{\n"
             f"{struct_body}{default_suffix}\n"
@@ -3433,7 +3483,11 @@ def render_consolidated_rust(
         payload_fields = {_to_snake(k) for k in proto_req.keys()}
         missing = set(proto_fields.keys()) - payload_fields
         default_suffix = "\n        ..Default::default()" if missing else ""
+        # Inbound-only flows (e.g. handle_event) have no runnable process_ fn, so their builder
+        # is uncalled; allow(dead_code) matches the suppression already used on process_* fns.
+        allow = "#[allow(dead_code)]\n" if flow_key in _UNSUPPORTED_FLOWS else ""
         return (
+            f"{allow}"
             f"pub fn build_{flow_key}_request() -> {grpc_req_b} {{\n"
             f"    {grpc_req_b} {{\n"
             f"{struct_body}{default_suffix}\n"
@@ -3569,7 +3623,10 @@ def render_consolidated_rust(
         rpc_name  = meta.get("rpc_name", flow_key)
         pm_part   = f" ({pm_label})" if pm_label else ""
 
-        if flow_key == "authorize":
+        if svc == "EventService":
+            # EventService responses (parse/handle) carry no .status(); report the response.
+            status_block = '    Ok(format!("{response:?}"))'
+        elif flow_key == "authorize":
             status_block = (
                 '    match response.status() {\n'
                 '        PaymentStatus::Failure | PaymentStatus::AuthorizationFailed\n'
@@ -3587,7 +3644,7 @@ def render_consolidated_rust(
             )
         elif flow_key == "tokenize":
             status_block = '    Ok(format!("token: {}", response.payment_method_token))'
-        elif flow_key == "create_customer":
+        elif flow_key in ("create_customer", "customer_create"):
             status_block = '    Ok(format!("customer_id: {}", response.connector_customer_id))'
         elif flow_key in ("dispute_accept", "dispute_defend", "dispute_submit_evidence"):
             status_block = '    Ok(format!("dispute_status: {:?}", response.dispute_status()))'
@@ -3612,11 +3669,16 @@ def render_consolidated_rust(
                 f"}}"
             )
         elif flow_key in has_no_param_builder:
+            if svc == "EventService":
+                # EventService client methods are synchronous, single-argument calls.
+                call_line = f"    let response = client.{_get_client_method(flow_key)}(build_{flow_key}_request())?;"
+            else:
+                call_line = f"    let response = client.{_get_client_method(flow_key)}(build_{flow_key}_request(), &HashMap::new(), None).await?;"
             func_blocks.append(
                 f"// Flow: {svc}.{rpc_name}{pm_part}\n"
                 f"#[allow(dead_code)]\n"
                 f"pub async fn {process_fn_name}(client: &ConnectorClient, _merchant_transaction_id: &str) -> Result<String, Box<dyn std::error::Error>> {{\n"
-                f"    let response = client.{_get_client_method(flow_key)}(build_{flow_key}_request(), &HashMap::new(), None).await?;\n"
+                f"{call_line}\n"
                 f"{status_block}\n"
                 f"}}"
             )

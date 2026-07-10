@@ -1,0 +1,9 @@
+{
+  "suite": "RecurringPaymentService/Revoke",
+  "suite_type": "dependent",
+  "depends_on": [
+    "CustomerService/Create",
+    "PaymentService/SetupRecurring"
+  ],
+  "strict_dependencies": true
+}

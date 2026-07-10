@@ -224,8 +224,9 @@ pub use self::ppro::Ppro;
 pub mod fiservcommercehub;
 pub use self::fiservcommercehub::Fiservcommercehub;
 
-pub mod sanlam;
-pub use self::sanlam::Sanlam;
+pub mod absa_sanlam;
+pub mod sanlam_common;
+pub use self::absa_sanlam::AbsaSanlam;
 
 pub mod truelayer;
 pub use self::truelayer::Truelayer;
@@ -245,5 +246,39 @@ pub use self::itaubank::Itaubank;
 pub mod pinelabs_online;
 pub use self::pinelabs_online::PinelabsOnline;
 
+pub mod easebuzz;
+pub use self::easebuzz::Easebuzz;
+
 pub mod imerchantsolutions;
 pub use self::imerchantsolutions::Imerchantsolutions;
+
+pub mod juspay_upi_stack;
+
+pub mod axisbank;
+pub use self::axisbank::Axisbank;
+
+pub mod tsys_transit;
+pub use self::tsys_transit::TsysTransit;
+pub mod twoc_twop_paco;
+pub use self::twoc_twop_paco::TwocTwopPaco;
+
+pub mod juspay;
+pub use self::juspay::Juspay;
+
+pub mod payconex;
+pub use self::payconex::Payconex;
+pub mod tamara;
+pub use self::tamara::Tamara;
+
+pub mod hyperswitch;
+pub use self::hyperswitch::Hyperswitch;
+pub mod qwikcilver;
+pub use self::qwikcilver::Qwikcilver;
+
+pub mod flywire;
+pub use self::flywire::Flywire;
+pub mod affirm;
+pub use self::affirm::Affirm;
+
+pub mod kount;
+pub use self::kount::Kount;

@@ -18,9 +18,6 @@ const FLOWS = {
   // charge: RecurringPaymentService.Charge — Charge using an existing stored recurring payment instruction. Processes repeat payments for subscriptions or recurring billing without collecting payment details.
   charge                                     : { request: "RecurringPaymentServiceChargeRequest", response: "RecurringPaymentServiceChargeResponse" },
 
-  // create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
-  create                                     : { request: "CustomerServiceCreateRequest", response: "CustomerServiceCreateResponse" },
-
   // create_client_authentication_token: MerchantAuthenticationService.CreateClientAuthenticationToken — Initialize client-facing SDK sessions for wallets, device fingerprinting, etc. Returns structured data the client SDK needs to render payment/verification UI.
   create_client_authentication_token         : { request: "MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest", response: "MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse" },
 
@@ -33,8 +30,14 @@ const FLOWS = {
   // create_server_session_authentication_token: MerchantAuthenticationService.CreateServerSessionAuthenticationToken — Create a server-side session with the connector. Establishes session state for multi-step operations like 3DS verification or wallet authorization.
   create_server_session_authentication_token : { request: "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest", response: "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse" },
 
+  // customer_create: CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information.
+  customer_create                            : { request: "CustomerServiceCreateRequest", response: "CustomerServiceCreateResponse" },
+
   // defend: DisputeService.Defend — Submit defense with reason code for dispute. Presents formal argument against customer's chargeback claim with supporting documentation.
   defend                                     : { request: "DisputeServiceDefendRequest", response: "DisputeServiceDefendResponse" },
+
+  // eligibility: PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)
+  eligibility                                : { request: "PaymentMethodServiceEligibilityRequest", response: "PaymentMethodServiceEligibilityResponse" },
 
   // get: PaymentService.Get — Retrieve current payment status from the payment processor. Enables synchronization between your system and payment processors for accurate state tracking.
   get                                        : { request: "PaymentServiceGetRequest", response: "PaymentServiceGetResponse" },
@@ -69,8 +72,14 @@ const FLOWS = {
   // post_authenticate: PaymentMethodAuthenticationService.PostAuthenticate — Validate authentication results with the issuing bank. Processes bank's authentication decision to determine if payment can proceed.
   post_authenticate                          : { request: "PaymentMethodAuthenticationServicePostAuthenticateRequest", response: "PaymentMethodAuthenticationServicePostAuthenticateResponse" },
 
+  // post_risk_check: FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud.
+  post_risk_check                            : { request: "FrmServicePostRiskCheckRequest", response: "FrmServicePostRiskCheckResponse" },
+
   // pre_authenticate: PaymentMethodAuthenticationService.PreAuthenticate — Initiate 3DS flow before payment authorization. Collects device data and prepares authentication context for frictionless or challenge-based verification.
   pre_authenticate                           : { request: "PaymentMethodAuthenticationServicePreAuthenticateRequest", response: "PaymentMethodAuthenticationServicePreAuthenticateResponse" },
+
+  // pre_risk_check: FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review.
+  pre_risk_check                             : { request: "FrmServicePreRiskCheckRequest", response: "FrmServicePreRiskCheckResponse" },
 
   // proxy_authorize: PaymentService.ProxyAuthorize — Authorize using vault-aliased card data. Proxy substitutes before connector.
   proxy_authorize                            : { request: "PaymentServiceProxyAuthorizeRequest", response: "PaymentServiceAuthorizeResponse" },
@@ -95,6 +104,9 @@ const FLOWS = {
 
   // submit_evidence: DisputeService.SubmitEvidence — Upload evidence to dispute customer chargeback. Provides documentation like receipts and delivery proof to contest fraudulent transaction claims.
   submit_evidence                            : { request: "DisputeServiceSubmitEvidenceRequest", response: "DisputeServiceSubmitEvidenceResponse" },
+
+  // surcharge_calculate: SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing.
+  surcharge_calculate                        : { request: "SurchargeServiceCalculateRequest", response: "SurchargeServiceCalculateResponse" },
 
   // token_authorize: PaymentService.TokenAuthorize — Authorize using a connector-issued payment method token.
   token_authorize                            : { request: "PaymentServiceTokenAuthorizeRequest", response: "PaymentServiceAuthorizeResponse" },

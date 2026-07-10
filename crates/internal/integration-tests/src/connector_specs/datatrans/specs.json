@@ -1,12 +1,12 @@
 {
   "connector": "datatrans",
   "supported_suites": [
-    "authorize",
-    "capture",
-    "client_authentication_token",
-    "get",
-    "refund",
-    "refund_sync",
-    "void"
+    "PaymentService/Authorize",
+    "PaymentService/Capture",
+    "MerchantAuthenticationService/CreateClientAuthenticationToken",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "PaymentService/Void"
   ]
 }

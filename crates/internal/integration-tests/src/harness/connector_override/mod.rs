@@ -10,6 +10,7 @@ mod default;
 mod helcim;
 mod json_merge;
 mod loader;
+mod redsys;
 
 /// Connector-specific behavior extension points.
 ///
@@ -41,7 +42,7 @@ pub trait ConnectorOverride: Send + Sync {
         // 2. For handle_event suite: load webhook_payload.json as an
         //    additional merge-patch layer, then run post-merge transforms
         //    (base64-encode body, compute HMAC signatures, inject webhook_secrets).
-        if suite == "handle_event" {
+        if suite == "EventService/HandleEvent" {
             apply_webhook_payload_overrides(self.connector_name(), scenario, grpc_req)?;
         }
 
@@ -79,10 +80,25 @@ impl OverrideRegistry {
             return Box::new(helcim::HelcimConnectorOverride::new());
         }
 
+        if connector.eq_ignore_ascii_case("redsys") {
+            return Box::new(redsys::RedsysConnectorOverride::new());
+        }
+
         Box::new(default::DefaultConnectorOverride::new(
             connector.to_string(),
         ))
     }
+}
+
+pub use loader::PreRequestHttpHook;
+
+/// Returns the optional `pre_request_http` hook spec for a scenario.
+pub fn connector_pre_request_http_hook(
+    connector: &str,
+    suite: &str,
+    scenario: &str,
+) -> Result<Option<PreRequestHttpHook>, ScenarioError> {
+    loader::load_scenario_pre_request_http(connector, suite, scenario)
 }
 
 /// Applies connector override patches to request payload and assertions.

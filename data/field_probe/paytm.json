@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by paytm connector"
       }
     },
     "authorize": {
@@ -119,6 +120,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
@@ -151,6 +156,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
       "Giropay": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
@@ -158,6 +167,10 @@
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -199,6 +212,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
       "Klarna": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
@@ -232,6 +249,14 @@
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
@@ -292,8 +317,8 @@
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -306,6 +331,10 @@
       "PaypalSdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Paze": {
         "status": "not_supported",
@@ -371,11 +400,27 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
       "Sofort": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
       "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
+      "Twint": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
       },
@@ -468,6 +513,10 @@
           "body": "{\"head\":{\"version\":\"v1\",\"requestTimestamp\":\"0000000000\",\"channelId\":null,\"txnToken\":\"probe_session_token\"},\"body\":{\"mid\":\"probe_merchant\",\"orderId\":\"probe_txn_001\",\"requestType\":\"NATIVE\",\"paymentMode\":\"UPI_INTENT\",\"paymentFlow\":\"NONE\"}}"
         }
       },
+      "Vipps": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
+      },
       "WeChatPayQr": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only UPI payment methods are supported by this Paytm transformer"
@@ -479,27 +528,26 @@
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for paytm"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by paytm connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by paytm connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by paytm connector"
       }
     },
     "create_server_session_authentication_token": {
@@ -526,14 +574,22 @@
         }
       }
     },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for paytm"
+      }
+    },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for paytm"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for paytm"
       }
     },
     "dispute_get": {
@@ -543,12 +599,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for paytm"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by paytm connector"
       }
     },
     "get": {
@@ -580,7 +638,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by paytm connector"
       }
     },
     "parse_event": {
@@ -588,14 +647,21 @@
         "status": "not_implemented"
       }
     },
-    "post_authenticate": {
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by paytm connector"
+      }
+    },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by paytm connector"
       }
     },
     "proxy_authorize": {
@@ -606,37 +672,44 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for paytm"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for paytm"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for paytm"
       }
     },
     "refund": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for paytm"
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for paytm"
       }
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for paytm"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for paytm"
       }
     },
     "token_authorize": {
@@ -647,12 +720,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for paytm"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for paytm"
       }
     },
     "verify_redirect": {
@@ -662,7 +737,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for paytm"
       }
     }
   }

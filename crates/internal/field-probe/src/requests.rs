@@ -39,7 +39,8 @@ use grpc_api_types::payments::{
     PaymentClientAuthenticationContext, PaymentMethod,
     PaymentMethodAuthenticationServiceAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateRequest, PaymentMethodServiceTokenizeRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateRequest,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceTokenizeRequest,
     PaymentServiceAuthorizeRequest, PaymentServiceCaptureRequest, PaymentServiceCreateOrderRequest,
     PaymentServiceGetRequest, PaymentServiceIncrementalAuthorizationRequest,
     PaymentServiceProxyAuthorizeRequest, PaymentServiceProxySetupRecurringRequest,
@@ -197,6 +198,7 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
                     connector_mandate_id: Some("probe-mandate-123".to_string()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 },
             )),
         }),
@@ -204,14 +206,25 @@ pub(crate) fn base_recurring_charge_request() -> RecurringPaymentServiceChargeRe
     }
 }
 
-pub(crate) fn base_create_customer_request() -> CustomerServiceCreateRequest {
-    // create_customer is explicitly about registering a customer — pre-populate
+pub(crate) fn base_customer_create_request() -> CustomerServiceCreateRequest {
+    // customer_create is explicitly about registering a customer — pre-populate
     // all standard customer fields so connectors get a complete customer record.
     CustomerServiceCreateRequest {
         merchant_customer_id: Some("cust_probe_123".to_string()),
         customer_name: Some("John Doe".to_string()),
         email: Some(Secret::new("test@example.com".to_string())),
-        phone_number: Some("4155552671".to_string()),
+        phone_number: Some(Secret::new("4155552671".to_string())),
+        ..Default::default()
+    }
+}
+
+pub(crate) fn base_eligibility_request() -> PaymentMethodServiceEligibilityRequest {
+    PaymentMethodServiceEligibilityRequest {
+        amount: Some(usd_money(1000)),
+        address: Some(PaymentAddress {
+            billing_address: Some(Address::default()),
+            shipping_address: None,
+        }),
         ..Default::default()
     }
 }
@@ -342,11 +355,15 @@ pub(crate) fn base_defend_dispute_request() -> DisputeServiceDefendRequest {
 
 fn base_card_proxy() -> ProxyCardDetails {
     ProxyCardDetails {
+        // card_number holds a vault token in production (e.g. "token_123456").
+        // We use a real-looking number here only for field-probe/testing purposes.
+        // card_network MUST be set explicitly since BIN detection is not possible on vault tokens.
         card_number: Some(Secret::new("4111111111111111".to_string())),
         card_exp_month: Some(Secret::new("03".to_string())),
         card_exp_year: Some(Secret::new("2030".to_string())),
         card_cvc: Some(Secret::new("123".to_string())),
         card_holder_name: Some(Secret::new("John Doe".to_string())),
+        card_network: Some(grpc_api_types::payments::CardNetwork::Visa as i32),
         ..Default::default()
     }
 }
@@ -386,9 +403,11 @@ pub(crate) fn base_tokenized_setup_recurring_request() -> PaymentServiceTokenSet
         setup_mandate_details: Some(proto::SetupMandateDetails {
             mandate_type: Some(proto::MandateType {
                 mandate_type: Some(proto::mandate_type::MandateType::MultiUse(
+                    #[allow(deprecated)]
                     proto::MandateAmountData {
                         amount: 0,
                         currency: proto::Currency::Usd as i32,
+                        amount_money: Some(usd_money(0)),
                         ..Default::default()
                     },
                 )),

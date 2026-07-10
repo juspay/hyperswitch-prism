@@ -141,12 +141,16 @@ fn create_authorize_request(capture_method: CaptureMethod) -> PaymentServiceAuth
             "https://hyperswitch.io/connector-service/authnet_webhook_grpcurl".to_string(),
         ),
         customer: Some(grpc_api_types::payments::Customer {
+            customer_document_details: None,
             email: Some(TEST_EMAIL.to_string().into()),
             name: None,
             id: None,
             connector_customer_id: None,
             phone_number: None,
             phone_country_code: None,
+            first_name: None,
+            last_name: None,
+            salutation: None,
         }),
         address: Some(grpc_api_types::payments::PaymentAddress::default()),
         auth_type: i32::from(AuthenticationType::NoThreeDs),
@@ -178,6 +182,10 @@ fn create_payment_sync_request(transaction_id: &str) -> PaymentServiceGetRequest
         connector_order_reference_id: None,
         test_mode: None,
         payment_experience: None,
+        split_payments: None,
+        merchant_request_id: None,
+        payment_method_type: None,
+        mandate_reference: None,
     }
 }
 
@@ -189,6 +197,7 @@ fn create_payment_capture_request(transaction_id: &str) -> PaymentServiceCapture
             minor_amount: TEST_AMOUNT,
             currency: i32::from(Currency::Myr),
         }),
+        order_tax_amount: None,
         multiple_capture_data: None,
         merchant_capture_id: None,
         ..Default::default()
@@ -243,6 +252,10 @@ fn create_refund_sync_request(transaction_id: &str, refund_id: &str) -> RefundSe
         state: None,
         connector_feature_data: None,
         payment_method_type: None,
+        refund_amount: None,
+        split_refunds: None,
+        merchant_request_id: None,
+        connector_order_id: None,
     }
 }
 
@@ -277,8 +290,7 @@ async fn test_payment_authorization_auto_capture() {
         add_fiuu_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -302,8 +314,7 @@ async fn test_payment_authorization_manual_capture() {
         add_fiuu_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -354,8 +365,7 @@ async fn test_payment_sync_auto_capture() {
         add_fiuu_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -400,8 +410,7 @@ async fn test_refund() {
         add_fiuu_metadata(&mut grpc_request);
 
         // Send the request
-        let response = client
-            .authorize(grpc_request)
+        let response = Box::pin(client.authorize(grpc_request))
             .await
             .expect("gRPC authorize call failed")
             .into_inner();
@@ -452,8 +461,7 @@ async fn test_refund_sync() {
             add_fiuu_metadata(&mut grpc_request);
 
             // Send the request
-            let response = client
-                .authorize(grpc_request)
+            let response = Box::pin(client.authorize(grpc_request))
                 .await
                 .expect("gRPC authorize call failed")
                 .into_inner();
@@ -530,8 +538,7 @@ async fn test_payment_void() {
         add_fiuu_metadata(&mut auth_grpc_request);
 
         // Send the auth request
-        let auth_response = client
-            .authorize(auth_grpc_request)
+        let auth_response = Box::pin(client.authorize(auth_grpc_request))
             .await
             .expect("gRPC payment_authorize call failed")
             .into_inner();

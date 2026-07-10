@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by cashtocode connector"
       }
     },
     "authorize": {
@@ -119,6 +120,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "Dana": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
@@ -151,6 +156,10 @@
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
+      "GCash": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
       "Giropay": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
@@ -158,6 +167,10 @@
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -199,6 +212,10 @@
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
       "Klarna": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
@@ -232,6 +249,14 @@
         "error": "The given currency is not configured with the given connector"
       },
       "MiniStop": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
@@ -293,7 +318,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "The given currency is not configured with the given connector"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -306,6 +331,10 @@
       "PaypalSdk": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Paze": {
         "status": "not_supported",
@@ -371,11 +400,27 @@
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
       "Sofort": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
+      "Swish": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
       "Trustly": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
+      "Twint": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
@@ -391,6 +436,10 @@
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
       },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "The given currency is not configured with the given connector"
+      },
       "WeChatPayQr": {
         "status": "not_supported",
         "error": "The given currency is not configured with the given connector"
@@ -402,42 +451,50 @@
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "capture flow not supported by cashtocode connector"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by cashtocode connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by cashtocode connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by cashtocode connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by cashtocode connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by cashtocode connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by cashtocode connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by cashtocode connector"
       }
     },
     "dispute_get": {
@@ -447,17 +504,20 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by cashtocode connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by cashtocode connector"
       }
     },
     "get": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_sync flow for cashtocode"
       }
     },
     "handle_event": {
@@ -482,7 +542,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by cashtocode connector"
       }
     },
     "parse_event": {
@@ -504,14 +565,21 @@
         }
       }
     },
-    "post_authenticate": {
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by cashtocode connector"
+      }
+    },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by cashtocode connector"
       }
     },
     "proxy_authorize": {
@@ -522,37 +590,44 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for cashtocode"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for cashtocode"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by cashtocode connector"
       }
     },
     "refund": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for cashtocode"
       }
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for cashtocode"
       }
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by cashtocode connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for cashtocode"
       }
     },
     "token_authorize": {
@@ -563,12 +638,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for cashtocode"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by cashtocode connector"
       }
     },
     "verify_redirect": {
@@ -578,7 +655,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void flow not supported by cashtocode connector"
       }
     }
   }

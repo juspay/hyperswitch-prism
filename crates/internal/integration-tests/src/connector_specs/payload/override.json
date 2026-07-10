@@ -1,1 +1,164 @@
-{}
+{
+  "PaymentService/SetupRecurring": {
+    "PaymentService/SetupRecurring": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      },
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 0
+        }
+      }
+    },
+    "setup_recurring": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      },
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 0
+        }
+      }
+    },
+    "setup_recurring_with_order_context": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      },
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 0
+        }
+      }
+    },
+    "setup_recurring_with_webhook": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      },
+      "grpc_req": {
+        "amount": {
+          "minor_amount": 0
+        }
+      }
+    }
+  },
+  "RecurringPaymentService/Charge": {
+    "RecurringPaymentService/Charge": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      },
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "12",
+            "card_exp_year": "2030",
+            "card_cvc": "123"
+          }
+        }
+      }
+    },
+    "recurring_charge": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      },
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "12",
+            "card_exp_year": "2030",
+            "card_cvc": "123"
+          }
+        }
+      }
+    },
+    "recurring_charge_low_amount": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      },
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "12",
+            "card_exp_year": "2030",
+            "card_cvc": "123"
+          }
+        }
+      }
+    },
+    "recurring_charge_with_order_context": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      },
+      "grpc_req": {
+        "payment_method": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "12",
+            "card_exp_year": "2030",
+            "card_cvc": "123"
+          }
+        }
+      }
+    }
+  },
+  "PaymentService/Authorize": {
+    "no3ds_auto_capture_credit_card": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      }
+    },
+    "no3ds_auto_capture_debit_card": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      }
+    }
+  },
+  "PaymentService/Get": {
+    "sync_payment": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      }
+    },
+    "sync_payment_with_handle_response": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      }
+    }
+  },
+  "PaymentService/Refund": {
+    "refund_full_amount": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      }
+    },
+    "refund_partial_amount": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      }
+    },
+    "refund_with_reason": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      }
+    }
+  },
+  "RefundService/Get": {
+    "refund_sync": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      }
+    },
+    "RefundService/Get": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      }
+    },
+    "refund_sync_with_reason": {
+      "pre_request_http": {
+        "timeout_secs": 31
+      }
+    }
+  }
+}

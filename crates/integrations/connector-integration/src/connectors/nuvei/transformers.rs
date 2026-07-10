@@ -1,4 +1,4 @@
-use common_utils::{consts, pii, types::StringMajorUnit};
+use common_utils::{consts, pii, request::Method, types::StringMajorUnit};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, ClientAuthenticationToken, CreateOrder, PSync, RSync, Refund,
@@ -13,19 +13,28 @@ use domain_types::{
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
         ResponseId, SetupMandateRequestData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        BankTransferData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
+        BankDebitData, BankRedirectData, BankTransferData, PaymentMethodData,
+        PaymentMethodDataTypes, RawCardNumber,
     },
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, FlowStatus},
     router_data_v2::RouterDataV2,
+    router_response_types::RedirectForm,
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use url::Url;
 
 use super::NuveiRouterData;
 use crate::types::ResponseRouterData;
 use domain_types::errors::{ConnectorError, IntegrationError};
+
+// Nuvei's APM (Alternative Payment Method) identifier for ACH. Required literal
+// per Nuvei's API; reused by both BankTransfer::AchBankTransfer and
+// BankDebit::AchBankDebit. See https://docs.nuvei.com/documentation/us-and-canada-guides/ach/
+const NUVEI_ACH_PAYMENT_METHOD: &str = "apmgw_ACH";
 
 // Auth Type
 #[derive(Debug, Clone)]
@@ -164,17 +173,90 @@ pub struct NuveiCard<
     pub cvv: Secret<String>,
 }
 
-// ACH Bank Transfer specific structures
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum AlternativePaymentMethodType {
+    #[serde(rename = "apmgw_Giropay")]
+    Giropay,
+    #[serde(rename = "apmgw_Sofort")]
+    Sofort,
+    #[serde(rename = "apmgw_iDeal")]
+    Ideal,
+    #[serde(rename = "apmgw_EPS")]
+    Eps,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum NuveiBIC {
+    #[serde(rename = "ABNANL2A")]
+    Abnamro,
+    #[serde(rename = "ASNBNL21")]
+    AsnBank,
+    #[serde(rename = "BUNQNL2A")]
+    Bunq,
+    #[serde(rename = "INGBNL2A")]
+    Ing,
+    #[serde(rename = "KNABNL2H")]
+    Knab,
+    #[serde(rename = "RABONL2U")]
+    Rabobank,
+    #[serde(rename = "RBRBNL21")]
+    Regiobank,
+    #[serde(rename = "SNSBNL2A")]
+    SnsBank,
+    #[serde(rename = "TRIONL2U")]
+    TriodosBank,
+    #[serde(rename = "FVLBNL22")]
+    VanLanschotBankiers,
+    #[serde(rename = "MOYONL21")]
+    Moneyou,
+}
+
+impl TryFrom<common_enums::BankNames> for NuveiBIC {
+    type Error = Report<IntegrationError>;
+
+    fn try_from(bank: common_enums::BankNames) -> Result<Self, Self::Error> {
+        match bank {
+            common_enums::BankNames::AbnAmro => Ok(Self::Abnamro),
+            common_enums::BankNames::AsnBank => Ok(Self::AsnBank),
+            common_enums::BankNames::Bunq => Ok(Self::Bunq),
+            common_enums::BankNames::Ing => Ok(Self::Ing),
+            common_enums::BankNames::Knab => Ok(Self::Knab),
+            common_enums::BankNames::Rabobank => Ok(Self::Rabobank),
+            common_enums::BankNames::Regiobank => Ok(Self::Regiobank),
+            common_enums::BankNames::SnsBank => Ok(Self::SnsBank),
+            common_enums::BankNames::TriodosBank => Ok(Self::TriodosBank),
+            common_enums::BankNames::VanLanschot => Ok(Self::VanLanschotBankiers),
+            common_enums::BankNames::Moneyou => Ok(Self::Moneyou),
+            _ => Err(IntegrationError::NotSupported {
+                message: format!("Bank not supported by Nuvei iDEAL: {}", bank),
+                connector: "nuvei",
+                context: Default::default(),
+            }
+            .into()),
+        }
+    }
+}
+
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
-pub struct NuveiAlternativePaymentMethod {
-    #[serde(rename = "paymentMethod")]
-    pub payment_method: String,
-    #[serde(rename = "AccountNumber")]
-    pub account_number: Secret<String>,
-    #[serde(rename = "RoutingNumber")]
-    pub routing_number: Secret<String>,
-    #[serde(rename = "SECCode", skip_serializing_if = "Option::is_none")]
-    pub sec_code: Option<String>,
+#[serde(untagged)]
+pub enum NuveiAlternativePaymentMethod {
+    Ach {
+        #[serde(rename = "paymentMethod")]
+        payment_method: String,
+        #[serde(rename = "AccountNumber")]
+        account_number: Secret<String>,
+        #[serde(rename = "RoutingNumber")]
+        routing_number: Secret<String>,
+        #[serde(rename = "SECCode", skip_serializing_if = "Option::is_none")]
+        sec_code: Option<String>,
+    },
+    Redirect {
+        #[serde(rename = "paymentMethod")]
+        payment_method: AlternativePaymentMethodType,
+        #[serde(rename = "BIC")]
+        bank_id: Option<NuveiBIC>,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -260,6 +342,15 @@ pub struct NuveiPaymentResponse {
     pub client_unique_id: Option<String>,
     pub client_request_id: Option<String>,
     pub internal_request_id: Option<i64>,
+    #[serde(rename = "paymentOption")]
+    pub payment_option: Option<PaymentOption>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaymentOption {
+    #[serde(rename = "redirectUrl")]
+    pub redirect_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -471,7 +562,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         NuveiRouterData<
             RouterDataV2<
                 domain_types::connector_flow::ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 domain_types::connector_types::ServerSessionAuthenticationTokenRequestData,
                 domain_types::connector_types::ServerSessionAuthenticationTokenResponseData,
             >,
@@ -485,7 +576,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: NuveiRouterData<
             RouterDataV2<
                 domain_types::connector_flow::ServerSessionAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 domain_types::connector_types::ServerSessionAuthenticationTokenRequestData,
                 domain_types::connector_types::ServerSessionAuthenticationTokenResponseData,
             >,
@@ -525,7 +616,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<NuveiSessionTokenResponse, Self>>
     for RouterDataV2<
         domain_types::connector_flow::ServerSessionAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         domain_types::connector_types::ServerSessionAuthenticationTokenRequestData,
         domain_types::connector_types::ServerSessionAuthenticationTokenResponseData,
     >
@@ -547,16 +638,12 @@ impl TryFrom<ResponseRouterData<NuveiSessionTokenResponse, Self>>
                 .unwrap_or_else(|| "Unknown error".to_string());
 
             return Ok(Self {
-                resource_common_data: PaymentFlowData {
-                    status: common_enums::AttemptStatus::Failure,
-                    ..router_data.resource_common_data.clone()
-                },
                 response: Err(domain_types::router_data::ErrorResponse {
                     code: error_code,
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -580,11 +667,6 @@ impl TryFrom<ResponseRouterData<NuveiSessionTokenResponse, Self>>
             };
 
         Ok(Self {
-            resource_common_data: PaymentFlowData {
-                status: common_enums::AttemptStatus::Pending,
-                session_token: Some(session_token),
-                ..router_data.resource_common_data.clone()
-            },
             response: Ok(session_response_data),
             ..router_data.clone()
         })
@@ -683,6 +765,20 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Extract auth data
         let auth = NuveiAuthType::try_from(&router_data.connector_config)?;
 
+        // Extract billing email up-front so ACH arms can populate `user_token_id`
+        // from it. Nuvei requires `userTokenId` for ACH (BankDebit/BankTransfer)
+        // but not for cards, so it is populated conditionally below.
+        let email = router_data
+            .resource_common_data
+            .get_optional_billing_email()
+            .or_else(|| router_data.request.email.clone())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "billing_address.email",
+                context: Default::default(),
+            })?;
+
+        let mut user_token_id: Option<String> = None;
+
         // Extract payment method data
         let payment_option = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
@@ -705,6 +801,49 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }),
                     alternative_payment_method: None,
                     user_payment_option_id: None,
+                }
+            }
+            PaymentMethodData::BankDebit(bank_debit_data) => {
+                match bank_debit_data {
+                    BankDebitData::AchBankDebit {
+                        account_number,
+                        routing_number,
+                        bank_account_holder_name: _,
+                        bank_holder_type,
+                        ..
+                    } => {
+                        // SEC (Standard Entry Class) code: CCD for Business,
+                        // WEB for Personal/consumer-initiated entries.
+                        let sec_code = Some(
+                            match bank_holder_type {
+                                Some(common_enums::BankHolderType::Business) => "CCD",
+                                Some(common_enums::BankHolderType::Personal) | None => "WEB",
+                            }
+                            .to_string(),
+                        );
+
+                        // Nuvei requires userTokenId for ACH flows.
+                        user_token_id = Some(email.peek().to_string());
+
+                        NuveiPaymentOption {
+                            card: None,
+                            alternative_payment_method: Some(NuveiAlternativePaymentMethod::Ach {
+                                payment_method: NUVEI_ACH_PAYMENT_METHOD.to_string(),
+                                account_number: Secret::new(account_number.peek().to_string()),
+                                routing_number: Secret::new(routing_number.peek().to_string()),
+                                sec_code,
+                            }),
+                            user_payment_option_id: None,
+                        }
+                    }
+                    other => {
+                        return Err(IntegrationError::NotSupported {
+                            message: format!("{:?} is not supported for Nuvei", other),
+                            connector: "nuvei",
+                            context: Default::default(),
+                        }
+                        .into())
+                    }
                 }
             }
             PaymentMethodData::BankTransfer(bank_transfer_data) => {
@@ -747,10 +886,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             .and_then(|v: &serde_json::Value| v.as_str())
                             .map(String::from);
 
+                        // Nuvei requires userTokenId for ACH flows.
+                        user_token_id = Some(email.peek().to_string());
+
                         NuveiPaymentOption {
                             card: None,
-                            alternative_payment_method: Some(NuveiAlternativePaymentMethod {
-                                payment_method: "apmgw_ACH".to_string(),
+                            alternative_payment_method: Some(NuveiAlternativePaymentMethod::Ach {
+                                payment_method: NUVEI_ACH_PAYMENT_METHOD.to_string(),
                                 account_number: Secret::new(account_number.to_string()),
                                 routing_number: Secret::new(routing_number.to_string()),
                                 sec_code,
@@ -768,6 +910,47 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     }
                 }
             }
+            PaymentMethodData::BankRedirect(ref redirect_data) => {
+                let payment_method = match redirect_data {
+                    BankRedirectData::Eps { .. } => AlternativePaymentMethodType::Eps,
+                    BankRedirectData::Giropay { .. } => AlternativePaymentMethodType::Giropay,
+                    BankRedirectData::Ideal { bank_name } => {
+                        if let Some(ref bank) = bank_name {
+                            let _ = NuveiBIC::try_from(*bank)?;
+                        }
+                        AlternativePaymentMethodType::Ideal
+                    }
+                    BankRedirectData::Sofort { .. } => AlternativePaymentMethodType::Sofort,
+                    other => {
+                        return Err(IntegrationError::NotSupported {
+                            message: format!(
+                                "Bank redirect method {:?} not supported by Nuvei",
+                                other
+                            ),
+                            connector: "nuvei",
+                            context: Default::default(),
+                        }
+                        .into())
+                    }
+                };
+
+                let bank_id = match redirect_data {
+                    BankRedirectData::Ideal { bank_name } => bank_name
+                        .as_ref()
+                        .map(|bank| NuveiBIC::try_from(*bank))
+                        .transpose()?,
+                    _ => None,
+                };
+
+                NuveiPaymentOption {
+                    card: None,
+                    alternative_payment_method: Some(NuveiAlternativePaymentMethod::Redirect {
+                        payment_method,
+                        bank_id,
+                    }),
+                    user_payment_option_id: None,
+                }
+            }
             PaymentMethodData::PaymentMethodToken(token_data) => NuveiPaymentOption {
                 card: None,
                 alternative_payment_method: None,
@@ -782,17 +965,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // Extract billing address - Nuvei requires email, firstName, lastName, and country
-        // Try to get email from billing, if not available, try from request email field
-        let email = router_data
-            .resource_common_data
-            .get_optional_billing_email()
-            .or_else(|| router_data.request.email.clone())
-            .ok_or(IntegrationError::MissingRequiredField {
-                field_name: "billing_address.email",
-                context: Default::default(),
-            })?;
-
+        // Nuvei requires firstName, lastName, and country for the billing address.
+        // (`email` was already extracted above so ACH arms could populate `user_token_id`.)
         let country = router_data
             .resource_common_data
             .get_optional_billing_country()
@@ -925,7 +1099,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             client_request_id,
             amount,
             currency,
-            user_token_id: None,
+            user_token_id,
             client_unique_id: Some(
                 router_data
                     .resource_common_data
@@ -972,7 +1146,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: response.transaction_id.clone(),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1019,15 +1193,24 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 ))
             })?;
 
+        let redirection_data = response
+            .payment_option
+            .as_ref()
+            .and_then(|payment_option| payment_option.redirect_url.clone())
+            .and_then(|url| Url::parse(&url).ok())
+            .map(|url| Box::new(RedirectForm::from((url, Method::Get))));
+
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_transaction_id),
-            redirection_data: None,
+            redirection_data,
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: response.client_request_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1153,7 +1336,7 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: response
                         .transaction_details
                         .as_ref()
@@ -1216,9 +1399,11 @@ impl TryFrom<ResponseRouterData<NuveiSyncResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: transaction_details.client_unique_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1260,7 +1445,7 @@ impl TryFrom<ResponseRouterData<NuveiCaptureResponse, Self>>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: response.transaction_id.clone(),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1300,9 +1485,11 @@ impl TryFrom<ResponseRouterData<NuveiCaptureResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1727,7 +1914,9 @@ impl TryFrom<ResponseRouterData<NuveiVoidResponse, Self>>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::VoidFailed),
+                    attempt_status: Some(FlowStatus::Payment(
+                        common_enums::AttemptStatus::VoidFailed,
+                    )),
                     connector_transaction_id: response.transaction_id.clone(),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -1767,9 +1956,11 @@ impl TryFrom<ResponseRouterData<NuveiVoidResponse, Self>>
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -1819,7 +2010,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         NuveiRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -1833,7 +2024,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: NuveiRouterData<
             RouterDataV2<
                 ClientAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ClientAuthenticationTokenRequestData,
                 PaymentsResponseData,
             >,
@@ -1873,7 +2064,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 impl TryFrom<ResponseRouterData<NuveiClientAuthResponse, Self>>
     for RouterDataV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     >
@@ -1899,7 +2090,7 @@ impl TryFrom<ResponseRouterData<NuveiClientAuthResponse, Self>>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2124,7 +2315,7 @@ impl TryFrom<ResponseRouterData<NuveiOpenOrderResponse, Self>>
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2448,7 +2639,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: response.transaction_id.clone(),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2506,6 +2697,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })
             });
 
@@ -2522,7 +2714,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         "Nuvei SetupMandate response missing userPaymentOptionId".to_string(),
                     ),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: Some(connector_transaction_id),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2538,9 +2730,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: response.client_request_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {
@@ -2804,7 +2998,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     message: error_message.clone(),
                     reason: Some(error_message),
                     status_code: item.http_code,
-                    attempt_status: Some(common_enums::AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(common_enums::AttemptStatus::Failure)),
                     connector_transaction_id: response.transaction_id.clone(),
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2853,9 +3047,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             mandate_reference: None,
             connector_metadata: None,
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: response.client_request_id.clone(),
             incremental_authorization_allowed: None,
             status_code: item.http_code,
+            splits: None,
         };
 
         Ok(Self {

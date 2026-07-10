@@ -7,9 +7,9 @@ import payments.generated.payment_pb2 as _pb2
 class CustomerClient(_ConnectorClientBase):
     """CustomerService flows"""
 
-    def create(self, request, options=None):
+    def customer_create(self, request, options=None):
         """CustomerService.Create — Create customer record in the payment processor system. Stores customer details for future payment operations without re-sending personal information."""
-        return self._execute_flow("create", request, _pb2.CustomerServiceCreateResponse, options)
+        return self._execute_flow("customer_create", request, _pb2.CustomerServiceCreateResponse, options)
 
 class DisputeClient(_ConnectorClientBase):
     """DisputeService flows"""
@@ -36,6 +36,17 @@ class EventClient(_ConnectorClientBase):
     def parse_event(self, request, options=None):
         """EventService.ParseEvent — Parse a raw webhook payload without credentials. Returns resource reference and event type — sufficient to resolve secrets or early-exit."""
         return self._execute_direct("parse_event", request, _pb2.EventServiceParseResponse, options)
+
+class FraudAndRiskManagementClient(_ConnectorClientBase):
+    """FraudAndRiskManagementService flows"""
+
+    def post_risk_check(self, request, options=None):
+        """FraudAndRiskManagementService.PostRiskCheck — Evaluate fraud risk after payment processing. Analyzes payment outcomes and post-transaction signals to refine risk models and detect chargeback fraud."""
+        return self._execute_flow("post_risk_check", request, _pb2.FrmServicePostRiskCheckResponse, options)
+
+    def pre_risk_check(self, request, options=None):
+        """FraudAndRiskManagementService.PreRiskCheck — Evaluate fraud risk before payment processing. Analyzes transaction details, customer behavior, and device fingerprints to determine if the payment should proceed, be rejected, or flagged for manual review."""
+        return self._execute_flow("pre_risk_check", request, _pb2.FrmServicePreRiskCheckResponse, options)
 
 class MerchantAuthenticationClient(_ConnectorClientBase):
     """MerchantAuthenticationService flows"""
@@ -69,6 +80,10 @@ class PaymentMethodAuthenticationClient(_ConnectorClientBase):
 
 class PaymentMethodClient(_ConnectorClientBase):
     """PaymentMethodService flows"""
+
+    def eligibility(self, request, options=None):
+        """PaymentMethodService.Eligibility — Check if the payment method is eligible for the transaction (e.g. BNPL pre-checkout check)"""
+        return self._execute_flow("eligibility", request, _pb2.PaymentMethodServiceEligibilityResponse, options)
 
     def tokenize(self, request, options=None):
         """PaymentMethodService.Tokenize — Tokenize payment method for secure storage. Replaces raw card details with secure token for one-click payments and recurring billing."""
@@ -185,3 +200,10 @@ class RefundClient(_ConnectorClientBase):
     def refund_get(self, request, options=None):
         """RefundService.Get — Retrieve refund status from the payment processor. Tracks refund progress through processor settlement for accurate customer communication."""
         return self._execute_flow("refund_get", request, _pb2.RefundResponse, options)
+
+class SurchargeClient(_ConnectorClientBase):
+    """SurchargeService flows"""
+
+    def surcharge_calculate(self, request, options=None):
+        """SurchargeService.Calculate — Calculate surcharge fees for a payment amount before processing."""
+        return self._execute_flow("surcharge_calculate", request, _pb2.SurchargeServiceCalculateResponse, options)

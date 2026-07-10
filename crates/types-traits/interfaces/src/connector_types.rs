@@ -3,26 +3,36 @@ use std::str::FromStr;
 
 use common_enums::{AttemptStatus, CaptureMethod, PaymentMethod, PaymentMethodType};
 use common_utils::{CustomResult, SecretSerdeValue};
+pub use domain_types::connector_types::WebhookIntegrityCheck;
 use domain_types::{
     connector_flow,
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorEnum, ConnectorSpecifications, ConnectorWebhookSecrets,
-        DisputeDefendData, DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse,
-        EventType, MandateRevokeRequestData, MandateRevokeResponseData, PaymentCreateOrderData,
-        PaymentCreateOrderResponse, PaymentFlowData, PaymentMethodTokenResponse,
-        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData,
-        RedirectDetailsResponse, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
-        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
-        ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SetupMandateRequestData, SubmitEvidenceData, VerifyWebhookSourceFlowData,
-        WebhookDetailsResponse, WebhookResourceReference,
+        CreatePaymentMethodData, CreatePaymentMethodResponseData, DisputeDefendData,
+        DisputeFlowData, DisputeResponseData, DisputeWebhookDetailsResponse, EventType,
+        GetPaymentMethodData, GetPaymentMethodResponseData, MandateRevokeRequestData,
+        MandateRevokeResponseData, PaymentCreateOrderData, PaymentCreateOrderResponse,
+        PaymentFlowData, PaymentMethodEligibilityData, PaymentMethodEligibilityResponse,
+        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RechargeRequestData,
+        RechargeResponseData, RedirectDetailsResponse, RefundFlowData, RefundSyncData,
+        RefundVoidPostRefundData, RefundWebhookDetailsResponse, RefundsData, RefundsResponseData,
+        RepeatPaymentData, RequestDetails, ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SetupMandateRequestData, SubmitEvidenceData,
+        VerifyWebhookSourceFlowData, WebhookDetailsResponse, WebhookResourceReference,
     },
     errors::WebhookError,
+    frm::frm_types::{
+        FrmChargebackReceivedRequest, FrmChargebackReceivedResponse, FrmFlowData,
+        FrmPaymentOutcomeRequest, FrmPaymentOutcomeResponse, FrmRefundProcessedRequest,
+        FrmRefundProcessedResponse, PostRiskCheckRequest, PostRiskCheckResponse,
+        PreRiskCheckRequest, PreRiskCheckResponse,
+    },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
@@ -34,13 +44,17 @@ use domain_types::{
     router_data::ConnectorSpecificConfig,
     router_request_types::VerifyWebhookSourceRequestData,
     router_response_types::VerifyWebhookSourceResponseData,
+    surcharge::surcharge_types::{
+        SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
+        SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
+        SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse,
+    },
     types::{PaymentMethodDataType, PaymentMethodDetails, SupportedPaymentMethods},
 };
 use error_stack::ResultExt;
-use serde_json::Value;
 
 use crate::{
-    api::{ApplicationResponse, ConnectorCommon},
+    api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     decode::BodyDecoding,
     verification::{ConnectorSourceVerificationSecrets, SourceVerification},
@@ -50,6 +64,28 @@ use crate::{
 pub enum IncomingWebhookFlowError {
     ResourceNotFound,
     InternalError,
+}
+
+/// Represents the next authentication step for composite authorize flow.
+/// Connectors implement `next_authentication_step` to guide the flow controller.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuthenticationStep {
+    /// Run PreAuthenticate (typically device data collection setup)
+    PreAuthenticate,
+    /// Run Authenticate (typically challenge initiation)
+    Authenticate,
+    /// Run PostAuthenticate (typically challenge validation)
+    PostAuthenticate,
+    /// Stop authentication loop and proceed to Authorize
+    Authorize,
+}
+
+/// Represents the redirect state for composite authorize flow.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RedirectState {
+    InitialRequest,
+    RedirectWithParams,
+    RedirectWithoutParams,
 }
 
 pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
@@ -62,10 +98,14 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + ServerAuthentication
     + CreateConnectorCustomer
     + PaymentTokenV2<T>
+    + RechargeV2
+    + CreatePaymentMethodV2
+    + GetPaymentMethodV2
     + PaymentVoidV2
     + PaymentVoidPostCaptureV2
     + IncomingWebhook
     + RefundV2
+    + RefundVoidPostRefundV2
     + PaymentCapture
     + SetupMandateV2<T>
     + RepeatPaymentV2<T>
@@ -81,6 +121,34 @@ pub trait ConnectorServiceTrait<T: PaymentMethodDataTypes>:
     + MandateRevokeV2
     + VerifyWebhookSourceV2
     + VerifyRedirectResponse
+    + PaymentMethodEligibilityV2
+{
+}
+
+pub trait SurchargeServiceTrait:
+    ConnectorCommon
+    + ValidationTrait
+    + SurchargeCalculateV2
+    + SurchargePaymentSucceededV2
+    + SurchargeRefundSucceededV2
+{
+}
+
+pub trait FrmServiceTrait:
+    ConnectorCommon
+    + ValidationTrait
+    + ServerAuthentication
+    + PreRiskCheckV2
+    + PostRiskCheckV2
+    + FrmPaymentOutcomeV2
+    + FrmRefundProcessedV2
+    + FrmChargebackReceivedV2
+{
+}
+
+pub trait PayoutServiceTrait:
+    ConnectorCommon
+    + ServerAuthentication
     + PayoutCreateV2
     + PayoutTransferV2
     + PayoutGetV2
@@ -107,7 +175,23 @@ pub trait PaymentVoidPostCaptureV2:
 {
 }
 
+pub trait PaymentMethodEligibilityV2:
+    ConnectorIntegrationV2<
+    connector_flow::PaymentMethodEligibility,
+    PaymentFlowData,
+    PaymentMethodEligibilityData,
+    PaymentMethodEligibilityResponse,
+>
+{
+}
+
 pub type BoxedConnector<T> = Box<&'static (dyn ConnectorServiceTrait<T> + Sync)>;
+
+pub type BoxedSurchargeConnector = Box<&'static (dyn SurchargeServiceTrait + Sync)>;
+
+pub type BoxedFrmConnector = Box<&'static (dyn FrmServiceTrait + Sync)>;
+
+pub type BoxedPayoutConnector = Box<&'static (dyn PayoutServiceTrait + Sync)>;
 
 pub trait ValidationTrait: ConnectorCommon {
     fn should_do_order_create(&self) -> bool {
@@ -149,6 +233,24 @@ pub trait ValidationTrait: ConnectorCommon {
             })
             .unwrap_or(false)
     }
+
+    /// Returns the next authentication step for composite authorize flow.
+    /// The connector examines the current state and returns which step should execute next.
+    fn next_authentication_step(
+        &self,
+        _auth_type: common_enums::AuthenticationType,
+        _payment_method: PaymentMethod,
+        _redirect_state: RedirectState,
+        _completed_step: Option<AuthenticationStep>,
+    ) -> AuthenticationStep {
+        AuthenticationStep::Authorize
+    }
+
+    /// Returns whether this connector requires Authorize to be called
+    /// after VerifyRedirectResponse in the composite flow.
+    fn requires_authorize_post_redirect(&self) -> bool {
+        false
+    }
 }
 
 pub trait PaymentOrderCreate:
@@ -164,7 +266,7 @@ pub trait PaymentOrderCreate:
 pub trait ServerSessionAuthentication:
     ConnectorIntegrationV2<
     connector_flow::ServerSessionAuthenticationToken,
-    PaymentFlowData,
+    MerchantAuthenticationFlowData,
     ServerSessionAuthenticationTokenRequestData,
     ServerSessionAuthenticationTokenResponseData,
 >
@@ -174,7 +276,7 @@ pub trait ServerSessionAuthentication:
 pub trait ClientAuthentication:
     ConnectorIntegrationV2<
     connector_flow::ClientAuthenticationToken,
-    PaymentFlowData,
+    MerchantAuthenticationFlowData,
     ClientAuthenticationTokenRequestData,
     PaymentsResponseData,
 >
@@ -184,7 +286,7 @@ pub trait ClientAuthentication:
 pub trait ServerAuthentication:
     ConnectorIntegrationV2<
     connector_flow::ServerAuthenticationToken,
-    PaymentFlowData,
+    MerchantAuthenticationFlowData,
     ServerAuthenticationTokenRequestData,
     ServerAuthenticationTokenResponseData,
 >
@@ -211,6 +313,36 @@ pub trait PaymentTokenV2<T: PaymentMethodDataTypes>:
 {
 }
 
+pub trait RechargeV2:
+    ConnectorIntegrationV2<
+    connector_flow::Recharge,
+    PaymentFlowData,
+    RechargeRequestData,
+    RechargeResponseData,
+>
+{
+}
+
+pub trait CreatePaymentMethodV2:
+    ConnectorIntegrationV2<
+    connector_flow::CreatePaymentMethod,
+    PaymentFlowData,
+    CreatePaymentMethodData,
+    CreatePaymentMethodResponseData,
+>
+{
+}
+
+pub trait GetPaymentMethodV2:
+    ConnectorIntegrationV2<
+    connector_flow::GetPaymentMethod,
+    PaymentFlowData,
+    GetPaymentMethodData,
+    GetPaymentMethodResponseData,
+>
+{
+}
+
 pub trait PaymentAuthorizeV2<T: PaymentMethodDataTypes>:
     ConnectorIntegrationV2<
     connector_flow::Authorize,
@@ -233,6 +365,16 @@ pub trait PaymentSyncV2:
 
 pub trait RefundV2:
     ConnectorIntegrationV2<connector_flow::Refund, RefundFlowData, RefundsData, RefundsResponseData>
+{
+}
+
+pub trait RefundVoidPostRefundV2:
+    ConnectorIntegrationV2<
+    connector_flow::VoidPostRefund,
+    RefundFlowData,
+    RefundVoidPostRefundData,
+    RefundsResponseData,
+>
 {
 }
 
@@ -381,6 +523,10 @@ pub trait IncomingWebhook {
         Ok(false)
     }
 
+    fn get_webhook_integrity_checks(&self) -> Vec<WebhookIntegrityCheck> {
+        vec![]
+    }
+
     /// fn get_webhook_source_verification_signature
     fn get_webhook_source_verification_signature(
         &self,
@@ -479,8 +625,13 @@ pub trait IncomingWebhook {
         &self,
         _request: RequestDetails,
         _error_kind: Option<IncomingWebhookFlowError>,
-    ) -> Result<ApplicationResponse<Value>, error_stack::Report<WebhookError>> {
-        Ok(ApplicationResponse::StatusOk)
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<crate::api::EventAckResponse, error_stack::Report<WebhookError>> {
+        Ok(crate::api::EventAckResponse {
+            status_code: 200,
+            headers: vec![],
+            body: None,
+        })
     }
 }
 
@@ -734,6 +885,86 @@ pub trait PayoutEnrollDisburseAccountV2:
     PayoutFlowData,
     PayoutEnrollDisburseAccountRequest,
     PayoutEnrollDisburseAccountResponse,
+>
+{
+}
+
+pub trait SurchargeCalculateV2:
+    ConnectorIntegrationV2<
+    connector_flow::SurchargeCalculate,
+    SurchargeFlowData,
+    SurchargeCalculateRequest,
+    SurchargeCalculateResponse,
+>
+{
+}
+
+pub trait SurchargePaymentSucceededV2:
+    ConnectorIntegrationV2<
+    connector_flow::SurchargePaymentSucceeded,
+    SurchargeFlowData,
+    SurchargePaymentSucceededRequest,
+    SurchargePaymentSucceededResponse,
+>
+{
+}
+
+pub trait SurchargeRefundSucceededV2:
+    ConnectorIntegrationV2<
+    connector_flow::SurchargeRefundSucceeded,
+    SurchargeFlowData,
+    SurchargeRefundSucceededRequest,
+    SurchargeRefundSucceededResponse,
+>
+{
+}
+
+pub trait PreRiskCheckV2:
+    ConnectorIntegrationV2<
+    connector_flow::PreRiskCheck,
+    FrmFlowData,
+    PreRiskCheckRequest,
+    PreRiskCheckResponse,
+>
+{
+}
+
+pub trait PostRiskCheckV2:
+    ConnectorIntegrationV2<
+    connector_flow::PostRiskCheck,
+    FrmFlowData,
+    PostRiskCheckRequest,
+    PostRiskCheckResponse,
+>
+{
+}
+
+pub trait FrmPaymentOutcomeV2:
+    ConnectorIntegrationV2<
+    connector_flow::FrmPaymentOutcome,
+    FrmFlowData,
+    FrmPaymentOutcomeRequest,
+    FrmPaymentOutcomeResponse,
+>
+{
+}
+
+pub trait FrmRefundProcessedV2:
+    ConnectorIntegrationV2<
+    connector_flow::FrmRefundProcessed,
+    FrmFlowData,
+    FrmRefundProcessedRequest,
+    FrmRefundProcessedResponse,
+>
+{
+}
+
+pub trait FrmChargebackReceivedV2:
+    ConnectorIntegrationV2<
+    connector_flow::FrmChargebackReceived,
+    FrmFlowData,
+    FrmChargebackReceivedRequest,
+    FrmChargebackReceivedResponse,
 >
 {
 }

@@ -1,0 +1,9 @@
+{
+  "suite": "PaymentService/SetupRecurring",
+  "suite_type": "dependent",
+  "depends_on": [
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "CustomerService/Create"
+  ],
+  "strict_dependencies": false
+}

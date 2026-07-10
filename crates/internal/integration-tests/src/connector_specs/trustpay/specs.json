@@ -1,13 +1,13 @@
 {
   "connector": "trustpay",
   "supported_suites": [
-    "authorize",
-    "create_order",
-    "get",
-    "recurring_charge",
-    "refund",
-    "refund_sync",
-    "server_authentication_token",
-    "setup_recurring"
+    "PaymentService/Authorize",
+    "PaymentService/CreateOrder",
+    "PaymentService/Get",
+    "RecurringPaymentService/Charge",
+    "PaymentService/Refund",
+    "RefundService/Get",
+    "MerchantAuthenticationService/CreateServerAuthenticationToken",
+    "PaymentService/SetupRecurring"
   ]
 }

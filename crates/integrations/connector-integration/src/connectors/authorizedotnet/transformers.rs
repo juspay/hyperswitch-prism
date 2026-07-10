@@ -2,20 +2,24 @@ use common_enums::{self, enums, AttemptStatus, RefundStatus};
 use common_utils::{consts, pii::Email, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{
-        Authorize, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment, SetupMandate,
+        Authorize, CreateConnectorCustomer, PSync, RSync, Refund, RepeatPayment,
+        ServerSessionAuthenticationToken, SetupMandate, VoidPC,
     },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, MandateReference, MandateReferenceId,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
+        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
+        SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError, WebhookError},
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankDebitData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         VaultTokenHolder,
     },
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
 };
 
@@ -935,7 +939,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     is_subsequent_auth: true,
                 }),
                 Some(SubsequentAuthInformation {
-                    original_network_trans_id: Secret::new(network_trans_id.clone()),
+                    original_network_trans_id: Secret::new(
+                        network_trans_id.network_transaction_id.clone(),
+                    ),
                     reason: Reason::Resubmission,
                 }),
             ),
@@ -1271,6 +1277,216 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             create_transaction_request: create_transaction_void_request,
         })
+    }
+}
+
+// VoidPostCapture (Reverse) Flow — reuses the same API structure as Void
+// Authorize.net's voidTransaction works on captured-but-not-yet-settled transactions
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetTransactionVoidPCDetails {
+    // Transaction details for VoidPostCapture (same structure as Void)
+    transaction_type: TransactionType,
+    ref_trans_id: String,
+    amount: Option<f64>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreateTransactionVoidPCRequest {
+    // Wraps VoidPostCapture transaction details
+    merchant_authentication: AuthorizedotnetAuthType,
+    ref_id: Option<String>,
+    transaction_request: AuthorizedotnetTransactionVoidPCDetails,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetVoidPCRequest {
+    // Top-level wrapper for VoidPostCapture Flow
+    create_transaction_request: CreateTransactionVoidPCRequest,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AuthorizedotnetVoidPCResponse(pub AuthorizedotnetPaymentsResponse);
+
+impl From<AuthorizedotnetPaymentsResponse> for AuthorizedotnetVoidPCResponse {
+    fn from(response: AuthorizedotnetPaymentsResponse) -> Self {
+        Self(response)
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        AuthorizedotnetRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for AuthorizedotnetVoidPCRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: AuthorizedotnetRouterData<
+            RouterDataV2<
+                VoidPC,
+                PaymentFlowData,
+                PaymentsCancelPostCaptureData,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // Extract transaction ID from the connector_transaction_id string
+        // This is the captured transaction ID to be reversed
+        let transaction_id = match router_data.request.connector_transaction_id.as_str() {
+            "" => {
+                return Err(error_stack::report!(
+                    HsInterfacesConnectorRequestError::MissingRequiredField {
+                        field_name: "connector_transaction_id",
+                        context: Default::default()
+                    }
+                ));
+            }
+            id => id.to_string(),
+        };
+
+        let ref_id = Some(
+            item.router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+        )
+        .filter(|id| id.len() <= MAX_ID_LENGTH);
+
+        let transaction_void_pc_details = AuthorizedotnetTransactionVoidPCDetails {
+            transaction_type: TransactionType::VoidTransaction,
+            ref_trans_id: transaction_id,
+            amount: None,
+        };
+
+        let merchant_authentication =
+            AuthorizedotnetAuthType::try_from(&router_data.connector_config)?;
+
+        let create_transaction_void_pc_request = CreateTransactionVoidPCRequest {
+            merchant_authentication,
+            ref_id,
+            transaction_request: transaction_void_pc_details,
+        };
+
+        Ok(Self {
+            create_transaction_request: create_transaction_void_pc_request,
+        })
+    }
+}
+
+impl<F> TryFrom<ResponseRouterData<AuthorizedotnetVoidPCResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+    fn try_from(
+        value: ResponseRouterData<AuthorizedotnetVoidPCResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let ResponseRouterData {
+            response,
+            router_data,
+            http_code,
+        } = value;
+        let inner = &response.0;
+
+        // VoidPC carries its outcome through PostCaptureVoidStatus, so map the
+        // Authorize.net response directly instead of going through the generic
+        // AttemptStatus-deriving helper used by the other payment flows. Failures
+        // are surfaced as PostCaptureVoidStatus::Failed with the error text in
+        // `description`, rather than as ErrorResponse.
+        let connector_response_data = match &inner.transaction_response {
+            Some(TransactionResponse::AuthorizedotnetTransactionResponse(trans_res)) => {
+                convert_to_additional_payment_method_connector_response(trans_res).map(
+                    domain_types::router_data::ConnectorResponseData::with_additional_payment_method_data,
+                )
+            }
+            _ => None,
+        };
+
+        // Carry the connector's top-level message text through as the
+        // PostCaptureVoidResponse description (e.g. "This transaction has been approved.").
+        let response_description = inner.messages.message.first().map(|m| m.text.clone());
+
+        let (post_capture_void_status, connector_reference_id, description) =
+            if inner.messages.result_code == ResultCode::Error {
+                let (_error_code, error_message) = extract_error_details(inner, None);
+                (
+                    common_enums::PostCaptureVoidStatus::Failed,
+                    None,
+                    Some(error_message),
+                )
+            } else {
+                match &inner.transaction_response {
+                    Some(TransactionResponse::AuthorizedotnetTransactionResponse(trans_res)) => {
+                        match trans_res.response_code {
+                            AuthorizedotnetPaymentStatus::Approved => (
+                                common_enums::PostCaptureVoidStatus::Succeeded,
+                                Some(trans_res.transaction_id.clone()),
+                                response_description.clone(),
+                            ),
+                            AuthorizedotnetPaymentStatus::HeldForReview
+                            | AuthorizedotnetPaymentStatus::RequiresAction => (
+                                common_enums::PostCaptureVoidStatus::Pending,
+                                Some(trans_res.transaction_id.clone()),
+                                response_description.clone(),
+                            ),
+                            AuthorizedotnetPaymentStatus::Declined
+                            | AuthorizedotnetPaymentStatus::Error => {
+                                let (_error_code, error_message) =
+                                    extract_error_details(inner, Some(trans_res));
+                                (
+                                    common_enums::PostCaptureVoidStatus::Failed,
+                                    Some(trans_res.transaction_id.clone()),
+                                    Some(error_message),
+                                )
+                            }
+                        }
+                    }
+                    Some(TransactionResponse::AuthorizedotnetTransactionResponseError(_)) => {
+                        let (_error_code, error_message) = extract_error_details(inner, None);
+                        (
+                            common_enums::PostCaptureVoidStatus::Failed,
+                            None,
+                            Some(error_message),
+                        )
+                    }
+                    None => (
+                        common_enums::PostCaptureVoidStatus::Succeeded,
+                        None,
+                        response_description.clone(),
+                    ),
+                }
+            };
+
+        let response_result = Ok(PaymentsResponseData::PostCaptureVoidResponse {
+            post_capture_void_status,
+            connector_reference_id,
+            description,
+            status_code: http_code,
+        });
+
+        let mut new_router_data = router_data;
+        let mut resource_common_data = new_router_data.resource_common_data.clone();
+        resource_common_data.connector_response = connector_response_data;
+        new_router_data.resource_common_data = resource_common_data;
+        new_router_data.response = response_result;
+
+        Ok(new_router_data)
     }
 }
 
@@ -1934,7 +2150,7 @@ impl<
                         message: error.error_text.clone(),
                         reason: Some(error.error_text.clone()),
                         status_code: http_code,
-                        attempt_status: Some(status),
+                        attempt_status: Some(FlowStatus::Payment(status)),
                         connector_transaction_id: Some(transaction_response.transaction_id.clone()),
                         network_advice_code: None,
                         network_decline_code: None,
@@ -1954,6 +2170,7 @@ impl<
                             )),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         });
 
                 // Build connector_metadata from account_number
@@ -1972,11 +2189,13 @@ impl<
                             .network_trans_id
                             .as_ref()
                             .map(|s| s.peek().clone()),
+                        network_txn_link_id: None,
                         connector_response_reference_id: Some(
                             transaction_response.transaction_id.clone(),
                         ),
                         incremental_authorization_allowed: None,
                         status_code: http_code,
+                        splits: None,
                     }),
                 }
             }
@@ -2034,7 +2253,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRefundResponse, Self>>
                 message: error.error_text.clone(),
                 reason: Some(error.error_text.clone()),
                 status_code: http_code,
-                attempt_status: Some(AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: Some(transaction_response.transaction_id.clone()),
                 network_advice_code: None,
                 network_decline_code: None,
@@ -2101,9 +2320,11 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                     mandate_reference: None,
                     connector_metadata: None,
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: Some(transaction.transaction_id.clone()),
                     incremental_authorization_allowed: None,
                     status_code: http_code,
+                    splits: None,
                 });
 
                 Ok(new_router_data)
@@ -2137,7 +2358,7 @@ impl<F> TryFrom<ResponseRouterData<AuthorizedotnetPSyncResponse, Self>>
                             .map(|m| m.text.clone())
                             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                     ),
-                    attempt_status: Some(status),
+                    attempt_status: Some(FlowStatus::Payment(status)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2225,7 +2446,7 @@ fn create_error_response(
         code: error_code,
         message: error_message.clone(),
         reason: Some(error_message),
-        attempt_status: Some(status),
+        attempt_status: Some(FlowStatus::Payment(status)),
         connector_transaction_id,
         network_decline_code: None,
         network_advice_code: None,
@@ -2309,6 +2530,7 @@ pub enum Operation {
     Authorize,
     Capture,
     Void,
+    VoidPostCapture,
     Refund,
 }
 
@@ -2327,6 +2549,7 @@ fn get_hs_status(
     if response.transaction_response.is_none() {
         return match operation {
             Operation::Void => AttemptStatus::Voided,
+            Operation::VoidPostCapture => AttemptStatus::VoidedPostCapture,
             Operation::Authorize | Operation::Capture => AttemptStatus::Pending,
             Operation::Refund => AttemptStatus::Failure,
         };
@@ -2343,7 +2566,7 @@ fn get_hs_status(
                 match trans_res.response_code {
                     AuthorizedotnetPaymentStatus::Declined
                     | AuthorizedotnetPaymentStatus::Error => AttemptStatus::Failure,
-                    AuthorizedotnetPaymentStatus::HeldForReview => AttemptStatus::Pending,
+                    AuthorizedotnetPaymentStatus::HeldForReview => AttemptStatus::Unresolved,
                     AuthorizedotnetPaymentStatus::RequiresAction => {
                         AttemptStatus::AuthenticationPending
                     }
@@ -2356,6 +2579,7 @@ fn get_hs_status(
                             },
                             Operation::Capture | Operation::Refund => AttemptStatus::Charged,
                             Operation::Void => AttemptStatus::Voided,
+                            Operation::VoidPostCapture => AttemptStatus::VoidedPostCapture,
                         }
                     }
                 }
@@ -2429,6 +2653,7 @@ pub fn convert_to_payments_response_data_or_error(
             | AttemptStatus::AuthenticationPending
             | AttemptStatus::Charged
             | AttemptStatus::Voided
+            | AttemptStatus::VoidedPostCapture
     );
 
     // Extract connector response data from transaction response if available
@@ -2446,39 +2671,55 @@ pub fn convert_to_payments_response_data_or_error(
         {
             let connector_metadata = build_connector_metadata(trans_res);
 
-            // Extract mandate_reference from profile_response if available
-            let mandate_reference = response.profile_response.as_ref().map(|profile_response| {
-                let payment_profile_id = profile_response
-                    .customer_payment_profile_id_list
-                    .as_ref()
-                    .and_then(|list| list.first().cloned());
+            if operation == Operation::VoidPostCapture {
+                Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                    post_capture_void_status: common_enums::PostCaptureVoidStatus::Succeeded,
+                    connector_reference_id: Some(trans_res.transaction_id.clone()),
+                    description: None,
+                    status_code: http_status_code,
+                })
+            } else {
+                // Extract mandate_reference from profile_response if available
+                let mandate_reference =
+                    response.profile_response.as_ref().map(|profile_response| {
+                        let payment_profile_id = profile_response
+                            .customer_payment_profile_id_list
+                            .as_ref()
+                            .and_then(|list| list.first().cloned());
 
-                MandateReference {
-                    connector_mandate_id: profile_response.customer_profile_id.as_ref().and_then(
-                        |customer_profile_id| {
-                            payment_profile_id.map(|payment_profile_id| {
-                                format!("{customer_profile_id}-{payment_profile_id}")
-                            })
-                        },
+                        MandateReference {
+                            connector_mandate_id: profile_response
+                                .customer_profile_id
+                                .as_ref()
+                                .and_then(|customer_profile_id| {
+                                    payment_profile_id.map(|payment_profile_id| {
+                                        format!("{customer_profile_id}-{payment_profile_id}")
+                                    })
+                                }),
+                            payment_method_id: None,
+                            connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
+                        }
+                    });
+
+                Ok(PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        trans_res.transaction_id.clone(),
                     ),
-                    payment_method_id: None,
-                    connector_mandate_request_reference_id: None,
-                }
-            });
-
-            Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(trans_res.transaction_id.clone()),
-                redirection_data: None,
-                connector_metadata,
-                mandate_reference: mandate_reference.map(Box::new),
-                network_txn_id: trans_res
-                    .network_trans_id
-                    .as_ref()
-                    .map(|s| s.peek().clone()),
-                connector_response_reference_id: Some(trans_res.transaction_id.clone()),
-                incremental_authorization_allowed: None,
-                status_code: http_status_code,
-            })
+                    redirection_data: None,
+                    connector_metadata,
+                    mandate_reference: mandate_reference.map(Box::new),
+                    network_txn_id: trans_res
+                        .network_trans_id
+                        .as_ref()
+                        .map(|s| s.peek().clone()),
+                    network_txn_link_id: None,
+                    connector_response_reference_id: Some(trans_res.transaction_id.clone()),
+                    incremental_authorization_allowed: None,
+                    status_code: http_status_code,
+                    splits: None,
+                })
+            }
         }
         Some(TransactionResponse::AuthorizedotnetTransactionResponse(trans_res)) => {
             // Failure status or other non-successful statuses
@@ -2510,8 +2751,20 @@ pub fn convert_to_payments_response_data_or_error(
                 connector_metadata: None,
                 mandate_reference: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                status_code: http_status_code,
+                splits: None,
+            })
+        }
+        None if status == AttemptStatus::VoidedPostCapture
+            && operation == Operation::VoidPostCapture =>
+        {
+            Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status: common_enums::PostCaptureVoidStatus::Succeeded,
+                connector_reference_id: None,
+                description: None,
                 status_code: http_status_code,
             })
         }
@@ -2576,10 +2829,12 @@ impl From<SyncStatus> for AttemptStatus {
             SyncStatus::Voided => Self::Voided,
             SyncStatus::CouldNotVoid => Self::VoidFailed,
             SyncStatus::GeneralError => Self::Failure,
-            SyncStatus::RefundSettledSuccessfully
-            | SyncStatus::RefundPendingSettlement
-            | SyncStatus::FDSPendingReview
-            | SyncStatus::FDSAuthorizedPendingReview => Self::Pending,
+            SyncStatus::RefundSettledSuccessfully | SyncStatus::RefundPendingSettlement => {
+                Self::Charged
+            }
+            SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
+                Self::Unresolved
+            }
         }
     }
 }
@@ -2682,7 +2937,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetRSyncResponse, Self>>
                             .map(|m| m.text.clone())
                             .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                     ),
-                    attempt_status: Some(AttemptStatus::Failure),
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -2890,11 +3145,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(connector_mandate_id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })),
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 status_code: http_code,
+                splits: None,
             });
         } else {
             let error_response = ErrorResponse {
@@ -2919,7 +3177,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         .map(|m| m.text.clone())
                         .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string()),
                 ),
-                attempt_status: Some(AttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
                 connector_transaction_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
@@ -3275,6 +3533,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
             // Success - return the connector customer ID
             new_router_data.response = Ok(ConnectorCustomerResponse {
                 connector_customer_id: profile_id,
+                status_code: http_code,
             });
         } else {
             // Check if this is a "duplicate customer" error (E00039)
@@ -3292,6 +3551,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                     );
                     new_router_data.response = Ok(ConnectorCustomerResponse {
                         connector_customer_id: existing_profile_id,
+                        status_code: http_code,
                     });
                 } else {
                     // Couldn't extract ID, return error
@@ -3300,7 +3560,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                         code: error_code.to_string(),
                         message: error_text.to_string(),
                         reason: Some(error_text.to_string()),
-                        attempt_status: Some(AttemptStatus::Failure), // Marking attempt as failure since we couldn't confirm existing profile ID
+                        attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure since we couldn't confirm existing profile ID
                         connector_transaction_id: None,
                         network_decline_code: None,
                         network_advice_code: None,
@@ -3314,7 +3574,7 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
                     code: error_code.to_string(),
                     message: error_text.to_string(),
                     reason: Some(error_text.to_string()),
-                    attempt_status: Some(AttemptStatus::Failure), // Marking attempt as failure for non-duplicate errors
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)), // Marking attempt as failure for non-duplicate errors
                     connector_transaction_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
@@ -3324,5 +3584,133 @@ impl TryFrom<ResponseRouterData<AuthorizedotnetCreateConnectorCustomerResponse, 
         }
 
         Ok(new_router_data)
+    }
+}
+
+// ================================================================================
+// SDKSessionToken (ServerSessionAuthenticationToken) flow
+//
+// Maps to Authorize.Net `getMerchantDetailsRequest`, which returns the merchant's
+// `publicClientKey`. That key (together with the API Login ID configured client-side)
+// is the session credential the front-end Accept.js / AcceptUI SDK uses to tokenize
+// card data. We surface the `publicClientKey` as the `session_token`.
+// ================================================================================
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetMerchantDetailsRequest {
+    merchant_authentication: MerchantAuthentication,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetSdkSessionTokenRequest {
+    get_merchant_details_request: GetMerchantDetailsRequest,
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        AuthorizedotnetRouterData<
+            RouterDataV2<
+                ServerSessionAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+            T,
+        >,
+    > for AuthorizedotnetSdkSessionTokenRequest
+{
+    type Error = Error;
+
+    fn try_from(
+        item: AuthorizedotnetRouterData<
+            RouterDataV2<
+                ServerSessionAuthenticationToken,
+                MerchantAuthenticationFlowData,
+                ServerSessionAuthenticationTokenRequestData,
+                ServerSessionAuthenticationTokenResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let merchant_authentication =
+            MerchantAuthentication::try_from(&item.router_data.connector_config)?;
+        Ok(Self {
+            get_merchant_details_request: GetMerchantDetailsRequest {
+                merchant_authentication,
+            },
+        })
+    }
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthorizedotnetSdkSessionTokenResponse {
+    pub public_client_key: Option<Secret<String>>,
+    pub merchant_name: Option<String>,
+    pub gateway_id: Option<String>,
+    pub messages: ResponseMessages,
+}
+
+impl TryFrom<ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>>
+    for RouterDataV2<
+        ServerSessionAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData,
+    >
+{
+    type Error = ResponseError;
+
+    fn try_from(
+        item: ResponseRouterData<AuthorizedotnetSdkSessionTokenResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let router_data = &item.router_data;
+
+        // Authorize.Net returns HTTP 200 even for business errors; inspect resultCode.
+        if response.messages.result_code == ResultCode::Error {
+            let error = response.messages.message.first();
+            let code = error
+                .map(|m| m.code.clone())
+                .unwrap_or_else(|| consts::NO_ERROR_CODE.to_string());
+            let message = error
+                .map(|m| m.text.clone())
+                .unwrap_or_else(|| consts::NO_ERROR_MESSAGE.to_string());
+            return Ok(Self {
+                response: Err(ErrorResponse {
+                    code,
+                    message: message.clone(),
+                    reason: Some(message),
+                    status_code: item.http_code,
+                    attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                    connector_transaction_id: None,
+                    network_decline_code: None,
+                    network_advice_code: None,
+                    network_error_message: None,
+                }),
+                ..router_data.clone()
+            });
+        }
+
+        let session_token = response
+            .public_client_key
+            .clone()
+            .expose_option()
+            .ok_or_else(|| {
+                ResponseError::from(ConnectorError::response_handling_failed_with_context(
+                    item.http_code,
+                    Some("publicClientKey missing in Authorize.Net response".to_string()),
+                ))
+            })?;
+
+        // This flow only issues a session token; no payment has been authorized yet, so the
+        // attempt status is left unchanged (it is not Pending).
+        Ok(Self {
+            response: Ok(ServerSessionAuthenticationTokenResponseData { session_token }),
+            ..router_data.clone()
+        })
     }
 }

@@ -1,8 +1,9 @@
 {
   "connector": "worldpayvantiv",
   "supported_suites": [
-    "authorize",
-    "get",
-    "incremental_authorization"
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Reverse",
+    "PaymentService/IncrementalAuthorization"
   ]
 }

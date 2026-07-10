@@ -1,9 +1,9 @@
 {
   "connector": "hyperpg",
   "supported_suites": [
-    "authorize",
-    "get",
-    "refund",
-    "refund_sync"
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "PaymentService/Refund",
+    "RefundService/Get"
   ]
 }

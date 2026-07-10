@@ -1,9 +1,0 @@
-{
-  "suite": "reverse",
-  "suite_type": "dependent",
-  "depends_on": [
-    "authorize",
-    "capture"
-  ],
-  "strict_dependencies": true
-}

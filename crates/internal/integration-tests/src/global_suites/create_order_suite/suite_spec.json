@@ -1,6 +1,0 @@
-{
-  "suite": "create_order",
-  "suite_type": "independent",
-  "depends_on": [],
-  "strict_dependencies": true
-}

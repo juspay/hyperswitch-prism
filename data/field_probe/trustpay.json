@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by trustpay connector"
       }
     },
     "authorize": {
@@ -213,6 +214,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
@@ -283,6 +288,10 @@
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
       "Giropay": {
         "status": "supported",
         "proto_request": {
@@ -328,6 +337,10 @@
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -530,6 +543,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through trustpay"
       },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
       "Klarna": {
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
@@ -563,6 +580,14 @@
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "MiniStop": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
@@ -624,7 +649,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -637,6 +662,10 @@
       "PaypalSdk": {
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Paze": {
         "status": "not_supported",
@@ -743,6 +772,10 @@
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
       "Sofort": {
         "status": "supported",
         "proto_request": {
@@ -785,9 +818,21 @@
           "body": "{\"paymentMethod\":\"Sofort\",\"merchantIdentification\":{\"ProjectId\":\"probe_id\"},\"paymentInformation\":{\"Amount\":{\"Amount\":\"10.00\",\"Currency\":\"USD\"},\"References\":{\"MerchantReference\":\"probe_txn_001\"}},\"callbackUrls\":{\"success\":\"https://example.com/return?status=SuccessOk\",\"cancel\":\"https://example.com/return\",\"error\":\"https://example.com/return\"}}"
         }
       },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
       "Trustly": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Selected payment method through trustpay"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "UpiCollect": {
         "status": "not_supported",
@@ -798,6 +843,10 @@
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
       "UpiQr": {
+        "status": "not_supported",
+        "error": "Selected payment method through trustpay is not supported by trustpay"
+      },
+      "Vipps": {
         "status": "not_supported",
         "error": "Selected payment method through trustpay is not supported by trustpay"
       },
@@ -812,17 +861,14 @@
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "capture flow not supported by trustpay connector"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by trustpay connector"
       }
     },
     "create_order": {
@@ -872,17 +918,26 @@
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by trustpay connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by trustpay connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by trustpay connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by trustpay connector"
       }
     },
     "dispute_get": {
@@ -892,12 +947,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by trustpay connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by trustpay connector"
       }
     },
     "get": {
@@ -952,7 +1009,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by trustpay connector"
       }
     },
     "parse_event": {
@@ -974,14 +1032,21 @@
         }
       }
     },
-    "post_authenticate": {
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by trustpay connector"
+      }
+    },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by trustpay connector"
       }
     },
     "proxy_authorize": {
@@ -998,7 +1063,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "customer": {
             "email": "test@example.com"
@@ -1035,7 +1101,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "amount=10.00&currency=USD&pan=4111111111111111&cvv=123&exp=03%2F30&cardholder=John&reference=probe_proxy_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&billing%5Bcity%5D=Seattle&billing%5Bcountry%5D=US&billing%5Bstreet1%5D=123+Main+St&billing%5Bpostcode%5D=98101&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1&browser%5BpaymentType%5D=Plain"
+          "body": "amount=10.00&currency=USD&pan=%7B%7B%24card_number%7D%7D&cvv=%7B%7B%24card_cvc%7D%7D&exp=%7B%7B%24card_exp_month%7D%7D%2F%7B%7B%24card_exp_year%7D%7D&cardholder=John&reference=probe_proxy_txn_001&redirectUrl=https%3A%2F%2Fexample.com%2Freturn&billing%5Bcity%5D=Seattle&billing%5Bcountry%5D=US&billing%5Bstreet1%5D=123+Main+St&billing%5Bpostcode%5D=98101&customer%5Bemail%5D=test%40example.com&customer%5BipAddress%5D=1.2.3.4&browser%5BacceptHeader%5D=*&browser%5Blanguage%5D=en-US&browser%5BscreenHeight%5D=1080&browser%5BscreenWidth%5D=1920&browser%5Btimezone%5D=3600&browser%5BuserAgent%5D=Mozilla%2F5.0+%28probe-bot%29&browser%5BjavaEnabled%5D=false&browser%5BjavaScriptEnabled%5D=true&browser%5BscreenColorDepth%5D=24&browser%5BchallengeWindow%5D=1&browser%5BpaymentType%5D=Plain"
         }
       }
     },
@@ -1091,7 +1157,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by trustpay connector"
       }
     },
     "refund": {
@@ -1155,7 +1222,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by trustpay connector"
       }
     },
     "setup_recurring": {
@@ -1178,7 +1246,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by trustpay connector"
       }
     },
     "verify_redirect": {
@@ -1188,7 +1257,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void flow not supported by trustpay connector"
       }
     }
   }

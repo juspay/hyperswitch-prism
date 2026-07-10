@@ -3,442 +3,450 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by dlocal connector"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "not_supported",
-        "error": "Bank debit is not supported for country: US is not supported by Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "AchBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Affirm": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Afterpay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Alfamart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "AliPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "AmazonPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "ApplePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "ApplePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "ApplePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Bacs": {
-        "status": "not_supported",
-        "error": "Selected payment method through Dlocal is not supported by Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "BacsBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "BancontactCard": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "BcaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Becs": {
-        "status": "not_supported",
-        "error": "Selected payment method through Dlocal is not supported by Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "BillDeskRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Bizum": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Blik": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Bluecode": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "BniVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Boleto": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "BriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Card": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "customer": {
-            "email": "test@example.com"
-          },
-          "address": {
-            "billing_address": {
-              "first_name": "John",
-              "country_alpha2_code": "US"
-            }
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandbox.dlocal.com/secure_payments",
-          "method": "Post",
-          "headers": {
-            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-date": "2020-01-01T00:00:00+00:00",
-            "x-login": "probe_user",
-            "x-trans-key": "probe_key",
-            "x-version": "2.1"
-          },
-          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"CARD\",\"payment_method_flow\":\"DIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"card\":{\"holder_name\":\"John Doe\",\"number\":\"4111111111111111\",\"cvv\":\"737\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"capture\":\"true\"},\"order_id\":\"probe_txn_001\",\"callback_url\":\"https://example.com/return\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "CashappQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "CashfreeRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "CimbVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "ClassicReward": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "Dana": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
       "DanamonVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "DuitNow": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "EVoucher": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "EaseBuzzRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Efecty": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Eft": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Eps": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "FamilyMart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
+      "GCash": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Giropay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "GoPay": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
       "GooglePay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "GooglePayDecrypted": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "GooglePayThirdPartySdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Ideal": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Indomaret": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "IndonesianBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "InstantBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "InstantBankTransferFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "InstantBankTransferPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Interac": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
+      "KakaoPay": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Klarna": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Lawson": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "LazyPayRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "LocalBankRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "LocalBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "MandiriVaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "MbWay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Mifinity": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "MiniStop": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "MultibancoBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Netbanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "OnlineBankingCzechRepublic": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "OnlineBankingFinland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "OnlineBankingFpx": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "OnlineBankingPoland": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "OnlineBankingSlovakia": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "OnlineBankingThailand": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "OpenBanking": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "OpenBankingPis": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "OpenBankingUk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Oxxo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "PagoEfectivo": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "PayEasy": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "PayURedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "PaypalRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "PaypalSdk": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Paze": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "PermataBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "PhonePeRedirect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Pix": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Przelewy24": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Pse": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "RedCompra": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "RedPagos": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "RevolutPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "SamsungPay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Satispay": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Seicomart": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Sepa": {
-        "status": "not_supported",
-        "error": "Bank debit is not supported for country: US is not supported by Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "SepaBankTransfer": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "SepaGuaranteedDebit": {
-        "status": "not_supported",
-        "error": "Bank debit is not supported for country: US is not supported by Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "SevenEleven": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
+      "Skrill": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Sofort": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
+      "Swish": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
+      "TouchNGo": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Trustly": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
+      "Twint": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "UpiCollect": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "UpiIntent": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "UpiQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
+      },
+      "Vipps": {
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "WeChatPayQr": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Wero": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       }
     },
     "capture": {
@@ -470,37 +478,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for dlocal"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by dlocal connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by dlocal connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by dlocal connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by dlocal connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by dlocal connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for dlocal"
       }
     },
     "dispute_get": {
@@ -510,12 +525,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for dlocal"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by dlocal connector"
       }
     },
     "get": {
@@ -547,174 +564,88 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"F-probe-001\",\"status\":\"PAID\",\"status_code\":\"200\",\"order_id\":\"probe_order_001\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"F-probe-001\",\"status\":\"PAID\",\"status_code\":\"200\",\"order_id\":\"probe_order_001\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}"
+        }
       }
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by dlocal connector"
       }
     },
     "parse_event": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"F-probe-001\",\"status\":\"PAID\",\"status_code\":\"200\",\"order_id\":\"probe_order_001\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"F-probe-001\",\"status\":\"PAID\",\"status_code\":\"200\",\"order_id\":\"probe_order_001\",\"payment_method_id\":\"RG\",\"payment_method_type\":\"WALLET\",\"payment_method_flow\":\"REDIRECT\"}"
+        }
+      }
+    },
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
     "post_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by dlocal connector"
       }
     },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by dlocal connector"
       }
     },
     "proxy_authorize": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_proxy_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe"
-          },
-          "customer": {
-            "email": "test@example.com"
-          },
-          "address": {
-            "billing_address": {
-              "first_name": "John",
-              "country_alpha2_code": "US"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return"
-        },
-        "sample": {
-          "url": "https://sandbox.dlocal.com/secure_payments",
-          "method": "Post",
-          "headers": {
-            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-date": "2020-01-01T00:00:00+00:00",
-            "x-login": "probe_user",
-            "x-trans-key": "probe_key",
-            "x-version": "2.1"
-          },
-          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"CARD\",\"payment_method_flow\":\"DIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"card\":{\"holder_name\":\"John Doe\",\"number\":\"4111111111111111\",\"cvv\":\"123\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"capture\":\"true\"},\"order_id\":\"probe_proxy_txn_001\",\"callback_url\":\"https://example.com/return\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "card_proxy": {
-            "card_number": "4111111111111111",
-            "card_exp_month": "03",
-            "card_exp_year": "2030",
-            "card_cvc": "123",
-            "card_holder_name": "John Doe"
-          },
-          "customer": {
-            "email": "test@example.com"
-          },
-          "address": {
-            "billing_address": {
-              "first_name": "John",
-              "country_alpha2_code": "US"
-            }
-          },
-          "customer_acceptance": {
-            "acceptance_type": "OFFLINE",
-            "accepted_at": 0
-          },
-          "auth_type": "NO_THREE_DS",
-          "setup_future_usage": "OFF_SESSION"
-        },
-        "sample": {
-          "url": "https://sandbox.dlocal.com/secure_payments",
-          "method": "Post",
-          "headers": {
-            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-date": "2020-01-01T00:00:00+00:00",
-            "x-login": "probe_user",
-            "x-trans-key": "probe_key",
-            "x-version": "2.1"
-          },
-          "body": "{\"amount\":0.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"CARD\",\"payment_method_flow\":\"DIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"card\":{\"holder_name\":\"John Doe\",\"number\":\"4111111111111111\",\"cvv\":\"123\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"capture\":\"false\",\"save\":true},\"order_id\":\"probe_proxy_mandate_001\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "connector_recurring_payment_id": {
-            "mandate_id_type": {
-              "connector_mandate_id": {
-                "connector_mandate_id": "probe-mandate-123"
-              }
-            }
-          },
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "token": {
-              "token": "probe_pm_token"
-            }
-          },
-          "return_url": "https://example.com/recurring-return",
-          "address": {
-            "billing_address": {
-              "first_name": "John",
-              "country_alpha2_code": "US",
-              "email": "test@example.com"
-            }
-          },
-          "email": "test@example.com",
-          "connector_customer_id": "cust_probe_123",
-          "payment_method_type": "PAY_PAL",
-          "off_session": true
-        },
-        "sample": {
-          "url": "https://sandbox.dlocal.com/payments",
-          "method": "Post",
-          "headers": {
-            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-date": "2020-01-01T00:00:00+00:00",
-            "x-login": "probe_user",
-            "x-trans-key": "probe_key",
-            "x-version": "2.1"
-          },
-          "body": "{\"amount\":10.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"CARD\",\"payment_method_flow\":\"DIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"card\":{\"card_id\":\"probe-mandate-123\",\"capture\":\"true\",\"stored_credential_type\":\"CARD_ON_FILE\",\"stored_credential_usage\":\"USED\"},\"order_id\":\"\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for dlocal"
       }
     },
     "refund": {
@@ -772,77 +703,32 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by dlocal connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_recurring_payment_id": "probe_mandate_001",
-          "amount": {
-            "minor_amount": 0,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "card": {
-              "card_number": "4111111111111111",
-              "card_exp_month": "03",
-              "card_exp_year": "2030",
-              "card_cvc": "737",
-              "card_holder_name": "John Doe"
-            }
-          },
-          "customer": {
-            "email": "test@example.com"
-          },
-          "address": {
-            "billing_address": {
-              "first_name": "John",
-              "country_alpha2_code": "US"
-            }
-          },
-          "auth_type": "NO_THREE_DS",
-          "enrolled_for_3ds": false,
-          "return_url": "https://example.com/mandate-return",
-          "setup_future_usage": "OFF_SESSION",
-          "request_incremental_authorization": false,
-          "customer_acceptance": {
-            "acceptance_type": "OFFLINE",
-            "accepted_at": 0
-          }
-        },
-        "sample": {
-          "url": "https://sandbox.dlocal.com/secure_payments",
-          "method": "Post",
-          "headers": {
-            "authorization": "V2-HMAC-SHA256, Signature: a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3",
-            "content-type": "application/json",
-            "via": "HyperSwitch",
-            "x-date": "2020-01-01T00:00:00+00:00",
-            "x-login": "probe_user",
-            "x-trans-key": "probe_key",
-            "x-version": "2.1"
-          },
-          "body": "{\"amount\":0.0,\"currency\":\"USD\",\"country\":\"US\",\"payment_method_id\":\"CARD\",\"payment_method_flow\":\"DIRECT\",\"payer\":{\"name\":\"John\",\"email\":\"test@example.com\",\"document\":\"12345678\"},\"card\":{\"holder_name\":\"John Doe\",\"number\":\"4111111111111111\",\"cvv\":\"737\",\"expiration_month\":\"03\",\"expiration_year\":\"2030\",\"capture\":\"false\",\"save\":true},\"order_id\":\"probe_mandate_001\",\"callback_url\":\"https://example.com/mandate-return\"}"
-        }
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       }
     },
     "token_authorize": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: Selected payment method through Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       }
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_supported",
-        "error": "Selected payment method through Dlocal is not supported by Dlocal"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for dlocal"
       }
     },
     "verify_redirect": {

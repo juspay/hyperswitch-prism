@@ -17,14 +17,15 @@ use grpc_api_types::payments::{
     PaymentMethodAuthenticationServicePostAuthenticateRequest,
     PaymentMethodAuthenticationServicePostAuthenticateResponse,
     PaymentMethodAuthenticationServicePreAuthenticateRequest,
-    PaymentMethodAuthenticationServicePreAuthenticateResponse, PaymentMethodServiceTokenizeRequest,
-    PaymentMethodServiceTokenizeResponse, PaymentServiceAuthorizeRequest,
-    PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest, PaymentServiceCaptureResponse,
-    PaymentServiceCreateOrderRequest, PaymentServiceCreateOrderResponse, PaymentServiceGetRequest,
-    PaymentServiceGetResponse, PaymentServiceIncrementalAuthorizationRequest,
-    PaymentServiceIncrementalAuthorizationResponse, PaymentServiceProxyAuthorizeRequest,
-    PaymentServiceProxySetupRecurringRequest, PaymentServiceRefundRequest,
-    PaymentServiceReverseRequest, PaymentServiceReverseResponse,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse,
+    PaymentMethodServiceEligibilityRequest, PaymentMethodServiceEligibilityResponse,
+    PaymentMethodServiceTokenizeRequest, PaymentMethodServiceTokenizeResponse,
+    PaymentServiceAuthorizeRequest, PaymentServiceAuthorizeResponse, PaymentServiceCaptureRequest,
+    PaymentServiceCaptureResponse, PaymentServiceCreateOrderRequest,
+    PaymentServiceCreateOrderResponse, PaymentServiceGetRequest, PaymentServiceGetResponse,
+    PaymentServiceIncrementalAuthorizationRequest, PaymentServiceIncrementalAuthorizationResponse,
+    PaymentServiceProxyAuthorizeRequest, PaymentServiceProxySetupRecurringRequest,
+    PaymentServiceRefundRequest, PaymentServiceReverseRequest, PaymentServiceReverseResponse,
     PaymentServiceSetupRecurringRequest, PaymentServiceSetupRecurringResponse,
     PaymentServiceTokenAuthorizeRequest, PaymentServiceTokenSetupRecurringRequest,
     PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVerifyRedirectResponseResponse,
@@ -37,24 +38,26 @@ use domain_types::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
         CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund,
-        RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate,
-        SubmitEvidence, Void, VoidPC,
+        MandateRevoke, PSync, PaymentMethodEligibility, PaymentMethodToken, PostAuthenticate,
+        PreAuthenticate, RSync, Refund, RepeatPayment, ServerAuthenticationToken,
+        ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
     },
     connector_types::{
         AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
         ConnectorCustomerResponse, ConnectorWebhookSecrets, DisputeDefendData, DisputeFlowData,
         DisputeResponseData, MandateRevokeRequestData, MandateRevokeResponseData,
         PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentMethodEligibilityData, PaymentMethodEligibilityResponse, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentVoidData, PaymentsAuthenticateData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
         PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
         RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
         ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
         SetupMandateRequestData, SubmitEvidenceData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
 };
 
 // authorize request transformer
@@ -214,7 +217,7 @@ req_transformer!(
     fn_name: create_server_authentication_token_req_transformer,
     request_type: MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     flow_marker: ServerAuthenticationToken,
-    resource_common_data_type: PaymentFlowData,
+    resource_common_data_type: MerchantAuthenticationFlowData,
     request_data_type: ServerAuthenticationTokenRequestData,
     response_data_type: ServerAuthenticationTokenResponseData,
     connector_data_type: T,
@@ -229,7 +232,7 @@ res_transformer!(
     request_type: MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     response_type: MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     flow_marker: ServerAuthenticationToken,
-    resource_common_data_type: PaymentFlowData,
+    resource_common_data_type: MerchantAuthenticationFlowData,
     request_data_type: ServerAuthenticationTokenRequestData,
     response_data_type: ServerAuthenticationTokenResponseData,
     generate_response_fn: generate_access_token_response,
@@ -301,7 +304,7 @@ res_transformer!(
 
 // create connector customer request transformer
 req_transformer!(
-    fn_name: create_req_transformer,
+    fn_name: customer_create_req_transformer,
     request_type: CustomerServiceCreateRequest,
     flow_marker: CreateConnectorCustomer,
     resource_common_data_type: PaymentFlowData,
@@ -315,7 +318,7 @@ req_transformer!(
 
 // create connector customer response transformer
 res_transformer!(
-    fn_name: create_res_transformer,
+    fn_name: customer_create_res_transformer,
     request_type: CustomerServiceCreateRequest,
     response_type: CustomerServiceCreateResponse,
     flow_marker: CreateConnectorCustomer,
@@ -339,7 +342,7 @@ req_transformer!(
     response_data_type: PaymentsResponseData,
     connector_data_type: domain_types::payment_method_data::DefaultPCIHolder,
     request_data_fn: |p: &RecurringPaymentServiceChargeRequest| {
-        domain_types::types::build_request_data_with_required_pmd(p.payment_method.clone(), p.clone())
+        domain_types::types::build_request_data_with_some_pmd(p.payment_method.clone(), p.clone())
     },
 );
 
@@ -355,7 +358,7 @@ res_transformer!(
     generate_response_fn: generate_repeat_payment_response,
     connector_data_type: domain_types::payment_method_data::DefaultPCIHolder,
     request_data_fn: |p: &RecurringPaymentServiceChargeRequest| {
-        domain_types::types::build_request_data_with_required_pmd(p.payment_method.clone(), p.clone())
+        domain_types::types::build_request_data_with_some_pmd(p.payment_method.clone(), p.clone())
     },
 );
 
@@ -364,7 +367,7 @@ req_transformer!(
     fn_name: create_server_session_authentication_token_req_transformer,
     request_type: MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
     flow_marker: ServerSessionAuthenticationToken,
-    resource_common_data_type: PaymentFlowData,
+    resource_common_data_type: MerchantAuthenticationFlowData,
     request_data_type: ServerSessionAuthenticationTokenRequestData,
     response_data_type: ServerSessionAuthenticationTokenResponseData,
     connector_data_type: T,
@@ -379,7 +382,7 @@ res_transformer!(
     request_type: MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
     response_type: MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse,
     flow_marker: ServerSessionAuthenticationToken,
-    resource_common_data_type: PaymentFlowData,
+    resource_common_data_type: MerchantAuthenticationFlowData,
     request_data_type: ServerSessionAuthenticationTokenRequestData,
     response_data_type: ServerSessionAuthenticationTokenResponseData,
     generate_response_fn: generate_session_token_response,
@@ -394,7 +397,7 @@ req_transformer!(
     fn_name: create_client_authentication_token_req_transformer,
     request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     flow_marker: ClientAuthenticationToken,
-    resource_common_data_type: PaymentFlowData,
+    resource_common_data_type: MerchantAuthenticationFlowData,
     request_data_type: ClientAuthenticationTokenRequestData,
     response_data_type: PaymentsResponseData,
     connector_data_type: T,
@@ -409,7 +412,7 @@ res_transformer!(
     request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     response_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     flow_marker: ClientAuthenticationToken,
-    resource_common_data_type: PaymentFlowData,
+    resource_common_data_type: MerchantAuthenticationFlowData,
     request_data_type: ClientAuthenticationTokenRequestData,
     response_data_type: PaymentsResponseData,
     generate_response_fn: generate_payment_sdk_session_token_response,
@@ -476,6 +479,36 @@ res_transformer!(
     connector_data_type: domain_types::payment_method_data::DefaultPCIHolder,
     request_data_fn: |p: &PaymentMethodServiceTokenizeRequest| {
         domain_types::types::build_request_data_with_required_pmd(p.payment_method.clone(), p.clone())
+    },
+);
+
+// eligibility (payment method eligibility) request transformer
+req_transformer!(
+    fn_name: eligibility_req_transformer,
+    request_type: PaymentMethodServiceEligibilityRequest,
+    flow_marker: PaymentMethodEligibility,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: PaymentMethodEligibilityData,
+    response_data_type: PaymentMethodEligibilityResponse,
+    connector_data_type: T,
+    request_data_fn: |p: &PaymentMethodServiceEligibilityRequest| {
+        domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
+    },
+);
+
+// eligibility (payment method eligibility) response transformer
+res_transformer!(
+    fn_name: eligibility_res_transformer,
+    request_type: PaymentMethodServiceEligibilityRequest,
+    response_type: PaymentMethodServiceEligibilityResponse,
+    flow_marker: PaymentMethodEligibility,
+    resource_common_data_type: PaymentFlowData,
+    request_data_type: PaymentMethodEligibilityData,
+    response_data_type: PaymentMethodEligibilityResponse,
+    generate_response_fn: generate_payment_method_eligibility_response,
+    connector_data_type: T,
+    request_data_fn: |p: &PaymentMethodServiceEligibilityRequest| {
+        domain_types::utils::ForeignTryFrom::foreign_try_from(p.clone())
     },
 );
 
@@ -849,7 +882,7 @@ req_transformer!(
     fn_name: create_client_authentication_token_req_handler,
     request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     flow_marker: ClientAuthenticationToken,
-    resource_common_data_type: PaymentFlowData,
+    resource_common_data_type: MerchantAuthenticationFlowData,
     request_data_type: ClientAuthenticationTokenRequestData,
     response_data_type: PaymentsResponseData,
     connector_data_type: T,
@@ -864,7 +897,7 @@ res_transformer!(
     request_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     response_type: MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
     flow_marker: ClientAuthenticationToken,
-    resource_common_data_type: PaymentFlowData,
+    resource_common_data_type: MerchantAuthenticationFlowData,
     request_data_type: ClientAuthenticationTokenRequestData,
     response_data_type: PaymentsResponseData,
     generate_response_fn: generate_payment_sdk_session_token_response,
@@ -915,31 +948,39 @@ pub fn verify_redirect_response_transformer(
     connector: domain_types::connector_types::ConnectorEnum,
     _connector_config: domain_types::router_data::ConnectorSpecificConfig,
     _metadata: &common_utils::metadata::MaskedMetadata,
-) -> Result<PaymentServiceVerifyRedirectResponseResponse, ConnectorError> {
+) -> Result<PaymentServiceVerifyRedirectResponseResponse, Box<ConnectorError>> {
     use domain_types::utils::ForeignTryFrom as _;
     use interfaces::verification::ConnectorSourceVerificationSecrets;
 
-    let request_details_proto = payload.request_details.ok_or_else(|| ConnectorError {
-        error_message: "Missing required field: request_details".to_string(),
-        error_code: "MISSING_REQUIRED_FIELD".to_string(),
-        http_status_code: None,
+    let request_details_proto = payload.request_details.ok_or_else(|| {
+        Box::new(ConnectorError {
+            error_message: "Missing required field: request_details".to_string(),
+            error_code: "MISSING_REQUIRED_FIELD".to_string(),
+            http_status_code: None,
+            error_info: None,
+        })
     })?;
 
-    let request_details =
-        RequestDetails::foreign_try_from(request_details_proto).map_err(|e| ConnectorError {
+    let request_details = RequestDetails::foreign_try_from(request_details_proto).map_err(|e| {
+        Box::new(ConnectorError {
             error_message: format!("ForeignTryFrom failed: {e}"),
             error_code: "CONVERSION_FAILED".to_string(),
             http_status_code: None,
-        })?;
+            error_info: None,
+        })
+    })?;
 
     let secrets = payload
         .redirect_response_secrets
         .map(|s| {
             domain_types::connector_types::ConnectorRedirectResponseSecrets::foreign_try_from(s)
-                .map_err(|e| ConnectorError {
-                    error_message: format!("ForeignTryFrom failed: {e}"),
-                    error_code: "CONVERSION_FAILED".to_string(),
-                    http_status_code: None,
+                .map_err(|e| {
+                    Box::new(ConnectorError {
+                        error_message: format!("ForeignTryFrom failed: {e}"),
+                        error_code: "CONVERSION_FAILED".to_string(),
+                        http_status_code: None,
+                        error_info: None,
+                    })
                 })
         })
         .transpose()?
@@ -970,20 +1011,26 @@ pub fn verify_redirect_response_transformer(
     let redirect_details = connector_data
         .connector
         .process_redirect_response(&updated_request_details)
-        .map_err(|e| ConnectorError {
-            error_message: format!("{e}"),
-            error_code: "PROCESS_REDIRECT_ERROR".to_string(),
-            http_status_code: None,
+        .map_err(|e| {
+            Box::new(ConnectorError {
+                error_message: format!("{e}"),
+                error_code: "PROCESS_REDIRECT_ERROR".to_string(),
+                http_status_code: None,
+                error_info: None,
+            })
         })?;
 
     PaymentServiceVerifyRedirectResponseResponse::foreign_try_from((
         source_verified,
         redirect_details,
     ))
-    .map_err(|e| ConnectorError {
-        error_message: format!("ForeignTryFrom failed: {e}"),
-        error_code: "CONVERSION_FAILED".to_string(),
-        http_status_code: None,
+    .map_err(|e| {
+        Box::new(ConnectorError {
+            error_message: format!("ForeignTryFrom failed: {e}"),
+            error_code: "CONVERSION_FAILED".to_string(),
+            http_status_code: None,
+            error_info: None,
+        })
     })
 }
 

@@ -7,8 +7,9 @@ use domain_types::{
         RefundFlowData, RefundsData, RefundsResponseData, ResponseId,
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{BankRedirectData, PaymentMethodData, PaymentMethodDataTypes},
-    router_data::{ConnectorSpecificConfig, ErrorResponse},
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
     utils,
@@ -337,7 +338,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         VoltRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -350,7 +351,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: VoltRouterData<
             RouterDataV2<
                 ServerAuthenticationToken,
-                PaymentFlowData,
+                MerchantAuthenticationFlowData,
                 ServerAuthenticationTokenRequestData,
                 ServerAuthenticationTokenResponseData,
             >,
@@ -369,7 +370,7 @@ pub struct VoltAuthUpdateResponse {
 }
 
 impl<F, T> TryFrom<ResponseRouterData<VoltAuthUpdateResponse, Self>>
-    for RouterDataV2<F, PaymentFlowData, T, ServerAuthenticationTokenResponseData>
+    for RouterDataV2<F, MerchantAuthenticationFlowData, T, ServerAuthenticationTokenResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(
@@ -487,9 +488,11 @@ impl<F, T> TryFrom<ResponseRouterData<VoltPaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             ..item.router_data
         })
@@ -559,7 +562,7 @@ impl<F, T> TryFrom<ResponseRouterData<VoltPaymentsResponseData, Self>>
                             message: payment_response.status.clone().to_string(),
                             reason: Some(payment_response.status.to_string()),
                             status_code: item.http_code,
-                            attempt_status: Some(status),
+                            attempt_status: Some(FlowStatus::Payment(status)),
                             connector_transaction_id: Some(payment_response.id),
                             network_advice_code: None,
                             network_decline_code: None,
@@ -574,11 +577,13 @@ impl<F, T> TryFrom<ResponseRouterData<VoltPaymentsResponseData, Self>>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: payment_response
                                 .merchant_internal_reference
                                 .or(Some(payment_response.id)),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         })
                     },
                     ..item.router_data
@@ -606,7 +611,7 @@ impl<F, T> TryFrom<ResponseRouterData<VoltPaymentsResponseData, Self>>
                                 .clone()
                                 .map(|volt_status| volt_status.to_string()),
                             status_code: item.http_code,
-                            attempt_status: Some(status),
+                            attempt_status: Some(FlowStatus::Payment(status)),
                             connector_transaction_id: Some(webhook_response.payment.clone()),
                             network_advice_code: None,
                             network_decline_code: None,
@@ -621,11 +626,13 @@ impl<F, T> TryFrom<ResponseRouterData<VoltPaymentsResponseData, Self>>
                             mandate_reference: None,
                             connector_metadata: None,
                             network_txn_id: None,
+                            network_txn_link_id: None,
                             connector_response_reference_id: webhook_response
                                 .merchant_internal_reference
                                 .or(Some(webhook_response.payment)),
                             incremental_authorization_allowed: None,
                             status_code: item.http_code,
+                            splits: None,
                         })
                     },
                     ..item.router_data

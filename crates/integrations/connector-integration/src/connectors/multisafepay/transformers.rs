@@ -11,6 +11,7 @@ use domain_types::{
         PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
     },
+    merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodDataTypes, RawCardNumber},
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
@@ -121,7 +122,9 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::BillDeskRedirect(_)
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
-            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 Default::default(),
             ))
@@ -321,7 +324,9 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
             | WalletData::BillDeskRedirect(_)
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
-            | WalletData::EaseBuzzRedirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::EaseBuzzRedirect(_)
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
                 Default::default(),
             ))
@@ -404,26 +409,36 @@ fn build_gateway_info<T: PaymentMethodDataTypes>(
     order_type: &Type,
     payment_method_data: &domain_types::payment_method_data::PaymentMethodData<T>,
 ) -> Result<Option<MultisafepayGatewayInfo<T>>, error_stack::Report<IntegrationError>> {
+    use common_utils::fp_utils::when;
     use domain_types::payment_method_data::{BankDebitData, PaymentMethodData};
     use error_stack::ResultExt;
 
     match (order_type, payment_method_data) {
         (Type::Direct, PaymentMethodData::Card(card_data)) => {
             // Build gateway_info with card details
-            // Format card expiry as YYMM (2-digit year + 2-digit month) as integer
-            let card_expiry_str = card_data
+            // Format card expiry as YYMM (2-digit year + 2-digit month)
+            let card_expiry_secret = card_data
                 .get_card_expiry_year_month_2_digit_with_delimiter(String::new())
                 .change_context(IntegrationError::RequestEncodingFailed {
                     context: Default::default(),
-                })?
-                .expose();
+                })?;
+            let card_expiry_str = card_expiry_secret.expose();
 
-            let card_expiry_date: i64 = card_expiry_str
-                .parse::<i64>()
-                .change_context(IntegrationError::RequestEncodingFailed {
+            // Vault token placeholders (e.g. "{{$card_exp_month}}") cannot be parsed as i64.
+            // Multisafepay requires a numeric YYMM value, so proxy flows are not supported.
+            when(card_expiry_str.contains("{{"), || {
+                Err(error_stack::report!(IntegrationError::NotSupported {
+                    message: "Multisafepay requires a numeric YYMM expiry value; vault token placeholders are not supported for proxy flows".to_string(),
+                    connector: "Multisafepay",
                     context: Default::default(),
-                })
-                .attach_printable("Failed to parse card expiry date as integer")?;
+                }))
+            })?;
+
+            let card_expiry_date = card_expiry_str.parse::<i64>().change_context(
+                IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                },
+            )?;
 
             Ok(Some(MultisafepayGatewayInfo::Card(GatewayInfo {
                 card_number: card_data.card_number.clone(),
@@ -927,9 +942,11 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MultisafepayPaymentsR
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: response_data.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -966,9 +983,11 @@ impl TryFrom<ResponseRouterData<MultisafepayPaymentsResponse, Self>>
                 mandate_reference: None,
                 connector_metadata: None,
                 network_txn_id: None,
+                network_txn_link_id: None,
                 connector_response_reference_id: response_data.order_id.clone(),
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
+                splits: None,
             }),
             resource_common_data: PaymentFlowData {
                 status,
@@ -1127,7 +1146,7 @@ pub struct MultisafepayClientAuthData {
 impl TryFrom<ResponseRouterData<MultisafepayClientAuthResponse, Self>>
     for RouterDataV2<
         ClientAuthenticationToken,
-        PaymentFlowData,
+        MerchantAuthenticationFlowData,
         ClientAuthenticationTokenRequestData,
         PaymentsResponseData,
     >

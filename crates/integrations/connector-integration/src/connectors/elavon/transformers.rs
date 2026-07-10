@@ -30,8 +30,10 @@ use serde_with::skip_serializing_none;
 
 use super::ElavonRouterData;
 use crate::types::ResponseRouterData;
-use domain_types::errors::ConnectorError;
-use domain_types::errors::IntegrationError;
+use domain_types::{
+    errors::{ConnectorError, IntegrationError},
+    router_data::FlowStatus,
+};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct ElavonAuthType {
@@ -759,7 +761,7 @@ pub fn get_elavon_attempt_status(
                     .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: error_resp.error_message.clone(),
                 reason: error_resp.error_name.clone(),
-                attempt_status: Some(HyperswitchAttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(HyperswitchAttemptStatus::Failure)),
                 connector_transaction_id: error_resp.ssl_txn_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -807,6 +809,7 @@ impl<
                         connector_mandate_id: None,
                         payment_method_id: Some(token),
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     })
                 });
                 Ok(PaymentsResponseData::TransactionResponse {
@@ -816,10 +819,12 @@ impl<
                     redirection_data: None,
                     connector_metadata: None,
                     network_txn_id: payment_resp_struct.ssl_approval_code.clone(),
+                    network_txn_link_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
                     mandate_reference,
                     status_code: http_code,
+                    splits: None,
                 })
             }
             (_, Some(err_resp)) => Err(err_resp),
@@ -831,7 +836,7 @@ impl<
                     .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: error_payload.error_message.clone(),
                 reason: error_payload.error_name.clone(),
-                attempt_status: Some(HyperswitchAttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(HyperswitchAttemptStatus::Failure)),
                 connector_transaction_id: error_payload.ssl_txn_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1059,10 +1064,12 @@ impl<F> TryFrom<ResponseRouterData<ElavonCaptureResponse, Self>>
                             .unwrap_or(serde_json::Value::Null),
                     ),
                     network_txn_id: None,
+                    network_txn_link_id: None,
                     connector_response_reference_id: payment_resp_struct.ssl_approval_code.clone(),
                     incremental_authorization_allowed: None,
                     mandate_reference: None,
                     status_code: http_code,
+                    splits: None,
                 })
             }
             (_, Some(err_resp)) => Err(err_resp),
@@ -1074,7 +1081,7 @@ impl<F> TryFrom<ResponseRouterData<ElavonCaptureResponse, Self>>
                     .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: error_payload.error_message.clone(),
                 reason: error_payload.error_name.clone(),
-                attempt_status: Some(HyperswitchAttemptStatus::Failure),
+                attempt_status: Some(FlowStatus::Payment(HyperswitchAttemptStatus::Failure)),
                 connector_transaction_id: error_payload.ssl_txn_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1229,7 +1236,7 @@ impl<F> TryFrom<ResponseRouterData<ElavonRefundResponse, Self>>
                     .unwrap_or_else(|| NO_ERROR_CODE.to_string()),
                 message: error_payload.error_message.clone(),
                 reason: error_payload.error_name.clone(),
-                attempt_status: Some(attempt_status),
+                attempt_status: Some(FlowStatus::Payment(attempt_status)),
                 connector_transaction_id: error_payload.ssl_txn_id.clone(),
                 network_decline_code: None,
                 network_advice_code: None,
@@ -1459,10 +1466,12 @@ impl<F> TryFrom<ResponseRouterData<ElavonPSyncResponse, Self>>
             redirection_data: None,
             connector_metadata: Some(serde_json::json!(response)),
             network_txn_id: None,
+            network_txn_link_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
             mandate_reference: None,
             status_code: value.http_code,
+            splits: None,
         };
 
         Ok(Self {

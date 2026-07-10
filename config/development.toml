@@ -1,5 +1,7 @@
 [common]
 environment = "development"
+# Whether to return raw connector request/response in the response (default: true)
+return_raw_connector_data = false
 
 [log.console]
 enabled = true
@@ -23,10 +25,19 @@ type = "grpc"
 host = "0.0.0.0"
 port = 8080
 
+# OpenTelemetry (OTLP) metrics push. Requires building with the `otel` feature.
+# Disabled by default; the Prometheus /metrics scrape endpoint above is unaffected.
+# The endpoint must be an OTLP *gRPC* receiver (default port 4317), not an HTTP one.
+[metrics.otel]
+enabled = false
+# otel_exporter_otlp_endpoint = "http://<otel-collector-host>:4317"
+# collection_interval_secs = 3
+# export_timeout_secs = 10
+
 [proxy]
 idle_pool_connection_timeout = 90
-bypass_proxy_urls = []
-mitm_proxy_enabled = false
+connector_request_timeout = 30
+bypass_urls = []
 
 [test]
 enabled = false
@@ -44,13 +55,21 @@ psync = "GW_TXN_SYNC"
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)
-connectors_with_webhook_source_verification_call = "paypal, truelayer "
+connectors_with_webhook_source_verification_call = "paypal, truelayer"
 
 [connectors]
+kount.base_url = "https://api-sandbox.kount.com"
+kount.secondary_base_url = "https://login.kount.com"
+hyperswitch.base_url = "https://sandbox.hyperswitch.io"
+payconex.base_url = "https://cert.payconex.net"
+affirm.base_url = "https://sandbox.affirm.com"
+tamara.base_url = "https://api-sandbox.tamara.co"
+juspay.base_url = "https://sandbox.juspay.in/"
+qwikcilver.base_url = "https://qc3.qwikcilver.com/"
 peachpayments.base_url = "https://apitest.bankint.ppay.io/v/1"
 finix.base_url = "https://finix.sandbox-payments-api.com"
 fiservcommercehub.base_url = "https://connect-cert.fiservapis.com/ch/"
-sanlam.base_url = "dev"
+absa_sanlam.base_url = "dev"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
 ppro.base_url = "https://api.sandbox.eu.ppro.com"
 gigadat.base_url = "https://interac.express-connect.com/"
@@ -70,6 +89,8 @@ bluesnap.secondary_base_url = "https://sandpay.bluesnap.com"
 multisafepay.base_url = "https://testapi.multisafepay.com/v1/json"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
 imerchantsolutions.base_url = "https://imerchantsolutions.com/api"
+interpayments.base_url = "https://api-test.interpayments.com/v1"
+twoc_twop_paco.base_url = "https://core.demo-paco.2c2p.com"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
 jpmorgan.secondary_base_url = "https://id.payments.jpmorgan.com"
 nmi.base_url = "https://secure.nmi.com"
@@ -102,7 +123,7 @@ fiuu.base_url = "https://sandbox.merchant.razer.com/"
 fiuu.secondary_base_url = "https://sandbox.merchant.razer.com/"
 fiuu.third_base_url = "https://api.merchant.razer.com/"
 payload.base_url = "https://api.payload.com"
-payu.base_url = "https://test.payu.in/"
+payu.base_url = "https://secure.snd.payu.com/"
 paytm.base_url = "https://securestage.paytmpayments.com/"
 cashtocode.base_url = "https://cluster05.api-test.cashtocode.com"
 calida.base_url = "https://dev.eorder.reloadhero.com/"
@@ -145,12 +166,25 @@ truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 trustly.base_url = "https://test.trustly.com/api/1"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br"
 pinelabs_online.base_url = "https://pluraluat.v2.pinepg.in/api/pay/v1"
+easebuzz.base_url = "https://testpay.easebuzz.in"
+easebuzz.secondary_base_url = "https://testdashboard.easebuzz.in"
+axisbank.base_url = "https://upiuatv3.axisbank.com/api/b2/"
+tsys_transit.base_url = "https://stagegw.transnox.com/servlets/TransNox_API_Server"
+flywire.base_url = "https://api-platform-sandbox.flywire.com"
 
 # Generic Events Configuration
 [events]
 enabled = false
 brokers = ["localhost:9092"]
-topic = "audit-trail-events"
+
+# Outbound connector-call events.
+[events.connector_events]
+topic = "unified-connector-service-connector-events"
+partition_key_field = "request_id"
+
+# Inbound request events.
+[events.api_events]
+topic = "unified-connector-service-api-events"
 partition_key_field = "request_id"
 
 [lineage]
@@ -192,4 +226,4 @@ enqueue_timeout_ms = 5000
 # sasl_password = ""
 
 [unmasked_headers]
-keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode"]
+keys = ["x-request-id","x-merchant-id","x-lineage-ids","x-reference-id","x-connector","x-tenant-id","x-shadow-mode","x-proxy-name"]

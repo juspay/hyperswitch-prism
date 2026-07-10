@@ -1,6 +1,7 @@
 #![allow(unused_variables, unused_assignments)]
 
 use crate::router_data::ErrorResponse;
+use crate::utils::ForeignFrom;
 use common_enums;
 use common_utils::errors::ErrorSwitch;
 use error_stack::Report;
@@ -249,6 +250,50 @@ impl IntegrationError {
         Self::ConfigurationError {
             code: code.into(),
             message: message.into(),
+            context,
+        }
+    }
+
+    /// Connector feature not implemented. Pass `IntegrationErrorContext::default()`
+    /// when no connector-specific guidance is needed.
+    pub fn not_implemented(message: impl Into<String>, context: IntegrationErrorContext) -> Self {
+        Self::NotImplemented(message.into(), context)
+    }
+
+    /// Connector flow not implemented; formats a canonical `{flow} flow for {connector}` message.
+    pub fn connector_flow_not_implemented(
+        connector: impl Into<String>,
+        flow: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        Self::not_implemented(
+            format!("{} flow for {}", flow.into(), connector.into()),
+            context,
+        )
+    }
+
+    /// Connector flow not supported.
+    pub fn connector_flow_not_supported(
+        connector: impl Into<String>,
+        flow: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        Self::FlowNotSupported {
+            flow: flow.into(),
+            connector: connector.into(),
+            context,
+        }
+    }
+
+    /// Connector feature not supported.
+    pub fn connector_feature_not_supported(
+        connector: &'static str,
+        message: impl Into<String>,
+        context: IntegrationErrorContext,
+    ) -> Self {
+        Self::NotSupported {
+            message: message.into(),
+            connector,
             context,
         }
     }
@@ -512,37 +557,16 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
     fn switch(&self) -> grpc_api_types::payments::ConnectorError {
         match self {
             Self::ConnectorErrorResponse(error_response) => {
-                // Pack all fields that cannot be surfaced in proto into error_message,
-                // since proto ConnectorError has no dedicated fields for them.
-                // Format: "<message> | code:<connector_code> | txn:<id> | network_decline:<code> | network_advice:<code>"
-                let mut parts = vec![error_response.message.clone()];
-                if let Some(reason) = &error_response.reason {
-                    if reason != &error_response.message {
-                        parts.push(reason.clone());
-                    }
-                }
-                if error_response.code != common_utils::consts::NO_ERROR_CODE {
-                    parts.push(format!("code:{}", error_response.code));
-                }
-                if let Some(txn_id) = &error_response.connector_transaction_id {
-                    parts.push(format!("txn:{}", txn_id));
-                }
-                if let Some(network_decline) = &error_response.network_decline_code {
-                    parts.push(format!("network_decline:{}", network_decline));
-                }
-                if let Some(network_advice) = &error_response.network_advice_code {
-                    parts.push(format!("network_advice:{}", network_advice));
-                }
-                if let Some(network_error) = &error_response.network_error_message {
-                    parts.push(format!("network_error:{}", network_error));
-                }
-                if let Some(attempt_status) = &error_response.attempt_status {
-                    parts.push(format!("attempt_status:{:?}", attempt_status));
-                }
+                // Build structured ErrorInfo from available error data
+                let error_info = ForeignFrom::foreign_from(error_response);
+
+                // Structured error data is fully captured in `error_info`.
+                // Use the connector's top-level message directly as error_message.
                 grpc_api_types::payments::ConnectorError {
-                    error_message: parts.join(" | "),
+                    error_message: error_response.message.clone(),
                     error_code: self.error_code().to_string(),
                     http_status_code: Some(error_response.status_code as u32),
+                    error_info,
                 }
             }
             _ => {
@@ -556,9 +580,61 @@ impl ErrorSwitch<grpc_api_types::payments::ConnectorError> for ConnectorError {
                     error_message,
                     error_code: self.error_code().to_string(),
                     http_status_code: context.http_status_code.map(|code| code as u32),
+                    error_info: None,
                 }
             }
         }
+    }
+}
+
+impl ForeignFrom<&ErrorResponse> for Option<grpc_api_types::payments::ErrorInfo> {
+    fn foreign_from(error_response: &ErrorResponse) -> Self {
+        // Only build ErrorInfo if we have meaningful structured data
+        let has_connector_details = error_response.code != common_utils::consts::NO_ERROR_CODE
+            || error_response.reason.is_some();
+        let has_network_details = error_response.network_decline_code.is_some()
+            || error_response.network_advice_code.is_some()
+            || error_response.network_error_message.is_some();
+
+        if !has_connector_details && !has_network_details {
+            return None;
+        }
+
+        let connector_details =
+            has_connector_details.then(|| grpc_api_types::payments::ConnectorErrorDetails {
+                code: (error_response.code != common_utils::consts::NO_ERROR_CODE)
+                    .then(|| error_response.code.clone()),
+                message: Some(error_response.message.clone()),
+                reason: error_response.reason.clone(),
+                connector_transaction_id: error_response.connector_transaction_id.clone(),
+                status: error_response
+                    .attempt_status
+                    .as_ref()
+                    .map(ForeignFrom::foreign_from),
+            });
+
+        let issuer_details = has_network_details.then(|| {
+            grpc_api_types::payments::IssuerErrorDetails {
+                code: None, // Card scheme not directly available in ErrorResponse
+                message: error_response.network_error_message.clone(),
+                network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                    advice_code: error_response.network_advice_code.clone(),
+                    decline_code: error_response.network_decline_code.clone(),
+                    error_message: error_response.network_error_message.clone(),
+                }),
+            }
+        });
+
+        Some(grpc_api_types::payments::ErrorInfo {
+            unified_details: Some(grpc_api_types::payments::UnifiedErrorDetails {
+                code: Some(error_response.code.clone()),
+                message: Some(error_response.message.clone()),
+                description: error_response.reason.clone(),
+                user_guidance_message: None, // Could be populated from connector config
+            }),
+            issuer_details,
+            connector_details,
+        })
     }
 }
 

@@ -1,6 +1,6 @@
 {
   "connector": "cashtocode",
   "supported_suites": [
-    "authorize"
+    "PaymentService/Authorize"
   ]
 }

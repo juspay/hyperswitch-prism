@@ -1,8 +1,9 @@
 use common_utils::{
-    consts::{self, X_ENVIRONMENT, X_SHADOW_MODE},
+    consts::{self, X_ENVIRONMENT, X_PROXY_NAME, X_SHADOW_MODE},
     errors::CustomResult,
     fp_utils,
     lineage::LineageIds,
+    request_metrics::ConnectorLatencyTracker,
 };
 use domain_types::{
     connector_types,
@@ -27,7 +28,7 @@ pub struct MetadataPayload {
     pub tenant_id: String,
     pub request_id: String,
     pub merchant_id: String,
-    pub connector: connector_types::ConnectorEnum,
+    pub connector: connector_types::ConnectorVariant,
     pub lineage_ids: LineageIds<'static>,
     /// Typed connector integration config extracted from request metadata.
     ///
@@ -39,6 +40,11 @@ pub struct MetadataPayload {
     pub resource_id: Option<String>,
     /// Environment dimension for superposition config resolution (e.g., "production", "sandbox")
     pub environment: Option<String>,
+    /// Named proxy to use for this request — matches a key in [proxy.proxies.*] config.
+    /// If absent, resolved from shadow_mode: true → "shadow", false → "primary".
+    pub proxy_name: Option<String>,
+    /// Request-scoped accumulator for outbound connector call latency.
+    pub connector_latency: ConnectorLatencyTracker,
 }
 
 pub fn get_metadata_payload(
@@ -57,6 +63,7 @@ pub fn get_metadata_payload(
     let resource_id = resource_id_from_metadata(metadata)?;
     let shadow_mode = shadow_mode_from_metadata(metadata);
     let environment = environment_from_metadata(metadata);
+    let proxy_name = proxy_name_from_metadata(metadata);
 
     Ok(MetadataPayload {
         tenant_id,
@@ -69,6 +76,8 @@ pub fn get_metadata_payload(
         shadow_mode,
         resource_id,
         environment,
+        proxy_name,
+        connector_latency: ConnectorLatencyTracker::default(),
     })
 }
 
@@ -103,6 +112,110 @@ pub fn extract_lineage_fields_from_metadata(
         .to_owned()
 }
 
+pub fn connector_variant_from_metadata(
+    metadata: &metadata::MetadataMap,
+) -> CustomResult<connector_types::ConnectorVariant, IntegrationError> {
+    // Priority 1: Check x-connector header first
+    if let Some(value) = metadata.get(consts::X_CONNECTOR_NAME) {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid x-connector header value: {e}")),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector = connector_types::ConnectorEnum::from_str(connector_str).map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid connector: {e}")),
+                    ..Default::default()
+                },
+            })
+        })?;
+        Ok(connector_types::ConnectorVariant::Payment(connector))
+    } else if let Some(value) = metadata.get(consts::X_SURCHARGE_CONNECTOR_NAME)
+    // Priority 2: Check x-surcharge-connector header
+    {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-surcharge-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Invalid x-surcharge-connector header value: {e}"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector =
+            connector_types::SurchargeConnectorEnum::from_str(connector_str).map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-surcharge-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid surcharge connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Surcharge(connector))
+    } else if let Some(value) = metadata.get(consts::X_PAYOUT_CONNECTOR_NAME)
+    // Priority 3: Check x-payout-connector header
+    {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-payout-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!(
+                        "Invalid x-payout-connector header value: {e}"
+                    )),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector =
+            connector_types::PayoutConnectorEnum::from_str(connector_str).map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-payout-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid payout connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Payout(connector))
+    } else if let Some(value) = metadata.get(consts::X_FRM_CONNECTOR_NAME) {
+        let connector_str = value.to_str().map_err(|e| {
+            Report::new(IntegrationError::InvalidDataFormat {
+                field_name: "x-frm-connector",
+                context: IntegrationErrorContext {
+                    additional_context: Some(format!("Invalid x-frm-connector header value: {e}")),
+                    ..Default::default()
+                },
+            })
+        })?;
+        let connector =
+            connector_types::FrmConnectorEnum::from_str(connector_str).map_err(|e| {
+                Report::new(IntegrationError::InvalidDataFormat {
+                    field_name: "x-frm-connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(format!("Invalid FRM connector: {e}")),
+                        ..Default::default()
+                    },
+                })
+            })?;
+        Ok(connector_types::ConnectorVariant::Frm(connector))
+    } else {
+        // Neither header found
+        Err(Report::new(IntegrationError::MissingRequiredField {
+            field_name: "x-connector",
+            context: IntegrationErrorContext::default(),
+        }))
+    }
+}
+
 pub fn connector_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<connector_types::ConnectorEnum, IntegrationError> {
@@ -118,7 +231,6 @@ pub fn connector_from_metadata(
         })
     })
 }
-
 pub fn merchant_id_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<String, IntegrationError> {
@@ -170,6 +282,16 @@ pub fn shadow_mode_from_metadata(metadata: &metadata::MetadataMap) -> bool {
         .flatten()
         .map(|value| value.to_lowercase() == "true")
         .unwrap_or(false)
+}
+
+/// Extracts the named proxy key from `x-proxy-name` header.
+/// Caller decides which proxy to use; UCS does a pure lookup in [proxy.proxies.*].
+pub fn proxy_name_from_metadata(metadata: &metadata::MetadataMap) -> Option<String> {
+    parse_optional_metadata(metadata, X_PROXY_NAME)
+        .ok()
+        .flatten()
+        .filter(|s| !s.trim().is_empty())
+        .map(|s| s.trim().to_string())
 }
 
 /// Extracts environment from the x-environment header for superposition config resolution.

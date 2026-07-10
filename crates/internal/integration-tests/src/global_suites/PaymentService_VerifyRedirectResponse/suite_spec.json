@@ -1,0 +1,9 @@
+{
+  "suite": "PaymentService/VerifyRedirectResponse",
+  "suite_type": "dependent",
+  "depends_on": [
+    "MerchantAuthenticationService/CreateServerSessionAuthenticationToken",
+    "PaymentService/Authorize"
+  ],
+  "strict_dependencies": false
+}

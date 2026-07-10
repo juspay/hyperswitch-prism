@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for ppro"
       }
     },
     "authorize": {
@@ -20,8 +21,8 @@
         "error": "payment method affirm is not supported by PPRO is not supported by ppro"
       },
       "Afterpay": {
-        "status": "not_supported",
-        "error": "payment method afterpay_clearpay is not supported by PPRO is not supported by ppro"
+        "status": "error",
+        "error": "Stuck on field: email. Afterpay requires consumer email — Missing required field: email. Afterpay requires consumer email"
       },
       "Alfamart": {
         "status": "not_supported",
@@ -210,6 +211,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "Dana": {
+        "status": "not_supported",
+        "error": "payment method dana is not supported by PPRO is not supported by ppro"
+      },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
         "error": "payment method danamon_va is not supported by PPRO is not supported by ppro"
@@ -242,6 +247,10 @@
         "status": "not_supported",
         "error": "payment method family_mart is not supported by PPRO is not supported by ppro"
       },
+      "GCash": {
+        "status": "not_supported",
+        "error": "payment method gcash is not supported by PPRO is not supported by ppro"
+      },
       "Giropay": {
         "status": "not_supported",
         "error": "payment method giropay is not supported by PPRO is not supported by ppro"
@@ -249,6 +258,10 @@
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "payment method go_pay is not supported by PPRO is not supported by ppro"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -318,6 +331,10 @@
         "status": "not_supported",
         "error": "payment method interac is not supported by PPRO is not supported by ppro"
       },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "payment method kakao_pay is not supported by PPRO is not supported by ppro"
+      },
       "Klarna": {
         "status": "not_supported",
         "error": "payment method klarna is not supported by PPRO is not supported by ppro"
@@ -382,6 +399,14 @@
         "status": "not_supported",
         "error": "payment method mini_stop is not supported by PPRO is not supported by ppro"
       },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "payment method momo is not supported by PPRO is not supported by ppro"
+      },
       "MultibancoBankTransfer": {
         "status": "not_supported",
         "error": "payment method multibanco is not supported by PPRO is not supported by ppro"
@@ -440,7 +465,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "payment method pay_safe_card is not supported by PPRO is not supported by ppro"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -453,6 +478,10 @@
       "PaypalSdk": {
         "status": "not_supported",
         "error": "payment method paypal is not supported by PPRO is not supported by ppro"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Paze": {
         "status": "not_supported",
@@ -546,13 +575,29 @@
         "status": "not_supported",
         "error": "payment method seven_eleven is not supported by PPRO is not supported by ppro"
       },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "payment method skrill is not supported by PPRO is not supported by ppro"
+      },
       "Sofort": {
         "status": "not_supported",
         "error": "payment method sofort is not supported by PPRO is not supported by ppro"
       },
+      "Swish": {
+        "status": "not_supported",
+        "error": "payment method swish is not supported by PPRO is not supported by ppro"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "payment method touch_n_go is not supported by PPRO is not supported by ppro"
+      },
       "Trustly": {
         "status": "error",
         "error": "Stuck on field: connector_customer_id — Missing required field: connector_customer_id"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "payment method twint is not supported by PPRO is not supported by ppro"
       },
       "UpiCollect": {
         "status": "not_supported",
@@ -587,7 +632,7 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"APP_INTENT\",\"settings\":{\"mobileIntentUri\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
       },
       "UpiQr": {
@@ -619,8 +664,12 @@
             "request-idempotency-key": "probe_txn_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"REDIRECT\",\"settings\":{\"returnUrl\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
+          "body": "{\"paymentMethod\":\"UPI\",\"paymentMedium\":\"ECOMMERCE\",\"merchantPaymentChargeReference\":\"probe_txn_001\",\"amount\":{\"currency\":\"USD\",\"value\":1000},\"consumer\":{},\"authenticationSettings\":[{\"type\":\"APP_INTENT\",\"settings\":{\"mobileIntentUri\":\"https://example.com/return\"}}],\"webhooksUrl\":\"https://example.com/webhook\"}"
         }
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "payment method vipps is not supported by PPRO is not supported by ppro"
       },
       "WeChatPayQr": {
         "status": "supported",
@@ -714,37 +763,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for ppro"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for ppro"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for ppro"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for ppro"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by ppro connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for ppro"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for ppro"
       }
     },
     "dispute_get": {
@@ -754,12 +810,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for ppro"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by ppro connector"
       }
     },
     "get": {
@@ -808,7 +866,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by ppro connector"
       }
     },
     "parse_event": {
@@ -830,14 +889,21 @@
         }
       }
     },
-    "post_authenticate": {
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for ppro"
+      }
+    },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for ppro"
       }
     },
     "proxy_authorize": {
@@ -892,7 +958,8 @@
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for ppro"
       }
     },
     "refund": {
@@ -918,7 +985,7 @@
             "request-idempotency-key": "probe_refund_001",
             "via": "HyperSwitch"
           },
-          "body": "{\"amount\":1000,\"refundReason\":\"CUSTOMER_REQUEST\"}"
+          "body": "{\"amount\":1000,\"merchantRefundReference\":\"probe_refund_001\",\"refundReason\":\"CUSTOMER_REQUEST\"}"
         }
       }
     },
@@ -945,7 +1012,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by ppro connector"
       }
     },
     "setup_recurring": {
@@ -968,7 +1036,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for ppro"
       }
     },
     "verify_redirect": {

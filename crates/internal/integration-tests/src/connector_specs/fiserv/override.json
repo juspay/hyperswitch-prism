@@ -1,5 +1,5 @@
 {
-  "authorize": {
+  "PaymentService/Authorize": {
     "no3ds_auto_capture_ach_bank_transfer": {
       "assert": {
         "status": { "one_of": ["FAILURE"] },
@@ -113,7 +113,7 @@
       }
     }
   },
-  "capture": {
+  "PaymentService/Capture": {
     "capture_full_amount": {
       "grpc_req": {
         "connector_feature_data": {

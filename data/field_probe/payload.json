@@ -3,49 +3,14 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by payload connector"
       }
     },
     "authorize": {
       "Ach": {
-        "status": "supported",
-        "proto_request": {
-          "merchant_transaction_id": "probe_txn_001",
-          "amount": {
-            "minor_amount": 1000,
-            "currency": "USD"
-          },
-          "payment_method": {
-            "ach": {
-              "account_number": "000123456789",
-              "routing_number": "110000000",
-              "bank_account_holder_name": "John Doe"
-            }
-          },
-          "capture_method": "AUTOMATIC",
-          "address": {
-            "billing_address": {}
-          },
-          "auth_type": "NO_THREE_DS",
-          "return_url": "https://example.com/return",
-          "state": {
-            "access_token": {
-              "token": "probe_access_token",
-              "expires_in_seconds": 3600,
-              "token_type": "Bearer"
-            }
-          }
-        },
-        "sample": {
-          "url": "https://api.payload.com/transactions",
-          "method": "Post",
-          "headers": {
-            "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/x-www-form-urlencoded",
-            "via": "HyperSwitch"
-          },
-          "body": "amount=10.0&payment_method%5Bbank_account%5D%5Baccount_number%5D=000123456789&payment_method%5Bbank_account%5D%5Brouting_number%5D=110000000&payment_method%5Bbank_account%5D%5Baccount_type%5D=checking&type=payment&payment_method%5Btype%5D=bank_account&payment_method%5Baccount_holder%5D=John+Doe&payment_method%5Bkeep_active%5D=false"
-        }
+        "status": "error",
+        "error": "Stuck on field: billing.address.zip. payload bank_debit authorize: billing address postal_code — Missing required field: billing.address.zip. payload bank_debit authorize: billing address postal_code (zip) is required by the Payload /transactions API"
       },
       "AchBankTransfer": {
         "status": "not_supported",
@@ -173,10 +138,10 @@
           "method": "Post",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/x-www-form-urlencoded",
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "amount=10.0&payment_method%5Bcard%5D%5Bcard_number%5D=4111111111111111&payment_method%5Bcard%5D%5Bexpiry%5D=03%2F30&payment_method%5Bcard%5D%5Bcard_code%5D=737&type=payment&payment_method%5Btype%5D=card&payment_method%5Bbilling_address%5D%5Bcity%5D=Seattle&payment_method%5Bbilling_address%5D%5Bcountry_code%5D=US&payment_method%5Bbilling_address%5D%5Bpostal_code%5D=98101&payment_method%5Bbilling_address%5D%5Bstate_province%5D=WA&payment_method%5Bbilling_address%5D%5Bstreet_address%5D=123+Main+St&payment_method%5Bkeep_active%5D=false"
+          "body": "{\"amount\":\"10.00\",\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"4111111111111111\",\"expiry\":\"03/30\",\"card_code\":\"737\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":false},\"type\":\"payment\"}"
         }
       },
       "CashappQr": {
@@ -198,6 +163,10 @@
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
       },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
@@ -231,6 +200,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
       "Giropay": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
@@ -238,6 +211,10 @@
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -279,6 +256,10 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
       "Klarna": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
@@ -314,6 +295,14 @@
       "MiniStop": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
       },
       "MultibancoBankTransfer": {
         "status": "not_supported",
@@ -373,7 +362,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method is not supported by Payload"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -386,6 +375,10 @@
       "PaypalSdk": {
         "status": "not_supported",
         "error": "Wallet is not supported by Payload"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Paze": {
         "status": "not_supported",
@@ -451,13 +444,29 @@
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
       "Sofort": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
       },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
+      },
       "Trustly": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
+      },
+      "Twint": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
       },
       "UpiCollect": {
         "status": "not_supported",
@@ -470,6 +479,10 @@
       "UpiQr": {
         "status": "not_supported",
         "error": "Payment method is not supported by Payload"
+      },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Wallet is not supported by Payload"
       },
       "WeChatPayQr": {
         "status": "not_supported",
@@ -503,10 +516,10 @@
           "method": "Put",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/x-www-form-urlencoded",
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "status=processed"
+          "body": "{\"status\":\"processed\"}"
         }
       }
     },
@@ -532,38 +545,59 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"type\":\"client\",\"intent\":{\"payment_form\":{\"payment\":{\"amount\":10.0,\"description\":\"probe_sdk_session_001\"}}}}"
+          "body": "{\"type\":\"client\",\"intent\":{\"payment_form\":{\"payment\":{\"amount\":\"10.00\",\"description\":\"probe_sdk_session_001\"}}}}"
         }
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by payload connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by payload connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by payload connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_customer_id": "cust_probe_123",
+          "customer_name": "John Doe",
+          "email": "test@example.com",
+          "phone_number": "4155552671"
+        },
+        "sample": {
+          "url": "https://api.payload.com/customers",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5Og==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"keep_active\":false,\"email\":\"test@example.com\",\"name\":\"John Doe\"}"
+        }
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by payload connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by payload connector"
       }
     },
     "dispute_get": {
@@ -573,12 +607,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by payload connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by payload connector"
       }
     },
     "get": {
@@ -617,7 +653,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by payload connector"
       }
     },
     "parse_event": {
@@ -639,14 +676,21 @@
         }
       }
     },
-    "post_authenticate": {
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by payload connector"
+      }
+    },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by payload connector"
       }
     },
     "proxy_authorize": {
@@ -663,7 +707,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {
@@ -690,10 +735,10 @@
           "method": "Post",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/x-www-form-urlencoded",
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "amount=10.0&payment_method%5Bcard%5D%5Bcard_number%5D=4111111111111111&payment_method%5Bcard%5D%5Bexpiry%5D=03%2F30&payment_method%5Bcard%5D%5Bcard_code%5D=123&type=payment&payment_method%5Btype%5D=card&payment_method%5Bbilling_address%5D%5Bcity%5D=Seattle&payment_method%5Bbilling_address%5D%5Bcountry_code%5D=US&payment_method%5Bbilling_address%5D%5Bpostal_code%5D=98101&payment_method%5Bbilling_address%5D%5Bstate_province%5D=WA&payment_method%5Bbilling_address%5D%5Bstreet_address%5D=123+Main+St&payment_method%5Bkeep_active%5D=false"
+          "body": "{\"amount\":\"10.00\",\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"{{$card_number}}\",\"expiry\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"card_code\":\"{{$card_cvc}}\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":false},\"type\":\"payment\"}"
         }
       }
     },
@@ -711,7 +756,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {
@@ -741,10 +787,10 @@
           "method": "Post",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/x-www-form-urlencoded",
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "amount=0.0&payment_method%5Bcard%5D%5Bcard_number%5D=4111111111111111&payment_method%5Bcard%5D%5Bexpiry%5D=03%2F30&payment_method%5Bcard%5D%5Bcard_code%5D=123&type=payment&payment_method%5Btype%5D=card&payment_method%5Bbilling_address%5D%5Bcity%5D=Seattle&payment_method%5Bbilling_address%5D%5Bcountry_code%5D=US&payment_method%5Bbilling_address%5D%5Bpostal_code%5D=98101&payment_method%5Bbilling_address%5D%5Bstate_province%5D=WA&payment_method%5Bbilling_address%5D%5Bstreet_address%5D=123+Main+St&payment_method%5Bkeep_active%5D=true"
+          "body": "{\"amount\":\"0\",\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"{{$card_number}}\",\"expiry\":\"{{$card_exp_month}}/{{$card_exp_year}}\",\"card_code\":\"{{$card_cvc}}\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":true},\"type\":\"payment\"}"
         }
       }
     },
@@ -785,16 +831,17 @@
           "method": "Post",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/x-www-form-urlencoded",
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "amount=10.0&type=payment&payment_method_id=probe-mandate-123"
+          "body": "{\"amount\":\"10.00\",\"type\":\"payment\",\"payment_method_id\":\"probe-mandate-123\"}"
         }
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by payload connector"
       }
     },
     "refund": {
@@ -822,10 +869,10 @@
           "method": "Post",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/x-www-form-urlencoded",
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "type=refund&amount=10.0&ledger%5B0%5D%5Bassoc_transaction_id%5D=probe_connector_txn_001"
+          "body": "{\"type\":\"refund\",\"amount\":\"10.00\",\"ledger\":[{\"assoc_transaction_id\":\"probe_connector_txn_001\"}]}"
         }
       }
     },
@@ -857,7 +904,8 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by payload connector"
       }
     },
     "setup_recurring": {
@@ -909,10 +957,10 @@
           "method": "Post",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/x-www-form-urlencoded",
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "amount=0.0&payment_method%5Bcard%5D%5Bcard_number%5D=4111111111111111&payment_method%5Bcard%5D%5Bexpiry%5D=03%2F30&payment_method%5Bcard%5D%5Bcard_code%5D=737&type=payment&payment_method%5Btype%5D=card&payment_method%5Bbilling_address%5D%5Bcity%5D=Seattle&payment_method%5Bbilling_address%5D%5Bcountry_code%5D=US&payment_method%5Bbilling_address%5D%5Bpostal_code%5D=98101&payment_method%5Bbilling_address%5D%5Bstate_province%5D=WA&payment_method%5Bbilling_address%5D%5Bstreet_address%5D=123+Main+St&payment_method%5Bkeep_active%5D=true"
+          "body": "{\"amount\":\"0\",\"payment_method\":{\"type\":\"card\",\"card\":{\"card_number\":\"4111111111111111\",\"expiry\":\"03/30\",\"card_code\":\"737\"},\"billing_address\":{\"city\":\"Seattle\",\"country_code\":\"US\",\"postal_code\":\"98101\",\"state_province\":\"WA\",\"street_address\":\"123 Main St\"},\"keep_active\":true},\"type\":\"payment\"}"
         }
       }
     },
@@ -944,10 +992,10 @@
           "method": "Post",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/x-www-form-urlencoded",
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "amount=10.0&type=payment&payment_method_id=pm_1AbcXyzStripeTestToken"
+          "body": "{\"amount\":\"10.00\",\"type\":\"payment\",\"payment_method_id\":\"pm_1AbcXyzStripeTestToken\"}"
         }
       }
     },
@@ -959,7 +1007,8 @@
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for payload"
       }
     },
     "verify_redirect": {
@@ -986,10 +1035,10 @@
           "method": "Put",
           "headers": {
             "authorization": "Basic cHJvYmVfa2V5Og==",
-            "content-type": "application/x-www-form-urlencoded",
+            "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "status=voided"
+          "body": "{\"status\":\"voided\"}"
         }
       }
     }

@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "authenticate flow not supported by gigadat connector"
       }
     },
     "authorize": {
@@ -119,6 +120,10 @@
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
+      "Dana": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
       "DanamonVaBankTransfer": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
@@ -151,6 +156,10 @@
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
+      "GCash": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
       "Giropay": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
@@ -158,6 +167,10 @@
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
       "GooglePay": {
         "status": "not_supported",
@@ -246,6 +259,10 @@
           "body": "{\"userId\":\"cust_probe_123\",\"site\":\"probe_site\",\"userIp\":\"1.2.3.4\",\"currency\":\"USD\",\"amount\":10.0,\"transactionId\":\"probe_txn_001\",\"type\":\"CPI\",\"sandbox\":false,\"name\":\"John Doe\",\"email\":\"test@example.com\",\"mobile\":\"+14155552671\"}"
         }
       },
+      "KakaoPay": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
       "Klarna": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
@@ -279,6 +296,14 @@
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
       "MiniStop": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
@@ -340,7 +365,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -353,6 +378,10 @@
       "PaypalSdk": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Paze": {
         "status": "not_supported",
@@ -418,11 +447,27 @@
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
+      "Skrill": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
       "Sofort": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
+      "Swish": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
+      "TouchNGo": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
       "Trustly": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
+      "Twint": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
@@ -438,6 +483,10 @@
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
       },
+      "Vipps": {
+        "status": "not_supported",
+        "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
+      },
       "WeChatPayQr": {
         "status": "not_supported",
         "error": "Only Interac bank redirect is supported for Gigadat is not supported by Gigadat"
@@ -449,42 +498,50 @@
     },
     "capture": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "capture flow not supported by gigadat connector"
       }
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by gigadat connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by gigadat connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_authentication_token flow not supported by gigadat connector"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "server_session_authentication_token flow not supported by gigadat connector"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by gigadat connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by gigadat connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by gigadat connector"
       }
     },
     "dispute_get": {
@@ -494,12 +551,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by gigadat connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by gigadat connector"
       }
     },
     "get": {
@@ -532,7 +591,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "incremental_authorization flow not supported by gigadat connector"
       }
     },
     "parse_event": {
@@ -540,14 +600,21 @@
         "status": "not_implemented"
       }
     },
-    "post_authenticate": {
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "post_authenticate": {
+      "default": {
+        "status": "not_supported",
+        "error": "post_authenticate flow not supported by gigadat connector"
+      }
+    },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "pre_authenticate flow not supported by gigadat connector"
       }
     },
     "proxy_authorize": {
@@ -558,17 +625,20 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by gigadat connector"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for gigadat"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "mandate_revoke flow not supported by gigadat connector"
       }
     },
     "refund": {
@@ -598,17 +668,20 @@
     },
     "refund_get": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "refund_sync flow not supported by gigadat connector"
       }
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void_post_capture flow not supported by gigadat connector"
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by gigadat connector"
       }
     },
     "token_authorize": {
@@ -619,12 +692,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "setup_mandate flow not supported by gigadat connector"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "payment_method_token flow not supported by gigadat connector"
       }
     },
     "verify_redirect": {
@@ -634,7 +709,8 @@
     },
     "void": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "void flow not supported by gigadat connector"
       }
     }
   }

@@ -6,7 +6,7 @@
 // Run a scenario:  npx tsx trustpay.ts checkout_autocapture
 
 import { PaymentClient, MerchantAuthenticationClient, EventClient, RecurringPaymentClient, RefundClient, types } from 'hyperswitch-prism';
-const { Environment, AuthenticationType, CaptureMethod, CountryAlpha2, Currency, HttpMethod, PaymentMethodType } = types;
+const { Environment, AuthenticationType, CaptureMethod, CardNetwork, CountryAlpha2, Currency, HttpMethod, PaymentMethodType } = types;
 export const SUPPORTED_FLOWS = ["authorize", "create_order", "create_server_authentication_token", "get", "parse_event", "proxy_authorize", "recurring_charge", "refund", "refund_get"];
 
 const _defaultConfig: types.IConnectorConfig = {
@@ -147,7 +147,8 @@ function _buildProxyAuthorizeRequest(): types.IPaymentServiceProxyAuthorizeReque
             "cardExpMonth": {"value": "03"},
             "cardExpYear": {"value": "2030"},
             "cardCvc": {"value": "123"},
-            "cardHolderName": {"value": "John Doe"}  // Cardholder Information.
+            "cardHolderName": {"value": "John Doe"},  // Cardholder Information.
+            "cardNetwork": CardNetwork.VISA
         },
         "customer": {
             "email": {"value": "test@example.com"}  // Customer's email address.

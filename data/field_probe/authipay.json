@@ -3,7 +3,8 @@
   "flows": {
     "authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for authipay"
       }
     },
     "authorize": {
@@ -124,6 +125,7 @@
           "method": "Post",
           "headers": {
             "api-key": "probe_key",
+            "auth-token-type": "HMAC",
             "client-request-id": "00000000-0000-0000-0000-000000000000",
             "content-type": "application/json",
             "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
@@ -152,6 +154,10 @@
       "Crypto": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
@@ -185,6 +191,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported"
       },
+      "GCash": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
+      },
       "Giropay": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported"
@@ -192,6 +202,10 @@
       "Givex": {
         "status": "not_supported",
         "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
       },
       "GooglePay": {
         "status": "not_implemented",
@@ -233,6 +247,10 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported"
       },
+      "KakaoPay": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
+      },
       "Klarna": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported"
@@ -266,6 +284,14 @@
         "error": "This feature is not implemented: Only card payments are supported"
       },
       "MiniStop": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported"
       },
@@ -326,8 +352,8 @@
         "error": "This feature is not implemented: Only card payments are supported"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -340,6 +366,10 @@
       "PaypalSdk": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
       },
       "Paze": {
         "status": "not_supported",
@@ -405,11 +435,27 @@
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported"
       },
+      "Skrill": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
+      },
       "Sofort": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported"
       },
+      "Swish": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
+      },
+      "TouchNGo": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
+      },
       "Trustly": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
+      },
+      "Twint": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported"
       },
@@ -422,6 +468,10 @@
         "error": "This feature is not implemented: Only card payments are supported"
       },
       "UpiQr": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card payments are supported"
+      },
+      "Vipps": {
         "status": "not_implemented",
         "error": "This feature is not implemented: Only card payments are supported"
       },
@@ -450,6 +500,7 @@
           "method": "Post",
           "headers": {
             "api-key": "probe_key",
+            "auth-token-type": "HMAC",
             "client-request-id": "00000000-0000-0000-0000-000000000000",
             "content-type": "application/json",
             "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
@@ -462,37 +513,44 @@
     },
     "create_client_authentication_token": {
       "default": {
-        "status": "not_implemented"
-      }
-    },
-    "create_customer": {
-      "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "client_authentication_token flow not supported by authipay connector"
       }
     },
     "create_order": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "create_order flow not supported by authipay connector"
       }
     },
     "create_server_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_authentication_token flow for authipay"
       }
     },
     "create_server_session_authentication_token": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for authipay"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_supported",
+        "error": "create_connector_customer flow not supported by authipay connector"
       }
     },
     "dispute_accept": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "accept_dispute flow not supported by authipay connector"
       }
     },
     "dispute_defend": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "defend_dispute flow not supported by authipay connector"
       }
     },
     "dispute_get": {
@@ -502,12 +560,14 @@
     },
     "dispute_submit_evidence": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "submit_evidence flow not supported by authipay connector"
       }
     },
     "eligibility": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_supported",
+        "error": "eligibility flow not supported by authipay connector"
       }
     },
     "get": {
@@ -526,6 +586,7 @@
           "method": "Get",
           "headers": {
             "api-key": "probe_key",
+            "auth-token-type": "HMAC",
             "client-request-id": "00000000-0000-0000-0000-000000000000",
             "content-type": "application/json",
             "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
@@ -543,7 +604,8 @@
     },
     "incremental_authorization": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for authipay"
       }
     },
     "parse_event": {
@@ -551,14 +613,21 @@
         "status": "not_implemented"
       }
     },
-    "post_authenticate": {
+    "payment_method_eligibility": {
       "default": {
         "status": "not_implemented"
       }
     },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for authipay"
+      }
+    },
     "pre_authenticate": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for authipay"
       }
     },
     "proxy_authorize": {
@@ -575,7 +644,8 @@
             "card_exp_month": "03",
             "card_exp_year": "2030",
             "card_cvc": "123",
-            "card_holder_name": "John Doe"
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
           },
           "address": {
             "billing_address": {}
@@ -589,29 +659,33 @@
           "method": "Post",
           "headers": {
             "api-key": "probe_key",
+            "auth-token-type": "HMAC",
             "client-request-id": "00000000-0000-0000-0000-000000000000",
             "content-type": "application/json",
             "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
             "timestamp": "0000000000",
             "via": "HyperSwitch"
           },
-          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_proxy_txn_001\",\"transactionAmount\":{\"total\":10.0,\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_proxy_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"4111111111111111\",\"expiryDate\":{\"month\":\"03\",\"year\":\"30\"},\"securityCode\":\"123\"}}}"
+          "body": "{\"requestType\":\"PaymentCardSaleTransaction\",\"merchantTransactionId\":\"probe_proxy_txn_001\",\"transactionAmount\":{\"total\":10.0,\"currency\":\"USD\"},\"order\":{\"orderId\":\"probe_proxy_txn_001\"},\"paymentMethod\":{\"paymentCard\":{\"number\":\"{{$card_number}}\",\"expiryDate\":{\"month\":\"{{$card_exp_month}}\",\"year\":\"{{$card_exp_year}}\"},\"securityCode\":\"{{$card_cvc}}\"}}}"
         }
       }
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for authipay"
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: repeat_payment flow for authipay"
       }
     },
     "recurring_revoke": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for authipay"
       }
     },
     "refund": {
@@ -632,6 +706,7 @@
           "method": "Post",
           "headers": {
             "api-key": "probe_key",
+            "auth-token-type": "HMAC",
             "client-request-id": "00000000-0000-0000-0000-000000000000",
             "content-type": "application/json",
             "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
@@ -655,6 +730,7 @@
           "method": "Get",
           "headers": {
             "api-key": "probe_key",
+            "auth-token-type": "HMAC",
             "client-request-id": "00000000-0000-0000-0000-000000000000",
             "content-type": "application/json",
             "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
@@ -667,12 +743,31 @@
     },
     "reverse": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_reverse_id": "probe_reverse_001",
+          "connector_transaction_id": "probe_connector_txn_001"
+        },
+        "sample": {
+          "url": "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/payments/probe_connector_txn_001",
+          "method": "Post",
+          "headers": {
+            "api-key": "probe_key",
+            "auth-token-type": "HMAC",
+            "client-request-id": "00000000-0000-0000-0000-000000000000",
+            "content-type": "application/json",
+            "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "timestamp": "0000000000",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"requestType\":\"VoidTransaction\"}"
+        }
       }
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for authipay"
       }
     },
     "token_authorize": {
@@ -683,12 +778,14 @@
     },
     "token_setup_recurring": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: setup_mandate flow for authipay"
       }
     },
     "tokenize": {
       "default": {
-        "status": "not_implemented"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for authipay"
       }
     },
     "verify_redirect": {
@@ -708,6 +805,7 @@
           "method": "Post",
           "headers": {
             "api-key": "probe_key",
+            "auth-token-type": "HMAC",
             "client-request-id": "00000000-0000-0000-0000-000000000000",
             "content-type": "application/json",
             "message-signature": "cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
