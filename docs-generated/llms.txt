@@ -1,5 +1,5 @@
 # Connector Service — LLM Navigation Index
-# Connectors: 97
+# Connectors: 98
 #
 # This file helps AI coding assistants navigate connector-service documentation.
 # Each connector block lists: doc path, scenarios, supported payment methods,
@@ -8,7 +8,7 @@
 # Usage: fetch this file first, then fetch the specific connector doc or example.
 
 overview:
-  total_connectors: 97
+  total_connectors: 98
   docs_root: docs-generated/connectors/
   examples_root: examples/
   all_connectors_matrix: docs-generated/all_connector.md
@@ -421,6 +421,14 @@ scenarios: checkout_autocapture, refund, get_payment
 payment_methods: AliPayRedirect, Card, Eps, Giropay, GooglePay, GooglePayDecrypted, Ideal, PaypalRedirect, Sepa, Sofort, Trustly
 flows: authorize, create_client_authentication_token, get, refund, refund_get
 examples_python: examples/multisafepay/multisafepay.py
+
+## Netcetera
+connector_id: netcetera
+doc: docs/connectors/netcetera.md
+scenarios: none
+payment_methods: none
+flows: 
+examples_python: none
 
 ## Nexinets
 connector_id: nexinets

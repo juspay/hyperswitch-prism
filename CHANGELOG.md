@@ -19,6 +19,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.10.0
+
+### Bug Fixes
+
+- **clippy:** Resolve rust 1.97 clippy lints across the workspace ([#1862](https://github.com/juspay/connector-service/pull/1862)) ([`a776b05`](https://github.com/juspay/connector-service/commit/a776b054e36ea46520a1d084b3155d05ece07ddc))
+- **jpmorgan:** Make merchant_purchase_description / softMerchant optional ([#1818](https://github.com/juspay/connector-service/pull/1818)) ([`f614196`](https://github.com/juspay/connector-service/commit/f614196634eceb16489d189fcb995a1425446f8d))
+- **payload:** Include description in card authorize request body ([#18038](https://github.com/juspay/connector-service/pull/18038)) ([#1842](https://github.com/juspay/connector-service/pull/1842)) ([`cb6fe41`](https://github.com/juspay/connector-service/commit/cb6fe415bdf06228d99b473334d70792a3463c2e))
+- **sdk:** Remove removed baseUrl option from JS smoke-test tsconfig ([#1857](https://github.com/juspay/connector-service/pull/1857)) ([`c0f8e5e`](https://github.com/juspay/connector-service/commit/c0f8e5e35c2262e558e036605ad85e32267d19cb))
+
+**Full Changelog:** [`2026.07.09.1...2026.07.10.0`](https://github.com/juspay/connector-service/compare/2026.07.09.1...2026.07.10.0)
+
+- - -
+
+## 2026.07.09.1
+
+### Features
+
+- **netcetera:** External 3DS (EMVCo) connector for VGS external-vaul… ([#1788](https://github.com/juspay/connector-service/pull/1788)) ([`4dd9850`](https://github.com/juspay/connector-service/commit/4dd9850d8adb427b700b03ae68c074f517ead8d2))
+
+**Full Changelog:** [`2026.07.09.0...2026.07.09.1`](https://github.com/juspay/connector-service/compare/2026.07.09.0...2026.07.09.1)
+
+- - -
+
+## 2026.07.09.0
+
+### Bug Fixes
+
+- **connector:** Novalnet request parity fix ([#1846](https://github.com/juspay/connector-service/pull/1846)) ([`3fe29fc`](https://github.com/juspay/connector-service/commit/3fe29fc7d526a0d880a216b641e61c01ea779711))
+
+**Full Changelog:** [`2026.07.08.1...2026.07.09.0`](https://github.com/juspay/connector-service/compare/2026.07.08.1...2026.07.09.0)
+
+- - -
+
+## 2026.07.08.1
+
+### Features
+
+- **connector:**
+  - [Itaubank] add merchant-authentication (access token) flow to payout connector ([#1806](https://github.com/juspay/connector-service/pull/1806)) ([`65e9103`](https://github.com/juspay/connector-service/commit/65e91039b89d188e5625784b6dda17c9c8d03c49))
+  - Implement Finix incoming webhooks in UCS ([#1795](https://github.com/juspay/connector-service/pull/1795)) ([`95d77b4`](https://github.com/juspay/connector-service/commit/95d77b464bd3b46dc58f5b3dda4b019babdc0520))
+  - Implement nmi incoming webhooks in UCS ([#1793](https://github.com/juspay/connector-service/pull/1793)) ([`e38888b`](https://github.com/juspay/connector-service/commit/e38888b7e9e77aa0170b543b00cacb59e5ada7e3))
+- **paysafe:** Add Skrill, Apple Pay, Interac, Paysafecard + card recurring MIT fix ([#1779](https://github.com/juspay/connector-service/pull/1779)) ([`332c38e`](https://github.com/juspay/connector-service/commit/332c38e3f95c391b284cadc39fb0733af25147dc))
+
+**Full Changelog:** [`2026.07.08.0...2026.07.08.1`](https://github.com/juspay/connector-service/compare/2026.07.08.0...2026.07.08.1)
+
+- - -
+
 ## 2026.07.08.0
 
 ### Features

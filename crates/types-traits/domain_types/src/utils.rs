@@ -50,10 +50,7 @@ impl ValueExt for Value {
     where
         T: serde::de::DeserializeOwned,
     {
-        let debug = format!(
-            "Unable to parse {type_name} from serde_json::Value: {:?}",
-            &self
-        );
+        let debug = format!("Unable to parse {type_name} from serde_json::Value: {self:?}");
         serde_json::from_value::<T>(self)
             .change_context(ParsingError::StructParseFailure(type_name))
             .attach_printable_lazy(|| debug)
