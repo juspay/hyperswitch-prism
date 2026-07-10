@@ -5699,19 +5699,20 @@ pub fn generate_create_order_response(
             connector_order_id: None,
             status: err
                 .attempt_status
+                .clone()
                 .map(grpc_api_types::payments::PaymentStatus::foreign_from)
                 .unwrap_or_default()
                 .into(),
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                    code: Some(err.code),
+                    code: Some(err.code.clone()),
                     message: Some(err.message.clone()),
                     reason: None,
                     connector_transaction_id: err.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
             }),
             status_code: err.status_code.into(),
             response_headers,
@@ -6106,15 +6107,7 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                         message: Some(err.message.clone()),
                         status: None,
                     }),
-                    issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
-                        code: None, // To be filled with card network specific error code if available
-                        message: err.network_error_message.clone(),
-                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
-                            advice_code: err.network_advice_code,
-                            decline_code: err.network_decline_code,
-                            error_message: err.network_error_message.clone(),
-                        }),
-                    }),
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
                 }),
                 status_code: err.status_code as u32,
                 response_headers,
@@ -6941,6 +6934,28 @@ impl ForeignFrom<&router_data::FlowStatus> for grpc_api_types::payments::FlowSta
     }
 }
 
+impl From<&router_data::ErrorResponse> for grpc_payment_types::NetworkErrorDetails {
+    fn from(error_response: &router_data::ErrorResponse) -> Self {
+        Self {
+            advice_code: error_response.network_advice_code.clone(),
+            decline_code: error_response.network_decline_code.clone(),
+            error_message: error_response.network_error_message.clone(),
+        }
+    }
+}
+
+impl From<&router_data::ErrorResponse> for grpc_payment_types::IssuerErrorDetails {
+    fn from(error_response: &router_data::ErrorResponse) -> Self {
+        Self {
+            code: None,
+            message: error_response.network_error_message.clone(),
+            network_details: Some(grpc_payment_types::NetworkErrorDetails::from(
+                error_response,
+            )),
+        }
+    }
+}
+
 #[allow(deprecated)]
 pub fn generate_payment_void_response(
     router_data_v2: RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
@@ -7074,7 +7089,7 @@ pub fn generate_payment_void_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 status_code: e.status_code as u32,
                 response_headers: router_data_v2
@@ -7304,13 +7319,15 @@ pub fn generate_access_token_response(
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        message: Some(error_response.message),
-                        code: Some(error_response.code),
-                        reason: error_response.reason,
-                        connector_transaction_id: error_response.connector_transaction_id,
+                        message: Some(error_response.message.clone()),
+                        code: Some(error_response.code.clone()),
+                        reason: error_response.reason.clone(),
+                        connector_transaction_id: error_response.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(
+                        &error_response,
+                    )),
                 }),
                 status_code: error_response.status_code.into(),
                 merchant_access_token_id: None,
@@ -7622,21 +7639,13 @@ pub fn generate_payment_sync_response(
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        message: Some(e.message),
-                        code: Some(e.code),
-                        reason: e.reason,
+                        message: Some(e.message.clone()),
+                        code: Some(e.code.clone()),
+                        reason: e.reason.clone(),
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
-                        code: None,
-                        message: e.network_error_message.clone(),
-                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
-                            advice_code: e.network_advice_code,
-                            decline_code: e.network_decline_code,
-                            error_message: e.network_error_message,
-                        }),
-                    }),
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 network_transaction_id: None,
                 network_txn_link_id: None,
@@ -8414,6 +8423,7 @@ pub fn generate_refund_sync_response(
         Err(e) => {
             let status = e
                 .attempt_status
+                .clone()
                 .map(grpc_api_types::payments::RefundStatus::foreign_from)
                 .unwrap_or_default();
             let response_headers = router_data_v2
@@ -8429,13 +8439,13 @@ pub fn generate_refund_sync_response(
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        message: Some(e.message),
-                        code: Some(e.code),
-                        reason: e.reason,
+                        message: Some(e.message.clone()),
+                        code: Some(e.code.clone()),
+                        reason: e.reason.clone(),
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 refund_amount: None,
                 payment_amount: None,
@@ -8833,7 +8843,7 @@ pub fn generate_void_post_refund_response(
                     connector_transaction_id: e.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
             }),
             refund_amount: None,
             payment_amount: None,
@@ -9830,6 +9840,7 @@ pub fn generate_refund_response(
         Err(e) => {
             let status = e
                 .attempt_status
+                .clone()
                 .map(grpc_api_types::payments::RefundStatus::foreign_from)
                 .unwrap_or_default();
 
@@ -9848,7 +9859,7 @@ pub fn generate_refund_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 refund_amount: None,
                 payment_amount: None,
@@ -10245,7 +10256,7 @@ pub fn generate_payment_incremental_authorization_response(
                     connector_transaction_id: e.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
             }),
             status_code: e.status_code as u32,
             response_headers: router_data_v2
@@ -10406,7 +10417,7 @@ pub fn generate_payment_capture_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 status_code: e.status_code as u32,
                 response_headers: router_data_v2
@@ -11529,7 +11540,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         connector_transaction_id: err.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
                 }),
                 status_code: err.status_code as u32,
                 response_headers: router_data_v2
@@ -11698,7 +11709,7 @@ pub fn generate_session_token_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
             },
         ),
@@ -12632,7 +12643,7 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 status_code: e.status_code as u32,
                 response_headers: router_data_v2
@@ -13123,7 +13134,7 @@ pub fn generate_create_connector_customer_response(
                     connector_transaction_id: e.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
             }),
         }),
     }
@@ -13458,15 +13469,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                             connector_transaction_id: err.connector_transaction_id.clone(),
                             status: None,
                         }),
-                        issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
-                            code: None,
-                            message: err.network_error_message.clone(),
-                            network_details: Some(grpc_payment_types::NetworkErrorDetails {
-                                decline_code: err.network_decline_code.clone(),
-                                advice_code: err.network_advice_code.clone(),
-                                error_message: err.network_error_message.clone(),
-                            }),
-                        }),
+                        issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
                     }),
                     network_transaction_id: None,
                     merchant_charge_id: err.connector_transaction_id,
@@ -13941,7 +13944,7 @@ pub fn generate_payment_sdk_session_token_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 raw_connector_response,
                 status_code: e.status_code as u32,
@@ -15450,6 +15453,7 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
         Err(err) => {
             let status = err
                 .attempt_status
+                .clone()
                 .map(grpc_api_types::payments::PaymentStatus::foreign_from)
                 .unwrap_or_default();
             PaymentMethodAuthenticationServicePreAuthenticateResponse {
@@ -15461,21 +15465,13 @@ pub fn generate_payment_pre_authenticate_response<T: PaymentMethodDataTypes>(
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        code: Some(err.code),
+                        code: Some(err.code.clone()),
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
                         connector_transaction_id: err.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
-                        code: None,
-                        message: err.network_error_message.clone(),
-                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
-                            advice_code: err.network_advice_code,
-                            decline_code: err.network_decline_code,
-                            error_message: err.network_error_message.clone(),
-                        }),
-                    }),
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
                 }),
                 status_code: err.status_code.into(),
                 response_headers,
@@ -15652,6 +15648,7 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
         Err(err) => {
             let status = err
                 .attempt_status
+                .clone()
                 .map(grpc_api_types::payments::PaymentStatus::foreign_from)
                 .unwrap_or_default();
             PaymentMethodAuthenticationServiceAuthenticateResponse {
@@ -15664,21 +15661,13 @@ pub fn generate_payment_authenticate_response<T: PaymentMethodDataTypes>(
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        code: Some(err.code),
+                        code: Some(err.code.clone()),
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
                         connector_transaction_id: err.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
-                        code: None,
-                        message: err.network_error_message.clone(),
-                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
-                            advice_code: err.network_advice_code,
-                            decline_code: err.network_decline_code,
-                            error_message: err.network_error_message.clone(),
-                        }),
-                    }),
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
                 }),
                 status_code: err.status_code.into(),
                 raw_connector_response,
@@ -15754,6 +15743,7 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
         Err(err) => {
             let status = err
                 .attempt_status
+                .clone()
                 .map(grpc_api_types::payments::PaymentStatus::foreign_from)
                 .unwrap_or_default();
             PaymentMethodAuthenticationServicePostAuthenticateResponse {
@@ -15767,21 +15757,13 @@ pub fn generate_payment_post_authenticate_response<T: PaymentMethodDataTypes>(
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                        code: Some(err.code),
+                        code: Some(err.code.clone()),
                         message: Some(err.message.clone()),
                         reason: err.reason.clone(),
                         connector_transaction_id: err.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: Some(grpc_api_types::payments::IssuerErrorDetails {
-                        code: None,
-                        message: err.network_error_message.clone(),
-                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
-                            advice_code: err.network_advice_code,
-                            decline_code: err.network_decline_code,
-                            error_message: err.network_error_message.clone(),
-                        }),
-                    }),
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&err)),
                 }),
                 status_code: err.status_code.into(),
                 response_headers,
