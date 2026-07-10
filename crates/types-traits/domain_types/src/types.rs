@@ -5711,7 +5711,15 @@ pub fn generate_create_order_response(
                     connector_transaction_id: err.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                    code: None,
+                    message: err.network_error_message.clone(),
+                    network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                        advice_code: err.network_advice_code,
+                        decline_code: err.network_decline_code,
+                        error_message: err.network_error_message,
+                    }),
+                }),
             }),
             status_code: err.status_code.into(),
             response_headers,
@@ -7074,7 +7082,15 @@ pub fn generate_payment_void_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                        code: None,
+                        message: e.network_error_message.clone(),
+                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                            advice_code: e.network_advice_code,
+                            decline_code: e.network_decline_code,
+                            error_message: e.network_error_message,
+                        }),
+                    }),
                 }),
                 status_code: e.status_code as u32,
                 response_headers: router_data_v2
@@ -7310,7 +7326,15 @@ pub fn generate_access_token_response(
                         connector_transaction_id: error_response.connector_transaction_id,
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                        code: None,
+                        message: error_response.network_error_message.clone(),
+                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                            advice_code: error_response.network_advice_code,
+                            decline_code: error_response.network_decline_code,
+                            error_message: error_response.network_error_message,
+                        }),
+                    }),
                 }),
                 status_code: error_response.status_code.into(),
                 merchant_access_token_id: None,
@@ -8435,7 +8459,15 @@ pub fn generate_refund_sync_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                        code: None,
+                        message: e.network_error_message.clone(),
+                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                            advice_code: e.network_advice_code,
+                            decline_code: e.network_decline_code,
+                            error_message: e.network_error_message,
+                        }),
+                    }),
                 }),
                 refund_amount: None,
                 payment_amount: None,
@@ -8833,7 +8865,15 @@ pub fn generate_void_post_refund_response(
                     connector_transaction_id: e.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                    code: None,
+                    message: e.network_error_message.clone(),
+                    network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                        advice_code: e.network_advice_code,
+                        decline_code: e.network_decline_code,
+                        error_message: e.network_error_message,
+                    }),
+                }),
             }),
             refund_amount: None,
             payment_amount: None,
@@ -9848,7 +9888,15 @@ pub fn generate_refund_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                        code: None,
+                        message: e.network_error_message.clone(),
+                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                            advice_code: e.network_advice_code,
+                            decline_code: e.network_decline_code,
+                            error_message: e.network_error_message,
+                        }),
+                    }),
                 }),
                 refund_amount: None,
                 payment_amount: None,
@@ -10245,7 +10293,15 @@ pub fn generate_payment_incremental_authorization_response(
                     connector_transaction_id: e.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                    code: None,
+                    message: e.network_error_message.clone(),
+                    network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                        advice_code: e.network_advice_code,
+                        decline_code: e.network_decline_code,
+                        error_message: e.network_error_message,
+                    }),
+                }),
             }),
             status_code: e.status_code as u32,
             response_headers: router_data_v2
@@ -10406,7 +10462,15 @@ pub fn generate_payment_capture_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                        code: None,
+                        message: e.network_error_message.clone(),
+                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                            advice_code: e.network_advice_code,
+                            decline_code: e.network_decline_code,
+                            error_message: e.network_error_message,
+                        }),
+                    }),
                 }),
                 status_code: e.status_code as u32,
                 response_headers: router_data_v2
@@ -11529,7 +11593,15 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         connector_transaction_id: err.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                        code: None,
+                        message: err.network_error_message.clone(),
+                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                            advice_code: err.network_advice_code,
+                            decline_code: err.network_decline_code,
+                            error_message: err.network_error_message,
+                        }),
+                    }),
                 }),
                 status_code: err.status_code as u32,
                 response_headers: router_data_v2
@@ -11698,7 +11770,15 @@ pub fn generate_session_token_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                        code: None,
+                        message: e.network_error_message.clone(),
+                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                            advice_code: e.network_advice_code,
+                            decline_code: e.network_decline_code,
+                            error_message: e.network_error_message,
+                        }),
+                    }),
                 }),
             },
         ),
@@ -12632,7 +12712,15 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                        code: None,
+                        message: e.network_error_message.clone(),
+                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                            advice_code: e.network_advice_code,
+                            decline_code: e.network_decline_code,
+                            error_message: e.network_error_message,
+                        }),
+                    }),
                 }),
                 status_code: e.status_code as u32,
                 response_headers: router_data_v2
@@ -13123,7 +13211,15 @@ pub fn generate_create_connector_customer_response(
                     connector_transaction_id: e.connector_transaction_id.clone(),
                     status: None,
                 }),
-                issuer_details: None,
+                issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                    code: None,
+                    message: e.network_error_message.clone(),
+                    network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                        advice_code: e.network_advice_code,
+                        decline_code: e.network_decline_code,
+                        error_message: e.network_error_message,
+                    }),
+                }),
             }),
         }),
     }
@@ -13941,7 +14037,15 @@ pub fn generate_payment_sdk_session_token_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: None,
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                        code: None,
+                        message: e.network_error_message.clone(),
+                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                            advice_code: e.network_advice_code,
+                            decline_code: e.network_decline_code,
+                            error_message: e.network_error_message,
+                        }),
+                    }),
                 }),
                 raw_connector_response,
                 status_code: e.status_code as u32,
