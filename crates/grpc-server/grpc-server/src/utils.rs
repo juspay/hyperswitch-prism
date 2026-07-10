@@ -595,7 +595,18 @@ macro_rules! implement_connector_operation {
                 .extensions
                 .get::<std::sync::Arc<ucs_env::configs::Config>>()
                 .cloned()
-                .ok_or_else(|| tonic::Status::internal("Configuration not found in request extensions"))?;
+                .ok_or_else(|| {
+                    error_stack::Report::new(domain_types::errors::IntegrationError::config_error_with_context(
+                        "CONFIGURATION_NOT_FOUND",
+                        "Configuration not found in request extensions",
+                        domain_types::errors::IntegrationErrorContext {
+                            additional_context: Some("UCS could not read runtime configuration from the gRPC request extensions before connector execution".to_string()),
+                            suggested_action: Some("Ensure the gRPC service middleware inserts Arc<ucs_env::configs::Config> into request extensions".to_string()),
+                            doc_url: None,
+                        },
+                    ))
+                    .into_grpc_status()
+                })?;
             let service_name = request
                 .extensions
                 .get::<String>()
@@ -615,7 +626,18 @@ macro_rules! implement_connector_operation {
             // Get connector data using ConnectorDataProvider trait
             let connector_data: $connector_data_type =
                 connector_integration::types::ConnectorDataProvider::from_connector_variant(&metadata_payload.connector)
-                    .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+                    .ok_or_else(|| {
+                        error_stack::Report::new(domain_types::errors::IntegrationError::NotSupported {
+                            message: "Invalid connector type for this flow".to_string(),
+                            connector: "N/A",
+                            context: domain_types::errors::IntegrationErrorContext {
+                                additional_context: Some("The requested connector variant does not support this UCS flow before connector execution".to_string()),
+                                suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
+                                doc_url: None,
+                            },
+                        })
+                        .into_grpc_status()
+                    })?;
 
             // Get connector integration
             let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
@@ -633,11 +655,29 @@ macro_rules! implement_connector_operation {
             // Process payment method data
             let payment_method_data_action = domain_types::types::PaymentMethodDataAction::get_payment_method_data_action(
                 payload.payment_method.clone()
-                    .ok_or_else(|| tonic::Status::invalid_argument("missing payment_method in the payload"))?
+                    .ok_or_else(|| {
+                        error_stack::Report::new(domain_types::errors::IntegrationError::MissingRequiredField {
+                            field_name: "payment_method",
+                            context: domain_types::errors::IntegrationErrorContext {
+                                additional_context: Some("payment_method is required to build UCS payment method data before connector execution".to_string()),
+                                suggested_action: Some("Send a valid payment_method payload for this flow".to_string()),
+                                doc_url: None,
+                            },
+                        })
+                        .into_grpc_status()
+                    })?
             )
             .map_err(|err| {
                 tracing::error!(concat!($log_prefix, "_FLOW: failed to get payment method data action - error: {:?}"), err);
-                tonic::Status::invalid_argument("Invalid payment method data")
+                error_stack::Report::new(domain_types::errors::IntegrationError::InvalidDataFormat {
+                    field_name: "payment_method",
+                    context: domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some("payment_method could not be classified into card, card proxy, or non-card UCS payment method data".to_string()),
+                        suggested_action: Some("Send payment_method in a shape supported by this UCS flow".to_string()),
+                        doc_url: None,
+                    },
+                })
+                .into_grpc_status()
             })?;
 
             let payment_method_data = match payment_method_data_action {
@@ -646,23 +686,58 @@ macro_rules! implement_connector_operation {
                     let card = domain_types::payment_method_data::Card::<domain_types::payment_method_data::DefaultPCIHolder>::foreign_try_from(card_details)
                         .map_err(|err| {
                             tracing::error!(concat!($log_prefix, "_FLOW: failed to convert card details - error: {:?}"), err);
-                            tonic::Status::invalid_argument("Invalid card details")
+                            error_stack::Report::new(domain_types::errors::IntegrationError::InvalidDataFormat {
+                                field_name: "card",
+                                context: domain_types::errors::IntegrationErrorContext {
+                                    additional_context: Some("card payment_method data could not be converted to UCS domain card details before connector execution".to_string()),
+                                    suggested_action: Some("Send complete and valid card details for this flow".to_string()),
+                                    doc_url: None,
+                                },
+                            })
+                            .into_grpc_status()
                         })?;
                     Ok(domain_types::payment_method_data::PaymentMethodData::Card(card))
                 }
                 domain_types::types::PaymentMethodDataAction::Default => {
                     let pm_data = domain_types::payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(
                         payload.payment_method.clone()
-                            .ok_or_else(|| tonic::Status::invalid_argument("missing payment_method in the payload"))?
+                            .ok_or_else(|| {
+                                error_stack::Report::new(domain_types::errors::IntegrationError::MissingRequiredField {
+                                    field_name: "payment_method",
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        additional_context: Some("payment_method is required to build non-card UCS payment method data before connector execution".to_string()),
+                                        suggested_action: Some("Send a valid payment_method payload for this flow".to_string()),
+                                        doc_url: None,
+                                    },
+                                })
+                                .into_grpc_status()
+                            })?
                     )
                     .map_err(|err| {
                         tracing::error!("Failed to convert payment method data: {:?}", err);
-                        tonic::Status::invalid_argument("Invalid payment method data")
+                        error_stack::Report::new(domain_types::errors::IntegrationError::InvalidDataFormat {
+                            field_name: "payment_method",
+                            context: domain_types::errors::IntegrationErrorContext {
+                                additional_context: Some("non-card payment_method data could not be converted to UCS domain payment method data before connector execution".to_string()),
+                                suggested_action: Some("Send payment_method in a shape supported by this UCS flow".to_string()),
+                                doc_url: None,
+                            },
+                        })
+                        .into_grpc_status()
                     })?;
                     Ok(pm_data)
                 }
                 domain_types::types::PaymentMethodDataAction::CardProxy(_) => {
-                    Err(tonic::Status::invalid_argument("CardProxy not supported in this flow"))
+                    Err(error_stack::Report::new(domain_types::errors::IntegrationError::NotSupported {
+                        message: "CardProxy not supported in this flow".to_string(),
+                        connector: "N/A",
+                        context: domain_types::errors::IntegrationErrorContext {
+                            additional_context: Some("card proxy payment_method data was received on a UCS flow that only supports direct payment method data".to_string()),
+                            suggested_action: Some("Use a card-proxy supported UCS flow or send direct card/payment method data".to_string()),
+                            doc_url: None,
+                        },
+                    })
+                    .into_grpc_status())
                 }
             }?;
 
@@ -694,7 +769,16 @@ macro_rules! implement_connector_operation {
 
             // Create test context if test mode is enabled
             let test_context = config.test.create_test_context(&request_id).map_err(|e| {
-                tonic::Status::internal(format!("Test mode configuration error: {e}"))
+                error_stack::Report::new(domain_types::errors::IntegrationError::config_error_with_context(
+                    "TEST_MODE_CONFIGURATION_ERROR",
+                    format!("Test mode configuration error: {e}"),
+                    domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some("UCS failed to build test context before connector execution".to_string()),
+                        suggested_action: Some("Check UCS test-mode configuration for this deployment".to_string()),
+                        doc_url: None,
+                    },
+                ))
+                .into_grpc_status()
             })?;
 
             // Execute connector processing
@@ -765,13 +849,26 @@ macro_rules! implement_connector_operation {
             &self,
             request: $crate::request::RequestData<$request_type>,
         ) -> Result<tonic::Response<$response_type>, tonic::Status> {
+            #[allow(unused_imports)]
+            use ucs_env::error::IntoGrpcStatus;
             tracing::info!(concat!($log_prefix, "_FLOW: initiated"));
             let config = request
                 .extensions
 
                 .get::<std::sync::Arc<ucs_env::configs::Config>>()
                 .cloned()
-                .ok_or_else(|| tonic::Status::internal("Configuration not found in request extensions"))?;
+                .ok_or_else(|| {
+                    error_stack::Report::new(domain_types::errors::IntegrationError::config_error_with_context(
+                        "CONFIGURATION_NOT_FOUND",
+                        "Configuration not found in request extensions",
+                        domain_types::errors::IntegrationErrorContext {
+                            additional_context: Some("UCS could not read runtime configuration from the gRPC request extensions before connector execution".to_string()),
+                            suggested_action: Some("Ensure the gRPC service middleware inserts Arc<ucs_env::configs::Config> into request extensions".to_string()),
+                            doc_url: None,
+                        },
+                    ))
+                    .into_grpc_status()
+                })?;
             let service_name = request
                 .extensions
                 .get::<String>()
@@ -816,7 +913,16 @@ macro_rules! implement_connector_operation {
 
             // Create test context if test mode is enabled
             let test_context = config.test.create_test_context(&request_id).map_err(|e| {
-                tonic::Status::internal(format!("Test mode configuration error: {e}"))
+                error_stack::Report::new(domain_types::errors::IntegrationError::config_error_with_context(
+                    "TEST_MODE_CONFIGURATION_ERROR",
+                    format!("Test mode configuration error: {e}"),
+                    domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some("UCS failed to build test context before connector execution".to_string()),
+                        suggested_action: Some("Check UCS test-mode configuration for this deployment".to_string()),
+                        doc_url: None,
+                    },
+                ))
+                .into_grpc_status()
             })?;
 
             // Execute connector processing
@@ -868,7 +974,18 @@ macro_rules! implement_connector_operation {
             {
                 let connector_data: $connector_data<T> =
                     connector_integration::types::ConnectorDataProvider::from_connector_variant(connector)
-                        .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+                        .ok_or_else(|| {
+                            error_stack::Report::new(domain_types::errors::IntegrationError::NotSupported {
+                                message: "Invalid connector type for this flow".to_string(),
+                                connector: "N/A",
+                                context: domain_types::errors::IntegrationErrorContext {
+                                    additional_context: Some("The requested connector variant does not support this UCS flow before connector execution".to_string()),
+                                    suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
+                                    doc_url: None,
+                                },
+                            })
+                            .into_grpc_status()
+                        })?;
 
                 let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
                     '_,
@@ -1038,12 +1155,25 @@ macro_rules! implement_connector_operation {
             &self,
             request: $crate::request::RequestData<$request_type>,
         ) -> Result<tonic::Response<$response_type>, tonic::Status> {
+            #[allow(unused_imports)]
+            use ucs_env::error::IntoGrpcStatus;
             tracing::info!(concat!($log_prefix, "_FLOW: initiated"));
             let config = request
                 .extensions
                 .get::<std::sync::Arc<ucs_env::configs::Config>>()
                 .cloned()
-                .ok_or_else(|| tonic::Status::internal("Configuration not found in request extensions"))?;
+                .ok_or_else(|| {
+                    error_stack::Report::new(domain_types::errors::IntegrationError::config_error_with_context(
+                        "CONFIGURATION_NOT_FOUND",
+                        "Configuration not found in request extensions",
+                        domain_types::errors::IntegrationErrorContext {
+                            additional_context: Some("UCS could not read runtime configuration from the gRPC request extensions before connector execution".to_string()),
+                            suggested_action: Some("Ensure the gRPC service middleware inserts Arc<ucs_env::configs::Config> into request extensions".to_string()),
+                            doc_url: None,
+                        },
+                    ))
+                    .into_grpc_status()
+                })?;
             let service_name = request
                 .extensions
                 .get::<String>()
@@ -1063,7 +1193,18 @@ macro_rules! implement_connector_operation {
             // Get connector data using ConnectorDataProvider trait
             let connector_data: $connector_data_type =
                 connector_integration::types::ConnectorDataProvider::from_connector_variant(&metadata_payload.connector)
-                    .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+                    .ok_or_else(|| {
+                        error_stack::Report::new(domain_types::errors::IntegrationError::NotSupported {
+                            message: "Invalid connector type for this flow".to_string(),
+                            connector: "N/A",
+                            context: domain_types::errors::IntegrationErrorContext {
+                                additional_context: Some("The requested connector variant does not support this UCS flow before connector execution".to_string()),
+                                suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
+                                doc_url: None,
+                            },
+                        })
+                        .into_grpc_status()
+                    })?;
 
             // Get connector integration
             let connector_integration: interfaces::connector_integration_v2::BoxedConnectorIntegrationV2<
@@ -1105,7 +1246,16 @@ macro_rules! implement_connector_operation {
 
             // Create test context if test mode is enabled
             let test_context = config.test.create_test_context(&request_id).map_err(|e| {
-                tonic::Status::internal(format!("Test mode configuration error: {e}"))
+                error_stack::Report::new(domain_types::errors::IntegrationError::config_error_with_context(
+                    "TEST_MODE_CONFIGURATION_ERROR",
+                    format!("Test mode configuration error: {e}"),
+                    domain_types::errors::IntegrationErrorContext {
+                        additional_context: Some("UCS failed to build test context before connector execution".to_string()),
+                        suggested_action: Some("Check UCS test-mode configuration for this deployment".to_string()),
+                        doc_url: None,
+                    },
+                ))
+                .into_grpc_status()
             })?;
 
             // Execute connector processing

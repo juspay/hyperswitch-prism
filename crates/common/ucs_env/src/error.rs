@@ -54,6 +54,7 @@ impl IntoGrpcStatus for error_stack::Report<IntegrationError> {
     fn into_grpc_status(self) -> Status {
         logger::error!(
             error = ?self,
+            extra_error = ?self,
             error_code = %self.current_context().error_code(),
         );
         let integration_error: grpc_api_types::payments::IntegrationError =
@@ -114,6 +115,7 @@ impl IntoGrpcStatus for error_stack::Report<ConnectorError> {
     fn into_grpc_status(self) -> Status {
         logger::error!(
             error = ?self,
+            extra_error = ?self,
             error_code = %self.current_context().error_code(),
             http_status_code = ?self.current_context().http_status_code(),
         );
@@ -155,7 +157,7 @@ impl IntoGrpcStatus for error_stack::Report<ConnectorError> {
 /// Direct gRPC status mapping for `ApiClientError` (network/transport phase).
 impl IntoGrpcStatus for error_stack::Report<ApiClientError> {
     fn into_grpc_status(self) -> Status {
-        logger::error!(error=?self);
+        logger::error!(error=?self, extra_error=?self);
         let msg = self.current_context().to_string();
         match self.current_context() {
             ApiClientError::RequestTimeoutReceived | ApiClientError::GatewayTimeoutReceived => {
@@ -169,7 +171,7 @@ impl IntoGrpcStatus for error_stack::Report<ApiClientError> {
 
 impl IntoGrpcStatus for error_stack::Report<KafkaClientError> {
     fn into_grpc_status(self) -> Status {
-        logger::error!(error=?self);
+        logger::error!(error=?self, extra_error=?self);
         let msg = self.current_context().to_string();
         Status::internal(msg)
     }
@@ -197,7 +199,7 @@ impl IntoGrpcStatus for error_stack::Report<ConnectorFlowError> {
 /// Direct gRPC status mapping for `WebhookError`.
 impl IntoGrpcStatus for error_stack::Report<WebhookError> {
     fn into_grpc_status(self) -> Status {
-        logger::error!(error=?self);
+        logger::error!(error=?self, extra_error=?self);
         let msg = self.current_context().to_string();
         match self.current_context() {
             WebhookError::WebhooksNotImplemented { .. } => Status::unimplemented(msg),
