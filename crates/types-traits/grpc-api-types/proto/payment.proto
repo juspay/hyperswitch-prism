@@ -814,6 +814,7 @@ enum Connector {
   TSYS_TRANSIT = 127;
   KOUNT = 128;
   FLYWIRE = 129;
+  SANTANDER = 130;
 }
 
 // Payment method types
@@ -4867,6 +4868,16 @@ message ItaubankConfig {
   optional string secondary_base_url = 51;
 }
 
+message SantanderConfig {
+  SecretString client_id = 1;
+  SecretString client_secret = 2;
+  SecretString workspace_id = 3;
+  optional SecretString certificates = 4;
+  optional SecretString private_key = 5;
+  optional string base_url = 50;
+  optional string secondary_base_url = 51;
+}
+
 message GigadatConfig {
   SecretString campaign_id = 1;
   SecretString access_token = 2;
@@ -5452,6 +5463,8 @@ message ConnectorSpecificConfig {
     AffirmConfig affirm = 135;
     // FLYWIRE = 129
     FlywireConfig flywire = 136;
+    // SANTANDER = 130
+    SantanderConfig santander = 137;
   }
 }
 

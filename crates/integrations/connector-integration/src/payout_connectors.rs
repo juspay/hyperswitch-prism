@@ -12,3 +12,6 @@ pub use self::worldpayxml::WorldpayxmlPayouts;
 
 pub mod cybersource;
 pub use self::cybersource::CybersourcePayouts;
+
+pub mod santander;
+pub use self::santander::SantanderPayouts;

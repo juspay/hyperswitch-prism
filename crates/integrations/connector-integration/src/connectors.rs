@@ -285,3 +285,6 @@ pub use self::affirm::Affirm;
 
 pub mod kount;
 pub use self::kount::Kount;
+
+pub mod santander;
+pub use self::santander::Santander;

@@ -671,6 +671,15 @@ pub(crate) fn dummy_auth(connector: &ConnectorEnum) -> ConnectorSpecificConfig {
             private_key: None,
             base_url: None,
         },
+        ConnectorEnum::Santander => ConnectorSpecificConfig::Santander {
+            client_id: id(),
+            client_secret: s(),
+            workspace_id: Secret::new("probe_workspace".to_string()),
+            certificates: None,
+            private_key: None,
+            base_url: None,
+            secondary_base_url: None,
+        },
         ConnectorEnum::PinelabsOnline => ConnectorSpecificConfig::PinelabsOnline {
             client_id: id(),
             client_secret: s(),

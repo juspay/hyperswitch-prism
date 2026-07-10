@@ -899,6 +899,15 @@ pub enum ConnectorSpecificConfig {
         private_key: Secret<String>,
         base_url: Option<String>,
     },
+    Santander {
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+        workspace_id: Secret<String>,
+        certificates: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
+        base_url: Option<String>,
+        secondary_base_url: Option<String>,
+    },
     Kount {
         api_key: Secret<String>,
         /// Kount OAuth authorization-server id; account/environment specific.
@@ -1256,6 +1265,11 @@ impl ConnectorSpecificConfig {
                 public_key,
                 private_key
             },
+            Santander {
+                client_id,
+                client_secret,
+                workspace_id
+            },
         )
     }
 
@@ -1306,6 +1320,9 @@ impl ConnectorSpecificConfig {
                 secondary_base_url, ..
             }
             | Self::Easebuzz {
+                secondary_base_url, ..
+            }
+            | Self::Santander {
                 secondary_base_url, ..
             } => {
                 if let Some(secondary_base_url) = secondary_base_url {
@@ -1697,6 +1714,11 @@ impl ConnectorSpecificConfig {
                 Affirm {
                     public_key,
                     private_key
+                },
+                Santander {
+                    client_id,
+                    client_secret,
+                    workspace_id
                 },
             ),
             serde_json::Value::Object(connector_patch),
@@ -2327,6 +2349,15 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
                 public_key: affirm.public_key.ok_or_else(err)?,
                 private_key: affirm.private_key.ok_or_else(err)?,
                 base_url: affirm.base_url,
+            }),
+            AuthType::Santander(santander) => Ok(Self::Santander {
+                client_id: santander.client_id.ok_or_else(err)?,
+                client_secret: santander.client_secret.ok_or_else(err)?,
+                workspace_id: santander.workspace_id.ok_or_else(err)?,
+                certificates: santander.certificates,
+                private_key: santander.private_key,
+                base_url: santander.base_url,
+                secondary_base_url: santander.secondary_base_url,
             }),
         }
     }
@@ -3474,6 +3505,22 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 // creds path cannot supply. Configure Flywire via the proto
                 // FlywireConfig path instead of defaulting it to an empty string.
                 ConnectorEnum::Flywire => Err(err().into()),
+                ConnectorEnum::Santander => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Santander {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        workspace_id: api_secret.clone(),
+                        certificates: None,
+                        private_key: None,
+                        base_url: None,
+                        secondary_base_url: None,
+                    }),
+                    _ => Err(err().into()),
+                },
             },
             connector_types::ConnectorVariant::Surcharge(connector_enum) => match connector_enum {
                 SurchargeConnectorEnum::Interpayments => match auth {
@@ -3569,6 +3616,22 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                         base_url: None,
                         disable_avs: None,
                         disable_cvn: None,
+                    }),
+                    _ => Err(err().into()),
+                },
+                PayoutConnectorEnum::Santander => match auth {
+                    ConnectorAuthType::SignatureKey {
+                        api_key,
+                        key1,
+                        api_secret,
+                    } => Ok(Self::Santander {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        workspace_id: api_secret.clone(),
+                        certificates: None,
+                        private_key: None,
+                        base_url: None,
+                        secondary_base_url: None,
                     }),
                     _ => Err(err().into()),
                 },

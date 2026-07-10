@@ -418,6 +418,7 @@ pub struct Connectors {
     pub flywire: ConnectorParams,
     pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
+    pub santander: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -734,6 +735,9 @@ impl Connectors {
             }
             ConnectorEnum::Affirm => {
                 patched.affirm.apply(params_patch);
+            }
+            ConnectorEnum::Santander => {
+                patched.santander.apply(params_patch);
             }
             _ => {
                 // Connector not supported for URL patching - return error
