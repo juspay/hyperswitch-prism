@@ -930,9 +930,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             imerchantsolutions_metadata,
             item.router_data.request.is_auto_capture(),
         )?;
-        let shopper_reference = match item.router_data.resource_common_data.get_customer_id() {
-            Ok(customer_id) => Some(customer_id.get_string_repr().to_string()),
-            Err(err) => return Err(err),
+        let shopper_reference = {
+            let customer_id = item.router_data.resource_common_data.get_customer_id()?;
+            Some(customer_id.get_string_repr().to_string())
         };
         let stored_payment_method_id =
             item.router_data

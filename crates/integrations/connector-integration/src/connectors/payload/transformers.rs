@@ -215,7 +215,7 @@ fn build_payload_card_request_data<T: PaymentMethodDataTypes>(
             processing_id: get_processing_account_id_from_metadata(metadata)
                 .or(payload_auth.processing_account_id),
             customer_id: resource_common_data.connector_customer.clone(),
-            description: None,
+            description: resource_common_data.description.clone(),
             attrs: None,
         })
     } else {

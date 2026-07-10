@@ -1333,7 +1333,7 @@ fn get_payment_source<
     bank_redirection_data: &BankRedirectData,
 ) -> Result<PaymentSourceItem<T>, Report<IntegrationError>> {
     match bank_redirection_data {
-        BankRedirectData::Eps { bank_name: _, .. } => Ok(PaymentSourceItem::Eps(RedirectRequest {
+        BankRedirectData::Eps { .. } => Ok(PaymentSourceItem::Eps(RedirectRequest {
             name: item.resource_common_data.get_billing_full_name()?,
             country_code: item.resource_common_data.get_billing_country()?,
             experience_context: ContextStruct {
@@ -1369,30 +1369,25 @@ fn get_payment_source<
                 user_action: Some(UserAction::PayNow),
             },
         })),
-        BankRedirectData::Ideal { bank_name: _, .. } => {
-            Ok(PaymentSourceItem::IDeal(RedirectRequest {
-                name: item.resource_common_data.get_billing_full_name()?,
-                country_code: item.resource_common_data.get_billing_country()?,
-                experience_context: ContextStruct {
-                    return_url: item.request.complete_authorize_url.clone(),
-                    cancel_url: item.request.complete_authorize_url.clone(),
-                    shipping_preference: if item
-                        .resource_common_data
-                        .get_optional_shipping_country()
-                        .is_some()
-                    {
-                        ShippingPreference::SetProvidedAddress
-                    } else {
-                        ShippingPreference::GetFromFile
-                    },
-                    user_action: Some(UserAction::PayNow),
+        BankRedirectData::Ideal { .. } => Ok(PaymentSourceItem::IDeal(RedirectRequest {
+            name: item.resource_common_data.get_billing_full_name()?,
+            country_code: item.resource_common_data.get_billing_country()?,
+            experience_context: ContextStruct {
+                return_url: item.request.complete_authorize_url.clone(),
+                cancel_url: item.request.complete_authorize_url.clone(),
+                shipping_preference: if item
+                    .resource_common_data
+                    .get_optional_shipping_country()
+                    .is_some()
+                {
+                    ShippingPreference::SetProvidedAddress
+                } else {
+                    ShippingPreference::GetFromFile
                 },
-            }))
-        }
-        BankRedirectData::Sofort {
-            preferred_language: _,
-            ..
-        } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
+                user_action: Some(UserAction::PayNow),
+            },
+        })),
+        BankRedirectData::Sofort { .. } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
             name: item.resource_common_data.get_billing_full_name()?,
             country_code: item.resource_common_data.get_billing_country()?,
             experience_context: ContextStruct {
