@@ -44,6 +44,8 @@ pub enum GivepaymentsErrorType {
     PaymentError,
     ServiceError,
     ServerError,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
@@ -51,6 +53,7 @@ pub enum GivepaymentsErrorType {
 pub enum GivepaymentsErrorCode {
     BadRequest,
     IncorrectCredentials,
+    EmailVerificationRequired,
     NotAuthenticated,
     NotAuthorized,
     NotAllowed,
@@ -65,6 +68,8 @@ pub enum GivepaymentsErrorCode {
     ServiceUnavailable,
     ServiceIssue,
     ServerIssue,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -83,6 +88,8 @@ pub enum InputErrorType {
     QueryError,
     HeaderError,
     BodyError,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Display, Clone, Serialize, Deserialize, PartialEq)]
@@ -91,6 +98,8 @@ pub enum InputErrorCode {
     Missing,
     Invalid,
     Duplicate,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -140,6 +149,8 @@ pub enum GivepaymentsPaymentProcessingErrorCode {
     Timeout,
     CardNetworkIssue,
     UnknownIssue,
+    #[serde(other)]
+    Unknown,
 }
 
 impl TryFrom<&ConnectorSpecificConfig> for GivepaymentsAuthType {
@@ -306,6 +317,13 @@ fn get_billing_details<F, Req>(
     item.resource_common_data
         .get_optional_payment_billing()
         .and_then(|billing| billing.address.as_ref())
+        .filter(|address| {
+            address.line1.is_some()
+                && address.city.is_some()
+                && address.state.is_some()
+                && address.zip.is_some()
+                && address.country.is_some()
+        })
         .map(GivepaymentsAddressDetails::try_from)
         .transpose()
 }
@@ -316,6 +334,13 @@ fn get_shipping_details<F, Req>(
     item.resource_common_data
         .get_optional_shipping()
         .and_then(|shipping| shipping.address.as_ref())
+        .filter(|address| {
+            address.line1.is_some()
+                && address.city.is_some()
+                && address.state.is_some()
+                && address.zip.is_some()
+                && address.country.is_some()
+        })
         .map(GivepaymentsAddressDetails::try_from)
         .transpose()
 }
@@ -329,9 +354,9 @@ where
     Ok(GivepaymentsCustomerDetails {
         id: None,
         email: item
-            .request
-            .get_email()
-            .or_else(|_| item.resource_common_data.get_billing_email())?,
+            .resource_common_data
+            .get_billing_email()
+            .or_else(|_| item.request.get_email())?,
         phone: item
             .resource_common_data
             .get_optional_billing_phone_number(),
@@ -447,12 +472,13 @@ pub struct GivepaymentsResponseData<S, P> {
     total_amount: MinorUnit,
     net_amount: MinorUnit,
     fee_amount: MinorUnit,
-    fees_paid_by: ServiceFeePayer,
-    reversal_status: GivepaymentsReversalStatus,
-    billing_descriptor: String,
+    fees_paid_by: Option<ServiceFeePayer>,
+    reversal_status: Option<GivepaymentsReversalStatus>,
+    billing_descriptor: Option<String>,
     description: String,
     external_reference: String,
     metadata: Option<serde_json::Value>,
+    #[serde(alias = "cancel_reason")]
     void_reason: String,
     paymethod_token: Option<PayMethodTokenDetails>,
 }
@@ -500,15 +526,17 @@ pub enum GivepaymentsRefundProcessingState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+struct PayMethodTokenDetails {
+    id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 enum GivepaymentsReversalStatus {
     PartiallyReversed,
     FullyReversed,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-struct PayMethodTokenDetails {
-    id: String,
+    #[serde(other)]
+    Unknown,
 }
 
 impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -858,9 +886,8 @@ impl TryFrom<ResponseRouterData<GivepaymentsRefundResponseData, Self>>
 impl From<GivepaymentsPaymentProcessingState> for AttemptStatus {
     fn from(item: GivepaymentsPaymentProcessingState) -> Self {
         match item {
-            GivepaymentsPaymentProcessingState::Created => Self::Pending,
-
-            GivepaymentsPaymentProcessingState::Authorized => Self::Authorized,
+            GivepaymentsPaymentProcessingState::Created
+            | GivepaymentsPaymentProcessingState::Authorized => Self::Pending,
 
             GivepaymentsPaymentProcessingState::Voided => Self::Voided,
 
