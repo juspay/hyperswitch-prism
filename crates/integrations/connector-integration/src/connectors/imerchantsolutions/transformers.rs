@@ -628,7 +628,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::QwikcilverWalletDirect(_) => {
+                | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => {
                     Err(errors::IntegrationError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("Imerchantsolutions"),
                         errors::IntegrationErrorContext {
@@ -794,11 +795,13 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                     connector_mandate_id: Some(mandate_id.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id,
+                    mandate_metadata: None,
                 })
                 .unwrap_or(MandateReference {
                     connector_mandate_id: None,
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 });
             Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -927,9 +930,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             imerchantsolutions_metadata,
             item.router_data.request.is_auto_capture(),
         )?;
-        let shopper_reference = match item.router_data.resource_common_data.get_customer_id() {
-            Ok(customer_id) => Some(customer_id.get_string_repr().to_string()),
-            Err(err) => return Err(err),
+        let shopper_reference = {
+            let customer_id = item.router_data.resource_common_data.get_customer_id()?;
+            Some(customer_id.get_string_repr().to_string())
         };
         let stored_payment_method_id =
             item.router_data
