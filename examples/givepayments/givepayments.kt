@@ -90,11 +90,7 @@ fun recurringCharge(txnId: String, config: ConnectorConfig = _defaultConfig) {
             }
         }
         returnUrl = "https://example.com/recurring-return"
-        addressBuilder.apply {  // Address Information.
-            billingAddressBuilder.apply {
-                emailBuilder.value = "test@example.com"  // Contact Information.
-            }
-        }
+        emailBuilder.value = "test@example.com"  // Customer Information.
         connectorCustomerId = "cust_probe_123"
         browserInfoBuilder.apply {  // Browser Information.
             colorDepth = 24  // Display Information.

@@ -69,14 +69,7 @@ pub fn build_recurring_charge_request() -> RecurringPaymentServiceChargeRequest 
             ..Default::default()
         }),
         return_url: Some("https://example.com/recurring-return".to_string()),
-        address: Some(PaymentAddress {
-            // Address Information.
-            billing_address: Some(Address {
-                email: Some(Secret::new("test@example.com".to_string())), // Contact Information.
-                ..Default::default()
-            }),
-            ..Default::default()
-        }),
+        email: Some(Secret::new("test@example.com".to_string())), // Customer Information.
         connector_customer_id: Some("cust_probe_123".to_string()),
         browser_info: Some(BrowserInformation {
             // Browser Information.

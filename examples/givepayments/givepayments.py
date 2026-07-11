@@ -54,11 +54,7 @@ def _build_recurring_charge_request():
             ),
         ),
         return_url="https://example.com/recurring-return",
-        address=payment_pb2.PaymentAddress(  # Address Information.
-            billing_address=payment_pb2.Address(
-                email=payment_methods_pb2.SecretString(value="test@example.com"),  # Contact Information.
-            ),
-        ),
+        email=payment_methods_pb2.SecretString(value="test@example.com"),  # Customer Information.
         connector_customer_id="cust_probe_123",
         browser_info=payment_pb2.BrowserInformation(  # Browser Information.
             color_depth=24,  # Display Information.
