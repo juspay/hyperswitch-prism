@@ -495,7 +495,8 @@ pub struct SantanderDebitAccount {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderTransferRequest {
     pub payment_value: StringMajorUnit,
-    pub debit_account: SantanderDebitAccount,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub debit_account: Option<SantanderDebitAccount>,
     pub status: String,
 }
 
@@ -526,43 +527,40 @@ impl
                 context: Default::default(),
             })?;
 
-        let source_bank_data =
-            req.request
-                .source_bank_data
-                .clone()
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "source_bank_data",
+        let debit_account = match req.request.source_bank_data.clone() {
+            Some(Bank::Pix(PixBankTransfer {
+                bank_branch,
+                bank_account_number,
+                ..
+            })) => {
+                let bank_branch = bank_branch.ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "source_bank_data.bank_branch",
                     context: Default::default(),
                 })?;
+                let branch = parse_digits_i64(&bank_branch, "source_bank_data.bank_branch")?;
+                let bank_account_number = bank_account_number.expose();
+                let number = parse_digits_i64(
+                    &bank_account_number,
+                    "source_bank_data.bank_account_number",
+                )?;
 
-        let Bank::Pix(PixBankTransfer {
-            bank_branch,
-            bank_account_number,
-            ..
-        }) = source_bank_data
-        else {
-            return Err(IntegrationError::NotSupported {
-                message: "Santander payout transfer requires Pix source bank data".to_string(),
-                connector: "santander",
-                context: Default::default(),
+                Some(SantanderDebitAccount { branch, number })
             }
-            .into());
+            Some(_) => {
+                return Err(IntegrationError::NotSupported {
+                    message: "Santander payout transfer supports only Pix source bank data"
+                        .to_string(),
+                    connector: "santander",
+                    context: Default::default(),
+                }
+                .into());
+            }
+            None => None,
         };
-
-        let bank_branch = bank_branch.ok_or(IntegrationError::MissingRequiredField {
-            field_name: "source_bank_data.bank_branch",
-            context: Default::default(),
-        })?;
-        let branch = parse_digits_i64(&bank_branch, "source_bank_data.bank_branch")?;
-        let bank_account_number = bank_account_number.expose();
-        let number = parse_digits_i64(
-            &bank_account_number,
-            "source_bank_data.bank_account_number",
-        )?;
 
         Ok(Self {
             payment_value,
-            debit_account: SantanderDebitAccount { branch, number },
+            debit_account,
             status: "AUTHORIZED".to_string(),
         })
     }

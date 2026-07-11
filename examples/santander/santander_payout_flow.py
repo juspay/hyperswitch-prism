@@ -538,8 +538,10 @@ def build_transfer_payload(
             "currency": args.currency,
         },
         "destinationCurrency": args.currency,
-        "sourceBankData": build_source_bank_data(args),
     }
+
+    if not args.skip_debit_account:
+        payload["sourceBankData"] = build_source_bank_data(args)
 
     if access_token:
         payload["accessToken"] = {"value": access_token}
@@ -752,6 +754,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pix-ispb")
     parser.add_argument("--source-bank-branch")
     parser.add_argument("--source-bank-account-number")
+    parser.add_argument(
+        "--skip-debit-account",
+        action="store_true",
+        help="Do not send sourceBankData/debitAccount in payout transfer.",
+    )
     parser.add_argument("--access-token")
     parser.add_argument("--customer-first-name", default="Test")
     parser.add_argument("--customer-last-name", default="User")
