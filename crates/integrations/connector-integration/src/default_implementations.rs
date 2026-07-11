@@ -283,6 +283,7 @@ default_impl_verify_webhook_source_v2!(
         Kount,
         Hyperswitch,
         Affirm,
+        Tesouro,
     ],
 );
 // PayPal has its own implementation in paypal.rs
@@ -358,6 +359,7 @@ macro_rules! default_impl_recharge_v2 {
 }
 
 default_impl_recharge_v2!(
+    Tesouro,
     AbsaSanlam,
     Aci,
     Kount,
@@ -577,6 +579,7 @@ macro_rules! default_impl_get_payment_method_v2 {
 
 // Same connector universe as default_impl_recharge_v2! above.
 default_impl_create_payment_method_v2!(
+    Tesouro,
     AbsaSanlam,
     Aci,
     Kount,
@@ -676,6 +679,7 @@ default_impl_create_payment_method_v2!(
 );
 
 default_impl_get_payment_method_v2!(
+    Tesouro,
     AbsaSanlam,
     Aci,
     Kount,
@@ -776,6 +780,7 @@ default_impl_get_payment_method_v2!(
 
 default_impl_payment_method_eligibility_v2!(
     not_supported: [
+        Tesouro,
         Adyen,
         Authorizedotnet,
         Bluesnap,

@@ -814,6 +814,7 @@ enum Connector {
   TSYS_TRANSIT = 127;
   KOUNT = 128;
   FLYWIRE = 129;
+  TESOURO = 130;
 }
 
 // Payment method types
@@ -5186,6 +5187,13 @@ message HyperswitchConfig {
   optional string base_url = 50;
 }
 
+message TesouroConfig {
+  SecretString api_key = 1;
+  SecretString key1 = 2;
+  SecretString api_secret = 3;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -5482,6 +5490,8 @@ message ConnectorSpecificConfig {
     AffirmConfig affirm = 135;
     // FLYWIRE = 129
     FlywireConfig flywire = 136;
+    // TESOURO = 130
+    TesouroConfig tesouro = 137;
   }
 }
 
