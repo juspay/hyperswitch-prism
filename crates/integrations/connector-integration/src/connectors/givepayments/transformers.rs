@@ -475,11 +475,11 @@ pub struct GivepaymentsResponseData<S, P> {
     fees_paid_by: Option<ServiceFeePayer>,
     reversal_status: Option<GivepaymentsReversalStatus>,
     billing_descriptor: Option<String>,
-    description: String,
-    external_reference: String,
+    description: Option<String>,
+    external_reference: Option<String>,
     metadata: Option<serde_json::Value>,
     #[serde(alias = "cancel_reason")]
-    void_reason: String,
+    void_reason: Option<String>,
     paymethod_token: Option<PayMethodTokenDetails>,
 }
 
