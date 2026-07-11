@@ -577,17 +577,14 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 .as_ref()
                 .map(|data| Some(data.id.clone()));
 
-            let mandate_reference = connector_mandate_id
-                .map(|mandate_id| MandateReference {
+            let mandate_reference = connector_mandate_id.map(|mandate_id| {
+                Box::new(MandateReference {
                     connector_mandate_id: mandate_id,
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })
-                .unwrap_or(MandateReference {
-                    connector_mandate_id: None,
-                    payment_method_id: None,
-                    connector_mandate_request_reference_id: None,
-                });
+            });
 
             Ok(Self {
                 resource_common_data: PaymentFlowData {
@@ -597,7 +594,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 response: Ok(PaymentsResponseData::TransactionResponse {
                     resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                     redirection_data: None,
-                    mandate_reference: Some(Box::new(mandate_reference)),
+                    mandate_reference,
                     connector_metadata: None,
                     network_txn_id: None,
                     network_txn_link_id: None,
