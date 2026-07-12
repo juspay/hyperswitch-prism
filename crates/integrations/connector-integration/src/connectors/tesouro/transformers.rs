@@ -10,8 +10,8 @@ use domain_types::{
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
-        ApplePayPaymentData, ApplePayWalletData, Card, PaymentMethodData, PaymentMethodDataTypes,
-        RawCardNumber, WalletData,
+        ApplePayPaymentData, ApplePayWalletData, Card, GooglePayWalletData, GpayTokenizationData,
+        PaymentMethodData, PaymentMethodDataTypes, RawCardNumber, WalletData,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -441,6 +441,40 @@ fn get_apple_pay_payment_method<T: PaymentMethodDataTypes>(
     ))
 }
 
+/// Build wallet (Google Pay) network-token pass-through details from PREDECRYPT data.
+/// Used by both the Authorize (CIT) and SetupMandate (verifyAccount) flows.
+fn get_google_pay_payment_method<T: PaymentMethodDataTypes>(
+    google_pay: &GooglePayWalletData,
+) -> Result<TesouroPaymentMethodDetails<T>, Error> {
+    let google_pay_data = match &google_pay.tokenization_data {
+        GpayTokenizationData::Decrypted(decrypted) => decrypted,
+        GpayTokenizationData::Encrypted(_) => {
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "decrypted google pay data",
+                context: Default::default(),
+            }
+            .into())
+        }
+    };
+
+    let network_token_details = TesouroNetworkTokenPassThroughDetails {
+        cryptogram: google_pay_data.cryptogram.clone(),
+        expiration_month: google_pay_data.card_exp_month.clone(),
+        expiration_year: google_pay_data.get_four_digit_expiry_year().change_context(
+            IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            },
+        )?,
+        token_value: google_pay_data.application_primary_account_number.clone(),
+        wallet_type: TesouroWalletType::GooglePay,
+        ecommerce_indicator: google_pay_data.eci_indicator.clone(),
+    };
+
+    Ok(TesouroPaymentMethodDetails::NetworkTokenPassThroughDetails(
+        network_token_details,
+    ))
+}
+
 // =============================================================================
 // AccessToken (ServerAuthenticationToken) flow — OAuth2 client_credentials
 // =============================================================================
@@ -582,9 +616,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
                 get_apple_pay_payment_method(apple_pay)?
             }
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay)) => {
+                get_google_pay_payment_method(google_pay)?
+            }
             _ => {
                 return Err(IntegrationError::NotImplemented(
-                    "Only Card and Apple Pay payment methods are supported for Tesouro SetupMandate"
+                    "Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro SetupMandate"
                         .to_string(),
                     Default::default(),
                 )
@@ -684,9 +721,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
                 get_apple_pay_payment_method(apple_pay)?
             }
+            PaymentMethodData::Wallet(WalletData::GooglePay(google_pay)) => {
+                get_google_pay_payment_method(google_pay)?
+            }
             _ => {
                 return Err(IntegrationError::NotImplemented(
-                    "Only Card and Apple Pay payment methods are supported for Tesouro Authorize"
+                    "Only Card, Apple Pay and Google Pay payment methods are supported for Tesouro Authorize"
                         .to_string(),
                     Default::default(),
                 )
@@ -836,6 +876,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         ),
                         ApplePayPaymentData::Encrypted(_) => {
                             (None, None, Some(TesouroWalletType::ApplePay))
+                        }
+                    }
+                }
+                PaymentMethodData::Wallet(WalletData::GooglePay(google_pay)) => {
+                    match &google_pay.tokenization_data {
+                        GpayTokenizationData::Decrypted(decrypted) => (
+                            Some(decrypted.card_exp_month.clone()),
+                            Some(decrypted.get_four_digit_expiry_year().change_context(
+                                IntegrationError::RequestEncodingFailed {
+                                    context: Default::default(),
+                                },
+                            )?),
+                            Some(TesouroWalletType::GooglePay),
+                        ),
+                        GpayTokenizationData::Encrypted(_) => {
+                            (None, None, Some(TesouroWalletType::GooglePay))
                         }
                     }
                 }
