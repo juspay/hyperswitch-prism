@@ -113,6 +113,16 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
         ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
     },
     CompositeFlowSpec {
+        name: "frm_device_data_collection",
+        composite_request_message: "CompositeFrmDeviceDataCollectionRequest",
+        granular_request_messages: &[
+            "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
+            "PaymentMethodAuthenticationServicePreAuthenticateRequest",
+        ],
+        ignore_granular_only_fields: DEFAULT_IGNORE_GRANULAR_ONLY_FIELDS,
+        ignore_composite_only_fields: DEFAULT_IGNORE_COMPOSITE_ONLY_FIELDS,
+    },
+    CompositeFlowSpec {
         name: "frm_pre_risk_check",
         composite_request_message: "CompositeFrmPreRiskCheckRequest",
         granular_request_messages: &[

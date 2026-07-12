@@ -121,6 +121,7 @@ pub struct Service {
     pub composite_frm_service: composite_service::frm::Frm<
         crate::server::frm::FraudAndRiskManagement,
         crate::server::payments::MerchantAuthentication,
+        crate::server::payments::PaymentMethodAuthentication,
     >,
     pub payments_service: crate::server::payments::Payments,
     pub refunds_service: crate::server::refunds::Refunds,
@@ -194,6 +195,7 @@ impl Service {
         let composite_frm_service = composite_service::frm::Frm::new(
             crate::server::frm::FraudAndRiskManagement,
             merchant_authentication_service.clone(),
+            payment_method_authentication_service.clone(),
         );
 
         Self {

@@ -1061,6 +1061,29 @@ impl
 
 impl
     ForeignFrom<(
+        &grpc_api_types::frm::CompositeFrmDeviceDataCollectionRequest,
+        &ConnectorVariant,
+    )> for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+{
+    fn foreign_from(
+        (item, connector): (
+            &grpc_api_types::frm::CompositeFrmDeviceDataCollectionRequest,
+            &ConnectorVariant,
+        ),
+    ) -> Self {
+        Self {
+            merchant_access_token_id: item.merchant_access_token_id.clone(),
+            connector: grpc_connector_from_connector_variant(connector),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+            merchant_request_id: item.merchant_request_id.clone(),
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
         &grpc_api_types::frm::CompositeFrmPreRiskCheckRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for grpc_api_types::frm::FrmServicePreRiskCheckRequest
@@ -1099,6 +1122,52 @@ impl
             }),
             merchant_details: item.merchant_details.clone(),
             mandate_details: item.mandate_details.clone(),
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &grpc_api_types::frm::CompositeFrmDeviceDataCollectionRequest,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+    )> for PaymentMethodAuthenticationServicePreAuthenticateRequest
+{
+    fn foreign_from(
+        (item, access_token_response): (
+            &grpc_api_types::frm::CompositeFrmDeviceDataCollectionRequest,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        ),
+    ) -> Self {
+        let access_token = get_access_token(
+            item.state
+                .as_ref()
+                .and_then(|state| state.access_token.clone()),
+            access_token_response,
+        );
+        let connector_customer_id = item
+            .state
+            .as_ref()
+            .and_then(|state| state.connector_customer_id.clone());
+
+        Self {
+            merchant_order_id: item.merchant_order_id.clone(),
+            amount: item.amount,
+            payment_method: item.payment_method.clone(),
+            customer: item.customer.clone(),
+            address: item.address.clone(),
+            enrolled_for_3ds: item.enrolled_for_3ds,
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            return_url: item.return_url.clone(),
+            continue_redirection_url: item.continue_redirection_url.clone(),
+            browser_info: item.browser_info.clone(),
+            state: Some(ConnectorState {
+                access_token,
+                connector_customer_id,
+            }),
+            capture_method: item.capture_method,
+            description: item.description.clone(),
+            merchant_transaction_id: item.merchant_transaction_id.clone(),
         }
     }
 }

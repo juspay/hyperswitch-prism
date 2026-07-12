@@ -1,11 +1,13 @@
 use crate::payments::CompositeAccessTokenRequest;
 use crate::transformers::ForeignFrom;
 use crate::utils::frm_connector_from_composite_frm_metadata;
+use common_utils::consts::{X_CONNECTOR_NAME, X_FRM_CONNECTOR_NAME};
 use connector_integration::types::FrmConnectorData;
 use domain_types::connector_types::ConnectorVariant;
 use grpc_api_types::frm::{
     composite_fraud_and_risk_management_service_server::CompositeFraudAndRiskManagementService,
     fraud_and_risk_management_service_server::FraudAndRiskManagementService,
+    CompositeFrmDeviceDataCollectionRequest, CompositeFrmDeviceDataCollectionResponse,
     CompositeFrmPostRiskCheckRequest, CompositeFrmPostRiskCheckResponse,
     CompositeFrmPreRiskCheckRequest, CompositeFrmPreRiskCheckResponse,
     FrmServicePostRiskCheckRequest, FrmServicePostRiskCheckResponse, FrmServicePreRiskCheckRequest,
@@ -14,6 +16,8 @@ use grpc_api_types::frm::{
 use grpc_api_types::payments::{
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+    PaymentMethodAuthenticationServicePreAuthenticateRequest,
+    PaymentMethodAuthenticationServicePreAuthenticateResponse,
 };
 
 impl CompositeAccessTokenRequest for CompositeFrmPreRiskCheckRequest {
@@ -54,13 +58,37 @@ impl CompositeAccessTokenRequest for CompositeFrmPostRiskCheckRequest {
     }
 }
 
+impl CompositeAccessTokenRequest for CompositeFrmDeviceDataCollectionRequest {
+    fn payment_method(&self) -> Option<grpc_api_types::payments::PaymentMethod> {
+        self.payment_method.clone()
+    }
+
+    fn state(&self) -> Option<&grpc_api_types::payments::ConnectorState> {
+        self.state.as_ref()
+    }
+
+    fn build_access_token_request(
+        &self,
+        connector: &ConnectorVariant,
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
+    }
+}
+
 /// Composite Fraud and Risk Management Service that wraps the underlying FRM service
 /// with access token bootstrapping.
 #[derive(Clone)]
-pub struct Frm<F, MA>
+pub struct Frm<F, MA, PMA>
 where
     F: FraudAndRiskManagementService + Clone + Send + Sync + 'static,
     MA: grpc_api_types::payments::merchant_authentication_service_server::MerchantAuthenticationService
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+    PMA: grpc_api_types::payments::payment_method_authentication_service_server::PaymentMethodAuthenticationService
         + Clone
         + Send
         + Sync
@@ -68,9 +96,10 @@ where
 {
     frm_service: F,
     merchant_authentication_service: MA,
+    payment_method_authentication_service: PMA,
 }
 
-impl<F, MA> Frm<F, MA>
+impl<F, MA, PMA> Frm<F, MA, PMA>
 where
     F: FraudAndRiskManagementService + Clone + Send + Sync + 'static,
     MA: grpc_api_types::payments::merchant_authentication_service_server::MerchantAuthenticationService
@@ -78,11 +107,21 @@ where
         + Send
         + Sync
         + 'static,
+    PMA: grpc_api_types::payments::payment_method_authentication_service_server::PaymentMethodAuthenticationService
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
-    pub fn new(frm_service: F, merchant_authentication_service: MA) -> Self {
+    pub fn new(
+        frm_service: F,
+        merchant_authentication_service: MA,
+        payment_method_authentication_service: PMA,
+    ) -> Self {
         Self {
             frm_service,
             merchant_authentication_service,
+            payment_method_authentication_service,
         }
     }
 
@@ -230,10 +269,75 @@ where
             access_token_response,
         }))
     }
+
+    fn payment_authentication_metadata(
+        metadata: &tonic::metadata::MetadataMap,
+    ) -> tonic::metadata::MetadataMap {
+        let mut inner_metadata = metadata.clone();
+        if let Some(frm_connector) = inner_metadata.remove(X_FRM_CONNECTOR_NAME) {
+            if !inner_metadata.contains_key(X_CONNECTOR_NAME) {
+                inner_metadata.insert(X_CONNECTOR_NAME, frm_connector);
+            }
+        }
+        inner_metadata
+    }
+
+    async fn device_data_collection(
+        &self,
+        payload: &CompositeFrmDeviceDataCollectionRequest,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+        metadata: &tonic::metadata::MetadataMap,
+        extensions: &tonic::Extensions,
+    ) -> Result<PaymentMethodAuthenticationServicePreAuthenticateResponse, tonic::Status> {
+        let inner = PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
+            payload,
+            access_token_response,
+        ));
+        let mut inner_request = tonic::Request::new(inner);
+        *inner_request.metadata_mut() = Self::payment_authentication_metadata(metadata);
+        *inner_request.extensions_mut() = extensions.clone();
+
+        let response = self
+            .payment_method_authentication_service
+            .pre_authenticate(inner_request)
+            .await?
+            .into_inner();
+
+        Ok(response)
+    }
+
+    async fn process_device_data_collection(
+        &self,
+        request: tonic::Request<CompositeFrmDeviceDataCollectionRequest>,
+    ) -> Result<tonic::Response<CompositeFrmDeviceDataCollectionResponse>, tonic::Status> {
+        let (metadata, extensions, payload) = request.into_parts();
+
+        let access_token_response = self
+            .create_server_authentication_token(&payload, &metadata, &extensions)
+            .await?;
+
+        let device_data_collection_response = self
+            .device_data_collection(
+                &payload,
+                access_token_response.as_ref(),
+                &metadata,
+                &extensions,
+            )
+            .await?;
+
+        Ok(tonic::Response::new(
+            CompositeFrmDeviceDataCollectionResponse {
+                device_data_collection_response: Some(device_data_collection_response),
+                access_token_response,
+            },
+        ))
+    }
 }
 
 #[tonic::async_trait]
-impl<F, MA> CompositeFraudAndRiskManagementService for Frm<F, MA>
+impl<F, MA, PMA> CompositeFraudAndRiskManagementService for Frm<F, MA, PMA>
 where
     F: FraudAndRiskManagementService + Clone + Send + Sync + 'static,
     MA: grpc_api_types::payments::merchant_authentication_service_server::MerchantAuthenticationService
@@ -241,7 +345,19 @@ where
         + Send
         + Sync
         + 'static,
+    PMA: grpc_api_types::payments::payment_method_authentication_service_server::PaymentMethodAuthenticationService
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
+    async fn device_data_collection(
+        &self,
+        request: tonic::Request<CompositeFrmDeviceDataCollectionRequest>,
+    ) -> Result<tonic::Response<CompositeFrmDeviceDataCollectionResponse>, tonic::Status> {
+        self.process_device_data_collection(request).await
+    }
+
     async fn pre_risk_check(
         &self,
         request: tonic::Request<CompositeFrmPreRiskCheckRequest>,

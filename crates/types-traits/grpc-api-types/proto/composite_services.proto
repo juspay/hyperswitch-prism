@@ -58,6 +58,9 @@ service CompositePaymentMethodService {
 
 // Service for composite fraud and risk management operations.
 service CompositeFraudAndRiskManagementService {
+  // Runs composite device-data collection flow with access token bootstrapping.
+  rpc DeviceDataCollection(CompositeFrmDeviceDataCollectionRequest) returns (CompositeFrmDeviceDataCollectionResponse);
+
   // Runs composite pre-risk check flow with access token bootstrapping.
   rpc PreRiskCheck(CompositeFrmPreRiskCheckRequest) returns (CompositeFrmPreRiskCheckResponse);
 
