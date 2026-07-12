@@ -9,7 +9,10 @@ use domain_types::{
         SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{
+        ApplePayPaymentData, ApplePayWalletData, Card, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, WalletData,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
 };
@@ -219,6 +222,13 @@ pub enum TesouroOmissionReason {
     VerificationNotRequested,
 }
 
+#[derive(Debug, Clone, Copy, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum TesouroWalletType {
+    ApplePay,
+    GooglePay,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 pub enum TesouroSecurityCode {
@@ -253,15 +263,30 @@ pub struct TesouroAcquirerTokenDetails {
     pub token: Secret<String>,
     pub security_code: TesouroSecurityCode,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub wallet_type: Option<String>,
+    pub wallet_type: Option<TesouroWalletType>,
 }
 
-/// Externally-tagged payment method details for CIT/verifyAccount (card only).
-/// Variant name is the JSON key; `camelCase` yields `cardWithPanDetails`.
+/// Network-token pass-through details used for wallet (Apple Pay / Google Pay)
+/// CIT and verifyAccount flows. Mirrors the reference connector shape.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TesouroNetworkTokenPassThroughDetails {
+    pub cryptogram: Option<Secret<String>>,
+    pub expiration_month: Secret<String>,
+    pub expiration_year: Secret<String>,
+    pub token_value: cards::CardNumber,
+    pub wallet_type: TesouroWalletType,
+    pub ecommerce_indicator: Option<String>,
+}
+
+/// Externally-tagged payment method details for CIT/verifyAccount.
+/// Variant name is the JSON key; `camelCase` yields `cardWithPanDetails` /
+/// `networkTokenPassThroughDetails`.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TesouroPaymentMethodDetails<T: PaymentMethodDataTypes> {
     CardWithPanDetails(TesouroCardWithPanDetails<T>),
+    NetworkTokenPassThroughDetails(TesouroNetworkTokenPassThroughDetails),
 }
 
 /// Externally-tagged payment method details for recurring/MIT (acquirer token).
@@ -384,6 +409,36 @@ fn get_card_payment_method<T: PaymentMethodDataTypes>(
         },
     };
     Ok(TesouroPaymentMethodDetails::CardWithPanDetails(card_data))
+}
+
+/// Build wallet (Apple Pay) network-token pass-through details from PREDECRYPT data.
+/// Used by both the Authorize (CIT) and SetupMandate (verifyAccount) flows.
+fn get_apple_pay_payment_method<T: PaymentMethodDataTypes>(
+    apple_pay: &ApplePayWalletData,
+) -> Result<TesouroPaymentMethodDetails<T>, Error> {
+    let apple_pay_data = match &apple_pay.payment_data {
+        ApplePayPaymentData::Decrypted(decrypted) => decrypted,
+        ApplePayPaymentData::Encrypted(_) => {
+            return Err(IntegrationError::MissingRequiredField {
+                field_name: "decrypted apple pay data",
+                context: Default::default(),
+            }
+            .into())
+        }
+    };
+
+    let network_token_details = TesouroNetworkTokenPassThroughDetails {
+        cryptogram: Some(apple_pay_data.payment_data.online_payment_cryptogram.clone()),
+        expiration_month: apple_pay_data.get_expiry_month(),
+        expiration_year: apple_pay_data.get_four_digit_expiry_year(),
+        token_value: apple_pay_data.application_primary_account_number.clone(),
+        wallet_type: TesouroWalletType::ApplePay,
+        ecommerce_indicator: apple_pay_data.payment_data.eci_indicator.clone(),
+    };
+
+    Ok(TesouroPaymentMethodDetails::NetworkTokenPassThroughDetails(
+        network_token_details,
+    ))
 }
 
 // =============================================================================
@@ -524,9 +579,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let bill_to_address = BillToAddress::from_payment_flow(&router_data.resource_common_data);
         let payment_method_details = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => get_card_payment_method(card, true)?,
+            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
+                get_apple_pay_payment_method(apple_pay)?
+            }
             _ => {
                 return Err(IntegrationError::NotImplemented(
-                    "Only Card payment method is supported for Tesouro SetupMandate".to_string(),
+                    "Only Card and Apple Pay payment methods are supported for Tesouro SetupMandate"
+                        .to_string(),
                     Default::default(),
                 )
                 .into())
@@ -622,9 +681,13 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 }
                 get_card_payment_method(card, is_mandate)?
             }
+            PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
+                get_apple_pay_payment_method(apple_pay)?
+            }
             _ => {
                 return Err(IntegrationError::NotImplemented(
-                    "Only Card payment method is supported for Tesouro Authorize".to_string(),
+                    "Only Card and Apple Pay payment methods are supported for Tesouro Authorize"
+                        .to_string(),
                     Default::default(),
                 )
                 .into())
@@ -751,18 +814,33 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             },
         )?;
 
-        // Card expiry (optional): taken from the stored card details carried in the request.
-        let (expiration_month, expiration_year) = match &router_data.request.payment_method_data {
-            PaymentMethodData::Card(card) => (
-                Some(card.get_card_expiry_month_2_digit().change_context(
-                    IntegrationError::RequestEncodingFailed {
-                        context: Default::default(),
-                    },
-                )?),
-                Some(card.get_expiry_year_4_digit()),
-            ),
-            _ => (None, None),
-        };
+        // Card / wallet expiry (optional): taken from the stored payment details carried in
+        // the request. Wallets additionally tag the acquirer token with their wallet type.
+        let (expiration_month, expiration_year, wallet_type) =
+            match &router_data.request.payment_method_data {
+                PaymentMethodData::Card(card) => (
+                    Some(card.get_card_expiry_month_2_digit().change_context(
+                        IntegrationError::RequestEncodingFailed {
+                            context: Default::default(),
+                        },
+                    )?),
+                    Some(card.get_expiry_year_4_digit()),
+                    None,
+                ),
+                PaymentMethodData::Wallet(WalletData::ApplePay(apple_pay)) => {
+                    match &apple_pay.payment_data {
+                        ApplePayPaymentData::Decrypted(decrypted) => (
+                            Some(decrypted.get_expiry_month()),
+                            Some(decrypted.get_four_digit_expiry_year()),
+                            Some(TesouroWalletType::ApplePay),
+                        ),
+                        ApplePayPaymentData::Encrypted(_) => {
+                            (None, None, Some(TesouroWalletType::ApplePay))
+                        }
+                    }
+                }
+                _ => (None, None, None),
+            };
 
         let cit_reference = connector_mandate_ref
             .get_connector_mandate_request_reference_id()
@@ -806,7 +884,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 security_code: TesouroSecurityCode::OmissionReason {
                                     omission_reason: TesouroOmissionReason::VerificationNotRequested,
                                 },
-                                wallet_type: None,
+                                wallet_type,
                             },
                         ),
                     transaction_amount_details: TransactionAmountDetails {
