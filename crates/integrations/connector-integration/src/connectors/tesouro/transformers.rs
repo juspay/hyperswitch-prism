@@ -428,7 +428,12 @@ fn get_apple_pay_payment_method<T: PaymentMethodDataTypes>(
     };
 
     let network_token_details = TesouroNetworkTokenPassThroughDetails {
-        cryptogram: Some(apple_pay_data.payment_data.online_payment_cryptogram.clone()),
+        cryptogram: Some(
+            apple_pay_data
+                .payment_data
+                .online_payment_cryptogram
+                .clone(),
+        ),
         expiration_month: apple_pay_data.get_expiry_month(),
         expiration_year: apple_pay_data.get_four_digit_expiry_year(),
         token_value: apple_pay_data.application_primary_account_number.clone(),
@@ -460,11 +465,11 @@ fn get_google_pay_payment_method<T: PaymentMethodDataTypes>(
     let network_token_details = TesouroNetworkTokenPassThroughDetails {
         cryptogram: google_pay_data.cryptogram.clone(),
         expiration_month: google_pay_data.card_exp_month.clone(),
-        expiration_year: google_pay_data.get_four_digit_expiry_year().change_context(
-            IntegrationError::RequestEncodingFailed {
+        expiration_year: google_pay_data
+            .get_four_digit_expiry_year()
+            .change_context(IntegrationError::RequestEncodingFailed {
                 context: Default::default(),
-            },
-        )?,
+            })?,
         token_value: google_pay_data.application_primary_account_number.clone(),
         wallet_type: TesouroWalletType::GooglePay,
         ecommerce_indicator: google_pay_data.eci_indicator.clone(),
@@ -674,7 +679,12 @@ pub struct TesouroAuthorizeRequest<T: PaymentMethodDataTypes> {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         TesouroRouterData<
-            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                Authorize,
+                PaymentFlowData,
+                PaymentsAuthorizeData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for TesouroAuthorizeRequest<T>
@@ -810,7 +820,12 @@ pub struct TesouroMandateMetadata {
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         TesouroRouterData<
-            RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>,
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
             T,
         >,
     > for TesouroRepeatPaymentRequest
@@ -907,12 +922,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let original_purchase_date = match &router_data.request.recurring_mandate_payment_data {
             Some(recurring_data) => match &recurring_data.mandate_metadata {
                 Some(metadata) => {
-                    let tesouro_metadata: TesouroMandateMetadata =
-                        serde_json::from_value(metadata.clone().expose()).change_context(
-                            IntegrationError::RequestEncodingFailed {
-                                context: Default::default(),
-                            },
-                        )?;
+                    let tesouro_metadata: TesouroMandateMetadata = serde_json::from_value(
+                        metadata.clone().expose(),
+                    )
+                    .change_context(IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    })?;
                     Some(tesouro_metadata.activity_date)
                 }
                 None => Some(current_date()),
@@ -938,7 +953,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                                 expiration_year,
                                 token: Secret::new(connector_mandate_id),
                                 security_code: TesouroSecurityCode::OmissionReason {
-                                    omission_reason: TesouroOmissionReason::VerificationNotRequested,
+                                    omission_reason:
+                                        TesouroOmissionReason::VerificationNotRequested,
                                 },
                                 wallet_type,
                             },
@@ -1114,7 +1130,9 @@ fn in_band_error(
         message: message.clone(),
         reason: Some(message),
         status_code: http_code,
-        attempt_status: Some(domain_types::router_data::FlowStatus::Payment(attempt_status)),
+        attempt_status: Some(domain_types::router_data::FlowStatus::Payment(
+            attempt_status,
+        )),
         connector_transaction_id: error.and_then(|e| e.transaction_id.clone()),
         network_advice_code: None,
         network_decline_code: None,
@@ -1143,7 +1161,9 @@ fn top_level_error(
         message: message.clone(),
         reason: Some(message),
         status_code: http_code,
-        attempt_status: Some(domain_types::router_data::FlowStatus::Payment(attempt_status)),
+        attempt_status: Some(domain_types::router_data::FlowStatus::Payment(
+            attempt_status,
+        )),
         connector_transaction_id: None,
         network_advice_code: None,
         network_decline_code: None,
@@ -1157,8 +1177,8 @@ fn success_transaction_response(
     mandate_reference: Option<MandateReference>,
     http_code: u16,
 ) -> PaymentsResponseData {
-    let connector_metadata = payment_id
-        .map(|payment_id| serde_json::json!(TesouroTransactionMetadata { payment_id }));
+    let connector_metadata =
+        payment_id.map(|payment_id| serde_json::json!(TesouroTransactionMetadata { payment_id }));
     PaymentsResponseData::TransactionResponse {
         resource_id: ResponseId::ConnectorTransactionId(transaction_id),
         redirection_data: None,
@@ -1202,7 +1222,12 @@ pub struct VerifyAccountResponseType {
 pub type TesouroSetupMandateResponse = TesouroApiResponse<TesouroVerifyAccountData>;
 
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TesouroSetupMandateResponse, Self>>
-    for RouterDataV2<SetupMandate, PaymentFlowData, SetupMandateRequestData<T>, PaymentsResponseData>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
 {
     type Error = ResponseError;
     fn try_from(
@@ -1232,8 +1257,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<TesouroSetupMandateRe
                         in_band_error(&errors, item.http_code, AttemptStatus::Failure),
                     )
                 } else {
-                    return Err(ConnectorError::unexpected_response_error(item.http_code)
-                    .into());
+                    return Err(ConnectorError::unexpected_response_error(item.http_code).into());
                 }
             }
             TesouroApiResponse::Error(error_response) => (
@@ -1373,8 +1397,7 @@ fn map_authorization_response(
         };
         Ok((status, in_band_error(&errors, http_code, status)))
     } else {
-        Err(ConnectorError::unexpected_response_error(http_code)
-        .into())
+        Err(ConnectorError::unexpected_response_error(http_code).into())
     }
 }
 

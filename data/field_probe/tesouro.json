@@ -1,0 +1,643 @@
+{
+  "connector": "tesouro",
+  "flows": {
+    "authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authenticate flow for tesouro"
+      }
+    },
+    "authorize": {
+      "Ach": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "AchBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Affirm": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Afterpay": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Alfamart": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "AliPayRedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "AmazonPayRedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "ApplePay": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "ApplePayDecrypted": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "ApplePayThirdPartySdk": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Bacs": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "BacsBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "BancontactCard": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "BcaBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Becs": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "BillDeskRedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Bizum": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Blik": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Bluecode": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "BniVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Boleto": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "BriVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Card": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "CashappQr": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "CashfreeRedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "CimbVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "ClassicReward": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Crypto": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Dana": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "DanamonVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "DuitNow": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "EVoucher": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "EaseBuzzRedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Efecty": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Eft": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Eps": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "FamilyMart": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "GCash": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Giropay": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Givex": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "GoPay": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "GooglePay": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "GooglePayDecrypted": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "GooglePayThirdPartySdk": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Ideal": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Indomaret": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "IndonesianBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "InstantBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "InstantBankTransferFinland": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "InstantBankTransferPoland": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Interac": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "KakaoPay": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Klarna": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Lawson": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "LazyPayRedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "LocalBankRedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "LocalBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "MandiriVaBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "MbWay": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Mifinity": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "MiniStop": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "MobilePayRedirect": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Momo": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "MultibancoBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Netbanking": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "OnlineBankingCzechRepublic": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "OnlineBankingFinland": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "OnlineBankingFpx": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "OnlineBankingPoland": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "OnlineBankingSlovakia": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "OnlineBankingThailand": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "OpenBanking": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "OpenBankingPis": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "OpenBankingUk": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Oxxo": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "PagoEfectivo": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "PayEasy": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "PaySafeCard": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "PayURedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "PaypalRedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "PaypalSdk": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Paysera": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "Paze": {
+        "status": "not_supported",
+        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+      },
+      "PermataBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "PhonePeRedirect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Pix": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Przelewy24": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Pse": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "RedCompra": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "RedPagos": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "RevolutPay": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "SamsungPay": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Satispay": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Seicomart": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Sepa": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "SepaBankTransfer": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "SepaGuaranteedDebit": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "SevenEleven": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Skrill": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Sofort": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Swish": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "TouchNGo": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Trustly": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Twint": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "UpiCollect": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "UpiIntent": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "UpiQr": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Vipps": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "WeChatPayQr": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      },
+      "Wero": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      }
+    },
+    "capture": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: capture flow for tesouro"
+      }
+    },
+    "create_client_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: client_authentication_token flow for tesouro"
+      }
+    },
+    "create_order": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_order flow for tesouro"
+      }
+    },
+    "create_server_authentication_token": {
+      "default": {
+        "status": "supported",
+        "proto_request": {},
+        "sample": {
+          "url": "https://api.sandbox.tesouro.com/openid/connect/token",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/x-www-form-urlencoded",
+            "via": "HyperSwitch"
+          },
+          "body": "grant_type=client_credentials&client_id=probe_key&client_secret=probe_key"
+        }
+      }
+    },
+    "create_server_session_authentication_token": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: server_session_authentication_token flow for tesouro"
+      }
+    },
+    "customer_create": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: create_connector_customer flow for tesouro"
+      }
+    },
+    "dispute_accept": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: accept_dispute flow for tesouro"
+      }
+    },
+    "dispute_defend": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: defend_dispute flow for tesouro"
+      }
+    },
+    "dispute_get": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "dispute_submit_evidence": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: submit_evidence flow for tesouro"
+      }
+    },
+    "eligibility": {
+      "default": {
+        "status": "not_supported",
+        "error": "eligibility flow not supported by tesouro connector"
+      }
+    },
+    "get": {
+      "default": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      }
+    },
+    "handle_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "incremental_authorization": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: incremental_authorization flow for tesouro"
+      }
+    },
+    "parse_event": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "payment_method_eligibility": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "post_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: post_authenticate flow for tesouro"
+      }
+    },
+    "pre_authenticate": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: pre_authenticate flow for tesouro"
+      }
+    },
+    "proxy_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      }
+    },
+    "proxy_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      }
+    },
+    "recurring_charge": {
+      "default": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      }
+    },
+    "recurring_revoke": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: mandate_revoke flow for tesouro"
+      }
+    },
+    "refund": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund flow for tesouro"
+      }
+    },
+    "refund_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: refund_sync flow for tesouro"
+      }
+    },
+    "reverse": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void_post_capture flow for tesouro"
+      }
+    },
+    "setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      }
+    },
+    "token_authorize": {
+      "default": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      }
+    },
+    "token_setup_recurring": {
+      "default": {
+        "status": "error",
+        "error": "Failed to obtain authentication type"
+      }
+    },
+    "tokenize": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: payment_method_token flow for tesouro"
+      }
+    },
+    "verify_redirect": {
+      "default": {
+        "status": "not_implemented"
+      }
+    },
+    "void": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: void flow for tesouro"
+      }
+    }
+  }
+}

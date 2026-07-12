@@ -1241,7 +1241,11 @@ impl ConnectorSpecificConfig {
             Tamara { api_key },
             Kount { api_key },
             Hyperswitch { api_key },
-            Tesouro { api_key, key1, api_secret },
+            Tesouro {
+                api_key,
+                key1,
+                api_secret
+            },
             Imerchantsolutions { api_key },
             Interpayments { api_key },
             TwocTwopPaco {
@@ -1684,7 +1688,11 @@ impl ConnectorSpecificConfig {
                 Tamara { api_key },
                 Kount { api_key },
                 Hyperswitch { api_key },
-                Tesouro { api_key, key1, api_secret },
+                Tesouro {
+                    api_key,
+                    key1,
+                    api_secret
+                },
                 Imerchantsolutions { api_key },
                 Interpayments { api_key },
                 TwocTwopPaco {
