@@ -42,13 +42,6 @@ pub enum InternalError {
     TestContextCreationFailed { reason: String },
 }
 
-impl InternalError {
-    /// Machine-readable error code (SCREAMING_SNAKE_CASE from variant name).
-    pub fn error_code(&self) -> &str {
-        self.as_ref()
-    }
-}
-
 /// Every error that can reach the gRPC boundary; one variant per leaf error type.
 ///
 /// Handlers return `Report<GrpcError>` and never build a `tonic::Status`. There is no
@@ -68,6 +61,20 @@ pub enum GrpcError {
     Webhook(#[from] WebhookError),
     #[error("Internal error: {0}")]
     Internal(#[from] InternalError),
+}
+
+impl GrpcError {
+    /// Machine-readable code of the wrapped error; alerts group on this.
+    pub fn error_code(&self) -> &str {
+        match self {
+            Self::Integration(e) => e.error_code(),
+            Self::Connector(e) => e.error_code(),
+            Self::ApiClient(e) => e.as_ref(),
+            Self::KafkaClient(e) => e.as_ref(),
+            Self::Webhook(e) => e.as_ref(),
+            Self::Internal(e) => e.as_ref(),
+        }
+    }
 }
 
 impl From<ConnectorFlowError> for GrpcError {
@@ -125,82 +132,89 @@ pub enum ConfigurationError {
     IoError(#[from] std::io::Error),
 }
 
-/// gRPC status mapping for `IntegrationError`.
+/// Pure error-to-status mapping.
 ///
+/// Private on purpose: the only public path to a `Status` is `IntoGrpcStatus`, which logs the
+/// report first. A public non-logging mapper would let callers produce a `Status` that never
+/// reaches the alerting pipeline.
+trait ToStatus {
+    fn to_status(&self) -> Status;
+}
+
 /// `invalid_argument` — caller sent a missing or invalid field in this request (UCS is stateless;
 ///   every required ID/field must be supplied by the caller on every call).
 /// `unimplemented` — the flow or payment method is not implemented, or not enabled for this connector.
 /// `failed_precondition` — connector/merchant configuration problem; not a client credential failure.
 /// `unauthenticated` — credential / auth resolution failure.
 /// `internal` — UCS machinery failure (encoding, URL building, serialization); caller cannot fix.
-fn status_for_integration_error(context: &IntegrationError) -> Status {
-    let integration_error: grpc_api_types::payments::IntegrationError =
-        ErrorSwitch::switch(context);
-    let msg = integration_error.error_message.clone();
+impl ToStatus for IntegrationError {
+    fn to_status(&self) -> Status {
+        let integration_error: grpc_api_types::payments::IntegrationError =
+            ErrorSwitch::switch(self);
+        let msg = integration_error.error_message.clone();
 
-    // Serialize the IntegrationError proto to bytes
-    let mut buf = Vec::new();
-    // SAFETY: IntegrationError only contains String fields with valid UTF-8
-    // and prost encoding cannot fail for these controlled types
-    let _ = integration_error.encode(&mut buf);
+        // Serialize the IntegrationError proto to bytes
+        let mut buf = Vec::new();
+        // SAFETY: IntegrationError only contains String fields with valid UTF-8
+        // and prost encoding cannot fail for these controlled types
+        let _ = integration_error.encode(&mut buf);
 
-    match context {
-        IntegrationError::MissingRequiredField { .. }
-        | IntegrationError::MissingRequiredFields { .. }
-        | IntegrationError::InvalidDataFormat { .. }
-        | IntegrationError::MismatchedPaymentData { .. }
-        | IntegrationError::InvalidWallet { .. }
-        | IntegrationError::InvalidWalletToken { .. }
-        | IntegrationError::MissingPaymentMethodType { .. }
-        | IntegrationError::CurrencyNotSupported { .. }
-        | IntegrationError::AmountConversionFailed { .. }
-        | IntegrationError::MandatePaymentDataMismatch { .. }
-        | IntegrationError::MissingApplePayTokenData { .. }
-        // UCS is stateless — the caller must supply these IDs on every request.
-        | IntegrationError::MissingConnectorTransactionID { .. }
-        | IntegrationError::MissingConnectorRefundID { .. }
-        | IntegrationError::MissingConnectorMandateID { .. }
-        | IntegrationError::MissingConnectorMandateMetadata { .. }
-        | IntegrationError::MissingConnectorRelatedTransactionID { .. }
-        // Caller supplied a field value that exceeds the connector's length limit.
-        | IntegrationError::MaxFieldLengthViolated { .. } => Status::with_details(tonic::Code::InvalidArgument, msg, buf.into()),
-        IntegrationError::FlowNotSupported { .. }
-        | IntegrationError::NotSupported { .. }
-        | IntegrationError::CaptureMethodNotSupported { .. }
-        | IntegrationError::NotImplemented(..) => Status::with_details(tonic::Code::Unimplemented, msg, buf.into()),
-        IntegrationError::InvalidConnectorConfig { .. }
-        | IntegrationError::ConfigurationError { .. }
-        | IntegrationError::NoConnectorMetaData { .. } => Status::with_details(tonic::Code::FailedPrecondition, msg, buf.into()),
-        IntegrationError::FailedToObtainAuthType { .. } => Status::with_details(tonic::Code::Unauthenticated, msg, buf.into()),
-        IntegrationError::SourceVerificationFailed { .. } => Status::with_details(tonic::Code::Unauthenticated, msg, buf.into()),
-        IntegrationError::FailedToObtainIntegrationUrl { .. }
-        | IntegrationError::RequestEncodingFailed { .. }
-        | IntegrationError::HeaderMapConstructionFailed { .. }
-        | IntegrationError::BodySerializationFailed { .. }
-        | IntegrationError::UrlParsingFailed { .. }
-        | IntegrationError::UrlEncodingFailed { .. } => Status::with_details(tonic::Code::Internal, msg, buf.into()),
+        match self {
+            Self::MissingRequiredField { .. }
+            | Self::MissingRequiredFields { .. }
+            | Self::InvalidDataFormat { .. }
+            | Self::MismatchedPaymentData { .. }
+            | Self::InvalidWallet { .. }
+            | Self::InvalidWalletToken { .. }
+            | Self::MissingPaymentMethodType { .. }
+            | Self::CurrencyNotSupported { .. }
+            | Self::AmountConversionFailed { .. }
+            | Self::MandatePaymentDataMismatch { .. }
+            | Self::MissingApplePayTokenData { .. }
+            // UCS is stateless — the caller must supply these IDs on every request.
+            | Self::MissingConnectorTransactionID { .. }
+            | Self::MissingConnectorRefundID { .. }
+            | Self::MissingConnectorMandateID { .. }
+            | Self::MissingConnectorMandateMetadata { .. }
+            | Self::MissingConnectorRelatedTransactionID { .. }
+            // Caller supplied a field value that exceeds the connector's length limit.
+            | Self::MaxFieldLengthViolated { .. } => Status::with_details(tonic::Code::InvalidArgument, msg, buf.into()),
+            Self::FlowNotSupported { .. }
+            | Self::NotSupported { .. }
+            | Self::CaptureMethodNotSupported { .. }
+            | Self::NotImplemented(..) => Status::with_details(tonic::Code::Unimplemented, msg, buf.into()),
+            Self::InvalidConnectorConfig { .. }
+            | Self::ConfigurationError { .. }
+            | Self::NoConnectorMetaData { .. } => Status::with_details(tonic::Code::FailedPrecondition, msg, buf.into()),
+            Self::FailedToObtainAuthType { .. } => Status::with_details(tonic::Code::Unauthenticated, msg, buf.into()),
+            Self::SourceVerificationFailed { .. } => Status::with_details(tonic::Code::Unauthenticated, msg, buf.into()),
+            Self::FailedToObtainIntegrationUrl { .. }
+            | Self::RequestEncodingFailed { .. }
+            | Self::HeaderMapConstructionFailed { .. }
+            | Self::BodySerializationFailed { .. }
+            | Self::UrlParsingFailed { .. }
+            | Self::UrlEncodingFailed { .. } => Status::with_details(tonic::Code::Internal, msg, buf.into()),
+        }
     }
 }
 
-/// gRPC status mapping for `ConnectorError` (response phase).
-///
 /// - `ConnectorErrorResponse`: connector returned a 4xx/5xx; mapped per HTTP status code
 ///   following the standard HTTP → gRPC status code translation.
 /// - All UCS-side transformation failures → `internal` (UCS machinery failed).
-fn status_for_connector_error(context: &ConnectorError) -> Status {
-    let connector_error: grpc_api_types::payments::ConnectorError =
-        ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(context);
-    let msg = connector_error.error_message.clone();
+impl ToStatus for ConnectorError {
+    fn to_status(&self) -> Status {
+        let connector_error: grpc_api_types::payments::ConnectorError =
+            ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(self);
+        let msg = connector_error.error_message.clone();
 
-    // Serialize the ConnectorError proto to bytes
-    let mut buf = Vec::new();
-    // SAFETY: ConnectorError only contains String fields with valid UTF-8
-    // and prost encoding cannot fail for these controlled types
-    let _ = connector_error.encode(&mut buf);
+        // Serialize the ConnectorError proto to bytes
+        let mut buf = Vec::new();
+        // SAFETY: ConnectorError only contains String fields with valid UTF-8
+        // and prost encoding cannot fail for these controlled types
+        let _ = connector_error.encode(&mut buf);
 
-    match context {
-        ConnectorError::ConnectorErrorResponse(error_response) => {
-            match error_response.status_code {
+        match self {
+            Self::ConnectorErrorResponse(error_response) => match error_response.status_code {
                 400 => Status::with_details(tonic::Code::InvalidArgument, msg, buf.into()),
                 401 => Status::with_details(tonic::Code::Unauthenticated, msg, buf.into()),
                 403 => Status::with_details(tonic::Code::PermissionDenied, msg, buf.into()),
@@ -211,164 +225,80 @@ fn status_for_connector_error(context: &ConnectorError) -> Status {
                 503 => Status::with_details(tonic::Code::Unavailable, msg, buf.into()),
                 504 => Status::with_details(tonic::Code::DeadlineExceeded, msg, buf.into()),
                 _ => Status::with_details(tonic::Code::Unknown, msg, buf.into()),
+            },
+            Self::ResponseDeserializationFailed { .. }
+            | Self::ResponseHandlingFailed { .. }
+            | Self::UnexpectedResponseError { .. }
+            | Self::IntegrityCheckFailed { .. } => {
+                Status::with_details(tonic::Code::Internal, msg, buf.into())
             }
         }
-        ConnectorError::ResponseDeserializationFailed { .. }
-        | ConnectorError::ResponseHandlingFailed { .. }
-        | ConnectorError::UnexpectedResponseError { .. }
-        | ConnectorError::IntegrityCheckFailed { .. } => {
-            Status::with_details(tonic::Code::Internal, msg, buf.into())
+    }
+}
+
+impl ToStatus for ApiClientError {
+    fn to_status(&self) -> Status {
+        let msg = self.to_string();
+        match self {
+            Self::RequestTimeoutReceived | Self::GatewayTimeoutReceived => {
+                Status::deadline_exceeded(msg)
+            }
+            Self::ServiceUnavailableReceived => Status::unavailable(msg),
+            _ => Status::internal(msg),
         }
     }
 }
 
-/// gRPC status mapping for `ApiClientError` (network/transport phase).
-fn status_for_api_client_error(context: &ApiClientError) -> Status {
-    let msg = context.to_string();
-    match context {
-        ApiClientError::RequestTimeoutReceived | ApiClientError::GatewayTimeoutReceived => {
-            Status::deadline_exceeded(msg)
-        }
-        ApiClientError::ServiceUnavailableReceived => Status::unavailable(msg),
-        _ => Status::internal(msg),
+impl ToStatus for KafkaClientError {
+    fn to_status(&self) -> Status {
+        Status::internal(self.to_string())
     }
 }
 
-/// gRPC status mapping for `KafkaClientError`.
-fn status_for_kafka_client_error(context: &KafkaClientError) -> Status {
-    Status::internal(context.to_string())
-}
-
-/// gRPC status mapping for `WebhookError`.
-fn status_for_webhook_error(context: &WebhookError) -> Status {
-    let msg = context.to_string();
-    match context {
-        WebhookError::WebhooksNotImplemented { .. } => Status::unimplemented(msg),
-        WebhookError::WebhookEventTypeNotFound
-        | WebhookError::WebhookSignatureNotFound
-        | WebhookError::WebhookReferenceIdNotFound
-        | WebhookError::WebhookResourceObjectNotFound
-        | WebhookError::WebhookVerificationSecretNotFound => Status::not_found(msg),
-        // Caller omitted a required field — bad request from SDK user.
-        WebhookError::WebhookMissingRequiredField { .. } => Status::invalid_argument(msg),
-        // Bad body from the webhook sender — genuinely bad argument.
-        WebhookError::WebhookBodyDecodingFailed => Status::invalid_argument(msg),
-        // Caller did not supply required business context (e.g. capture_method).
-        WebhookError::WebhookMissingRequiredContext { .. } => Status::invalid_argument(msg),
-        // Signature mismatch or configured secret is wrong — authentication failure.
-        WebhookError::WebhookSourceVerificationFailed
-        | WebhookError::WebhookVerificationSecretInvalid => Status::unauthenticated(msg),
-        WebhookError::WebhookProcessingFailed
-        | WebhookError::WebhookAmountConversionFailed { .. }
-        | WebhookError::WebhookResponseEncodingFailed => Status::internal(msg),
-    }
-}
-
-/// Machine-readable code for the error a `ConnectorFlowError` wraps.
-fn connector_flow_error_code(context: &ConnectorFlowError) -> &str {
-    match context {
-        ConnectorFlowError::Request(e) => e.error_code(),
-        ConnectorFlowError::Response(e) => e.error_code(),
-        ConnectorFlowError::Client(e) => e.as_ref(),
-        ConnectorFlowError::KafkaClient(e) => e.as_ref(),
-    }
-}
-
-impl IntoGrpcStatus for Report<IntegrationError> {
-    fn into_grpc_status(self) -> Status {
-        logger::error!(
-            error = ?self,
-            extra_error = ?self,
-            error_code = %self.current_context().error_code(),
-        );
-        status_for_integration_error(self.current_context())
-    }
-}
-
-impl IntoGrpcStatus for Report<ConnectorError> {
-    fn into_grpc_status(self) -> Status {
-        logger::error!(
-            error = ?self,
-            extra_error = ?self,
-            error_code = %self.current_context().error_code(),
-            http_status_code = ?self.current_context().http_status_code(),
-        );
-        status_for_connector_error(self.current_context())
-    }
-}
-
-impl IntoGrpcStatus for Report<ApiClientError> {
-    fn into_grpc_status(self) -> Status {
-        logger::error!(
-            error = ?self,
-            extra_error = ?self,
-            error_code = %self.current_context().as_ref(),
-        );
-        status_for_api_client_error(self.current_context())
-    }
-}
-
-impl IntoGrpcStatus for Report<KafkaClientError> {
-    fn into_grpc_status(self) -> Status {
-        logger::error!(error = ?self, extra_error = ?self);
-        status_for_kafka_client_error(self.current_context())
-    }
-}
-
-/// gRPC status mapping for `ConnectorFlowError` (unified gRPC path wrapper).
-impl IntoGrpcStatus for Report<ConnectorFlowError> {
-    fn into_grpc_status(self) -> Status {
-        let context = self.current_context();
-        logger::error!(
-            error = ?self,
-            extra_error = ?self,
-            error_code = %connector_flow_error_code(context),
-        );
-        match context {
-            ConnectorFlowError::Request(e) => status_for_integration_error(e),
-            ConnectorFlowError::Client(e) => status_for_api_client_error(e),
-            ConnectorFlowError::KafkaClient(e) => status_for_kafka_client_error(e),
-            ConnectorFlowError::Response(e) => status_for_connector_error(e),
+impl ToStatus for WebhookError {
+    fn to_status(&self) -> Status {
+        let msg = self.to_string();
+        match self {
+            Self::WebhooksNotImplemented { .. } => Status::unimplemented(msg),
+            Self::WebhookEventTypeNotFound
+            | Self::WebhookSignatureNotFound
+            | Self::WebhookReferenceIdNotFound
+            | Self::WebhookResourceObjectNotFound
+            | Self::WebhookVerificationSecretNotFound => Status::not_found(msg),
+            // Caller omitted a required field — bad request from SDK user.
+            Self::WebhookMissingRequiredField { .. } => Status::invalid_argument(msg),
+            // Bad body from the webhook sender — genuinely bad argument.
+            Self::WebhookBodyDecodingFailed => Status::invalid_argument(msg),
+            // Caller did not supply required business context (e.g. capture_method).
+            Self::WebhookMissingRequiredContext { .. } => Status::invalid_argument(msg),
+            // Signature mismatch or configured secret is wrong — authentication failure.
+            Self::WebhookSourceVerificationFailed | Self::WebhookVerificationSecretInvalid => {
+                Status::unauthenticated(msg)
+            }
+            Self::WebhookProcessingFailed
+            | Self::WebhookAmountConversionFailed { .. }
+            | Self::WebhookResponseEncodingFailed => Status::internal(msg),
         }
     }
 }
 
-impl IntoGrpcStatus for Report<WebhookError> {
-    fn into_grpc_status(self) -> Status {
-        logger::error!(
-            error = ?self,
-            extra_error = ?self,
-            error_code = %self.current_context().as_ref(),
-        );
-        status_for_webhook_error(self.current_context())
+/// UCS plumbing failed and the caller cannot act on it: bare `internal`, no proto details.
+impl ToStatus for InternalError {
+    fn to_status(&self) -> Status {
+        Status::internal(self.to_string())
     }
 }
 
-/// gRPC status mapping for `InternalError`.
-fn status_for_internal_error(context: &InternalError) -> Status {
-    Status::internal(context.to_string())
-}
-
-impl IntoGrpcStatus for Report<InternalError> {
-    fn into_grpc_status(self) -> Status {
-        logger::error!(
-            error = ?self,
-            extra_error = ?self,
-            error_code = %self.current_context().error_code(),
-        );
-        status_for_internal_error(self.current_context())
-    }
-}
-
-/// Machine-readable code for the error a `GrpcError` wraps.
-fn grpc_error_code(context: &GrpcError) -> &str {
-    match context {
-        GrpcError::Integration(e) => e.error_code(),
-        GrpcError::Connector(e) => e.error_code(),
-        GrpcError::ApiClient(e) => e.as_ref(),
-        GrpcError::KafkaClient(e) => e.as_ref(),
-        GrpcError::Webhook(e) => e.as_ref(),
-        GrpcError::Internal(e) => e.error_code(),
+impl ToStatus for GrpcError {
+    fn to_status(&self) -> Status {
+        match self {
+            Self::Integration(e) => e.to_status(),
+            Self::Connector(e) => e.to_status(),
+            Self::ApiClient(e) => e.to_status(),
+            Self::KafkaClient(e) => e.to_status(),
+            Self::Webhook(e) => e.to_status(),
+            Self::Internal(e) => e.to_status(),
+        }
     }
 }
 
@@ -381,15 +311,56 @@ impl IntoGrpcStatus for Report<GrpcError> {
         logger::error!(
             error = ?self,
             extra_error = ?self,
-            error_code = %grpc_error_code(context),
+            error_code = %context.error_code(),
         );
-        match context {
-            GrpcError::Integration(e) => status_for_integration_error(e),
-            GrpcError::Connector(e) => status_for_connector_error(e),
-            GrpcError::ApiClient(e) => status_for_api_client_error(e),
-            GrpcError::KafkaClient(e) => status_for_kafka_client_error(e),
-            GrpcError::Webhook(e) => status_for_webhook_error(e),
-            GrpcError::Internal(e) => status_for_internal_error(e),
-        }
+        context.to_status()
+    }
+}
+
+impl IntoGrpcStatus for Report<IntegrationError> {
+    fn into_grpc_status(self) -> Status {
+        self.to_grpc_error().into_grpc_status()
+    }
+}
+
+impl IntoGrpcStatus for Report<ConnectorError> {
+    fn into_grpc_status(self) -> Status {
+        logger::error!(
+            error = ?self,
+            extra_error = ?self,
+            error_code = %self.current_context().error_code(),
+            http_status_code = ?self.current_context().http_status_code(),
+        );
+        self.current_context().to_status()
+    }
+}
+
+impl IntoGrpcStatus for Report<ApiClientError> {
+    fn into_grpc_status(self) -> Status {
+        self.to_grpc_error().into_grpc_status()
+    }
+}
+
+impl IntoGrpcStatus for Report<KafkaClientError> {
+    fn into_grpc_status(self) -> Status {
+        self.to_grpc_error().into_grpc_status()
+    }
+}
+
+impl IntoGrpcStatus for Report<WebhookError> {
+    fn into_grpc_status(self) -> Status {
+        self.to_grpc_error().into_grpc_status()
+    }
+}
+
+impl IntoGrpcStatus for Report<InternalError> {
+    fn into_grpc_status(self) -> Status {
+        self.to_grpc_error().into_grpc_status()
+    }
+}
+
+impl IntoGrpcStatus for Report<ConnectorFlowError> {
+    fn into_grpc_status(self) -> Status {
+        self.to_grpc_error().into_grpc_status()
     }
 }

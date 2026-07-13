@@ -1722,24 +1722,15 @@ impl PaymentService for Payments {
         .await
     }
 
+    // Adapter: converts the tokenized payload and delegates to `authorize`, which owns the
+    // logging wrapper and emits the golden log line for this request.
     #[tracing::instrument(
         name = "token_authorize",
         fields(
             name = common_utils::consts::NAME,
             service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
             service_method = "token_authorize",
-            request_body = tracing::field::Empty,
-            response_body = tracing::field::Empty,
-            error_message = tracing::field::Empty,
-            merchant_id = tracing::field::Empty,
-            gateway = tracing::field::Empty,
-            request_id = tracing::field::Empty,
-            status_code = tracing::field::Empty,
-            message_ = "Golden Log Line (incoming)",
-            response_time = tracing::field::Empty,
-            tenant_id = tracing::field::Empty,
             flow = FlowName::Authorize.as_str(),
-            flow_specific_fields.status = tracing::field::Empty,
         ),
         skip(self, request)
     )]
@@ -1761,24 +1752,15 @@ impl PaymentService for Payments {
         <Self as PaymentService>::authorize(self, inner_request).await
     }
 
+    // Adapter: converts the tokenized payload and delegates to `setup_recurring`, which owns the
+    // logging wrapper and emits the golden log line for this request.
     #[tracing::instrument(
         name = "token_setup_recurring",
         fields(
             name = common_utils::consts::NAME,
             service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
             service_method = "token_setup_recurring",
-            request_body = tracing::field::Empty,
-            response_body = tracing::field::Empty,
-            error_message = tracing::field::Empty,
-            merchant_id = tracing::field::Empty,
-            gateway = tracing::field::Empty,
-            request_id = tracing::field::Empty,
-            status_code = tracing::field::Empty,
-            message_ = "Golden Log Line (incoming)",
-            response_time = tracing::field::Empty,
-            tenant_id = tracing::field::Empty,
             flow = FlowName::SetupMandate.as_str(),
-            flow_specific_fields.status = tracing::field::Empty,
         ),
         skip(self, request)
     )]

@@ -551,6 +551,8 @@ fn build_error_detail(status: &tonic::Status) -> Value {
     })
 }
 
+// TODO: fold this into `grpc_logging_wrapper` so it is a true catch-all; today a failure here
+// is logged but skips `create_and_emit_grpc_event`.
 #[allow(clippy::result_large_err)]
 pub fn get_config_from_request<T>(
     request: &tonic::Request<T>,
