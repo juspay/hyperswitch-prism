@@ -14,8 +14,8 @@ use domain_types::{
         Authorize, Capture, IncrementalAuthorization, PSync, RSync, Refund, Void, VoidPC,
     },
     connector_types::{
-        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsIncrementalAuthorizationData, PaymentsResponseData, PaymentsSyncData,
         RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundsData,
         RefundsResponseData, RequestDetails, WebhookDetailsResponse,
@@ -32,9 +32,9 @@ use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
     connector_types::{
-        ConnectorServiceTrait, IncomingWebhook, PaymentAuthorizeV2, PaymentCapture, PaymentSyncV2,
-        PaymentVoidPostCaptureV2, PaymentVoidV2, RefundSyncV2, RefundV2, ValidationTrait,
-        VerifyRedirectResponse,
+        self, ConnectorServiceTrait, IncomingWebhook, PaymentAuthorizeV2, PaymentCapture,
+        PaymentSyncV2, PaymentVoidPostCaptureV2, PaymentVoidV2, RefundSyncV2, RefundV2,
+        ValidationTrait, VerifyRedirectResponse,
     },
     decode::BodyDecoding,
     verification::SourceVerification,
@@ -267,7 +267,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    interfaces::connector_types::PaymentIncrementalAuthorization for Worldpayvantiv<T>
+    connector_types::PaymentIncrementalAuthorization for Worldpayvantiv<T>
 {
 }
 
@@ -903,7 +903,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 // Explicit not implemented order flow placeholders
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
-    ConnectorSpecifications for Worldpayvantiv<T>
+    connector_types::ConnectorSpecifications for Worldpayvantiv<T>
 {
 }
 

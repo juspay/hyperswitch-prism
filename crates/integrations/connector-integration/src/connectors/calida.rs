@@ -19,8 +19,8 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, PSync},
     connector_types::{
-        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData,
-        PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData, RequestDetails, ResponseId,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsResponseData, PaymentsSyncData, RequestDetails, ResponseId,
         SupportedPaymentMethodsExt, WebhookDetailsResponse,
     },
     payment_method_data::{DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
@@ -414,8 +414,8 @@ static CALIDA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static CALIDA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Calida<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Calida<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&CALIDA_CONNECTOR_INFO)

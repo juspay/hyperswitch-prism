@@ -10,10 +10,9 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, PSync, RSync, Refund},
     connector_types::{
-        ConnectorSpecifications, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        SupportedPaymentMethodsExt,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData,
+        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, SupportedPaymentMethodsExt,
     },
     errors::{self, ConnectorError, IntegrationError},
     payment_method_data::PaymentMethodDataTypes,
@@ -361,8 +360,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 // CONNECTOR SPECIFICATIONS
 // ============================================================================
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Easebuzz<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Easebuzz<T>
 {
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
         Some(&EASEBUZZ_SUPPORTED_PAYMENT_METHODS)

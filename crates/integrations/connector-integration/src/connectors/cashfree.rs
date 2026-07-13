@@ -14,10 +14,10 @@ use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{Authorize, Capture, CreateOrder, PSync, RSync, Refund, Void},
     connector_types::{
-        ConnectorSpecifications, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
-        RefundsResponseData, SupportedPaymentMethodsExt,
+        PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        SupportedPaymentMethodsExt,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
@@ -704,8 +704,8 @@ static CASHFREE_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: domain_types::types::PaymentConnectorCategory::PaymentGateway,
 };
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Cashfree<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Cashfree<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&CASHFREE_CONNECTOR_INFO)

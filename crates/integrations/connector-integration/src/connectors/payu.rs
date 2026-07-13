@@ -12,11 +12,10 @@ use domain_types::{
         Authorize, Capture, PSync, RSync, Refund, ServerSessionAuthenticationToken, Void,
     },
     connector_types::{
-        ConnectorSpecifications, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData,
-        ServerSessionAuthenticationTokenRequestData, ServerSessionAuthenticationTokenResponseData,
-        SupportedPaymentMethodsExt,
+        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, ServerSessionAuthenticationTokenRequestData,
+        ServerSessionAuthenticationTokenResponseData, SupportedPaymentMethodsExt,
     },
     errors::IntegrationError,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
@@ -862,8 +861,8 @@ static PAYU_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     connector_type: PaymentConnectorCategory::PaymentGateway,
 };
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Payu<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Payu<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&PAYU_CONNECTOR_INFO)

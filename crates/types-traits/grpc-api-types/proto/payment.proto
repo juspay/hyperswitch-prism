@@ -5561,12 +5561,13 @@ message FeatureMatrixRequest {
 }
 
 message FeatureMatrixResponse {
+  // Number of connector entries returned in this response.
   uint32 connector_count = 1;
   repeated FeatureMatrixConnector connectors = 2;
 }
 
 message FeatureMatrixConnector {
-  string name = 1;
+  string connector_name = 1;
   string display_name = 2;
   string description = 3;
   string base_url = 4;
@@ -5586,8 +5587,8 @@ message FeatureMatrixPaymentMethod {
   optional string three_ds = 7;
   optional string no_three_ds = 8;
   repeated string supported_card_networks = 9;
-  repeated string supported_countries = 10;
-  repeated string supported_currencies = 11;
+  repeated CountryAlpha2 supported_countries = 10;
+  repeated Currency supported_currencies = 11;
 }
 
 // ============================================================================

@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use axum::{body::Bytes, extract::Extension, http::StatusCode, Json};
+use domain_types::feature_matrix::feature_matrix_types::{
+    FeatureMatrixError, FeatureMatrixResponse,
+};
 use serde::Deserialize;
 use ucs_env::configs::Config;
 
-use crate::{
-    feature_matrix::{build_feature_matrix, FeatureMatrixError, FeatureMatrixResponse},
-    http::error::HttpError,
-};
+use crate::{feature_matrix::build_feature_matrix, http::error::HttpError};
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]

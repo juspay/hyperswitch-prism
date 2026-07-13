@@ -101,12 +101,12 @@ service EventService {
 }
 
 // ============================================================================
-// CONNECTOR INFO SERVICE — Returns connector capability and feature metadata.
+// CONNECTOR CAPABILITY SERVICE — Returns connector capability and feature metadata.
 // ============================================================================
 
-service ConnectorInfoService {
+service ConnectorCapabilityService {
   // Returns feature matrix information for the requested connectors.
-  rpc FeatureMatrix(FeatureMatrixRequest) returns (FeatureMatrixResponse);
+  rpc GetFeatureMatrix(FeatureMatrixRequest) returns (FeatureMatrixResponse);
 }
 
 // ============================================================================

@@ -26,10 +26,10 @@ use domain_types::{
         VoidPC,
     },
     connector_types::{
-        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorSpecifications,
-        ConnectorWebhookSecrets, DisputeDefendData, DisputeFlowData, DisputeResponseData,
-        DisputeWebhookReference, EventContext, PaymentCreateOrderData, PaymentCreateOrderResponse,
-        PaymentFlowData, PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
+        AcceptDisputeData, ClientAuthenticationTokenRequestData, ConnectorWebhookSecrets,
+        DisputeDefendData, DisputeFlowData, DisputeResponseData, DisputeWebhookReference,
+        EventContext, PaymentCreateOrderData, PaymentCreateOrderResponse, PaymentFlowData,
+        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData,
         PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsIncrementalAuthorizationData,
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundWebhookDetailsResponse,
         RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
@@ -1392,8 +1392,8 @@ static ADYEN_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static ADYEN_SUPPORTED_WEBHOOK_FLOWS: &[EventClass] = &[EventClass::Payments, EventClass::Refunds];
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Adyen<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Adyen<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&ADYEN_CONNECTOR_INFO)

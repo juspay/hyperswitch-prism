@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common_enums::{
-    AttemptStatus, AuthenticationType, AuthorizationStatus, Currency, DisputeStatus, EventClass,
+    AttemptStatus, AuthenticationType, AuthorizationStatus, Currency, DisputeStatus,
     PaymentChannel, PaymentMethod, PaymentMethodType,
 };
 use common_utils::{
@@ -35,8 +35,8 @@ use crate::{
     },
     router_response_types::RedirectForm,
     types::{
-        AdditionalPaymentData, ConnectorInfo, Connectors, PaymentMethodDataType,
-        PaymentMethodDetails, PaymentMethodTypeMetadata, SupportedPaymentMethods,
+        AdditionalPaymentData, Connectors, PaymentMethodDataType, PaymentMethodDetails,
+        PaymentMethodTypeMetadata, SupportedPaymentMethods,
     },
     utils::{missing_field_err, Error, ForeignTryFrom},
 };
@@ -3610,24 +3610,6 @@ pub struct SubmitEvidenceData {
     pub uncategorized_file_type: Option<String>,
     pub uncategorized_file_provider_file_id: Option<String>,
     pub uncategorized_text: Option<String>,
-}
-
-/// The trait that provides specifications about the connector
-pub trait ConnectorSpecifications {
-    /// Details related to payment method supported by the connector
-    fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        None
-    }
-
-    /// Supported webhooks flows
-    fn get_supported_webhook_flows(&self) -> Option<&'static [EventClass]> {
-        None
-    }
-
-    /// About the connector
-    fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        None
-    }
 }
 
 #[macro_export]

@@ -4,7 +4,7 @@ use grpc_api_types::{
     frm::fraud_and_risk_management_service_client::FraudAndRiskManagementServiceClient,
     health_check::health_client::HealthClient,
     payments::{
-        connector_info_service_client::ConnectorInfoServiceClient,
+        connector_capability_service_client::ConnectorCapabilityServiceClient,
         customer_service_client::CustomerServiceClient,
         dispute_service_client::DisputeServiceClient,
         merchant_authentication_service_client::MerchantAuthenticationServiceClient,
@@ -61,7 +61,7 @@ impl AutoClient for HealthClient<Channel> {
     }
 }
 
-impl AutoClient for ConnectorInfoServiceClient<Channel> {
+impl AutoClient for ConnectorCapabilityServiceClient<Channel> {
     fn new(channel: Channel) -> Self {
         Self::new(channel)
     }
@@ -137,8 +137,8 @@ fn build_server(
             service.health_check_service,
         ))
         .add_service(
-            grpc_api_types::payments::connector_info_service_server::ConnectorInfoServiceServer::with_interceptor(
-                service.connector_info_service,
+            grpc_api_types::payments::connector_capability_service_server::ConnectorCapabilityServiceServer::with_interceptor(
+                service.connector_capability_service,
                 interceptor.clone(),
             ),
         )

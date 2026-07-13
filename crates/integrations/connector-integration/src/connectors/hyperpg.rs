@@ -13,8 +13,8 @@ use domain_types::router_data::ConnectorSpecificConfig;
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund},
     connector_types::{
-        ConnectorSpecifications, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
+        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         SupportedPaymentMethodsExt,
     },
     payment_method_data::PaymentMethodDataTypes,
@@ -435,8 +435,8 @@ static HYPERPG_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 
 static HYPERPG_SUPPORTED_WEBHOOK_FLOWS: Vec<enums::EventClass> = Vec::new();
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Hyperpg<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Hyperpg<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&HYPERPG_CONNECTOR_INFO)

@@ -1,20 +1,17 @@
 use grpc_api_types::payments::{
-    connector_info_service_server::ConnectorInfoService, FeatureMatrixRequest,
+    connector_capability_service_server::ConnectorCapabilityService, FeatureMatrixRequest,
     FeatureMatrixResponse,
 };
 use tonic::{Request, Response, Status};
 
-use crate::{
-    feature_matrix::{build_feature_matrix, FeatureMatrixError},
-    utils,
-};
+use crate::{feature_matrix::build_feature_matrix, utils};
 
 #[derive(Debug, Clone)]
-pub struct ConnectorInfo;
+pub struct ConnectorCapability;
 
 #[tonic::async_trait]
-impl ConnectorInfoService for ConnectorInfo {
-    async fn feature_matrix(
+impl ConnectorCapabilityService for ConnectorCapability {
+    async fn get_feature_matrix(
         &self,
         request: Request<FeatureMatrixRequest>,
     ) -> Result<Response<FeatureMatrixResponse>, Status> {
@@ -24,13 +21,6 @@ impl ConnectorInfoService for ConnectorInfo {
         build_feature_matrix(request.connectors, &config)
             .map(Into::into)
             .map(Response::new)
-            .map_err(status_from_feature_matrix_error)
-    }
-}
-
-fn status_from_feature_matrix_error(error: FeatureMatrixError) -> Status {
-    match &error {
-        FeatureMatrixError::InvalidConnectorName(_) => Status::invalid_argument(error.message()),
-        FeatureMatrixError::ConnectorNotConfigured(_) => Status::unimplemented(error.message()),
+            .map_err(Status::from)
     }
 }

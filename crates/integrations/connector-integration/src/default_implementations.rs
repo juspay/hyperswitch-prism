@@ -42,7 +42,7 @@ macro_rules! default_impl_connector_specifications {
     ( $( $connector:ident ),* $(,)? ) => {
         $(
             impl<T: ::domain_types::payment_method_data::PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + serde::Serialize>
-                ::domain_types::connector_types::ConnectorSpecifications for $connector<T>
+                ::interfaces::connector_types::ConnectorSpecifications for $connector<T>
             {
             }
         )*

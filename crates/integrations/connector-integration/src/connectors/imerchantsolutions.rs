@@ -16,12 +16,12 @@ use common_utils::{
 use domain_types::{
     connector_flow::{Authorize, Capture, PSync, RSync, Refund, RepeatPayment, Void},
     connector_types::{
-        ConnectorSpecifications, ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData,
-        PaymentVoidData, PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData,
-        RefundWebhookDetailsResponse, RefundWebhookReference, RefundsData, RefundsResponseData,
-        RepeatPaymentData, RequestDetails, ResponseId, SupportedPaymentMethodsExt,
-        WebhookDetailsResponse, WebhookResourceReference,
+        ConnectorWebhookSecrets, EventContext, EventType, PaymentFlowData, PaymentVoidData,
+        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundWebhookReference, RefundsData, RefundsResponseData, RepeatPaymentData,
+        RequestDetails, ResponseId, SupportedPaymentMethodsExt, WebhookDetailsResponse,
+        WebhookResourceReference,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -543,8 +543,8 @@ static IMERCHANTSOLUTIONS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static IMERCHANTSOLUTIONS_SUPPORTED_WEBHOOK_FLOWS: &[EventClass] =
     &[EventClass::Payments, EventClass::Refunds];
 
-impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> ConnectorSpecifications
-    for Imerchantsolutions<T>
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::ConnectorSpecifications for Imerchantsolutions<T>
 {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&IMERCHANTSOLUTIONS_CONNECTOR_INFO)
