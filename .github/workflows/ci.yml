@@ -596,7 +596,7 @@ jobs:
           KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
           KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
         options: >-
-          --health-cmd "kafka-topics --bootstrap-server localhost:9092 --list"
+          --health-cmd "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"
           --health-start-period 10s
           --health-interval 2s
           --health-timeout 5s
@@ -634,7 +634,7 @@ jobs:
       - name: Create Kafka topics
         shell: bash
         run: |
-          docker exec "${{ job.services.kafka.id }}" kafka-topics \
+          docker exec "${{ job.services.kafka.id }}" /opt/kafka/bin/kafka-topics.sh \
             --bootstrap-server localhost:9092 \
             --create \
             --if-not-exists \
