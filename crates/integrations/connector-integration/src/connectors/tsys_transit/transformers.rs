@@ -2976,18 +2976,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 super::TsysTransitAmountConvertor::convert(amount.amount, amount.currency)
             })
             .transpose()?;
-        let void_reason = {
-            let raw = router_data
-                .request
-                .cancellation_reason
-                .clone()
-                .unwrap_or_else(|| "RETURN_REVERSAL".to_string());
-            if raw.len() > 80 {
-                raw.chars().take(80).collect()
-            } else {
-                raw
-            }
-        };
+        // TSYS <voidReason> only accepts a fixed set of enum values, so an
+        // arbitrary caller-supplied cancellation_reason (free text) is rejected
+        // with "The value of element 'voidReason' is not valid." Ignore the
+        // request value and always send a valid connector default.
+        let void_reason = "RETURN_REVERSAL".to_string();
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3094,18 +3087,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )?),
             _ => None,
         };
-        let void_reason = {
-            let raw = router_data
-                .request
-                .cancellation_reason
-                .clone()
-                .unwrap_or_else(|| "POST_AUTH_USER_DECLINE".to_string());
-            if raw.len() > 80 {
-                raw.chars().take(80).collect()
-            } else {
-                raw
-            }
-        };
+        // TSYS <voidReason> only accepts a fixed set of enum values, so an
+        // arbitrary caller-supplied cancellation_reason (free text) is rejected
+        // with "The value of element 'voidReason' is not valid." Ignore the
+        // request value and always send a valid connector default.
+        let void_reason = "POST_AUTH_USER_DECLINE".to_string();
 
         Ok(Self {
             device_id: auth.device_id,
