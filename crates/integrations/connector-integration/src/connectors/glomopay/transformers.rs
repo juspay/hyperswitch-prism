@@ -2,12 +2,14 @@ use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, CountryAlpha2, Currency, RefundStatus};
 use common_utils::types::{MinorUnit, Money};
 use domain_types::{
-    connector_flow::{Authorize, CreateConnectorCustomer, CreateOrder, GetConnectorCustomer, PSync, RSync, Refund},
+    connector_flow::{
+        Authorize, CreateConnectorCustomer, CreateOrder, GetConnectorCustomer, PSync, RSync, Refund,
+    },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, EventType, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
-        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        RefundWebhookDetailsResponse, ResponseId, WebhookDetailsResponse,
+        PaymentsSyncData, RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse,
+        RefundsData, RefundsResponseData, ResponseId, WebhookDetailsResponse,
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
@@ -35,9 +37,9 @@ impl TryFrom<&ConnectorSpecificConfig> for GlomopayAuthType {
 
     fn try_from(auth_type: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorSpecificConfig::Glomopay { api_key, .. } => {
-                Ok(Self { api_key: api_key.clone() })
-            }
+            ConnectorSpecificConfig::Glomopay { api_key, .. } => Ok(Self {
+                api_key: api_key.clone(),
+            }),
             _ => Err(error_stack::report!(
                 errors::IntegrationError::FailedToObtainAuthType {
                     context: errors::IntegrationErrorContext::default()
@@ -75,9 +77,7 @@ impl From<GlomopayPaymentStatus> for AttemptStatus {
     fn from(status: GlomopayPaymentStatus) -> Self {
         match status {
             GlomopayPaymentStatus::InProgress => Self::AuthenticationPending,
-            GlomopayPaymentStatus::ActionRequired | GlomopayPaymentStatus::Pending => {
-                Self::Pending
-            }
+            GlomopayPaymentStatus::ActionRequired | GlomopayPaymentStatus::Pending => Self::Pending,
             GlomopayPaymentStatus::Success => Self::Charged,
             GlomopayPaymentStatus::Failed => Self::Failure,
         }
@@ -197,13 +197,16 @@ impl GlomopayWebhookPayload {
         // resp_code / resp_msg drive euler's GSM lookup. Populate on every
         // status (not only Failed) so euler can distinguish success/pending
         // outcomes for retry decisions and PGR persistence.
-        let resp_code = Some(match self.event_type {
-            GlomopayWebhookEventType::Success => "success",
-            GlomopayWebhookEventType::FundsAvailable => "funds_available",
-            GlomopayWebhookEventType::InProgress => "in_progress",
-            GlomopayWebhookEventType::ActionRequired => "action_required",
-            GlomopayWebhookEventType::Failed => "failed",
-        }.to_string());
+        let resp_code = Some(
+            match self.event_type {
+                GlomopayWebhookEventType::Success => "success",
+                GlomopayWebhookEventType::FundsAvailable => "funds_available",
+                GlomopayWebhookEventType::InProgress => "in_progress",
+                GlomopayWebhookEventType::ActionRequired => "action_required",
+                GlomopayWebhookEventType::Failed => "failed",
+            }
+            .to_string(),
+        );
         let resp_msg = match self.event_type {
             GlomopayWebhookEventType::Failed => self
                 .data
@@ -211,9 +214,7 @@ impl GlomopayWebhookPayload {
                 .clone()
                 .or_else(|| self.data.error_description.clone())
                 .or_else(|| Some("Glomopay reported payment failure".to_string())),
-            GlomopayWebhookEventType::Success => {
-                Some("Glomopay payment successful".to_string())
-            }
+            GlomopayWebhookEventType::Success => Some("Glomopay payment successful".to_string()),
             GlomopayWebhookEventType::FundsAvailable => {
                 Some("Glomopay funds available".to_string())
             }
@@ -305,9 +306,7 @@ impl GlomopayRefundWebhookPayload {
         match self.event_type {
             GlomopayRefundWebhookEventType::Success => common_enums::RefundStatus::Success,
             GlomopayRefundWebhookEventType::Failed => common_enums::RefundStatus::Failure,
-            GlomopayRefundWebhookEventType::ActionRequired => {
-                common_enums::RefundStatus::Pending
-            }
+            GlomopayRefundWebhookEventType::ActionRequired => common_enums::RefundStatus::Pending,
         }
     }
 
@@ -318,16 +317,22 @@ impl GlomopayRefundWebhookPayload {
     ) -> RefundWebhookDetailsResponse {
         // resp_code / resp_msg drive euler's GSM lookup for refunds — populate
         // on every status so euler can persist them to PGR for retry decisions.
-        let resp_code = Some(match self.event_type {
-            GlomopayRefundWebhookEventType::Success => "success",
-            GlomopayRefundWebhookEventType::ActionRequired => "action_required",
-            GlomopayRefundWebhookEventType::Failed => "failed",
-        }.to_string());
-        let resp_msg = Some(match self.event_type {
-            GlomopayRefundWebhookEventType::Success => "Glomopay refund successful",
-            GlomopayRefundWebhookEventType::ActionRequired => "Glomopay refund requires action",
-            GlomopayRefundWebhookEventType::Failed => "Glomopay refund failed",
-        }.to_string());
+        let resp_code = Some(
+            match self.event_type {
+                GlomopayRefundWebhookEventType::Success => "success",
+                GlomopayRefundWebhookEventType::ActionRequired => "action_required",
+                GlomopayRefundWebhookEventType::Failed => "failed",
+            }
+            .to_string(),
+        );
+        let resp_msg = Some(
+            match self.event_type {
+                GlomopayRefundWebhookEventType::Success => "Glomopay refund successful",
+                GlomopayRefundWebhookEventType::ActionRequired => "Glomopay refund requires action",
+                GlomopayRefundWebhookEventType::Failed => "Glomopay refund failed",
+            }
+            .to_string(),
+        );
         RefundWebhookDetailsResponse {
             connector_refund_id: Some(self.data.id.clone()),
             merchant_transaction_id: self.data.payment_id.clone(),
@@ -466,7 +471,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .name
             .as_ref()
             .map(|n| n.peek().clone())
-            .or_else(|| flow_data.get_optional_billing_full_name().map(|n| n.expose()))
+            .or_else(|| {
+                flow_data
+                    .get_optional_billing_full_name()
+                    .map(|n| n.expose())
+            })
             .ok_or(errors::IntegrationError::MissingRequiredField {
                 field_name: "customer.name",
                 context: Default::default(),
@@ -481,10 +490,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        let phone = req
-            .phone
-            .as_ref()
-            .map(|p| p.peek().clone());
+        let phone = req.phone.as_ref().map(|p| p.peek().clone());
 
         let address = flow_data
             .get_optional_billing_line1()
@@ -518,9 +524,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        let zip = flow_data
-            .get_optional_billing_zip()
-            .map(|z| z.expose());
+        let zip = flow_data.get_optional_billing_zip().map(|z| z.expose());
 
         Ok(Self {
             name,
@@ -622,12 +626,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .connector_customer
             .clone()
-            .ok_or_else(|| error_stack::report!(
-                errors::IntegrationError::MissingRequiredField {
+            .ok_or_else(|| {
+                error_stack::report!(errors::IntegrationError::MissingRequiredField {
                     field_name: "connector_customer",
                     context: Default::default(),
-                }
-            ))?;
+                })
+            })?;
 
         Ok(Self {
             customer_id,
@@ -749,12 +753,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             .resource_common_data
             .connector_order_id
             .clone()
-            .ok_or_else(|| error_stack::report!(
-                errors::IntegrationError::MissingRequiredField {
+            .ok_or_else(|| {
+                error_stack::report!(errors::IntegrationError::MissingRequiredField {
                     field_name: "connector_order_id",
                     context: Default::default(),
-                }
-            ))?;
+                })
+            })?;
 
         let (method, card) = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => {
@@ -821,13 +825,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-
 /// Maps a Glomopay payment status to the (resp_code, resp_msg) pair that
 /// euler persists as PGR.respCode / PGR.respMessage. Populated on every
 /// response so euler's GSM lookup has a canonical key even on success.
-fn glomopay_payment_resp_code_msg(
-    status: GlomopayPaymentStatus,
-) -> (String, String) {
+fn glomopay_payment_resp_code_msg(status: GlomopayPaymentStatus) -> (String, String) {
     match status {
         GlomopayPaymentStatus::Success => (
             "success".to_string(),
@@ -853,9 +854,7 @@ fn glomopay_payment_resp_code_msg(
 }
 
 /// Refund equivalent of [`glomopay_payment_resp_code_msg`].
-fn glomopay_refund_resp_code_msg(
-    status: GlomopayRefundStatus,
-) -> (String, String) {
+fn glomopay_refund_resp_code_msg(status: GlomopayRefundStatus) -> (String, String) {
     match status {
         GlomopayRefundStatus::Success => (
             "success".to_string(),
@@ -865,10 +864,9 @@ fn glomopay_refund_resp_code_msg(
             "failed".to_string(),
             "Glomopay reported refund failure".to_string(),
         ),
-        GlomopayRefundStatus::Pending => (
-            "pending".to_string(),
-            "Glomopay refund pending".to_string(),
-        ),
+        GlomopayRefundStatus::Pending => {
+            ("pending".to_string(), "Glomopay refund pending".to_string())
+        }
         GlomopayRefundStatus::ActionRequired => (
             "action_required".to_string(),
             "Glomopay refund requires action".to_string(),

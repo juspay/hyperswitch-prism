@@ -371,7 +371,7 @@ where
         let connector_customer_id = payload
             .state
             .as_ref()
-            .and_then(|state| state.connector_customer_id.clone()); 
+            .and_then(|state| state.connector_customer_id.clone());
         let should_create_connector_customer =
             connector_data.connector.should_create_connector_customer()
                 && connector_customer_id.is_none();

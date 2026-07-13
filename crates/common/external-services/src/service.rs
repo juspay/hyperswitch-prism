@@ -8,7 +8,7 @@ use common_utils::{
     events::{EventStage, MaskedSerdeValue},
     request::TransportType,
 };
-use common_utils::{     
+use common_utils::{
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},

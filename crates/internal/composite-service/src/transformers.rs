@@ -91,8 +91,11 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for PaymentServiceCreateOrderReques
 // that do not cache the connector-side customer id externally (e.g. Glomopay),
 // where a first-time-customer flow would otherwise send an order-create request
 // with an empty state.connector_customer_id.
-impl ForeignFrom<(&CompositeAuthorizeRequest, Option<&CustomerServiceCreateResponse>)>
-    for PaymentServiceCreateOrderRequest
+impl
+    ForeignFrom<(
+        &CompositeAuthorizeRequest,
+        Option<&CustomerServiceCreateResponse>,
+    )> for PaymentServiceCreateOrderRequest
 {
     fn foreign_from(
         (item, create_customer_response): (

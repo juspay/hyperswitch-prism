@@ -5,7 +5,9 @@ use std::fmt::Debug;
 use common_enums::CurrencyUnit;
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
-    connector_flow::{Authorize, CreateConnectorCustomer, CreateOrder, GetConnectorCustomer, PSync, RSync, Refund},
+    connector_flow::{
+        Authorize, CreateConnectorCustomer, CreateOrder, GetConnectorCustomer, PSync, RSync, Refund,
+    },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, PaymentCreateOrderData,
         PaymentCreateOrderResponse, PaymentFlowData, PaymentWebhookReference,
@@ -478,12 +480,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     .attach_printable("Failed to parse Glomopay refund webhook event type")?;
                 Ok(payload.get_event_type())
             }
-            other => Err(error_stack::report!(
-                WebhookError::WebhookEventTypeNotFound
-            )
-            .attach_printable(format!(
-                "Unknown Glomopay webhook entity_type: {other}"
-            ))),
+            other => Err(error_stack::report!(WebhookError::WebhookEventTypeNotFound)
+                .attach_printable(format!("Unknown Glomopay webhook entity_type: {other}"))),
         }
     }
 

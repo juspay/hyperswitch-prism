@@ -15,10 +15,9 @@ use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
         CreateOrder, CreatePaymentMethod, GetConnectorCustomer, GetPaymentMethod,
-        IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodEligibility, PaymentMethodToken, PostAuthenticate,
-        PreAuthenticate, Recharge, Refund, RepeatPayment, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
+        IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodEligibility,
+        PaymentMethodToken, PostAuthenticate, PreAuthenticate, Recharge, Refund, RepeatPayment,
+        ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
@@ -459,7 +458,7 @@ impl CustomerService for Customer {
                     }
 
                     // Get connector integration for POST create
-                    let connector_integration: BoxedConnectorIntegrationV2< 
+                    let connector_integration: BoxedConnectorIntegrationV2<
                         '_,
                         CreateConnectorCustomer,
                         PaymentFlowData,
@@ -923,7 +922,7 @@ impl PaymentService for Payments {
         Box::pin(grpc_logging_wrapper(request, &service_name, config.clone(), FlowName::Authorize, |request_data| {
             let service_name = service_name.clone();
             Box::pin(async move {
-                let metadata_payload = request_data.extracted_metadata; 
+                let metadata_payload = request_data.extracted_metadata;
                 let metadata = &request_data.masked_metadata;
                 let proto_payload = request_data.payload;
                 // Convert proto request to intermediate type
