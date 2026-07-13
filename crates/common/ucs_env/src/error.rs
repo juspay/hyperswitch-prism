@@ -137,8 +137,8 @@ pub enum ConfigurationError {
 /// Private on purpose: the only public path to a `Status` is `IntoGrpcStatus`, which logs the
 /// report first. A public non-logging mapper would let callers produce a `Status` that never
 /// reaches the alerting pipeline.
-trait ToStatus {
-    fn to_status(&self) -> Status;
+trait ToGrpcStatus {
+    fn to_grpc_status_unlogged(&self) -> Status;
 }
 
 /// `invalid_argument` — caller sent a missing or invalid field in this request (UCS is stateless;
@@ -147,8 +147,8 @@ trait ToStatus {
 /// `failed_precondition` — connector/merchant configuration problem; not a client credential failure.
 /// `unauthenticated` — credential / auth resolution failure.
 /// `internal` — UCS machinery failure (encoding, URL building, serialization); caller cannot fix.
-impl ToStatus for IntegrationError {
-    fn to_status(&self) -> Status {
+impl ToGrpcStatus for IntegrationError {
+    fn to_grpc_status_unlogged(&self) -> Status {
         let integration_error: grpc_api_types::payments::IntegrationError =
             ErrorSwitch::switch(self);
         let msg = integration_error.error_message.clone();
@@ -201,8 +201,8 @@ impl ToStatus for IntegrationError {
 /// - `ConnectorErrorResponse`: connector returned a 4xx/5xx; mapped per HTTP status code
 ///   following the standard HTTP → gRPC status code translation.
 /// - All UCS-side transformation failures → `internal` (UCS machinery failed).
-impl ToStatus for ConnectorError {
-    fn to_status(&self) -> Status {
+impl ToGrpcStatus for ConnectorError {
+    fn to_grpc_status_unlogged(&self) -> Status {
         let connector_error: grpc_api_types::payments::ConnectorError =
             ErrorSwitch::<grpc_api_types::payments::ConnectorError>::switch(self);
         let msg = connector_error.error_message.clone();
@@ -236,8 +236,8 @@ impl ToStatus for ConnectorError {
     }
 }
 
-impl ToStatus for ApiClientError {
-    fn to_status(&self) -> Status {
+impl ToGrpcStatus for ApiClientError {
+    fn to_grpc_status_unlogged(&self) -> Status {
         let msg = self.to_string();
         match self {
             Self::RequestTimeoutReceived | Self::GatewayTimeoutReceived => {
@@ -249,14 +249,14 @@ impl ToStatus for ApiClientError {
     }
 }
 
-impl ToStatus for KafkaClientError {
-    fn to_status(&self) -> Status {
+impl ToGrpcStatus for KafkaClientError {
+    fn to_grpc_status_unlogged(&self) -> Status {
         Status::internal(self.to_string())
     }
 }
 
-impl ToStatus for WebhookError {
-    fn to_status(&self) -> Status {
+impl ToGrpcStatus for WebhookError {
+    fn to_grpc_status_unlogged(&self) -> Status {
         let msg = self.to_string();
         match self {
             Self::WebhooksNotImplemented { .. } => Status::unimplemented(msg),
@@ -283,21 +283,21 @@ impl ToStatus for WebhookError {
 }
 
 /// UCS plumbing failed and the caller cannot act on it: bare `internal`, no proto details.
-impl ToStatus for InternalError {
-    fn to_status(&self) -> Status {
+impl ToGrpcStatus for InternalError {
+    fn to_grpc_status_unlogged(&self) -> Status {
         Status::internal(self.to_string())
     }
 }
 
-impl ToStatus for GrpcError {
-    fn to_status(&self) -> Status {
+impl ToGrpcStatus for GrpcError {
+    fn to_grpc_status_unlogged(&self) -> Status {
         match self {
-            Self::Integration(e) => e.to_status(),
-            Self::Connector(e) => e.to_status(),
-            Self::ApiClient(e) => e.to_status(),
-            Self::KafkaClient(e) => e.to_status(),
-            Self::Webhook(e) => e.to_status(),
-            Self::Internal(e) => e.to_status(),
+            Self::Integration(e) => e.to_grpc_status_unlogged(),
+            Self::Connector(e) => e.to_grpc_status_unlogged(),
+            Self::ApiClient(e) => e.to_grpc_status_unlogged(),
+            Self::KafkaClient(e) => e.to_grpc_status_unlogged(),
+            Self::Webhook(e) => e.to_grpc_status_unlogged(),
+            Self::Internal(e) => e.to_grpc_status_unlogged(),
         }
     }
 }
@@ -313,7 +313,7 @@ impl IntoGrpcStatus for Report<GrpcError> {
             extra_error = ?self,
             error_code = %context.error_code(),
         );
-        context.to_status()
+        context.to_grpc_status_unlogged()
     }
 }
 
@@ -331,7 +331,7 @@ impl IntoGrpcStatus for Report<ConnectorError> {
             error_code = %self.current_context().error_code(),
             http_status_code = ?self.current_context().http_status_code(),
         );
-        self.current_context().to_status()
+        self.current_context().to_grpc_status_unlogged()
     }
 }
 
