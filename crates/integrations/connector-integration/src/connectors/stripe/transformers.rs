@@ -4142,6 +4142,8 @@ pub(crate) fn build_webhook_payment_response(
         network_txn_id: None,
         payment_method_update: None,
         sender_payment_instrument_id: None,
+        resp_code: None,
+        resp_msg: None,
     })
 }
 
@@ -4178,6 +4180,8 @@ pub(crate) fn build_webhook_refund_response(
         raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
         status_code: 200,
         response_headers: None,
+        resp_code: None,
+        resp_msg: None,
     })
 }
 

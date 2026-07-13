@@ -18,12 +18,12 @@ buffer_limit = 100000
 
 [server]
 host = "0.0.0.0"
-port = 8011
-type = "http"
+port = 8000
+type = "grpc"
 
 [metrics]
 host = "0.0.0.0"
-port = 9090
+port = 8080
 
 # OpenTelemetry (OTLP) metrics push. Requires building with the `otel` feature.
 # Disabled by default; the Prometheus /metrics scrape endpoint above is unaffected.

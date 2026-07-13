@@ -86,6 +86,45 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for PaymentServiceCreateOrderReques
     }
 }
 
+// Tuple variant: threads the freshly-created connector_customer_id from
+// `create_customer_response` into the outgoing state. Required for connectors
+// that do not cache the connector-side customer id externally (e.g. Glomopay),
+// where a first-time-customer flow would otherwise send an order-create request
+// with an empty state.connector_customer_id.
+impl ForeignFrom<(&CompositeAuthorizeRequest, Option<&CustomerServiceCreateResponse>)>
+    for PaymentServiceCreateOrderRequest
+{
+    fn foreign_from(
+        (item, create_customer_response): (
+            &CompositeAuthorizeRequest,
+            Option<&CustomerServiceCreateResponse>,
+        ),
+    ) -> Self {
+        let connector_customer_id_from_req = item
+            .state
+            .as_ref()
+            .and_then(|state| state.connector_customer_id.clone());
+        let connector_customer_id =
+            get_connector_customer_id(connector_customer_id_from_req, create_customer_response);
+
+        let state = Some(ConnectorState {
+            access_token: item.state.as_ref().and_then(|s| s.access_token.clone()),
+            connector_customer_id,
+        });
+
+        Self {
+            merchant_order_id: item.merchant_order_id.clone(),
+            amount: item.amount,
+            webhook_url: item.webhook_url.clone(),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            state,
+            test_mode: item.test_mode,
+            payment_method_type: None,
+        }
+    }
+}
+
 impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
     fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
         let customer = item.customer.as_ref();

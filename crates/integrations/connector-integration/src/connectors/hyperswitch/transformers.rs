@@ -473,5 +473,7 @@ pub fn build_webhook_payment_response(
         network_txn_id: payment.connector_transaction_id,
         payment_method_update: None,
         sender_payment_instrument_id: None,
+        resp_code: None,
+        resp_msg: None,
     })
 }

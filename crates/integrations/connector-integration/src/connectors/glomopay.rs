@@ -389,9 +389,13 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, errors::IntegrationError> {
-            let request_id = &req.resource_common_data.connector_request_reference_id;
             let base_url = self.connector_base_url_refunds(req);
-            Ok(format!("{base_url}refunds?request_id={request_id}"))
+            let request_id = &req.resource_common_data.connector_request_reference_id;
+            if request_id.is_empty() {
+                Ok(format!("{base_url}refunds"))
+            } else {
+                Ok(format!("{base_url}refunds?request_id={request_id}"))
+            }
         }
     }
 );
@@ -441,6 +445,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"entity_type":"payment","event_type":"in_progress","data":{"id":"payt_686f7cc3pe69T","payin_id":"order_686f7c8c7txqj","status":"active","payment_amount":374580,"payment_currency":"AED","converted_amount":102000,"converted_currency":"USD","requested_amount":100000,"requested_currency":"USD","fees":{"txn_fee":{"currency":"USD","amount":1000},"fx_fee":{"currency":"USD","amount":1000},"referral_fee":{"currency":"USD","amount":0}},"error_code":null,"error_description":null,"error_message":null,"funds_available":false}}"#
+    }
+
+    fn get_webhook_integrity_checks(&self) -> Vec<connector_types::WebhookIntegrityCheck> {
+        vec![connector_types::WebhookIntegrityCheck::ConnectorTransactionId]
     }
 
     fn get_event_type(
@@ -536,7 +544,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("GlomopayWebhookPayload")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse Glomopay payment webhook body")?;
-        Ok(payload.into_webhook_details_response(200))
+        Ok(payload.into_webhook_details_response(200, &request.body))
     }
 
     fn process_refund_webhook(
@@ -553,7 +561,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .parse_struct("GlomopayRefundWebhookPayload")
             .change_context(WebhookError::WebhookBodyDecodingFailed)
             .attach_printable("Failed to parse Glomopay refund webhook body")?;
-        Ok(payload.into_refund_webhook_details_response(200))
+        Ok(payload.into_refund_webhook_details_response(200, &request.body))
     }
 
     fn get_webhook_resource_object(

@@ -424,6 +424,7 @@ impl CustomerService for Customer {
                             tenant_id: &metadata_payload.tenant_id,
                             merchant_id: metadata_payload.merchant_id.as_str(),
                             return_raw_connector_data: config.common.return_raw_connector_data,
+                            connector_latency: metadata_payload.connector_latency.clone(),
                         };
 
                         let get_api_tag = config
@@ -458,7 +459,7 @@ impl CustomerService for Customer {
                     }
 
                     // Get connector integration for POST create
-                    let connector_integration: BoxedConnectorIntegrationV2<
+                    let connector_integration: BoxedConnectorIntegrationV2< 
                         '_,
                         CreateConnectorCustomer,
                         PaymentFlowData,
