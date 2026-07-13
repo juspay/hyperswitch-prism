@@ -302,11 +302,11 @@ impl GlomopayRefundWebhookPayload {
         }
     }
 
-    pub fn get_refund_status(&self) -> common_enums::RefundStatus {
+    pub fn get_refund_status(&self) -> RefundStatus {
         match self.event_type {
-            GlomopayRefundWebhookEventType::Success => common_enums::RefundStatus::Success,
-            GlomopayRefundWebhookEventType::Failed => common_enums::RefundStatus::Failure,
-            GlomopayRefundWebhookEventType::ActionRequired => common_enums::RefundStatus::Pending,
+            GlomopayRefundWebhookEventType::Success => RefundStatus::Success,
+            GlomopayRefundWebhookEventType::Failed => RefundStatus::Failure,
+            GlomopayRefundWebhookEventType::ActionRequired => RefundStatus::Pending,
         }
     }
 
