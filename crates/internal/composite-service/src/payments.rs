@@ -503,15 +503,21 @@ where
         Ok(authorize_response)
     }
 
-    async fn pre_authenticate(
+    async fn pre_authenticate<'a, Req>(
         &self,
-        payload: &CompositeAuthorizeRequest,
+        payload: &'a Req,
         access_token_response: Option<
-            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+            &'a MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
-    ) -> Result<PaymentMethodAuthenticationServicePreAuthenticateResponse, tonic::Status> {
+    ) -> Result<PaymentMethodAuthenticationServicePreAuthenticateResponse, tonic::Status>
+    where
+        PaymentMethodAuthenticationServicePreAuthenticateRequest: ForeignFrom<(
+            &'a Req,
+            Option<&'a MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        )>,
+    {
         let pre_auth_payload =
             PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
                 payload,
@@ -528,32 +534,6 @@ where
             .into_inner();
 
         Ok(pre_auth_response)
-    }
-
-    async fn device_data_collection(
-        &self,
-        payload: &CompositeDeviceDataCollectionRequest,
-        access_token_response: Option<
-            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
-        >,
-        metadata: &tonic::metadata::MetadataMap,
-        extensions: &tonic::Extensions,
-    ) -> Result<PaymentMethodAuthenticationServicePreAuthenticateResponse, tonic::Status> {
-        let ddc_payload = PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
-            payload,
-            access_token_response,
-        ));
-        let mut ddc_request = tonic::Request::new(ddc_payload);
-        *ddc_request.metadata_mut() = metadata.clone();
-        *ddc_request.extensions_mut() = extensions.clone();
-
-        let ddc_response = self
-            .authentication_service
-            .pre_authenticate(ddc_request)
-            .await?
-            .into_inner();
-
-        Ok(ddc_response)
     }
 
     async fn authenticate(
@@ -867,7 +847,7 @@ where
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
         let device_data_collection_response = self
-            .device_data_collection(
+            .pre_authenticate(
                 &payload,
                 access_token_response.as_ref(),
                 &metadata,
