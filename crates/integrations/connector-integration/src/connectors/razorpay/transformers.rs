@@ -340,7 +340,8 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::Wero(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 format!("Payment Method {wallet_data:?} not supported for Razorpay"),
                 Default::default(),
             )),

@@ -305,7 +305,7 @@ macros::create_all_prerequisites!(
                 headers::AUTHORIZATION.to_string(),
                 format!(
                     "Bearer {}",
-                    &req.resource_common_data
+                    req.resource_common_data
                         .access_token()
                         .ok_or(IntegrationError::FailedToObtainAuthType { context: Default::default() })?
                         .access_token.peek()

@@ -44,6 +44,9 @@ pub use self::cashtocode::Cashtocode;
 pub mod novalnet;
 pub use self::novalnet::Novalnet;
 
+pub mod netcetera;
+pub use self::netcetera::Netcetera;
+
 pub mod nexinets;
 pub use self::nexinets::Nexinets;
 

@@ -809,6 +809,7 @@ impl<
                         connector_mandate_id: None,
                         payment_method_id: Some(token),
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     })
                 });
                 Ok(PaymentsResponseData::TransactionResponse {

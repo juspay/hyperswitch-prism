@@ -898,6 +898,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 pub enum AdyenRecurringModel {
     UnscheduledCardOnFile,
     CardOnFile,
+    #[serde(other)]
+    Unknown,
 }
 
 #[serde_with::skip_serializing_none]
@@ -915,6 +917,7 @@ pub struct AdditionalData {
     recurring_shopper_reference: Option<String>,
     network_tx_reference: Option<Secret<String>>,
     /// Network-issued link id chaining related transactions (`transactionLinkId`).
+    #[serde(rename = "transactionLinkId")]
     transaction_link_id: Option<String>,
     funds_availability: Option<String>,
     refusal_reason_raw: Option<String>,
@@ -1567,7 +1570,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
-            | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 ("payment_method").into(),
                 Default::default(),
             )
@@ -4109,6 +4113,8 @@ pub enum ActionType {
     #[serde(rename = "qrCode")]
     QrCode,
     Voucher,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -4164,6 +4170,8 @@ pub enum AdyenWebhookStatus {
     Expired,
     AdjustedAuthorization,
     AdjustAuthorizationFailed,
+    #[serde(other)]
+    Unknown,
 }
 
 //Creating custom struct which can be consumed in Psync Handler triggered from Webhooks
@@ -4201,6 +4209,8 @@ pub enum AdyenStatus {
     RedirectShopper,
     Refused,
     PresentToShopper,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Default, Debug, Serialize, Deserialize)]
@@ -4258,6 +4268,7 @@ impl ForeignTryFrom<(bool, AdyenWebhookStatus)> for AttemptStatus {
                     ConnectorError::response_handling_failed_http_status_unknown()
                 ))
             }
+            AdyenWebhookStatus::Unknown => Ok(Self::Unspecified),
         }
     }
 }
@@ -4286,6 +4297,9 @@ fn get_adyen_payment_status(
             Some(common_enums::PaymentMethodType::Pix) => AttemptStatus::AuthenticationPending,
             _ => AttemptStatus::Pending,
         },
+        // Unknown means Adyen returned a status value not in our enum; signal hyperswitch core
+        // to retain the previous attempt status rather than corrupting DB state.
+        AdyenStatus::Unknown => AttemptStatus::Unspecified,
     }
 }
 
@@ -4723,6 +4737,7 @@ pub fn get_adyen_response(
             connector_mandate_id: Some(mandate_id.expose()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         });
     let network_txn_id = response
         .additional_data
@@ -5125,6 +5140,7 @@ pub fn get_webhook_response(
                 connector_mandate_id: Some(mandate_id.clone().expose()),
                 payment_method_id: response.recurring_shopper_reference.clone(),
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             });
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(
@@ -5441,6 +5457,8 @@ pub enum DisputeStatus {
     Lost,
     Accepted,
     Won,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Deserialize)]
@@ -5501,6 +5519,7 @@ pub(crate) fn get_adyen_mandate_reference_from_webhook(
                 connector_mandate_id: Some(mandate_id.peek().to_string()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         })
 }
@@ -5643,7 +5662,12 @@ pub(crate) fn get_adyen_webhook_event_type(
         WebhookEventCode::SecondChargeback | WebhookEventCode::PrearbitrationLost => {
             Ok(EventType::DisputeLost)
         }
-        WebhookEventCode::Unknown => Err(WebhookError::WebhookEventTypeNotFound),
+        WebhookEventCode::Unknown => {
+            tracing::warn!(
+                "Received unknown Adyen webhook event code; acknowledging without processing"
+            );
+            Ok(EventType::IncomingWebhookEventUnspecified)
+        }
     }
 }
 
@@ -5732,6 +5756,12 @@ fn get_additional_data_for_repeat_payment<
         Some("false".to_string())
     };
 
+    let transaction_link_id = match &item.request.mandate_reference {
+        MandateReferenceId::NetworkMandateId(ref_data) => ref_data.transaction_link_id.clone(),
+        MandateReferenceId::NetworkTokenWithNTI(ref_data) => ref_data.transaction_link_id.clone(),
+        MandateReferenceId::ConnectorMandateId(_) => None,
+    };
+
     Some(AdditionalData {
         authorisation_type,
         manual_capture,
@@ -5746,6 +5776,7 @@ fn get_additional_data_for_repeat_payment<
                 .as_ref()
                 .and_then(to_adyen_exemption)
         }),
+        transaction_link_id,
         ..AdditionalData::default()
     })
 }
@@ -6851,7 +6882,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             cvc: None,
                             holder_name: test_holder_name.or(card_holder_name),
                             brand: Some(brand),
-                            network_payment_reference: Some(Secret::new(network_mandate_id)),
+                            network_payment_reference: Some(Secret::new(
+                                network_mandate_id.network_transaction_id.clone(),
+                            )),
                         };
                         PaymentMethod::AdyenPaymentMethod(Box::new(AdyenPaymentMethod::AdyenCard(
                             Box::new(adyen_card),
@@ -7411,12 +7444,15 @@ impl<F, Req> TryFrom<ResponseRouterData<AdyenDefendDisputeResponse, Self>>
 pub(crate) fn get_dispute_stage_and_status(
     code: WebhookEventCode,
     dispute_status: Option<DisputeStatus>,
-) -> (common_enums::DisputeStage, common_enums::DisputeStatus) {
+) -> Result<
+    (common_enums::DisputeStage, common_enums::DisputeStatus),
+    error_stack::Report<WebhookError>,
+> {
     use common_enums::{DisputeStage, DisputeStatus as HSDisputeStatus};
 
     match code {
         WebhookEventCode::NotificationOfChargeback => {
-            (DisputeStage::PreDispute, HSDisputeStatus::DisputeOpened)
+            Ok((DisputeStage::PreDispute, HSDisputeStatus::DisputeOpened))
         }
         WebhookEventCode::Chargeback => {
             let status = match dispute_status {
@@ -7426,30 +7462,53 @@ pub(crate) fn get_dispute_stage_and_status(
                 Some(DisputeStatus::Lost) | None => HSDisputeStatus::DisputeLost,
                 Some(DisputeStatus::Accepted) => HSDisputeStatus::DisputeAccepted,
                 Some(DisputeStatus::Won) => HSDisputeStatus::DisputeWon,
+                Some(DisputeStatus::Unknown) => {
+                    return Err(
+                        error_stack::report!(WebhookError::WebhookBodyDecodingFailed)
+                            .attach_printable(
+                                "Received unknown Adyen dispute status in Chargeback event; \
+                         cannot determine dispute state without a known status",
+                            ),
+                    );
+                }
             };
-            (DisputeStage::Dispute, status)
+            Ok((DisputeStage::Dispute, status))
         }
         WebhookEventCode::ChargebackReversed => {
+            if let Some(DisputeStatus::Unknown) = dispute_status {
+                return Err(
+                    error_stack::report!(WebhookError::WebhookBodyDecodingFailed).attach_printable(
+                        "Received unknown Adyen dispute status in ChargebackReversed event",
+                    ),
+                );
+            }
             let status = match dispute_status {
                 Some(DisputeStatus::Pending) => HSDisputeStatus::DisputeChallenged,
                 _ => HSDisputeStatus::DisputeWon,
             };
-            (DisputeStage::Dispute, status)
+            Ok((DisputeStage::Dispute, status))
         }
         WebhookEventCode::SecondChargeback => {
-            (DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost)
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
         }
         WebhookEventCode::PrearbitrationWon => {
+            if let Some(DisputeStatus::Unknown) = dispute_status {
+                return Err(
+                    error_stack::report!(WebhookError::WebhookBodyDecodingFailed).attach_printable(
+                        "Received unknown Adyen dispute status in PrearbitrationWon event",
+                    ),
+                );
+            }
             let status = match dispute_status {
                 Some(DisputeStatus::Pending) => HSDisputeStatus::DisputeOpened,
                 _ => HSDisputeStatus::DisputeWon,
             };
-            (DisputeStage::PreArbitration, status)
+            Ok((DisputeStage::PreArbitration, status))
         }
         WebhookEventCode::PrearbitrationLost => {
-            (DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost)
+            Ok((DisputeStage::PreArbitration, HSDisputeStatus::DisputeLost))
         }
-        _ => (DisputeStage::Dispute, HSDisputeStatus::DisputeOpened),
+        _ => Ok((DisputeStage::Dispute, HSDisputeStatus::DisputeOpened)),
     }
 }
 

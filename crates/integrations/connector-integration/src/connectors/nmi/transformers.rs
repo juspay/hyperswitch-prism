@@ -749,6 +749,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<StandardResponse, Sel
                                 connector_mandate_id: Some(vault_id.clone().expose()),
                                 payment_method_id: None,
                                 connector_mandate_request_reference_id: None,
+                                mandate_metadata: None,
                             })
                         }),
                         connector_metadata: None,
@@ -1796,6 +1797,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         connector_mandate_id: Some(id),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     })
                 });
 
@@ -2017,6 +2019,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                             connector_mandate_id: Some(vault_id.clone().expose()),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         })
                     }),
                     connector_metadata: None,
@@ -2056,4 +2059,164 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             ..item.router_data
         })
     }
+}
+
+// ===== INCOMING WEBHOOK TYPES =====
+// Ports the hyperswitch NMI webhook types/behaviour 1:1
+// (crates/hyperswitch_connectors/src/connectors/nmi/transformers.rs).
+
+#[derive(Debug, Deserialize)]
+pub struct NmiWebhookObjectReference {
+    pub event_body: NmiReferenceBody,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NmiReferenceBody {
+    pub order_id: String,
+    pub action: NmiActionBody,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NmiActionBody {
+    pub action_type: NmiActionType,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum NmiActionType {
+    Auth,
+    Capture,
+    Credit,
+    Refund,
+    Sale,
+    Void,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NmiWebhookEventBody {
+    pub event_type: NmiWebhookEventType,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub enum NmiWebhookEventType {
+    #[serde(rename = "transaction.sale.success")]
+    SaleSuccess,
+    #[serde(rename = "transaction.sale.failure")]
+    SaleFailure,
+    #[serde(rename = "transaction.sale.unknown")]
+    SaleUnknown,
+    #[serde(rename = "transaction.auth.success")]
+    AuthSuccess,
+    #[serde(rename = "transaction.auth.failure")]
+    AuthFailure,
+    #[serde(rename = "transaction.auth.unknown")]
+    AuthUnknown,
+    #[serde(rename = "transaction.refund.success")]
+    RefundSuccess,
+    #[serde(rename = "transaction.refund.failure")]
+    RefundFailure,
+    #[serde(rename = "transaction.refund.unknown")]
+    RefundUnknown,
+    #[serde(rename = "transaction.void.success")]
+    VoidSuccess,
+    #[serde(rename = "transaction.void.failure")]
+    VoidFailure,
+    #[serde(rename = "transaction.void.unknown")]
+    VoidUnknown,
+    #[serde(rename = "transaction.capture.success")]
+    CaptureSuccess,
+    #[serde(rename = "transaction.capture.failure")]
+    CaptureFailure,
+    #[serde(rename = "transaction.capture.unknown")]
+    CaptureUnknown,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NmiWebhookBody {
+    pub event_body: NmiWebhookObject,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NmiWebhookObject {
+    pub transaction_id: String,
+    pub order_id: String,
+    pub condition: String,
+    pub action: NmiActionBody,
+}
+
+/// Webhook resource object for payment actions. Mirrors the hyperswitch webhook
+/// `SyncResponse` shape: `{"transaction":{"transaction_id":"...","condition":"..."}}`.
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NmiWebhookSyncResponse {
+    pub transaction: Option<NmiWebhookSyncTransactionResponse>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct NmiWebhookSyncTransactionResponse {
+    pub transaction_id: String,
+    pub condition: String,
+}
+
+impl From<&NmiWebhookBody> for NmiWebhookSyncResponse {
+    fn from(item: &NmiWebhookBody) -> Self {
+        Self {
+            transaction: Some(NmiWebhookSyncTransactionResponse {
+                transaction_id: item.event_body.transaction_id.to_owned(),
+                condition: item.event_body.condition.to_owned(),
+            }),
+        }
+    }
+}
+
+/// Maps the NMI webhook `event_type` to the prism webhook event type.
+/// Ports HS `get_nmi_webhook_event` 1:1. The `*.unknown` events map to
+/// `IncomingWebhookEventUnspecified` (proto `UNSPECIFIED`), which hyperswitch
+/// converts back to `IncomingWebhookEvent::EventNotSupported` — matching the
+/// Direct gateway's `EventNotSupported`.
+pub(crate) fn get_nmi_webhook_event(
+    status: NmiWebhookEventType,
+) -> domain_types::connector_types::EventType {
+    use domain_types::connector_types::EventType;
+    match status {
+        NmiWebhookEventType::SaleSuccess => EventType::PaymentIntentSuccess,
+        NmiWebhookEventType::SaleFailure => EventType::PaymentIntentFailure,
+        NmiWebhookEventType::RefundSuccess => EventType::RefundSuccess,
+        NmiWebhookEventType::RefundFailure => EventType::RefundFailure,
+        NmiWebhookEventType::VoidSuccess => EventType::PaymentIntentCancelled,
+        NmiWebhookEventType::AuthSuccess => EventType::PaymentIntentAuthorizationSuccess,
+        NmiWebhookEventType::CaptureSuccess => EventType::PaymentIntentCaptureSuccess,
+        NmiWebhookEventType::AuthFailure => EventType::PaymentIntentAuthorizationFailure,
+        NmiWebhookEventType::CaptureFailure => EventType::PaymentIntentCaptureFailure,
+        NmiWebhookEventType::VoidFailure => EventType::PaymentIntentCancelFailure,
+        NmiWebhookEventType::SaleUnknown
+        | NmiWebhookEventType::RefundUnknown
+        | NmiWebhookEventType::AuthUnknown
+        | NmiWebhookEventType::VoidUnknown
+        | NmiWebhookEventType::CaptureUnknown => EventType::IncomingWebhookEventUnspecified,
+    }
+}
+
+/// Extracts the `webhook-signature` header value (case-insensitive lookup, matching
+/// the case-insensitive actix `HeaderMap::get` used by hyperswitch).
+pub(crate) fn get_nmi_webhook_signature_header(
+    request: &domain_types::connector_types::RequestDetails,
+) -> Result<&str, error_stack::Report<domain_types::errors::WebhookError>> {
+    request
+        .headers
+        .iter()
+        .find(|(key, _)| key.eq_ignore_ascii_case("webhook-signature"))
+        .map(|(_, value)| value.as_str())
+        .ok_or_else(|| {
+            error_stack::report!(domain_types::errors::WebhookError::WebhookSignatureNotFound)
+        })
+}
+
+/// Splits an NMI `webhook-signature` header (`t=<nonce>,s=<hex signature>`) into
+/// `(nonce, signature)`. Mimics the hyperswitch regex `r"t=(.*),s=(.*)"` exactly:
+/// leftmost `t=` match with greedy captures, i.e. the nonce runs to the LAST `,s=`.
+pub(crate) fn parse_nmi_webhook_signature_header(header: &str) -> Option<(&str, &str)> {
+    let t_idx = header.find("t=")?;
+    let after_t = header.get(t_idx + 2..)?;
+    let s_idx = after_t.rfind(",s=")?;
+    Some((after_t.get(..s_idx)?, after_t.get(s_idx + 3..)?))
 }

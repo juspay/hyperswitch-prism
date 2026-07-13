@@ -325,7 +325,7 @@ macros::macro_connector_implementation!(
             let connector_refund_id = req.request.connector_refund_id.clone();
 
             if connector_refund_id.is_empty() {
-                return Err(IntegrationError::MissingConnectorRefundID { context: Default::default() })?;
+                Err(IntegrationError::MissingConnectorRefundID { context: Default::default() })?;
             }
 
             let auth = multisafepay::MultisafepayAuthType::try_from(&req.connector_config)

@@ -202,6 +202,7 @@ fn wallet_data_label(wallet_data: &WalletData) -> &'static str {
         WalletData::PayURedirect(_) => "payu_redirect",
         WalletData::EaseBuzzRedirect(_) => "easebuzz_redirect",
         WalletData::QwikcilverWalletDirect(_) => "qwikcilver_wallet_direct",
+        WalletData::Skrill(_) => "skrill",
     }
 }
 
@@ -1452,6 +1453,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         connector_mandate_id: Some(payment_instrument.id.clone().expose()),
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     });
 
                 let mut status = map_barclaycard_attempt_status((
@@ -1692,7 +1694,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 reason: Some(MIT_REASON_NTI.to_string()),
                                 original_authorized_amount,
                                 previous_transaction_id: Some(Secret::new(
-                                    network_transaction_id.clone(),
+                                    network_transaction_id.network_transaction_id.clone(),
                                 )),
                             },
                         ),
@@ -1702,7 +1704,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => Err(IntegrationError::NotImplemented(
                 "Network token with NTI based MIT is not supported for Barclaycard".to_string(),
-                Default::default(),
+                IntegrationErrorContext {
+                    suggested_action: Some(
+                        "Use ConnectorMandateId for stored TMS repeat payments, or use NetworkMandateId with raw card data for NTI-based MITs. NetworkTokenWithNTI is not mapped for Barclaycard RepeatPayment."
+                            .to_string(),
+                    ),
+                    doc_url: None,
+                    additional_context: Some(
+                        "Barclaycard RepeatPayment received a NetworkTokenWithNTI mandate reference. This transformer currently supports stored TMS payment instruments from connector_mandate_id and raw card MITs with a network transaction id; it does not build the Barclaycard payload fields required for network token credentials plus NTI".to_string(),
+                    ),
+                },
             ))?,
         };
 
@@ -1982,6 +1993,12 @@ fn get_authentication_data_for_validation_response(
         transaction_id: response.validate_response.xid,
         exemption_indicator: None,
         network_params: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 
@@ -2010,6 +2027,12 @@ fn get_authentication_data_for_authenticate_response(
         ucaf_collection_indicator: validate_response.ucaf_collection_indicator.clone(),
         exemption_indicator: None,
         network_params: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 

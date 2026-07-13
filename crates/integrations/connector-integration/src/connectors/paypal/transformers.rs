@@ -1246,7 +1246,7 @@ fn get_payment_source<
     bank_redirection_data: &BankRedirectData,
 ) -> Result<PaymentSourceItem<T>, Report<IntegrationError>> {
     match bank_redirection_data {
-        BankRedirectData::Eps { bank_name: _, .. } => Ok(PaymentSourceItem::Eps(RedirectRequest {
+        BankRedirectData::Eps { .. } => Ok(PaymentSourceItem::Eps(RedirectRequest {
             name: item.resource_common_data.get_billing_full_name()?,
             country_code: item.resource_common_data.get_billing_country()?,
             experience_context: ContextStruct {
@@ -1282,30 +1282,25 @@ fn get_payment_source<
                 user_action: Some(UserAction::PayNow),
             },
         })),
-        BankRedirectData::Ideal { bank_name: _, .. } => {
-            Ok(PaymentSourceItem::IDeal(RedirectRequest {
-                name: item.resource_common_data.get_billing_full_name()?,
-                country_code: item.resource_common_data.get_billing_country()?,
-                experience_context: ContextStruct {
-                    return_url: item.request.complete_authorize_url.clone(),
-                    cancel_url: item.request.complete_authorize_url.clone(),
-                    shipping_preference: if item
-                        .resource_common_data
-                        .get_optional_shipping_country()
-                        .is_some()
-                    {
-                        ShippingPreference::SetProvidedAddress
-                    } else {
-                        ShippingPreference::GetFromFile
-                    },
-                    user_action: Some(UserAction::PayNow),
+        BankRedirectData::Ideal { .. } => Ok(PaymentSourceItem::IDeal(RedirectRequest {
+            name: item.resource_common_data.get_billing_full_name()?,
+            country_code: item.resource_common_data.get_billing_country()?,
+            experience_context: ContextStruct {
+                return_url: item.request.complete_authorize_url.clone(),
+                cancel_url: item.request.complete_authorize_url.clone(),
+                shipping_preference: if item
+                    .resource_common_data
+                    .get_optional_shipping_country()
+                    .is_some()
+                {
+                    ShippingPreference::SetProvidedAddress
+                } else {
+                    ShippingPreference::GetFromFile
                 },
-            }))
-        }
-        BankRedirectData::Sofort {
-            preferred_language: _,
-            ..
-        } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
+                user_action: Some(UserAction::PayNow),
+            },
+        })),
+        BankRedirectData::Sofort { .. } => Ok(PaymentSourceItem::Sofort(RedirectRequest {
             name: item.resource_common_data.get_billing_full_name()?,
             country_code: item.resource_common_data.get_billing_country()?,
             experience_context: ContextStruct {
@@ -1656,7 +1651,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::QwikcilverWalletDirect(_) => {
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: utils::get_unimplemented_payment_method_error_message("Paypal"),
                         connector: "Paypal",
@@ -2514,6 +2510,7 @@ where
                         },
                         payment_method_id: None,
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     })),
                     status_code: item.http_code,
                     connector_metadata: Some(connector_meta),
@@ -3117,6 +3114,7 @@ impl<F, T> TryFrom<ResponseRouterData<PaypalSetupMandatesResponse, Self>>
             connector_mandate_id: Some(info_response.id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         }));
         // https://developer.paypal.com/docs/api/payment-tokens/v3/#payment-tokens_create
         // If 201 status code, then order is captured, other status codes are handled by the error handler

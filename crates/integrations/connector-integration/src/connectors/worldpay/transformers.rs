@@ -10,7 +10,7 @@ use domain_types::{
         PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
         RefundsResponseData, RepeatPaymentData, ResponseId,
     },
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     payment_method_data::{
         PaymentMethodData, PaymentMethodDataTypes, RawCardNumber,
         WalletData as WalletDataPaymentMethod,
@@ -233,7 +233,8 @@ fn fetch_payment_instrument<
             | WalletDataPaymentMethod::CashfreeRedirect(_)
             | WalletDataPaymentMethod::PayURedirect(_)
             | WalletDataPaymentMethod::EaseBuzzRedirect(_)
-            | WalletDataPaymentMethod::QwikcilverWalletDirect(_) => {
+            | WalletDataPaymentMethod::QwikcilverWalletDirect(_)
+            | WalletDataPaymentMethod::Skrill(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("worldpay"),
                     connector: "Worldpay",
@@ -424,7 +425,9 @@ fn get_token_and_agreement<
                         MandateReferenceId::NetworkMandateId(network_transaction_id) => {
                             Some(CustomerAgreement {
                                 agreement_type: CustomerAgreementType::Unscheduled,
-                                scheme_reference: Some(network_transaction_id.into()),
+                                scheme_reference: Some(
+                                    network_transaction_id.network_transaction_id.into(),
+                                ),
                                 stored_card_usage: None,
                             })
                         }
@@ -577,14 +580,32 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 // NTI flow would need raw card details, which RepeatPayment doesn't have
                 return Err(IntegrationError::NotImplemented(
                     "NetworkMandateId not supported in RepeatPayment".to_string(),
-                    Default::default(),
+                    IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use ConnectorMandateId with the stored Worldpay card token for this RepeatPayment path, or implement a separate raw-card MIT request before sending NetworkMandateId."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Worldpay RepeatPayment received a NetworkMandateId mandate reference. The current transformer builds PaymentInstrument::CardToken from connector_mandate_id; NetworkMandateId carries an NTI for raw-card MIT handling and cannot be represented by the token instrument built here".to_string(),
+                        ),
+                    },
                 )
                 .into());
             }
             MandateReferenceId::NetworkTokenWithNTI(_) => {
                 return Err(IntegrationError::NotImplemented(
                     "NetworkTokenWithNTI not supported in RepeatPayment yet".to_string(),
-                    Default::default(),
+                    IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Use ConnectorMandateId with the stored Worldpay card token for this RepeatPayment path, or implement a dedicated Worldpay network-token MIT request before sending NetworkTokenWithNTI."
+                                .to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: Some(
+                            "Worldpay RepeatPayment received a NetworkTokenWithNTI mandate reference. The current transformer builds PaymentInstrument::CardToken from connector_mandate_id; it does not extract or map network token credentials, cryptogram data, or the NTI into the Worldpay repeat-payment request".to_string(),
+                        ),
+                    },
                 )
                 .into());
             }
@@ -832,6 +853,7 @@ impl<F, T>
                         connector_mandate_id: Some(mandate_token.href.clone().expose()),
                         payment_method_id: Some(mandate_token.token_id.clone()),
                         connector_mandate_request_reference_id: None,
+                        mandate_metadata: None,
                     }),
                     res.scheme_reference.clone(),
                     None,
