@@ -1993,6 +1993,12 @@ fn get_authentication_data_for_validation_response(
         transaction_id: response.validate_response.xid,
         exemption_indicator: None,
         network_params: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 
@@ -2021,6 +2027,12 @@ fn get_authentication_data_for_authenticate_response(
         ucaf_collection_indicator: validate_response.ucaf_collection_indicator.clone(),
         exemption_indicator: None,
         network_params: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
     }
 }
 

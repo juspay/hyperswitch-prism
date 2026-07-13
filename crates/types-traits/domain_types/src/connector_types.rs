@@ -3345,6 +3345,7 @@ pub struct SetupMandateRequestData<T: PaymentMethodDataTypes> {
     /// `Recurring`, `Installment`). Mirrors `RepeatPaymentData.mit_category`.
     pub mit_category: Option<common_enums::MitCategory>,
     pub split_payments: Option<SplitPaymentsDetails>,
+    pub authentication_data: Option<router_request_types::AuthenticationData>,
 }
 
 impl<T: PaymentMethodDataTypes> SetupMandateRequestData<T> {

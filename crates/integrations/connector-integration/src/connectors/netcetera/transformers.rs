@@ -277,6 +277,12 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     transaction_id: None,
                     network_params: None,
                     exemption_indicator: None,
+                    created_at: None,
+                    challenge_code: None,
+                    challenge_cancel: None,
+                    challenge_code_reason: None,
+                    message_extension: None,
+                    authentication_type: None,
                 };
 
                 Ok(Self {
@@ -583,6 +589,12 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                     transaction_id: None,
                     network_params: None,
                     exemption_indicator: None,
+                    created_at: None,
+                    challenge_code: None,
+                    challenge_cancel: None,
+                    challenge_code_reason: None,
+                    message_extension: None,
+                    authentication_type: None,
                 };
 
                 Ok(Self {
@@ -704,6 +716,12 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             transaction_id: None,
             network_params: None,
             exemption_indicator: None,
+            created_at: None,
+            challenge_code: None,
+            challenge_cancel: None,
+            challenge_code_reason: None,
+            message_extension: None,
+            authentication_type: None,
         };
 
         Ok(Self {
