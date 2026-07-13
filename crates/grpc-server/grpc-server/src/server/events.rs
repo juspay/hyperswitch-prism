@@ -46,7 +46,7 @@ use grpc_api_types::payments::{
 use interfaces::connector_integration_v2::BoxedConnectorIntegrationV2;
 use ucs_env::{
     configs::Config,
-    error::{IntoGrpcStatus, ResultExtGrpc},
+    error::{ReportExtGrpcError, ResultExtGrpc, ResultExtGrpcError},
 };
 
 #[derive(Debug, Clone)]
@@ -84,7 +84,7 @@ impl EventService for EventServiceImpl {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "EventService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper_with_parser(
             request,
             &service_name,
@@ -106,21 +106,21 @@ impl EventService for EventServiceImpl {
                                         }
                                     )
                                 })
-                                .into_grpc_status()?,
+                                .to_grpc_error()?,
                         )
-                        .into_grpc_status()?;
+                        .to_grpc_error()?;
 
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&metadata_payload.connector)
                             .ok_or_else(|| {
-                                tonic::Status::invalid_argument("Invalid Connector Received")
+                                ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext::default() })
                             })?;
 
                     let response = connector_integration::webhook_utils::parse_webhook_event(
                         connector_data,
                         request_details,
                     )
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     Ok(tonic::Response::new(response))
                 })
@@ -159,7 +159,7 @@ impl EventService for EventServiceImpl {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "EventService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper_with_parser(
             request,
             &service_name,
@@ -172,17 +172,17 @@ impl EventService for EventServiceImpl {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
                     let connector = metadata_payload.connector.clone().as_payment().ok_or_else(|| {
-                        tonic::Status::unimplemented("Surcharge connectors not supported for webhook events")
+                        ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::NotSupported { message: "Surcharge connectors not supported for webhook events".to_string(), connector: "N/A", context: domain_types::errors::IntegrationErrorContext::default() })
                     })?;
                     let _request_id = &metadata_payload.request_id;
                     let connector_config = &metadata_payload.connector_config;
                     let request_details = payload
                         .request_details
                         .ok_or_else(|| error_stack::report!(WebhookError::WebhookMissingRequiredField { field: "request_details" }))
-                        .into_grpc_status()
+                        .to_grpc_error()
                         .and_then(|rd| {
                             domain_types::connector_types::RequestDetails::foreign_try_from(rd)
-                                .into_grpc_status()
+                                .to_grpc_error()
                         })?;
                     let webhook_secrets = payload
                         .webhook_secrets
@@ -192,7 +192,7 @@ impl EventService for EventServiceImpl {
                                 details,
                             )
                             .map_err(|e: error_stack::Report<WebhookError>| {
-                                e.into_grpc_status()
+                                e.to_grpc_error()
                             })
                         })
                         .transpose()?;
@@ -201,7 +201,7 @@ impl EventService for EventServiceImpl {
                         .map(domain_types::connector_types::EventContext::foreign_try_from)
                         .transpose()
                         .map_err(|e: error_stack::Report<WebhookError>| {
-                            e.into_grpc_status()
+                            e.to_grpc_error()
                         })?;
                     //get connector data
                     let connector_data: ConnectorData<DefaultPCIHolder> =
@@ -258,7 +258,7 @@ impl EventService for EventServiceImpl {
                         payload.merchant_event_id,
                         event_context,
                     )
-                    .into_grpc_status()?;
+                    .to_grpc_error()?;
 
                     response.supported_integrity_checks = supported_integrity_checks
                         .into_iter()
@@ -302,7 +302,7 @@ impl EventService for EventServiceImpl {
             .get::<String>()
             .cloned()
             .unwrap_or_else(|| "EventService".to_string());
-        let config = get_config_from_request(&request)?;
+        let config = get_config_from_request(&request).into_grpc_status()?;
         let service_name_for_closure = service_name.clone();
 
         grpc_logging_wrapper_with_parser(
@@ -317,8 +317,13 @@ impl EventService for EventServiceImpl {
                     let event_type_enum = grpc_api_types::payments::NotifyEventType::try_from(
                         request_data.payload.event_type,
                     )
-                    .map_err(|error| {
-                        tonic::Status::invalid_argument(format!("Invalid event type: {}", error))
+                    .map_err(|_| {
+                        error_stack::Report::new(ucs_env::error::GrpcError::from(
+                            domain_types::errors::IntegrationError::InvalidDataFormat {
+                                field_name: "event_type",
+                                context: domain_types::errors::IntegrationErrorContext::default(),
+                            },
+                        ))
                     })?;
 
                     match event_type_enum {
@@ -363,10 +368,15 @@ impl EventService for EventServiceImpl {
                             )
                             .await
                         }
-                        other_event_type => Err(tonic::Status::invalid_argument(format!(
-                            "Unsupported event type: {}",
-                            other_event_type.as_str_name()
-                        ))),
+                        _other_event_type => {
+                            Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
+                                domain_types::errors::IntegrationError::InvalidDataFormat {
+                                    field_name: "event_type",
+                                    context: domain_types::errors::IntegrationErrorContext::default(
+                                    ),
+                                },
+                            )))
+                        }
                     }
                 })
             },
@@ -380,7 +390,10 @@ impl EventServiceImpl {
         request_data: RequestData<NotifyConnectorRequest>,
         service_name: &str,
         config: std::sync::Arc<Config>,
-    ) -> Result<tonic::Response<NotifyConnectorResponse>, tonic::Status> {
+    ) -> Result<
+        tonic::Response<NotifyConnectorResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    > {
         tracing::info!("SURCHARGE_PAYMENT_SUCCEEDED_FLOW: initiated");
 
         let metadata_payload = request_data.extracted_metadata;
@@ -390,7 +403,13 @@ impl EventServiceImpl {
         let connector_data: SurchargeConnectorData = ConnectorDataProvider::from_connector_variant(
             &metadata_payload.connector,
         )
-        .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+        .ok_or_else(|| {
+            ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::NotSupported {
+                message: "Invalid connector type for this flow".to_string(),
+                connector: "N/A",
+                context: domain_types::errors::IntegrationErrorContext::default(),
+            })
+        })?;
 
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,
@@ -401,14 +420,14 @@ impl EventServiceImpl {
         > = connector_data.connector.get_connector_integration_v2();
 
         let request_data =
-            SurchargePaymentSucceededRequest::foreign_try_from(req.clone()).into_grpc_status()?;
+            SurchargePaymentSucceededRequest::foreign_try_from(req.clone()).to_grpc_error()?;
 
         let common_flow_data = SurchargeFlowData::foreign_try_from((
             req.clone(),
             config.connectors.clone(),
             &masked_metadata,
         ))
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         let router_data = RouterDataV2::<
             SurchargePaymentSucceeded,
@@ -455,13 +474,13 @@ impl EventServiceImpl {
             ),
         )
         .await
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         let final_response =
             domain_types::surcharge::types::generate_surcharge_payment_succeeded_response(
                 response_result,
             )
-            .into_grpc_status()?;
+            .to_grpc_error()?;
 
         Ok(tonic::Response::new(final_response))
     }
@@ -470,7 +489,10 @@ impl EventServiceImpl {
         request_data: RequestData<NotifyConnectorRequest>,
         service_name: &str,
         config: std::sync::Arc<Config>,
-    ) -> Result<tonic::Response<NotifyConnectorResponse>, tonic::Status> {
+    ) -> Result<
+        tonic::Response<NotifyConnectorResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    > {
         tracing::info!("SURCHARGE_REFUND_SUCCEEDED_FLOW: initiated");
 
         let metadata_payload = request_data.extracted_metadata;
@@ -480,7 +502,13 @@ impl EventServiceImpl {
         let connector_data: SurchargeConnectorData = ConnectorDataProvider::from_connector_variant(
             &metadata_payload.connector,
         )
-        .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+        .ok_or_else(|| {
+            ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::NotSupported {
+                message: "Invalid connector type for this flow".to_string(),
+                connector: "N/A",
+                context: domain_types::errors::IntegrationErrorContext::default(),
+            })
+        })?;
 
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,
@@ -491,14 +519,14 @@ impl EventServiceImpl {
         > = connector_data.connector.get_connector_integration_v2();
 
         let request_data =
-            SurchargeRefundSucceededRequest::foreign_try_from(req.clone()).into_grpc_status()?;
+            SurchargeRefundSucceededRequest::foreign_try_from(req.clone()).to_grpc_error()?;
 
         let common_flow_data = SurchargeFlowData::foreign_try_from((
             req.clone(),
             config.connectors.clone(),
             &masked_metadata,
         ))
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         let router_data = RouterDataV2::<
             SurchargeRefundSucceeded,
@@ -545,13 +573,13 @@ impl EventServiceImpl {
             ),
         )
         .await
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         let final_response =
             domain_types::surcharge::types::generate_surcharge_refund_succeeded_response(
                 response_result,
             )
-            .into_grpc_status()?;
+            .to_grpc_error()?;
 
         Ok(tonic::Response::new(final_response))
     }
@@ -560,7 +588,10 @@ impl EventServiceImpl {
         request_data: RequestData<NotifyConnectorRequest>,
         service_name: &str,
         config: std::sync::Arc<Config>,
-    ) -> Result<tonic::Response<NotifyConnectorResponse>, tonic::Status> {
+    ) -> Result<
+        tonic::Response<NotifyConnectorResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    > {
         tracing::info!("FRM_PAYMENT_OUTCOME_FLOW: initiated");
 
         let metadata_payload = request_data.extracted_metadata;
@@ -570,7 +601,13 @@ impl EventServiceImpl {
         let connector_data: FrmConnectorData = ConnectorDataProvider::from_connector_variant(
             &metadata_payload.connector,
         )
-        .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+        .ok_or_else(|| {
+            ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::NotSupported {
+                message: "Invalid connector type for this flow".to_string(),
+                connector: "N/A",
+                context: domain_types::errors::IntegrationErrorContext::default(),
+            })
+        })?;
 
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,
@@ -581,14 +618,14 @@ impl EventServiceImpl {
         > = connector_data.connector.get_connector_integration_v2();
 
         let request_data =
-            FrmPaymentOutcomeRequest::foreign_try_from(req.clone()).into_grpc_status()?;
+            FrmPaymentOutcomeRequest::foreign_try_from(req.clone()).to_grpc_error()?;
 
         let common_flow_data = FrmFlowData::foreign_try_from((
             req.clone(),
             config.connectors.clone(),
             &masked_metadata,
         ))
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         let router_data = RouterDataV2::<
             FrmPaymentOutcome,
@@ -635,10 +672,10 @@ impl EventServiceImpl {
             ),
         )
         .await
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         let final_response =
-            generate_frm_payment_outcome_response(response_result).into_grpc_status()?;
+            generate_frm_payment_outcome_response(response_result).to_grpc_error()?;
 
         Ok(tonic::Response::new(final_response))
     }
@@ -647,7 +684,10 @@ impl EventServiceImpl {
         request_data: RequestData<NotifyConnectorRequest>,
         service_name: &str,
         config: std::sync::Arc<Config>,
-    ) -> Result<tonic::Response<NotifyConnectorResponse>, tonic::Status> {
+    ) -> Result<
+        tonic::Response<NotifyConnectorResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    > {
         tracing::info!("FRM_REFUND_PROCESSED_FLOW: initiated");
 
         let metadata_payload = request_data.extracted_metadata;
@@ -657,7 +697,13 @@ impl EventServiceImpl {
         let connector_data: FrmConnectorData = ConnectorDataProvider::from_connector_variant(
             &metadata_payload.connector,
         )
-        .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+        .ok_or_else(|| {
+            ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::NotSupported {
+                message: "Invalid connector type for this flow".to_string(),
+                connector: "N/A",
+                context: domain_types::errors::IntegrationErrorContext::default(),
+            })
+        })?;
 
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,
@@ -668,14 +714,14 @@ impl EventServiceImpl {
         > = connector_data.connector.get_connector_integration_v2();
 
         let request_data =
-            FrmRefundProcessedRequest::foreign_try_from(req.clone()).into_grpc_status()?;
+            FrmRefundProcessedRequest::foreign_try_from(req.clone()).to_grpc_error()?;
 
         let common_flow_data = FrmFlowData::foreign_try_from((
             req.clone(),
             config.connectors.clone(),
             &masked_metadata,
         ))
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         let router_data = RouterDataV2::<
             FrmRefundProcessed,
@@ -722,10 +768,10 @@ impl EventServiceImpl {
             ),
         )
         .await
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         let final_response =
-            generate_frm_refund_processed_response(response_result).into_grpc_status()?;
+            generate_frm_refund_processed_response(response_result).to_grpc_error()?;
 
         Ok(tonic::Response::new(final_response))
     }
@@ -734,7 +780,10 @@ impl EventServiceImpl {
         request_data: RequestData<NotifyConnectorRequest>,
         service_name: &str,
         config: std::sync::Arc<Config>,
-    ) -> Result<tonic::Response<NotifyConnectorResponse>, tonic::Status> {
+    ) -> Result<
+        tonic::Response<NotifyConnectorResponse>,
+        error_stack::Report<ucs_env::error::GrpcError>,
+    > {
         tracing::info!("FRM_CHARGEBACK_RECEIVED_FLOW: initiated");
 
         let metadata_payload = request_data.extracted_metadata;
@@ -744,7 +793,13 @@ impl EventServiceImpl {
         let connector_data: FrmConnectorData = ConnectorDataProvider::from_connector_variant(
             &metadata_payload.connector,
         )
-        .ok_or_else(|| tonic::Status::unimplemented("Invalid connector type for this flow"))?;
+        .ok_or_else(|| {
+            ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::NotSupported {
+                message: "Invalid connector type for this flow".to_string(),
+                connector: "N/A",
+                context: domain_types::errors::IntegrationErrorContext::default(),
+            })
+        })?;
 
         let connector_integration: BoxedConnectorIntegrationV2<
             '_,
@@ -755,14 +810,14 @@ impl EventServiceImpl {
         > = connector_data.connector.get_connector_integration_v2();
 
         let request_data =
-            FrmChargebackReceivedRequest::foreign_try_from(req.clone()).into_grpc_status()?;
+            FrmChargebackReceivedRequest::foreign_try_from(req.clone()).to_grpc_error()?;
 
         let common_flow_data = FrmFlowData::foreign_try_from((
             req.clone(),
             config.connectors.clone(),
             &masked_metadata,
         ))
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         let router_data = RouterDataV2::<
             FrmChargebackReceived,
@@ -809,10 +864,10 @@ impl EventServiceImpl {
             ),
         )
         .await
-        .into_grpc_status()?;
+        .to_grpc_error()?;
 
         let final_response =
-            generate_frm_chargeback_received_response(response_result).into_grpc_status()?;
+            generate_frm_chargeback_received_response(response_result).to_grpc_error()?;
 
         Ok(tonic::Response::new(final_response))
     }
@@ -828,7 +883,7 @@ async fn verify_webhook_source_external(
     connector_config: &ConnectorSpecificConfig,
     metadata_payload: &utils::MetadataPayload,
     service_name: &str,
-) -> Result<bool, tonic::Status> {
+) -> Result<bool, error_stack::Report<ucs_env::error::GrpcError>> {
     let verify_webhook_flow_data = VerifyWebhookSourceFlowData {
         connectors: config.connectors.clone(),
         connector_request_reference_id: format!("webhook_verify_{}", metadata_payload.request_id),

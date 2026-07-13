@@ -8297,6 +8297,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_path_to_error",
+ "strum 0.26.3",
  "thiserror 1.0.69",
  "time 0.3.47",
  "tokio",
