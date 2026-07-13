@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.13.0
+
+### Features
+
+- **framework:** Mapped issuer_details field between domain and proto ([#1883](https://github.com/juspay/connector-service/pull/1883)) ([`534add4`](https://github.com/juspay/connector-service/commit/534add411dcb59da8d41660699d764b13b292dcf))
+
+**Full Changelog:** [`2026.07.10.1...2026.07.13.0`](https://github.com/juspay/connector-service/compare/2026.07.10.1...2026.07.13.0)
+
+- - -
+
 ## 2026.07.10.1
 
 ### Features
