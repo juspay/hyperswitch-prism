@@ -25,7 +25,7 @@ use domain_types::{
     utils::split_full_name,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -89,6 +89,49 @@ pub struct AirwallexPaymentRequest {
     pub return_url: Option<String>,
     // Device data for fraud detection
     pub device_data: Option<AirwallexDeviceData>,
+    // CIT (setup_future_usage) only: set up an Airwallex PaymentConsent so the confirm response
+    // returns a payment_consent_id usable as the connector mandate for future MITs. Omitted for
+    // one-off payments and MITs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub payment_consent: Option<AirwallexPaymentConsentData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub customer_id: Option<String>,
+}
+
+/// 3DS continuation request body for the card `confirm_continue` leg. After the browser returns
+/// from the Airwallex 3DS redirect, HS re-invokes the Authorize flow with a populated
+/// `redirect_response`; we echo that payload back to Airwallex as `three_ds.acs_response` with
+/// `type: "3ds_continue"`. Mirrors native HS `AirwallexCompleteRequest`.
+#[derive(Debug, Serialize)]
+pub struct AirwallexCompleteRequest {
+    pub request_id: String,
+    pub three_ds: AirwallexThreeDsData,
+    #[serde(rename = "type")]
+    pub three_ds_type: AirwallexThreeDsType,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexThreeDsData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acs_response: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub enum AirwallexThreeDsType {
+    #[default]
+    #[serde(rename = "3ds_continue")]
+    ThreeDSContinue,
+}
+
+/// Untagged request body for the Authorize flow. Leg 1 (`Confirm`) confirms the payment intent at
+/// `/confirm`; leg 2 (`ConfirmContinue`) finishes card 3DS at `/confirm_continue`. The leg is
+/// chosen by whether HS supplied a `redirect_response` (i.e. the browser returned from 3DS). Both
+/// legs return `AirwallexPaymentsResponse`. `untagged` so each serializes as its inner body.
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+pub enum AirwallexAuthorizeRequest {
+    Confirm(Box<AirwallexPaymentRequest>),
+    ConfirmContinue(AirwallexCompleteRequest),
 }
 
 #[derive(Debug, Serialize)]
@@ -817,8 +860,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let payment_method_options = build_payment_method_options(&payment_method, auto_capture);
 
-        let device_data = get_device_data(&item.router_data.request)?;
-
         // Generate unique request_id for Authorize/confirm step
         // Different from CreateOrder to avoid Airwallex duplicate_request error
         let request_id = format!(
@@ -828,13 +869,104 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .connector_request_reference_id
         );
 
+        // Mirror native HS airwallex for a CIT (setup_future_usage) mandate setup: attach a
+        // PaymentConsent so Airwallex returns a payment_consent_id we store as the connector
+        // mandate for future MITs, send the connector customer_id, and OMIT device_data. Native
+        // only collects device data for non-mandate payments — sending it alongside a consent
+        // pushes Airwallex into a device-data-collection SCA path it can't complete here. Same
+        // CIT detection helper (is_customer_initiated_mandate_payment) as native.
+        let (payment_consent, customer_id, device_data) = if item
+            .router_data
+            .request
+            .is_customer_initiated_mandate_payment()
+        {
+            (
+                Some(AirwallexPaymentConsentData {
+                    next_triggered_by: AirwallexTriggeredBy::Merchant,
+                    merchant_trigger_reason: AirwallexMerchantTriggeredReason::Unscheduled,
+                }),
+                Some(
+                    item.router_data
+                        .resource_common_data
+                        .get_connector_customer_id()?,
+                ),
+                None,
+            )
+        } else {
+            (None, None, get_device_data(&item.router_data.request)?)
+        };
+
+        // Per-method return_url (mirrors native HS): card 3DS must come back through the Authorize
+        // completion leg (`confirm_continue`), so point Airwallex at `complete_authorize_url`; APM
+        // redirects (wallets/bank-redirect/paylater) return through PSync via `router_return_url`.
+        let return_url = match &item.router_data.request.payment_method_data {
+            domain_types::payment_method_data::PaymentMethodData::Card(_) => item
+                .router_data
+                .request
+                .complete_authorize_url
+                .clone()
+                .or_else(|| item.router_data.request.get_router_return_url().ok()),
+            _ => item.router_data.request.get_router_return_url().ok(),
+        };
+
         Ok(Self {
             request_id,
             payment_method,
             payment_method_options,
-            return_url: item.router_data.request.get_router_return_url().ok(),
+            return_url,
             device_data,
+            payment_consent,
+            customer_id,
         })
+    }
+}
+
+/// Build the Authorize request body, selecting the initial confirm leg or the 3DS
+/// `confirm_continue` leg based on whether HS supplied a `redirect_response`.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::AirwallexRouterData<
+            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            T,
+        >,
+    > for AirwallexAuthorizeRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::AirwallexRouterData<
+            RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        match item.router_data.request.redirect_response.as_ref() {
+            // 3DS return leg: echo the ACS/redirect payload back as three_ds.acs_response.
+            Some(redirect_response) => {
+                let acs_response = redirect_response
+                    .payload
+                    .as_ref()
+                    .map(|data| serde_json::to_string(data.peek()))
+                    .transpose()
+                    .change_context(IntegrationError::RequestEncodingFailed {
+                        context: Default::default(),
+                    })?
+                    .map(Secret::new);
+                // Unique per call: a 3DS flow issues confirm_continue more than once (after DDC,
+                // then after the challenge). Airwallex rejects a reused request_id with
+                // "duplicate_request", so use a fresh UUID like native HS (not the deterministic
+                // connector_request_reference_id).
+                let request_id = uuid::Uuid::new_v4().to_string();
+                Ok(Self::ConfirmContinue(AirwallexCompleteRequest {
+                    request_id,
+                    three_ds: AirwallexThreeDsData { acs_response },
+                    three_ds_type: AirwallexThreeDsType::ThreeDSContinue,
+                }))
+            }
+            // Initial leg: build the standard confirm body.
+            None => Ok(Self::Confirm(Box::new(AirwallexPaymentRequest::try_from(
+                item,
+            )?))),
+        }
     }
 }
 
@@ -1003,17 +1135,18 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResp
     ) -> Result<Self, Self::Error> {
         let status = get_payment_status(&item.response.status, &item.response.next_action);
 
-        // Handle redirection for bank redirects and 3DS
+        // Handle redirection for APM redirects (type "redirect") AND card 3DS device-data-collection
+        // / challenge (type "other" / "device_data_collection"). Mirror native HS: surface ANY
+        // next_action that carries a URL as a GET RedirectForm. GET keeps the URL's query intact
+        // (Airwallex embeds a one-time `?key=` in the 3DS-method URL that must stay in the URL — a
+        // POST form strips the query into the body and the endpoint 401s). This replaces the old
+        // behaviour that only surfaced type "redirect" and dropped the card 3DS ("other") action.
         let redirection_data = item.response.next_action.as_ref().and_then(|next_action| {
-            if next_action.action_type == AirwallexNextActionType::Redirect {
-                next_action.url.as_ref().and_then(|url_str| {
-                    Url::parse(url_str)
-                        .ok()
-                        .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
-                })
-            } else {
-                None
-            }
+            next_action.url.as_ref().and_then(|url_str| {
+                Url::parse(url_str)
+                    .ok()
+                    .map(|url| Box::new(RedirectForm::from((url, Method::Get))))
+            })
         });
 
         // Extract network transaction ID for network response fields (PR #240 Issue #4)
@@ -1025,11 +1158,38 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResp
         // Following hyperswitch pattern - no connector_metadata
         let connector_metadata = None;
 
+        // Surface the Airwallex PaymentConsent as the connector mandate reference for CIT payments,
+        // so HS stores connector_mandate_id (payment_consent_id) + payment_method.id and can run
+        // future MITs. Mirrors the SetupMandate response builder. `payment_consent_id` is only
+        // present when the Authorize request set up a consent (the CIT path).
+        let airwallex_payment_method_id = item
+            .response
+            .latest_payment_attempt
+            .as_ref()
+            .and_then(|lpa| lpa.payment_method.as_ref())
+            .and_then(|pm| pm.id.clone())
+            .or_else(|| {
+                item.response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.id.clone())
+            });
+        let mandate_reference = item
+            .response
+            .payment_consent_id
+            .clone()
+            .map(|id| MandateReference {
+                connector_mandate_id: Some(id.expose()),
+                payment_method_id: airwallex_payment_method_id,
+                connector_mandate_request_reference_id: None,
+            })
+            .map(Box::new);
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id),
                 redirection_data,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata,
                 network_txn_id,
                 network_txn_link_id: None,
