@@ -1,7 +1,7 @@
 use domain_types::connector_types::{ConnectorEnum, ConnectorVariant};
 use grpc_api_types::payments::{
-    CompositeAuthorizeRequest, CompositeCaptureRequest, CompositeGetRequest,
-    CompositePaymentMethodCreateRequest, CompositePaymentMethodGetRequest,
+    CompositeAuthorizeRequest, CompositeCaptureRequest, CompositeDeviceDataCollectionRequest,
+    CompositeGetRequest, CompositePaymentMethodCreateRequest, CompositePaymentMethodGetRequest,
     CompositePaymentMethodRechargeRequest, CompositeRefundGetRequest, CompositeRefundRequest,
     CompositeVerifyRedirectResponseRequest, CompositeVoidRequest, ConnectorState,
     CustomerServiceCreateRequest, CustomerServiceCreateResponse,
@@ -35,6 +35,23 @@ impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorVariant)>
     for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
 {
     fn foreign_from((item, connector): (&CompositeAuthorizeRequest, &ConnectorVariant)) -> Self {
+        Self {
+            merchant_access_token_id: item.merchant_access_token_id.clone(),
+            connector: grpc_connector_from_connector_variant(connector),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+            merchant_request_id: item.merchant_request_id.clone(),
+        }
+    }
+}
+
+impl ForeignFrom<(&CompositeDeviceDataCollectionRequest, &ConnectorVariant)>
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+{
+    fn foreign_from(
+        (item, connector): (&CompositeDeviceDataCollectionRequest, &ConnectorVariant),
+    ) -> Self {
         Self {
             merchant_access_token_id: item.merchant_access_token_id.clone(),
             connector: grpc_connector_from_connector_variant(connector),
@@ -1061,29 +1078,6 @@ impl
 
 impl
     ForeignFrom<(
-        &grpc_api_types::frm::CompositeFrmDeviceDataCollectionRequest,
-        &ConnectorVariant,
-    )> for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
-{
-    fn foreign_from(
-        (item, connector): (
-            &grpc_api_types::frm::CompositeFrmDeviceDataCollectionRequest,
-            &ConnectorVariant,
-        ),
-    ) -> Self {
-        Self {
-            merchant_access_token_id: item.merchant_access_token_id.clone(),
-            connector: grpc_connector_from_connector_variant(connector),
-            metadata: item.metadata.clone(),
-            connector_feature_data: item.connector_feature_data.clone(),
-            test_mode: item.test_mode,
-            merchant_request_id: item.merchant_request_id.clone(),
-        }
-    }
-}
-
-impl
-    ForeignFrom<(
         &grpc_api_types::frm::CompositeFrmPreRiskCheckRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for grpc_api_types::frm::FrmServicePreRiskCheckRequest
@@ -1128,13 +1122,13 @@ impl
 
 impl
     ForeignFrom<(
-        &grpc_api_types::frm::CompositeFrmDeviceDataCollectionRequest,
+        &CompositeDeviceDataCollectionRequest,
         Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
     )> for PaymentMethodAuthenticationServicePreAuthenticateRequest
 {
     fn foreign_from(
         (item, access_token_response): (
-            &grpc_api_types::frm::CompositeFrmDeviceDataCollectionRequest,
+            &CompositeDeviceDataCollectionRequest,
             Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
         ),
     ) -> Self {

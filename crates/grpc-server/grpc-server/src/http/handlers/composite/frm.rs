@@ -13,18 +13,9 @@ use crate::http::{
 };
 use grpc_api_types::frm::{
     composite_fraud_and_risk_management_service_server::CompositeFraudAndRiskManagementService,
-    CompositeFrmDeviceDataCollectionRequest, CompositeFrmDeviceDataCollectionResponse,
     CompositeFrmPostRiskCheckRequest, CompositeFrmPostRiskCheckResponse,
     CompositeFrmPreRiskCheckRequest, CompositeFrmPreRiskCheckResponse,
 };
-
-http_handler!(
-    device_data_collection,
-    CompositeFrmDeviceDataCollectionRequest,
-    CompositeFrmDeviceDataCollectionResponse,
-    device_data_collection,
-    composite_frm_service
-);
 
 http_handler!(
     pre_risk_check,

@@ -58,8 +58,8 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::composite::payment_methods::recharge),
         )
         .route(
-            "/composite/frm/device_data_collection",
-            post(handlers::composite::frm::device_data_collection),
+            "/composite/device_data_collection",
+            post(handlers::composite::payments::device_data_collection),
         )
         .route(
             "/composite/frm/pre_risk_check",

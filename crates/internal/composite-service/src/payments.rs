@@ -11,9 +11,11 @@ use grpc_api_types::payments::{
     payment_method_authentication_service_server::PaymentMethodAuthenticationService,
     payment_service_server::PaymentService, refund_service_server::RefundService,
     CompositeAuthorizeRequest, CompositeAuthorizeResponse, CompositeCaptureRequest,
-    CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse, CompositeRefundGetRequest,
-    CompositeRefundGetResponse, CompositeRefundRequest, CompositeRefundResponse, CompositeStatus,
-    CompositeVoidRequest, CompositeVoidResponse, ConnectorState, CustomerServiceCreateResponse,
+    CompositeCaptureResponse, CompositeDeviceDataCollectionRequest,
+    CompositeDeviceDataCollectionResponse, CompositeGetRequest, CompositeGetResponse,
+    CompositeRefundGetRequest, CompositeRefundGetResponse, CompositeRefundRequest,
+    CompositeRefundResponse, CompositeStatus, CompositeVoidRequest, CompositeVoidResponse,
+    ConnectorState, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -58,6 +60,25 @@ pub trait CompositeSessionTokenRequest {
 }
 
 impl CompositeAccessTokenRequest for CompositeAuthorizeRequest {
+    fn payment_method(&self) -> Option<PaymentMethod> {
+        self.payment_method.clone()
+    }
+
+    fn state(&self) -> Option<&ConnectorState> {
+        self.state.as_ref()
+    }
+
+    fn build_access_token_request(
+        &self,
+        connector: &ConnectorVariant,
+    ) -> MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest {
+        MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest::foreign_from((
+            self, connector,
+        ))
+    }
+}
+
+impl CompositeAccessTokenRequest for CompositeDeviceDataCollectionRequest {
     fn payment_method(&self) -> Option<PaymentMethod> {
         self.payment_method.clone()
     }
@@ -509,6 +530,32 @@ where
         Ok(pre_auth_response)
     }
 
+    async fn device_data_collection(
+        &self,
+        payload: &CompositeDeviceDataCollectionRequest,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+        metadata: &tonic::metadata::MetadataMap,
+        extensions: &tonic::Extensions,
+    ) -> Result<PaymentMethodAuthenticationServicePreAuthenticateResponse, tonic::Status> {
+        let ddc_payload = PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
+            payload,
+            access_token_response,
+        ));
+        let mut ddc_request = tonic::Request::new(ddc_payload);
+        *ddc_request.metadata_mut() = metadata.clone();
+        *ddc_request.extensions_mut() = extensions.clone();
+
+        let ddc_response = self
+            .authentication_service
+            .pre_authenticate(ddc_request)
+            .await?
+            .into_inner();
+
+        Ok(ddc_response)
+    }
+
     async fn authenticate(
         &self,
         payload: &CompositeAuthorizeRequest,
@@ -806,6 +853,34 @@ where
             access_token_response,
             get_response: Some(get_response),
         }))
+    }
+
+    async fn process_device_data_collection(
+        &self,
+        request: tonic::Request<CompositeDeviceDataCollectionRequest>,
+    ) -> Result<tonic::Response<CompositeDeviceDataCollectionResponse>, tonic::Status> {
+        let (metadata, extensions, payload) = request.into_parts();
+
+        let connector =
+            connector_from_composite_authorize_metadata(&metadata).map_err(|err| *err)?;
+        let access_token_response = self
+            .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
+            .await?;
+        let device_data_collection_response = self
+            .device_data_collection(
+                &payload,
+                access_token_response.as_ref(),
+                &metadata,
+                &extensions,
+            )
+            .await?;
+
+        Ok(tonic::Response::new(
+            CompositeDeviceDataCollectionResponse {
+                device_data_collection_response: Some(device_data_collection_response),
+                access_token_response,
+            },
+        ))
     }
 
     async fn refund(
@@ -1147,6 +1222,13 @@ where
         request: tonic::Request<CompositeAuthorizeRequest>,
     ) -> Result<tonic::Response<CompositeAuthorizeResponse>, tonic::Status> {
         Box::pin(self.process_composite_authorize(request)).await
+    }
+
+    async fn device_data_collection(
+        &self,
+        request: tonic::Request<CompositeDeviceDataCollectionRequest>,
+    ) -> Result<tonic::Response<CompositeDeviceDataCollectionResponse>, tonic::Status> {
+        self.process_device_data_collection(request).await
     }
 
     async fn get(

@@ -6,6 +6,7 @@ use axum::{
 use grpc_api_types::payments::{
     composite_payment_service_server::CompositePaymentService, CompositeAuthorizeRequest,
     CompositeAuthorizeResponse, CompositeCaptureRequest, CompositeCaptureResponse,
+    CompositeDeviceDataCollectionRequest, CompositeDeviceDataCollectionResponse,
     CompositeGetRequest, CompositeGetResponse, CompositeRefundRequest, CompositeRefundResponse,
     CompositeVerifyRedirectResponseRequest, CompositeVerifyRedirectResponseResponse,
     CompositeVoidRequest, CompositeVoidResponse,
@@ -24,6 +25,14 @@ http_handler!(
     CompositeAuthorizeRequest,
     CompositeAuthorizeResponse,
     authorize,
+    composite_payments_service
+);
+
+http_handler!(
+    device_data_collection,
+    CompositeDeviceDataCollectionRequest,
+    CompositeDeviceDataCollectionResponse,
+    device_data_collection,
     composite_payments_service
 );
 
