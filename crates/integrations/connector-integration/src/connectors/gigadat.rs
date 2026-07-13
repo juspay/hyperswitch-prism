@@ -7,7 +7,9 @@ use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
 use base64::Engine;
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, FloatMajorUnit};
+use common_utils::{
+    consts::BASE64_ENGINE, errors::CustomResult, events, ext_traits::ByteSliceExt, FloatMajorUnit,
+};
 use domain_types::errors::ConnectorError;
 use domain_types::errors::IntegrationError;
 use domain_types::{
@@ -23,7 +25,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{Maskable, PeekInterface};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
     decode::BodyDecoding, verification::SourceVerification,
@@ -38,8 +40,6 @@ pub(crate) mod headers {
     pub(crate) const CONTENT_TYPE: &str = "Content-Type";
     pub(crate) const AUTHORIZATION: &str = "Authorization";
 }
-
-pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
 
 macros::create_all_prerequisites!(
     connector_name: Gigadat,
@@ -379,7 +379,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth_header.into(),
+            auth_header.into_masked(),
         )])
     }
 

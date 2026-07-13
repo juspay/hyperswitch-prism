@@ -4,7 +4,7 @@ use common_enums::{Currency, PayoutStatus};
 use common_utils::{collect_missing_value_keys, id_type, types::FloatMajorUnit};
 use domain_types::{
     connector_flow::{PayoutCreate, PayoutGet, PayoutStage, PayoutTransfer},
-    errors::{ConnectorError, IntegrationError},
+    errors::{ConnectorError, IntegrationError, ResponseTransformationErrorContext},
     payment_method_data::PaymentMethodDataTypes,
     payouts::payouts_types::{
         PayoutCreateRequest, PayoutCreateResponse, PayoutFlowData, PayoutGetRequest,
@@ -14,13 +14,12 @@ use domain_types::{
     router_data_v2::RouterDataV2,
 };
 use error_stack::{Report, ResultExt};
-use hyperswitch_masking::{PeekInterface, Secret};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::GigadatPayoutsRouterData;
 use crate::types::ResponseRouterData;
 
-// Shared with the payments-side connector: same connector config and API conventions.
 pub use crate::connectors::gigadat::transformers::{
     GigadatAuthType, GigadatErrorResponse, GigadatTransactionType,
 };
@@ -90,18 +89,19 @@ impl TryFrom<ResponseRouterData<GigadatPayoutTransferResponse, Self>>
     fn try_from(
         item: ResponseRouterData<GigadatPayoutTransferResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = &item.response;
-        let router_data = &item.router_data;
+        let ResponseRouterData {
+            response,
+            mut router_data,
+            http_code,
+        } = item;
 
-        Ok(Self {
-            response: Ok(PayoutTransferResponse {
-                merchant_payout_id: None,
-                payout_status: PayoutStatus::from(response.status.clone()),
-                connector_payout_id: Some(response.data.transaction_id.clone()),
-                status_code: item.http_code,
-            }),
-            ..router_data.clone()
-        })
+        router_data.response = Ok(PayoutTransferResponse {
+            merchant_payout_id: None,
+            payout_status: PayoutStatus::from(response.status),
+            connector_payout_id: Some(response.data.transaction_id),
+            status_code: http_code,
+        });
+        Ok(router_data)
     }
 }
 
@@ -119,18 +119,19 @@ impl TryFrom<ResponseRouterData<GigadatPayoutSyncResponse, Self>>
     fn try_from(
         item: ResponseRouterData<GigadatPayoutSyncResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = &item.response;
-        let router_data = &item.router_data;
+        let ResponseRouterData {
+            response,
+            mut router_data,
+            http_code,
+        } = item;
 
-        Ok(Self {
-            response: Ok(PayoutGetResponse {
-                merchant_payout_id: None,
-                payout_status: PayoutStatus::from(response.status.clone()),
-                connector_payout_id: None,
-                status_code: item.http_code,
-            }),
-            ..router_data.clone()
-        })
+        router_data.response = Ok(PayoutGetResponse {
+            merchant_payout_id: None,
+            payout_status: PayoutStatus::from(response.status),
+            connector_payout_id: router_data.request.connector_payout_id.clone(),
+            status_code: http_code,
+        });
+        Ok(router_data)
     }
 }
 
@@ -143,18 +144,19 @@ impl TryFrom<ResponseRouterData<GigadatPayoutCreateResponse, Self>>
     fn try_from(
         item: ResponseRouterData<GigadatPayoutCreateResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = &item.response;
-        let router_data = &item.router_data;
+        let ResponseRouterData {
+            response,
+            mut router_data,
+            http_code,
+        } = item;
 
-        Ok(Self {
-            response: Ok(PayoutCreateResponse {
-                merchant_payout_id: None,
-                payout_status: PayoutStatus::from(response.status.clone()),
-                connector_payout_id: Some(response.data.transaction_id.clone()),
-                status_code: item.http_code,
-            }),
-            ..router_data.clone()
-        })
+        router_data.response = Ok(PayoutCreateResponse {
+            merchant_payout_id: None,
+            payout_status: PayoutStatus::from(response.status),
+            connector_payout_id: Some(response.data.transaction_id),
+            status_code: http_code,
+        });
+        Ok(router_data)
     }
 }
 
@@ -200,6 +202,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             T,
         >,
     ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
         let auth = GigadatAuthType::try_from(&item.router_data.connector_config)?;
 
         let site = auth.site.ok_or_else(|| {
@@ -212,75 +215,43 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let amount = item
             .connector
             .amount_converter
-            .convert(
-                item.router_data.request.amount,
-                item.router_data.request.destination_currency,
-            )
+            .convert(request.amount, request.destination_currency)
             .change_context(IntegrationError::AmountConversionFailed {
                 context: Default::default(),
             })?;
 
         let missing_fields = collect_missing_value_keys!(
-            ("email", item.router_data.request.email.as_ref()),
-            ("name", item.router_data.request.name.as_ref()),
-            ("mobile", item.router_data.request.mobile.as_ref()),
-            ("user_ip", item.router_data.request.user_ip.as_ref())
+            ("customer.id", request.customer_id.as_ref()),
+            ("email", request.email.as_ref()),
+            ("name", request.name.as_ref()),
+            ("mobile", request.mobile.as_ref()),
+            ("user_ip", request.user_ip.as_ref())
         );
 
-        if !missing_fields.is_empty() {
+        let (Some(customer_id), Some(email), Some(name), Some(mobile), Some(user_ip)) = (
+            request.customer_id.clone(),
+            request.email.clone(),
+            request.name.clone(),
+            request.mobile.clone(),
+            request.user_ip.clone(),
+        ) else {
             return Err(IntegrationError::MissingRequiredFields {
                 field_names: missing_fields,
                 context: Default::default(),
             }
             .into());
-        }
+        };
 
-        let email =
-            item.router_data
-                .request
-                .email
-                .clone()
-                .ok_or(IntegrationError::InvariantViolation(
-                    "email should be present after validation",
-                ))?;
-        let name =
-            item.router_data
-                .request
-                .name
-                .clone()
-                .ok_or(IntegrationError::InvariantViolation(
-                    "name should be present after validation",
-                ))?;
-        let mobile =
-            item.router_data
-                .request
-                .mobile
-                .clone()
-                .ok_or(IntegrationError::InvariantViolation(
-                    "mobile should be present after validation",
-                ))?;
-        let user_ip = item.router_data.request.user_ip.clone().ok_or(
-            IntegrationError::InvariantViolation("user_ip should be present after validation"),
-        )?;
-
-        let customer_id = id_type::CustomerId::try_from(std::borrow::Cow::from(
-            item.router_data
-                .resource_common_data
-                .merchant_id
-                .get_string_repr()
-                .to_owned(),
-        ))
-        .change_context(IntegrationError::InvalidDataFormat {
-            field_name: "customer_id",
-            context: Default::default(),
-        })?;
-
-        let sandbox = auth.test_mode.unwrap_or(true);
+        let sandbox = item
+            .router_data
+            .resource_common_data
+            .test_mode
+            .unwrap_or(false);
 
         Ok(Self {
             amount,
             campaign: auth.campaign_id,
-            currency: item.router_data.request.destination_currency,
+            currency: request.destination_currency,
             email,
             mobile,
             name,
@@ -307,27 +278,33 @@ impl TryFrom<ResponseRouterData<GigadatPayoutStageResponse, Self>>
     fn try_from(
         item: ResponseRouterData<GigadatPayoutStageResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        let response = &item.response;
-        let router_data = &item.router_data;
+        let ResponseRouterData {
+            response,
+            mut router_data,
+            http_code,
+        } = item;
 
-        let connector_metadata = serde_json::json!({
-            "token": response.token.peek().clone()
-        });
-        let connector_metadata_string = connector_metadata.to_string();
-
-        Ok(Self {
-            response: Ok(PayoutStageResponse {
-                merchant_payout_id: None,
-                payout_status: None,
-                connector_payout_id: Some(response.data.transaction_id.clone()),
-                status_code: item.http_code,
-                connector_metadata: Some(connector_metadata_string.clone()),
-            }),
-            resource_common_data: PayoutFlowData {
-                raw_connector_response: Some(Secret::new(connector_metadata_string)),
-                ..router_data.resource_common_data.clone()
-            },
-            ..router_data.clone()
+        let connector_metadata = serde_json::to_string(&GigadatPayoutMeta {
+            token: response.token.clone(),
         })
+        .change_context(ConnectorError::ResponseHandlingFailed {
+            context: ResponseTransformationErrorContext {
+                http_status_code: Some(http_code),
+                additional_context: Some(
+                    "Failed to serialize Gigadat staged-payout token metadata".to_owned(),
+                ),
+            },
+        })?;
+
+        router_data.resource_common_data.raw_connector_response =
+            Some(Secret::new(connector_metadata.clone()));
+        router_data.response = Ok(PayoutStageResponse {
+            merchant_payout_id: None,
+            payout_status: None,
+            connector_payout_id: Some(response.data.transaction_id),
+            status_code: http_code,
+            connector_metadata: Some(Secret::new(connector_metadata)),
+        });
+        Ok(router_data)
     }
 }

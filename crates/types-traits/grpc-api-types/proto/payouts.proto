@@ -314,6 +314,8 @@ message PayoutServiceTransferRequest {
   optional SourceBankData source_bank_data = 14;
   // Description of the payout
   optional string description = 15;
+  // Connector-specific feature data (e.g. staged-payout token) echoed back from earlier flows
+  optional SecretString connector_feature_data = 16;
 }
 
 // Response message for transferring a payout
@@ -361,7 +363,7 @@ message PayoutServiceStageResponse {
   // HTTP status code from the connector
   uint32 status_code = 5;
   // Connector metadata (contains token for subsequent PayoutCreate)
-  optional string connector_metadata = 6;
+  optional SecretString connector_metadata = 6;
 }
 
 // Request message for fetching a payout

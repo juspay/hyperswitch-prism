@@ -32,7 +32,7 @@ impl
             connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
-            raw_connector_response: None,
+            raw_connector_response: value.connector_feature_data.clone(),
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
@@ -1278,11 +1278,42 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
         };
 
         use hyperswitch_masking::ExposeInterface;
+        let customer_id = value
+            .customer
+            .as_ref()
+            .and_then(|customer| customer.id.clone())
+            .map(|id| {
+                common_utils::id_type::CustomerId::try_from(std::borrow::Cow::from(id))
+                    .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "customer.id",
+                        context: IntegrationErrorContext {
+                            additional_context: Some(
+                                "Failed to parse customer id as a valid CustomerId".to_owned(),
+                            ),
+                            suggested_action: Some(
+                                "Ensure the customer id is a valid non-empty string".to_owned(),
+                            ),
+                            doc_url: None,
+                        },
+                    })
+            })
+            .transpose()?;
         let email = value
             .customer
             .as_ref()
             .and_then(|customer| customer.email.clone())
-            .and_then(|email| common_utils::pii::Email::try_from(email.expose()).ok());
+            .map(|email| {
+                common_utils::pii::Email::try_from(email.expose()).change_context(
+                    IntegrationError::InvalidDataFormat {
+                        field_name: "customer.email",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Invalid email format".to_owned()),
+                            ..Default::default()
+                        },
+                    },
+                )
+            })
+            .transpose()?;
         let name = value
             .customer
             .as_ref()
@@ -1307,6 +1338,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceStageRequest>
             amount: common_utils::types::MinorUnit::new(amount.minor_amount),
             source_currency,
             destination_currency,
+            customer_id,
             email,
             name,
             mobile: phone,
@@ -1536,7 +1568,7 @@ impl
             connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
-            raw_connector_response: None,
+            raw_connector_response: value.connector_feature_data.clone(),
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {
@@ -1618,7 +1650,7 @@ impl
             connector_request_reference_id: crate::utils::extract_connector_request_reference_id(
                 &value.merchant_payout_id,
             ),
-            raw_connector_response: None,
+            raw_connector_response: value.connector_feature_data.clone(),
             connector_response_headers: None,
             raw_connector_request: None,
             access_token: value.access_token.map(|token| {

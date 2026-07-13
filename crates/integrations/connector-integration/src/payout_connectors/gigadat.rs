@@ -7,7 +7,13 @@ use crate::types::ResponseRouterData;
 use crate::with_error_response_body;
 use base64::Engine;
 use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt, FloatMajorUnit};
+use common_utils::{
+    consts::{BASE64_ENGINE, NO_ERROR_CODE},
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+    FloatMajorUnit,
+};
 use domain_types::{
     connector_flow::{
         PayoutCreate, PayoutGet, PayoutStage, PayoutTransfer, ServerAuthenticationToken,
@@ -29,7 +35,7 @@ use domain_types::{
     types::Connectors,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::{Maskable, PeekInterface, Secret};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface, Secret};
 use interfaces::{
     api::ConnectorCommon,
     connector_integration_v2::ConnectorIntegrationV2,
@@ -79,14 +85,11 @@ fn get_psp_token_from_payout_method_data(
 ) -> CustomResult<Secret<String>, IntegrationError> {
     payout_method_data
         .as_ref()
-        .and_then(|pmd| {
-            if let domain_types::payouts::payout_method_data::PayoutMethodData::Passthrough(pt) =
-                pmd
-            {
+        .and_then(|pmd| match pmd {
+            domain_types::payouts::payout_method_data::PayoutMethodData::Passthrough(pt) => {
                 Some(pt.psp_token.clone())
-            } else {
-                None
             }
+            _ => None,
         })
         .ok_or_else(|| {
             IntegrationError::MissingRequiredField {
@@ -100,18 +103,19 @@ fn get_psp_token_from_payout_method_data(
 fn get_psp_token_from_raw_response(
     raw_connector_response: &Option<Secret<String>>,
 ) -> CustomResult<Secret<String>, IntegrationError> {
-    raw_connector_response
-        .as_ref()
-        .map(|s| s.peek().clone())
-        .and_then(|s| serde_json::from_str::<GigadatPayoutMeta>(&s).ok())
-        .map(|meta| meta.token)
-        .ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
-                field_name: "psp_token (from raw_connector_response)",
+    match raw_connector_response {
+        Some(raw) => serde_json::from_str::<GigadatPayoutMeta>(raw.peek())
+            .map(|meta| meta.token)
+            .change_context(IntegrationError::InvalidDataFormat {
+                field_name: "raw_connector_response (expected staged-payout token json)",
                 context: Default::default(),
-            }
-            .into()
-        })
+            }),
+        None => Err(IntegrationError::MissingRequiredField {
+            field_name: "psp_token (from raw_connector_response)",
+            context: Default::default(),
+        }
+        .into()),
+    }
 }
 
 pub(crate) mod headers {
@@ -119,7 +123,7 @@ pub(crate) mod headers {
     pub(crate) const AUTHORIZATION: &str = "Authorization";
 }
 
-pub const BASE64_ENGINE: base64::engine::GeneralPurpose = base64::engine::general_purpose::STANDARD;
+const MAX_ERROR_BODY_LENGTH: usize = 1024;
 
 macros::create_all_prerequisites!(
     connector_name: GigadatPayouts,
@@ -436,7 +440,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             },
         )?;
 
-        // Build Basic Auth: base64(access_token:security_token)
         let auth_key = format!(
             "{}:{}",
             auth.access_token.peek(),
@@ -446,7 +449,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
-            auth_header.into(),
+            auth_header.into_masked(),
         )])
     }
 
@@ -462,8 +465,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
             .parse_struct::<gigadat::GigadatErrorResponse>("GigadatErrorResponse")
             .map(|parsed| parsed.err)
             .unwrap_or_else(|_| {
-                // Fall back to treating response as plain text
-                String::from_utf8_lossy(&res.response).to_string()
+                // Fall back to treating response as bounded plain text
+                String::from_utf8_lossy(&res.response)
+                    .chars()
+                    .take(MAX_ERROR_BODY_LENGTH)
+                    .collect()
             });
 
         let response = gigadat::GigadatErrorResponse {
@@ -472,16 +478,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
 
         with_error_response_body!(event_builder, response);
 
-        // Check for specific Gigadat error message
-        let is_duplicate_error =
-            error_message.eq_ignore_ascii_case("Transaction already in progress or completed");
-
-        // Transaction exists and is either in progress or completed; the caller
-        // should initiate a sync to get the actual status.
-        let code = if is_duplicate_error {
-            "ALREADY_EXISTS".to_string()
-        } else {
-            error_message.clone()
+        let code = match error_message
+            .eq_ignore_ascii_case("Transaction already in progress or completed")
+        {
+            true => "ALREADY_EXISTS".to_string(),
+            false => NO_ERROR_CODE.to_string(),
         };
 
         Ok(ErrorResponse {
