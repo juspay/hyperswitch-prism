@@ -2365,18 +2365,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
-        // On A0002 (partial approval) TSYS returns the actually approved
-        // value in <processedAmount>. Forward it as MinorUnit so the core
-        // can reconcile the partial capture/authorization against the
-        // requested amount; for the fully-approved A0000 case this is also
-        // harmless to populate.
-        let minor_amount_captured = body.processed_amount.as_ref().and_then(|amount| {
-            crate::connectors::tsys_transit::TsysTransitAmountConvertor::convert_back(
-                amount.clone(),
-                router_data.request.currency,
-            )
-            .ok()
-        });
+        // <processedAmount> reflects settled funds, so amount_captured must be
+        // populated ONLY when the transaction actually captured: a Sale (Charged)
+        // or a partial approval (PartialCharged). For an auth-only (Authorized)
+        // manual-capture flow nothing is captured yet — populating it there made
+        // HS record amount_received == amount at authorization, pushing later
+        // voids/captures into a wrong partially-captured state.
+        let is_settled = matches!(
+            status,
+            AttemptStatus::Charged | AttemptStatus::PartialCharged
+        );
+        let minor_amount_captured = is_settled
+            .then(|| {
+                body.processed_amount.as_ref().and_then(|amount| {
+                    crate::connectors::tsys_transit::TsysTransitAmountConvertor::convert_back(
+                        amount.clone(),
+                        router_data.request.currency,
+                    )
+                    .ok()
+                })
+            })
+            .flatten();
         let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
