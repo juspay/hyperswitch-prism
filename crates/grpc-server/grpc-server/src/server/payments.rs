@@ -1739,15 +1739,9 @@ impl PaymentService for Payments {
         request: tonic::Request<PaymentServiceTokenAuthorizeRequest>,
     ) -> Result<tonic::Response<PaymentServiceAuthorizeResponse>, tonic::Status> {
         info!("TOKEN_AUTHORIZE_FLOW: initiated");
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PaymentService".to_string());
         let (metadata, extensions, payload) = request.into_parts();
-        let mut inner_request =
+        let inner_request =
             tonic::Request::from_parts(metadata, extensions, tokenized_authorize_to_base(payload));
-        inner_request.extensions_mut().insert(service_name);
 
         <Self as PaymentService>::authorize(self, inner_request).await
     }
@@ -1769,18 +1763,12 @@ impl PaymentService for Payments {
         request: tonic::Request<PaymentServiceTokenSetupRecurringRequest>,
     ) -> Result<tonic::Response<PaymentServiceSetupRecurringResponse>, tonic::Status> {
         info!("TOKEN_SETUP_RECURRING_FLOW: initiated");
-        let service_name = request
-            .extensions()
-            .get::<String>()
-            .cloned()
-            .unwrap_or_else(|| "PaymentService".to_string());
         let (metadata, extensions, payload) = request.into_parts();
-        let mut inner_request = tonic::Request::from_parts(
+        let inner_request = tonic::Request::from_parts(
             metadata,
             extensions,
             tokenized_setup_recurring_to_base(payload),
         );
-        inner_request.extensions_mut().insert(service_name);
 
         <Self as PaymentService>::setup_recurring(self, inner_request).await
     }
