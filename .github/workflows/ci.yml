@@ -57,7 +57,6 @@ jobs:
       any-rs: ${{ steps.filter.outputs.any-rs }}
       ci: ${{ steps.filter.outputs.ci }}
       connector-names: ${{ steps.connector-names.outputs.list }}
-      kafka-connector: ${{ steps.filter.outputs.kafka-connector }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -110,13 +109,6 @@ jobs:
               - '**/*.rs'
             ci:
               - '.github/**'
-            kafka-connector:
-              - 'crates/integrations/connector-integration/src/connectors/absa_sanlam.rs'
-              - 'crates/integrations/connector-integration/src/connectors/sanlam_common/**'
-              - 'crates/common/external-services/src/service.rs'
-              - 'crates/common/connector_request_kafka/**'
-              - 'crates/grpc-server/grpc-server/tests/absa_sanlam_payment_flows_test.rs'
-
       - name: Extract changed connector names
         id: connector-names
         if: steps.filter.outputs.connector == 'true'
@@ -550,6 +542,7 @@ jobs:
             done
             echo "🔍 Connector-only PR — scoping tests to: $CONNECTOR_NAMES"
             cargo nextest run \
+              --features grpc-server/connector-request-kafka \
               --config-file .nextest.toml \
               --profile ci \
               --no-tests=warn \
@@ -557,100 +550,11 @@ jobs:
           else
             echo "🔍 Running full test suite (event=$EVENT)"
             cargo nextest run \
+              --features grpc-server/connector-request-kafka \
               --config-file .nextest.toml \
               --profile ci \
               -E "$SCHEMA_EXCLUDE"
           fi
-
-  kafka-connector-tests:
-    name: Kafka Connector Tests
-    needs: [changes, auto-fix]
-    if: >-
-      !github.event.pull_request.draft &&
-      (success() || needs.auto-fix.result == 'skipped') &&
-      needs.auto-fix.outputs.pushed != 'true' &&
-      needs.changes.outputs.kafka-connector == 'true' &&
-      (github.event_name == 'push' ||
-       github.event_name == 'merge_group' ||
-       (github.event_name == 'pull_request' &&
-        github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name))
-    runs-on: ubuntu-latest
-
-    services:
-      kafka:
-        image: apache/kafka:3.9.0
-        ports:
-          - 9092:9092
-        env:
-          KAFKA_NODE_ID: 1
-          KAFKA_PROCESS_ROLES: broker,controller
-          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:29093
-          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:29093
-          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
-          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
-          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
-        options: >-
-          --health-cmd "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list"
-          --health-start-period 10s
-          --health-interval 2s
-          --health-timeout 5s
-          --health-retries 30
-
-    env:
-      RUSTFLAGS: "-D warnings"
-      CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
-      CARGO_PROFILE_TEST_DEBUG: "line-tables-only"
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: Swatinem/rust-cache@v2.7.8
-        with:
-          shared-key: "ci-rust"
-
-      - name: Install nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: nextest
-          checksum: true
-
-      - name: Create Kafka topics
-        shell: bash
-        run: |
-          docker exec "${{ job.services.kafka.id }}" /opt/kafka/bin/kafka-topics.sh \
-            --bootstrap-server localhost:9092 \
-            --create \
-            --if-not-exists \
-            --topic dev_payments_queue \
-            --partitions 1 \
-            --replication-factor 1
-
-      - name: Run Kafka connector tests
-        shell: bash
-        run: |
-          cargo nextest run \
-            -p grpc-server \
-            --features grpc-server/connector-request-kafka \
-            --test absa_sanlam_payment_flows_test \
-            --config-file .nextest.toml \
-            --profile ci
 
   # ── SDK Tests (FFI + gRPC) ────────────────────────────────────────────────
   # Builds all SDK binaries then runs gRPC tests first, followed by FFI tests
@@ -816,7 +720,7 @@ jobs:
   ci-gate:
     name: CI Result
     if: always()
-    needs: [typos, clippy, formatting, auto-fix, check, test, kafka-connector-tests, sdk-test]
+    needs: [typos, clippy, formatting, auto-fix, check, test, sdk-test]
     runs-on: ubuntu-latest
     steps:
       - name: Evaluate CI results
@@ -828,7 +732,6 @@ jobs:
           echo "  auto-fix:      ${{ needs.auto-fix.result }}"
           echo "  check:         ${{ needs.check.result }}"
           echo "  test:          ${{ needs.test.result }}"
-          echo "  kafka-connector-tests: ${{ needs.kafka-connector-tests.result }}"
           echo "  sdk-test:      ${{ needs.sdk-test.result }}"
           echo "  auto-fix pushed: ${{ needs.auto-fix.outputs.pushed }}"
           echo ""
@@ -847,7 +750,6 @@ jobs:
             "${{ needs.auto-fix.result }}"
             "${{ needs.check.result }}"
             "${{ needs.test.result }}"
-            "${{ needs.kafka-connector-tests.result }}"
             "${{ needs.sdk-test.result }}"
           )
           for result in "${results[@]}"; do

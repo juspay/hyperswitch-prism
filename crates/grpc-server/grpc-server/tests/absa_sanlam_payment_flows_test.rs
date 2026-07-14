@@ -3,23 +3,19 @@
 #![allow(clippy::panic)]
 #![allow(clippy::unwrap_used)]
 
-use std::time::{Duration, Instant};
+use std::sync::{Arc, Mutex};
 
+use common_utils::request::{KafkaRecord, RequestContent};
+use connector_request_kafka::{KafkaPublishResult, KafkaPublisher};
+use domain_types::router_response_types::Response;
 use grpc_api_types::payments::{
     payment_method, payment_service_client::PaymentServiceClient, AuthenticationType, BankNames,
     BankType, BillingDescriptor, Currency, Eft, Money, PaymentAddress, PaymentMethod,
     PaymentServiceAuthorizeRequest, PaymentStatus,
 };
 use grpc_server::app;
-use hyperswitch_masking::Secret;
-use rdkafka::{
-    config::ClientConfig,
-    consumer::{Consumer, StreamConsumer},
-    message::{BorrowedHeaders, Headers, Message},
-};
-use serde_json::Value;
-use serial_test::serial;
-use tokio::time::timeout;
+use hyperswitch_masking::{ExposeInterface, Secret};
+use serde_json::{json, Value};
 use tonic::{transport::Channel, Request};
 use ucs_env::configs;
 use uuid::Uuid;
@@ -27,7 +23,6 @@ use uuid::Uuid;
 mod common;
 
 const CONNECTOR_NAME: &str = "absa_sanlam";
-const KAFKA_BROKER: &str = "localhost:9092";
 const TEST_API_KEY: &str = "test_absa_sanlam_api_key";
 const TEST_MERCHANT_ID: &str = "test_absa_sanlam_merchant";
 const TEST_ACCOUNT_NUMBER: &str = "12345678910";
@@ -35,83 +30,52 @@ const TEST_BRANCH_CODE: &str = "632005";
 const TEST_ACCOUNT_HOLDER: &str = "Sanlam Test User";
 const TEST_AMOUNT: i64 = 1250;
 
-fn kafka_consumer() -> StreamConsumer {
-    ClientConfig::new()
-        .set("bootstrap.servers", KAFKA_BROKER)
-        .set(
-            "group.id",
-            format!("absa-sanlam-authorize-test-{}", Uuid::new_v4()),
-        )
-        .set("auto.offset.reset", "earliest")
-        .set("enable.auto.commit", "false")
-        .set("enable.partition.eof", "false")
-        .set("session.timeout.ms", "6000")
-        .create()
-        .expect("Failed to create Kafka consumer")
+#[derive(Clone, Default)]
+struct RecordingPublisher {
+    records: Arc<Mutex<Vec<KafkaRecord>>>,
 }
 
-fn kafka_header_value(headers: &BorrowedHeaders, key: &str) -> Option<String> {
-    (0..headers.count()).find_map(|index| {
-        let header = headers.get(index);
-        (header.key == key).then(|| {
-            header
-                .value
-                .map(|value| String::from_utf8_lossy(value).to_string())
-                .unwrap_or_default()
-        })
-    })
-}
+#[tonic::async_trait]
+impl KafkaPublisher for RecordingPublisher {
+    async fn publish(&self, record: KafkaRecord) -> KafkaPublishResult {
+        let topic = record.topic.clone();
+        self.records
+            .lock()
+            .expect("Recording publisher lock should not be poisoned")
+            .push(record);
 
-async fn consume_authorize_message(
-    consumer: &StreamConsumer,
-    merchant_transaction_id: &str,
-) -> Value {
-    let deadline = Instant::now() + Duration::from_secs(20);
-
-    loop {
-        let now = Instant::now();
-        assert!(
-            now < deadline,
-            "Timed out waiting for Kafka authorize message"
-        );
-
-        let remaining = deadline.saturating_duration_since(now);
-        let message = timeout(remaining, consumer.recv())
-            .await
-            .expect("Timed out waiting for Kafka message")
-            .expect("Failed to consume Kafka message");
-
-        let payload = message
-            .payload_view::<str>()
-            .expect("Kafka message should have a payload")
-            .expect("Kafka payload should be valid UTF-8");
-
-        let payload: Value =
-            serde_json::from_str(payload).expect("Kafka payload should be valid JSON");
-
-        if payload
-            .get("user_reference")
-            .and_then(Value::as_str)
-            .is_some_and(|user_reference| user_reference == merchant_transaction_id)
-        {
-            let headers = message
-                .headers()
-                .expect("Kafka message should include headers");
-            assert_eq!(
-                kafka_header_value(headers, "Authorization").as_deref(),
-                Some(TEST_API_KEY)
-            );
-            assert_eq!(
-                kafka_header_value(headers, "Merchant-Id").as_deref(),
-                Some(TEST_MERCHANT_ID)
-            );
-            assert_eq!(
-                kafka_header_value(headers, "Content-Type").as_deref(),
-                Some("application/json")
-            );
-            return payload;
-        }
+        Ok(Ok(Response {
+            headers: None,
+            response: json!({ "status": "queued", "topic": topic })
+                .to_string()
+                .into_bytes()
+                .into(),
+            status_code: 200,
+        }))
     }
+}
+
+fn kafka_header_value(record: &KafkaRecord, key: &str) -> Option<String> {
+    record
+        .headers
+        .iter()
+        .find_map(|(header_key, header_value)| {
+            (header_key == key).then(|| header_value.clone().into_inner())
+        })
+}
+
+fn kafka_payload_json(record: &KafkaRecord) -> Value {
+    let payload = match record.payload.as_ref() {
+        Some(
+            ref content @ (RequestContent::Json(_)
+            | RequestContent::FormUrlEncoded(_)
+            | RequestContent::Xml(_)),
+        ) => content.get_inner_value().expose().into_bytes(),
+        Some(RequestContent::RawBytes(bytes)) => bytes.to_vec(),
+        Some(RequestContent::FormData(_)) => panic!("Kafka payload should not be form data"),
+        None => Vec::new(),
+    };
+    serde_json::from_slice(&payload).expect("Failed to parse Kafka payload as JSON")
 }
 
 fn add_absa_sanlam_metadata<T>(request: &mut Request<T>) {
@@ -179,27 +143,21 @@ fn create_authorize_request(merchant_transaction_id: &str) -> PaymentServiceAuth
     }
 }
 
-fn set_kafka_config_env() {
-    std::env::set_var("CS__CONNECTOR_REQUEST_KAFKA__ENABLED", "true");
-    std::env::set_var("CS__CONNECTOR_REQUEST_KAFKA__BROKERS", KAFKA_BROKER);
-}
-
 fn default_absa_sanlam_topic() -> String {
     let config = configs::Config::new().expect("Failed while parsing config");
     format!("{}_payments_queue", config.connectors.absa_sanlam.base_url)
 }
 
 #[tokio::test]
-#[serial]
 async fn test_absa_sanlam_authorize_publishes_eft_debit_to_kafka() {
     let merchant_transaction_id = format!("absa_sanlam_authorize_{}", Uuid::new_v4().simple());
     let topic = default_absa_sanlam_topic();
+    let publisher = RecordingPublisher::default();
 
-    set_kafka_config_env();
-    let consumer = kafka_consumer();
-    consumer
-        .subscribe(&[topic.as_str()])
-        .expect("Failed to subscribe to Kafka topic");
+    assert!(
+        connector_request_kafka::set_publisher(Arc::new(publisher.clone())),
+        "Kafka publisher should be installed once for this test binary"
+    );
 
     grpc_test!(client, PaymentServiceClient<Channel>, {
         let mut request = Request::new(create_authorize_request(&merchant_transaction_id));
@@ -213,7 +171,32 @@ async fn test_absa_sanlam_authorize_publishes_eft_debit_to_kafka() {
         assert_eq!(response.status, i32::from(PaymentStatus::Pending));
         assert_eq!(response.status_code, 200);
 
-        let payload = consume_authorize_message(&consumer, &merchant_transaction_id).await;
+        let records = publisher
+            .records
+            .lock()
+            .expect("Recording publisher lock should not be poisoned");
+        assert_eq!(records.len(), 1, "Expected one Kafka record");
+
+        let record = records.first().expect("Expected Kafka record");
+        assert_eq!(record.topic, topic);
+        assert_eq!(
+            kafka_header_value(record, "Authorization").as_deref(),
+            Some(TEST_API_KEY)
+        );
+        assert_eq!(
+            kafka_header_value(record, "Merchant-Id").as_deref(),
+            Some(TEST_MERCHANT_ID)
+        );
+        assert_eq!(
+            kafka_header_value(record, "Content-Type").as_deref(),
+            Some("application/json")
+        );
+
+        let payload = kafka_payload_json(record);
+        assert_eq!(
+            payload.get("user_reference").and_then(Value::as_str),
+            Some(merchant_transaction_id.as_str())
+        );
         assert_eq!(
             payload.get("amount").and_then(Value::as_i64),
             Some(TEST_AMOUNT)
