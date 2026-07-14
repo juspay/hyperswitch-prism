@@ -112,6 +112,8 @@ let config = ConnectorConfig {
 | Flow (Service.RPC) | Category | gRPC Request Message |
 |--------------------|----------|----------------------|
 | [PaymentService.Get](#paymentserviceget) | Payments | `PaymentServiceGetRequest` |
+| [EventService.HandleEvent](#eventservicehandleevent) | Events | `EventServiceHandleRequest` |
+| [EventService.ParseEvent](#eventserviceparseevent) | Events | `EventServiceParseRequest` |
 | [RecurringPaymentService.Charge](#recurringpaymentservicecharge) | Mandates | `RecurringPaymentServiceChargeRequest` |
 | [PaymentService.Refund](#paymentservicerefund) | Payments | `PaymentServiceRefundRequest` |
 | [RefundService.Get](#refundserviceget) | Refunds | `RefundServiceGetRequest` |
@@ -127,7 +129,7 @@ Retrieve current payment status from the payment processor. Enables synchronizat
 | **Request** | `PaymentServiceGetRequest` |
 | **Response** | `PaymentServiceGetResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L94) · [Kotlin](../../examples/givepayments/givepayments.kt#L65) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L119) · [Kotlin](../../examples/givepayments/givepayments.kt#L67) · [Rust](../../examples/givepayments/givepayments.rs)
 
 #### PaymentService.Refund
 
@@ -138,7 +140,7 @@ Process a partial or full refund for a captured payment. Returns funds to the cu
 | **Request** | `PaymentServiceRefundRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L112) · [Kotlin](../../examples/givepayments/givepayments.kt#L118) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L155) · [Kotlin](../../examples/givepayments/givepayments.kt#L151) · [Rust](../../examples/givepayments/givepayments.rs)
 
 ### Refunds
 
@@ -151,7 +153,7 @@ Retrieve refund status from the payment processor. Tracks refund progress throug
 | **Request** | `RefundServiceGetRequest` |
 | **Response** | `RefundResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L121) · [Kotlin](../../examples/givepayments/givepayments.kt#L128) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L164) · [Kotlin](../../examples/givepayments/givepayments.kt#L161) · [Rust](../../examples/givepayments/givepayments.rs)
 
 ### Mandates
 
@@ -164,4 +166,4 @@ Charge using an existing stored recurring payment instruction. Processes repeat 
 | **Request** | `RecurringPaymentServiceChargeRequest` |
 | **Response** | `RecurringPaymentServiceChargeResponse` |
 
-**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L103) · [Kotlin](../../examples/givepayments/givepayments.kt#L73) · [Rust](../../examples/givepayments/givepayments.rs)
+**Examples:** [Python](../../examples/givepayments/givepayments.py) · [TypeScript](../../examples/givepayments/givepayments.ts#L146) · [Kotlin](../../examples/givepayments/givepayments.kt#L106) · [Rust](../../examples/givepayments/givepayments.rs)

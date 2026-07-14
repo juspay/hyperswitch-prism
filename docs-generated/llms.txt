@@ -307,7 +307,7 @@ connector_id: givepayments
 doc: docs/connectors/givepayments.md
 scenarios: none
 payment_methods: none
-flows: get, recurring_charge, refund, refund_get
+flows: get, handle_event, parse_event, recurring_charge, refund, refund_get
 examples_python: none
 
 ## Globalpay
