@@ -25,14 +25,14 @@ struct KafkaProducer {
 pub type KafkaPublishResult = CustomResult<Result<Response, Response>, KafkaClientError>;
 
 #[async_trait::async_trait]
-pub trait KafkaPublisher: Send + Sync + 'static {
+pub trait KafkaPublish: Send + Sync + 'static {
     async fn publish(&self, kafka_record: KafkaRecord) -> KafkaPublishResult;
 }
 
-static KAFKA_PRODUCER: OnceCell<Arc<dyn KafkaPublisher>> = OnceCell::new();
+static PUBLISHER: OnceCell<Arc<dyn KafkaPublish>> = OnceCell::new();
 
-pub fn set_publisher(publisher: Arc<dyn KafkaPublisher>) -> bool {
-    KAFKA_PRODUCER.set(publisher).is_ok()
+pub fn set_publisher(publisher: Arc<dyn KafkaPublish>) -> bool {
+    PUBLISHER.set(publisher).is_ok()
 }
 
 pub fn init_kafka_producer(
@@ -91,7 +91,7 @@ pub fn init_kafka_producer(
 }
 
 pub async fn publish_to_kafka(kafka_record: KafkaRecord) -> KafkaPublishResult {
-    let publisher = KAFKA_PRODUCER
+    let publisher = PUBLISHER
         .get()
         .ok_or(KafkaClientError::ProducerNotInitialized)?;
 
@@ -99,7 +99,7 @@ pub async fn publish_to_kafka(kafka_record: KafkaRecord) -> KafkaPublishResult {
 }
 
 #[async_trait::async_trait]
-impl KafkaPublisher for KafkaProducer {
+impl KafkaPublish for KafkaProducer {
     async fn publish(&self, kafka_record: KafkaRecord) -> KafkaPublishResult {
         // Build OwnedHeaders from the KafkaRecord headers.
         let mut owned_headers = OwnedHeaders::new();
@@ -152,80 +152,6 @@ impl KafkaPublisher for KafkaProducer {
             delivery_result,
             &kafka_record.topic,
         ))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use rdkafka::message::Timestamp;
-    use serde_json::Value;
-
-    const TEST_TOPIC: &str = "test_payments_queue";
-
-    fn original_message() -> OwnedMessage {
-        OwnedMessage::new(
-            Some(b"{}".to_vec()),
-            None,
-            TEST_TOPIC.to_string(),
-            Timestamp::NotAvailable,
-            0,
-            0,
-            None,
-        )
-    }
-
-    fn response_body(response: &Response) -> Value {
-        serde_json::from_slice(&response.response)
-            .expect("Kafka synthetic response should be valid JSON")
-    }
-
-    #[test]
-    fn classify_kafka_delivery_result_returns_queued_response_for_ack() {
-        let response = classify_kafka_delivery_result(Ok((0, 42)), TEST_TOPIC)
-            .expect("Acknowledged Kafka delivery should be successful");
-
-        assert_eq!(response.status_code, 200);
-
-        let body = response_body(&response);
-        assert_eq!(body.get("status").and_then(Value::as_str), Some("queued"));
-        assert_eq!(body.get("topic").and_then(Value::as_str), Some(TEST_TOPIC));
-    }
-
-    #[test]
-    fn classify_kafka_delivery_result_maps_rejected_broker_errors_to_200() {
-        let response = classify_kafka_delivery_result(
-            Err((
-                KafkaError::MessageProduction(RDKafkaErrorCode::InvalidTopic),
-                original_message(),
-            )),
-            TEST_TOPIC,
-        )
-        .expect("Confirmed broker rejection should be returned as a successful response");
-
-        assert_eq!(response.status_code, 200);
-
-        let body = response_body(&response);
-        assert_eq!(body.get("status").and_then(Value::as_str), Some("rejected"));
-        assert_eq!(body.get("topic").and_then(Value::as_str), Some(TEST_TOPIC));
-    }
-
-    #[test]
-    fn classify_kafka_delivery_result_maps_unknown_errors_to_500() {
-        let response = classify_kafka_delivery_result(
-            Err((
-                KafkaError::MessageProduction(RDKafkaErrorCode::QueueFull),
-                original_message(),
-            )),
-            TEST_TOPIC,
-        )
-        .expect_err("Unknown Kafka delivery outcome should be returned as an error response");
-
-        assert_eq!(response.status_code, 500);
-
-        let body = response_body(&response);
-        assert_eq!(body.get("status").and_then(Value::as_str), Some("unknown"));
-        assert_eq!(body.get("topic").and_then(Value::as_str), Some(TEST_TOPIC));
     }
 }
 
@@ -309,5 +235,80 @@ fn classify_kafka_delivery_result(
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+    use rdkafka::message::Timestamp;
+    use serde_json::Value;
+
+    const TEST_TOPIC: &str = "test_payments_queue";
+
+    fn original_message() -> OwnedMessage {
+        OwnedMessage::new(
+            Some(b"{}".to_vec()),
+            None,
+            TEST_TOPIC.to_string(),
+            Timestamp::NotAvailable,
+            0,
+            0,
+            None,
+        )
+    }
+
+    fn response_body(response: &Response) -> Value {
+        serde_json::from_slice(&response.response)
+            .expect("Kafka synthetic response should be valid JSON")
+    }
+
+    #[test]
+    fn classify_kafka_delivery_result_returns_queued_response_for_ack() {
+        let response = classify_kafka_delivery_result(Ok((0, 42)), TEST_TOPIC)
+            .expect("Acknowledged Kafka delivery should be successful");
+
+        assert_eq!(response.status_code, 200);
+
+        let body = response_body(&response);
+        assert_eq!(body.get("status").and_then(Value::as_str), Some("queued"));
+        assert_eq!(body.get("topic").and_then(Value::as_str), Some(TEST_TOPIC));
+    }
+
+    #[test]
+    fn classify_kafka_delivery_result_maps_rejected_broker_errors_to_200() {
+        let response = classify_kafka_delivery_result(
+            Err((
+                KafkaError::MessageProduction(RDKafkaErrorCode::InvalidTopic),
+                original_message(),
+            )),
+            TEST_TOPIC,
+        )
+        .expect("Confirmed broker rejection should be returned as a successful response");
+
+        assert_eq!(response.status_code, 200);
+
+        let body = response_body(&response);
+        assert_eq!(body.get("status").and_then(Value::as_str), Some("rejected"));
+        assert_eq!(body.get("topic").and_then(Value::as_str), Some(TEST_TOPIC));
+    }
+
+    #[test]
+    fn classify_kafka_delivery_result_maps_unknown_errors_to_500() {
+        let response = classify_kafka_delivery_result(
+            Err((
+                KafkaError::MessageProduction(RDKafkaErrorCode::QueueFull),
+                original_message(),
+            )),
+            TEST_TOPIC,
+        )
+        .expect_err("Unknown Kafka delivery outcome should be returned as an error response");
+
+        assert_eq!(response.status_code, 500);
+
+        let body = response_body(&response);
+        assert_eq!(body.get("status").and_then(Value::as_str), Some("unknown"));
+        assert_eq!(body.get("topic").and_then(Value::as_str), Some(TEST_TOPIC));
     }
 }

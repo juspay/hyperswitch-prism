@@ -6,7 +6,7 @@
 use std::sync::{Arc, Mutex};
 
 use common_utils::request::{KafkaRecord, RequestContent};
-use connector_request_kafka::{KafkaPublishResult, KafkaPublisher};
+use connector_request_kafka::{KafkaPublish, KafkaPublishResult};
 use domain_types::router_response_types::Response;
 use grpc_api_types::payments::{
     payment_method, payment_service_client::PaymentServiceClient, AuthenticationType, BankNames,
@@ -36,7 +36,7 @@ struct RecordingPublisher {
 }
 
 #[tonic::async_trait]
-impl KafkaPublisher for RecordingPublisher {
+impl KafkaPublish for RecordingPublisher {
     async fn publish(&self, record: KafkaRecord) -> KafkaPublishResult {
         let topic = record.topic.clone();
         self.records
@@ -67,7 +67,7 @@ fn kafka_header_value(record: &KafkaRecord, key: &str) -> Option<String> {
 fn kafka_payload_json(record: &KafkaRecord) -> Value {
     let payload = match record.payload.as_ref() {
         Some(
-            ref content @ (RequestContent::Json(_)
+            content @ (RequestContent::Json(_)
             | RequestContent::FormUrlEncoded(_)
             | RequestContent::Xml(_)),
         ) => content.get_inner_value().expose().into_bytes(),
