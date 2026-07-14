@@ -3,7 +3,7 @@ use common_utils::{consts, pii, types::MinorUnit};
 use domain_types::{
     connector_flow::{Authorize, RSync, Refund, RepeatPayment},
     connector_types::{
-        MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
+        EventType, MandateReference, PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
         RepeatPaymentData, ResponseId,
     },
@@ -466,9 +466,9 @@ pub type GivepaymentsRefundResponseData =
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct GivepaymentsResponseData<S, P> {
-    id: String,
-    status: S,
-    processing_state: P,
+    pub id: String,
+    pub status: S,
+    pub processing_state: P,
     total_amount: MinorUnit,
     net_amount: MinorUnit,
     fee_amount: MinorUnit,
@@ -476,11 +476,11 @@ pub struct GivepaymentsResponseData<S, P> {
     reversal_status: Option<GivepaymentsReversalStatus>,
     billing_descriptor: Option<String>,
     description: Option<String>,
-    external_reference: Option<String>,
+    pub external_reference: Option<String>,
     metadata: Option<serde_json::Value>,
     #[serde(alias = "cancel_reason")]
     void_reason: Option<String>,
-    paymethod_token: Option<PayMethodTokenDetails>,
+    pub paymethod_token: Option<PayMethodTokenDetails>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -526,8 +526,8 @@ pub enum GivepaymentsRefundProcessingState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-struct PayMethodTokenDetails {
-    id: String,
+pub struct PayMethodTokenDetails {
+    pub id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -575,11 +575,11 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 .response
                 .paymethod_token
                 .as_ref()
-                .map(|data| Some(data.id.clone()));
+                .map(|data| data.id.clone());
 
             let mandate_reference = connector_mandate_id.map(|mandate_id| {
                 Box::new(MandateReference {
-                    connector_mandate_id: mandate_id,
+                    connector_mandate_id: Some(mandate_id),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
                     mandate_metadata: None,
@@ -880,6 +880,54 @@ impl TryFrom<ResponseRouterData<GivepaymentsRefundResponseData, Self>>
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GivepaymentsIncomingWebhookData {
+    id: String,
+    #[serde(rename = "type")]
+    pub event_type: GivepaymentsWebhookEventType,
+    pub data: GivepaymentsWebhookData,
+    merchant: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum GivepaymentsWebhookEventType {
+    #[serde(rename = "payment.created")]
+    PaymentCreated,
+    #[serde(rename = "payment.failed")]
+    PaymentFailed,
+    #[serde(rename = "payment.voided")]
+    PaymentVoided,
+    #[serde(rename = "payment.declined")]
+    PaymentDeclined,
+    #[serde(rename = "payment.authorized")]
+    PaymentAuthorized,
+    #[serde(rename = "payment.captured")]
+    PaymentCaptured,
+    #[serde(rename = "payment.settled")]
+    PaymentSettled,
+    #[serde(rename = "refund.created")]
+    RefundCreated,
+    #[serde(rename = "refund.pending")]
+    RefundPending,
+    #[serde(rename = "refund.failed")]
+    RefundFailed,
+    #[serde(rename = "refund.declined")]
+    RefundDeclined,
+    #[serde(rename = "refund.canceled")]
+    RefundCanceled,
+    #[serde(rename = "refund.approved")]
+    RefundApproved,
+    #[serde(rename = "refund.settled")]
+    RefundSettled,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", content = "object", rename_all = "snake_case")]
+pub enum GivepaymentsWebhookData {
+    Payment(GivepaymentsPaymentResponseData),
+    Refund(GivepaymentsRefundResponseData),
+}
+
 impl From<GivepaymentsPaymentProcessingState> for AttemptStatus {
     fn from(item: GivepaymentsPaymentProcessingState) -> Self {
         match item {
@@ -909,6 +957,33 @@ impl From<GivepaymentsRefundProcessingState> for RefundStatus {
             GivepaymentsRefundProcessingState::Failed
             | GivepaymentsRefundProcessingState::Declined
             | GivepaymentsRefundProcessingState::Canceled => Self::Failure,
+        }
+    }
+}
+
+impl From<GivepaymentsWebhookEventType> for EventType {
+    fn from(event_type: GivepaymentsWebhookEventType) -> Self {
+        match event_type {
+            GivepaymentsWebhookEventType::PaymentCreated
+            | GivepaymentsWebhookEventType::PaymentAuthorized => Self::PaymentIntentProcessing,
+
+            GivepaymentsWebhookEventType::PaymentFailed
+            | GivepaymentsWebhookEventType::PaymentDeclined => Self::PaymentIntentCaptureFailure,
+
+            GivepaymentsWebhookEventType::PaymentVoided => Self::PaymentIntentCancelled,
+
+            GivepaymentsWebhookEventType::PaymentCaptured
+            | GivepaymentsWebhookEventType::PaymentSettled => Self::PaymentIntentCaptureSuccess,
+
+            GivepaymentsWebhookEventType::RefundCreated
+            | GivepaymentsWebhookEventType::RefundPending => Self::RefundProcessing,
+
+            GivepaymentsWebhookEventType::RefundFailed
+            | GivepaymentsWebhookEventType::RefundDeclined
+            | GivepaymentsWebhookEventType::RefundCanceled => Self::RefundFailure,
+
+            GivepaymentsWebhookEventType::RefundApproved
+            | GivepaymentsWebhookEventType::RefundSettled => Self::RefundSuccess,
         }
     }
 }

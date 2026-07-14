@@ -2,13 +2,21 @@ pub mod transformers;
 
 use std::{self, fmt::Debug};
 
-use common_enums::CurrencyUnit;
-use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
+use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
+use common_utils::{
+    crypto::{self, VerifySignature},
+    errors::CustomResult,
+    events,
+    ext_traits::ByteSliceExt,
+};
 use domain_types::{
     connector_flow::{Authorize, PSync, RSync, Refund, RepeatPayment},
     connector_types::{
-        PaymentFlowData, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        ConnectorWebhookSecrets, EventContext, EventType, MandateReference, PaymentFlowData,
+        PaymentWebhookReference, PaymentsAuthorizeData, PaymentsResponseData, PaymentsSyncData,
+        RefundFlowData, RefundSyncData, RefundWebhookDetailsResponse, RefundWebhookReference,
+        RefundsData, RefundsResponseData, RepeatPaymentData, RequestDetails, ResponseId,
+        WebhookDetailsResponse, WebhookResourceReference,
     },
     errors,
     payment_method_data::PaymentMethodDataTypes,
@@ -17,6 +25,7 @@ use domain_types::{
     router_response_types::Response,
     types::Connectors,
 };
+use error_stack::report;
 use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use interfaces::{
     api::ConnectorCommon, connector_integration_v2::ConnectorIntegrationV2, connector_types,
@@ -24,13 +33,13 @@ use interfaces::{
 };
 use serde::Serialize;
 use transformers::{
-    self as givepayments, GivepaymentsPaymentResponseData,
+    self as givepayments, GivepaymentsIncomingWebhookData, GivepaymentsPaymentResponseData,
     GivepaymentsPaymentResponseData as GivepaymentsRepeatPaymentResponse,
     GivepaymentsPaymentResponseData as GivepaymentsPaymentSyncResponse,
     GivepaymentsPaymentsRequestData,
     GivepaymentsPaymentsRequestData as GivepaymentsRepeatPaymentRequest,
     GivepaymentsRefundRequestData, GivepaymentsRefundResponseData,
-    GivepaymentsRefundResponseData as GivepaymentsRefundSyncResponse,
+    GivepaymentsRefundResponseData as GivepaymentsRefundSyncResponse, GivepaymentsWebhookData,
 };
 
 use super::macros;
@@ -71,6 +80,212 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 {
     fn sample_webhook_body(&self) -> &'static [u8] {
         br#"{"id": "GS_EV_pmV0LOyQvHYnG1VNZD2QeE","created_at": "1661990400","type": "payment.captured","data": { "type": "payment", "object": { "id": "GS_TXN_cKP1ctmwThYaA5UJrUG67A", "id": "GS_TXN_cKP1ctmwThYaA5UJrUG67A", "created_at": 1661990400, "updated_at": 1661990400, "settled_at": null, "status": "successful", "processing_state": "captured", "total_amount": 500, "net_amount": 500, "fee_amount": 44, "fees_paid_by": "merchant", "description": "", "reversal_status": "not_reversed", "billing_descriptor": "1OFFICESUPPLIESSTORE", "risk": { "quarantine": false, "risk_level": "low", "assessment": "" }, "paymethod": { "type": "card", "card": { "id": "GS_PMC_7cmafx7A532uIiZaGRsE4D", "created_at": 1661990400, "updated_at": 1661990400, "brand": "visa", "name": "Jack Francis", "number_last4": "1111", "exp_year": 2023, "exp_month": 8, "is_debit": false, "user": "GS_USR_5z9QxI1cG1YAAZGV9nos4B", "address": null }}, "customer": "GS_CUS_2rbzrEaeBNwNMafRxKBfSb", "merchant": "GS_MER_OVC3SKymD34SH5NjEhPa8D" }}, "merchant": "GS_MER_OVC3SKymD34SH5NjEhPa8D"}"#
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secret: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<errors::WebhookError>> {
+        let signature = request
+            .headers
+            .get("Gp-Webhook-Signature")
+            .ok_or_else(|| report!(errors::WebhookError::WebhookSignatureNotFound))
+            .attach_printable("Missing incoming webhook signature for givepayments connector")?;
+
+        hex::decode(signature).change_context(errors::WebhookError::WebhookSourceVerificationFailed)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &RequestDetails,
+        _connector_webhook_secrets: &ConnectorWebhookSecrets,
+    ) -> Result<Vec<u8>, error_stack::Report<errors::WebhookError>> {
+        let message = std::str::from_utf8(&request.body)
+            .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable(
+                "Webhook source verification message parsing failed for givepayments connector",
+            )?;
+
+        Ok(message.to_string().into_bytes())
+    }
+
+    fn verify_webhook_source(
+        &self,
+        request: RequestDetails,
+        connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<errors::WebhookError>> {
+        let algorithm = crypto::HmacSha256;
+
+        let connector_webhook_secrets = match connector_webhook_secret {
+            Some(secrets) => secrets,
+            None => {
+                return Err(error_stack::report!(
+                    errors::WebhookError::WebhookVerificationSecretNotFound
+                ));
+            }
+        };
+
+        let signature =
+            self.get_webhook_source_verification_signature(&request, &connector_webhook_secrets)?;
+
+        let message =
+            self.get_webhook_source_verification_message(&request, &connector_webhook_secrets)?;
+
+        algorithm
+            .verify_signature(&connector_webhook_secrets.secret, &signature, &message)
+            .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
+            .attach_printable("Webhook source verification failed for givepayments connector")
+    }
+
+    fn get_event_type(
+        &self,
+        request: RequestDetails,
+    ) -> Result<EventType, error_stack::Report<errors::WebhookError>> {
+        let webhook_body: GivepaymentsIncomingWebhookData = request
+            .body
+            .parse_struct("GivepaymentsIncomingWebhookData")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        Ok(webhook_body.event_type.into())
+    }
+
+    fn get_webhook_resource_object(
+        &self,
+        request: RequestDetails,
+    ) -> Result<
+        Box<dyn hyperswitch_masking::ErasedMaskSerialize>,
+        error_stack::Report<errors::WebhookError>,
+    > {
+        let webhook_body: GivepaymentsIncomingWebhookData = request
+            .body
+            .parse_struct("GivepaymentsIncomingWebhookData")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        Ok(Box::new(webhook_body))
+    }
+
+    fn get_webhook_event_reference(
+        &self,
+        request: RequestDetails,
+    ) -> Result<Option<WebhookResourceReference>, error_stack::Report<errors::WebhookError>> {
+        let webhook_body: GivepaymentsIncomingWebhookData = request
+            .body
+            .parse_struct("GivepaymentsIncomingWebhookData")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        let webhook_resource_reference = match webhook_body.data {
+            GivepaymentsWebhookData::Payment(response_data) => {
+                WebhookResourceReference::Payment(PaymentWebhookReference {
+                    connector_transaction_id: Some(response_data.id),
+                    merchant_transaction_id: response_data.external_reference,
+                })
+            }
+            GivepaymentsWebhookData::Refund(response_data) => {
+                WebhookResourceReference::Refund(RefundWebhookReference {
+                    connector_refund_id: Some(response_data.id),
+                    merchant_refund_id: response_data.external_reference,
+                    connector_transaction_id: None,
+                })
+            }
+        };
+
+        Ok(Some(webhook_resource_reference))
+    }
+
+    fn process_payment_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+        _event_context: Option<EventContext>,
+    ) -> Result<WebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
+        let webhook_body: GivepaymentsIncomingWebhookData = request
+            .body
+            .parse_struct("GivepaymentsIncomingWebhookData")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        let (resource_id, status, connector_mandate_id): (
+            Option<ResponseId>,
+            AttemptStatus,
+            Option<String>,
+        ) = match &webhook_body.data {
+            GivepaymentsWebhookData::Payment(payment_data) => Ok((
+                Some(ResponseId::ConnectorTransactionId(payment_data.id.clone())),
+                payment_data.processing_state.clone().into(),
+                payment_data
+                    .paymethod_token
+                    .as_ref()
+                    .map(|token_data| token_data.id.clone()),
+            )),
+
+            GivepaymentsWebhookData::Refund(_) => {
+                Err(errors::WebhookError::WebhookBodyDecodingFailed)
+            }
+        }?;
+
+        let mandate_reference = connector_mandate_id.map(|mandate_id| {
+            Box::new(MandateReference {
+                connector_mandate_id: Some(mandate_id),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
+            })
+        });
+
+        Ok(WebhookDetailsResponse {
+            resource_id,
+            status,
+            connector_response_reference_id: None,
+            mandate_reference,
+            error_code: None,
+            error_message: None,
+            error_reason: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            network_txn_id: None,
+            payment_method_update: None,
+            sender_payment_instrument_id: None,
+        })
+    }
+
+    fn process_refund_webhook(
+        &self,
+        request: RequestDetails,
+        _connector_webhook_secret: Option<ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<RefundWebhookDetailsResponse, error_stack::Report<errors::WebhookError>> {
+        let webhook_body: GivepaymentsIncomingWebhookData = request
+            .body
+            .parse_struct("GivepaymentsIncomingWebhookData")
+            .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+
+        let (connector_refund_id, status): (Option<String>, RefundStatus) = match &webhook_body.data
+        {
+            GivepaymentsWebhookData::Payment(_) => {
+                Err(errors::WebhookError::WebhookBodyDecodingFailed)
+            }
+            GivepaymentsWebhookData::Refund(refund_data) => Ok((
+                Some(refund_data.id.clone()),
+                refund_data.processing_state.clone().into(),
+            )),
+        }?;
+
+        Ok(RefundWebhookDetailsResponse {
+            connector_refund_id,
+            merchant_transaction_id: None,
+            status,
+            connector_response_reference_id: None,
+            error_code: None,
+            error_message: None,
+            raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
+            status_code: 200,
+            response_headers: None,
+        })
     }
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
