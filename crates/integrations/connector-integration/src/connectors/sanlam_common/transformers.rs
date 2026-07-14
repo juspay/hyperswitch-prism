@@ -525,8 +525,6 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                         payment_method_update: None,
                         status_code: 200,
                         sender_payment_instrument_id: None,
-                        resp_code: None,
-                        resp_msg: None,
                     })
                 } else {
                     Ok(Self {
@@ -547,8 +545,6 @@ impl TryFrom<AbsaSanlamWebhookEvent> for WebhookDetailsResponse {
                         error_reason: None,
                         status_code: 200,
                         sender_payment_instrument_id: None,
-                        resp_code: None,
-                        resp_msg: None,
                     })
                 }
             }

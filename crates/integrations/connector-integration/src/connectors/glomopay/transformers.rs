@@ -194,37 +194,8 @@ impl GlomopayWebhookPayload {
             ),
             _ => (None, None),
         };
-        // resp_code / resp_msg drive euler's GSM lookup. Populate on every
         // status (not only Failed) so euler can distinguish success/pending
         // outcomes for retry decisions and PGR persistence.
-        let resp_code = Some(
-            match self.event_type {
-                GlomopayWebhookEventType::Success => "success",
-                GlomopayWebhookEventType::FundsAvailable => "funds_available",
-                GlomopayWebhookEventType::InProgress => "in_progress",
-                GlomopayWebhookEventType::ActionRequired => "action_required",
-                GlomopayWebhookEventType::Failed => "failed",
-            }
-            .to_string(),
-        );
-        let resp_msg = match self.event_type {
-            GlomopayWebhookEventType::Failed => self
-                .data
-                .error_message
-                .clone()
-                .or_else(|| self.data.error_description.clone())
-                .or_else(|| Some("Glomopay reported payment failure".to_string())),
-            GlomopayWebhookEventType::Success => Some("Glomopay payment successful".to_string()),
-            GlomopayWebhookEventType::FundsAvailable => {
-                Some("Glomopay funds available".to_string())
-            }
-            GlomopayWebhookEventType::InProgress => {
-                Some("Glomopay payment in progress".to_string())
-            }
-            GlomopayWebhookEventType::ActionRequired => {
-                Some("Glomopay payment requires action".to_string())
-            }
-        };
         WebhookDetailsResponse {
             resource_id: Some(ResponseId::ConnectorTransactionId(self.data.id.clone())),
             status,
@@ -315,24 +286,7 @@ impl GlomopayRefundWebhookPayload {
         http_code: u16,
         raw_body: &[u8],
     ) -> RefundWebhookDetailsResponse {
-        // resp_code / resp_msg drive euler's GSM lookup for refunds — populate
         // on every status so euler can persist them to PGR for retry decisions.
-        let resp_code = Some(
-            match self.event_type {
-                GlomopayRefundWebhookEventType::Success => "success",
-                GlomopayRefundWebhookEventType::ActionRequired => "action_required",
-                GlomopayRefundWebhookEventType::Failed => "failed",
-            }
-            .to_string(),
-        );
-        let resp_msg = Some(
-            match self.event_type {
-                GlomopayRefundWebhookEventType::Success => "Glomopay refund successful",
-                GlomopayRefundWebhookEventType::ActionRequired => "Glomopay refund requires action",
-                GlomopayRefundWebhookEventType::Failed => "Glomopay refund failed",
-            }
-            .to_string(),
-        );
         RefundWebhookDetailsResponse {
             connector_refund_id: Some(self.data.id.clone()),
             merchant_transaction_id: self.data.payment_id.clone(),
@@ -828,55 +782,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 /// Maps a Glomopay payment status to the (resp_code, resp_msg) pair that
 /// euler persists as PGR.respCode / PGR.respMessage. Populated on every
 /// response so euler's GSM lookup has a canonical key even on success.
-fn glomopay_payment_resp_code_msg(status: GlomopayPaymentStatus) -> (String, String) {
-    match status {
-        GlomopayPaymentStatus::Success => (
-            "success".to_string(),
-            "Glomopay payment successful".to_string(),
-        ),
-        GlomopayPaymentStatus::Failed => (
-            "failed".to_string(),
-            "Glomopay reported payment failure".to_string(),
-        ),
-        GlomopayPaymentStatus::Pending => (
-            "pending".to_string(),
-            "Glomopay payment pending".to_string(),
-        ),
-        GlomopayPaymentStatus::InProgress => (
-            "in_progress".to_string(),
-            "Glomopay payment in progress".to_string(),
-        ),
-        GlomopayPaymentStatus::ActionRequired => (
-            "action_required".to_string(),
-            "Glomopay payment requires action".to_string(),
-        ),
-    }
-}
 
-/// Refund equivalent of [`glomopay_payment_resp_code_msg`].
-fn glomopay_refund_resp_code_msg(status: GlomopayRefundStatus) -> (String, String) {
-    match status {
-        GlomopayRefundStatus::Success => (
-            "success".to_string(),
-            "Glomopay refund successful".to_string(),
-        ),
-        GlomopayRefundStatus::Failed => (
-            "failed".to_string(),
-            "Glomopay reported refund failure".to_string(),
-        ),
-        GlomopayRefundStatus::Pending => {
-            ("pending".to_string(), "Glomopay refund pending".to_string())
-        }
-        GlomopayRefundStatus::ActionRequired => (
-            "action_required".to_string(),
-            "Glomopay refund requires action".to_string(),
-        ),
-        GlomopayRefundStatus::UnderReview => (
-            "under_review".to_string(),
-            "Glomopay refund under review".to_string(),
-        ),
-    }
-}
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<ResponseRouterData<GlomopayAuthorizeResponse, Self>>
@@ -889,7 +795,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let response = item.response;
         let status = AttemptStatus::from(response.status);
-        let (resp_code, resp_msg) = glomopay_payment_resp_code_msg(response.status);
 
         let redirect_url = response
             .next_steps
@@ -919,8 +824,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }),
             resource_common_data: PaymentFlowData {
                 status,
-                resp_code: Some(resp_code),
-                resp_msg: Some(resp_msg),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -976,7 +879,6 @@ impl TryFrom<ResponseRouterData<GlomopayPaymentSyncResponse, Self>>
         })?;
 
         let status = AttemptStatus::from(payment.status);
-        let (resp_code, resp_msg) = glomopay_payment_resp_code_msg(payment.status);
         let merchant_ref = item
             .router_data
             .resource_common_data
@@ -1044,8 +946,6 @@ impl TryFrom<ResponseRouterData<GlomopayPaymentSyncResponse, Self>>
             response,
             resource_common_data: PaymentFlowData {
                 status,
-                resp_code: Some(resp_code),
-                resp_msg: Some(resp_msg),
                 amount: response_amount,
                 ..item.router_data.resource_common_data
             },
@@ -1119,7 +1019,6 @@ impl TryFrom<ResponseRouterData<GlomopayRefundResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let response = item.response;
         let refund_status = RefundStatus::from(response.status);
-        let (resp_code, resp_msg) = glomopay_refund_resp_code_msg(response.status);
 
         Ok(Self {
             response: Ok(RefundsResponseData {
@@ -1129,8 +1028,6 @@ impl TryFrom<ResponseRouterData<GlomopayRefundResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
-                resp_code: Some(resp_code),
-                resp_msg: Some(resp_msg),
                 ..item.router_data.resource_common_data
             },
             ..item.router_data
@@ -1173,9 +1070,6 @@ impl TryFrom<ResponseRouterData<GlomopayRefundSyncResponse, Self>>
             .find(|r| r.id == connector_refund_id)
             .or_else(|| response.data.first());
 
-        let (refund_status, resolved_refund_id, resp_code, resp_msg) = match refund_entry {
-            Some(entry) => {
-                let (rc, rm) = glomopay_refund_resp_code_msg(entry.status);
                 (RefundStatus::from(entry.status), entry.id.clone(), rc, rm)
             }
             None => (
@@ -1194,8 +1088,6 @@ impl TryFrom<ResponseRouterData<GlomopayRefundSyncResponse, Self>>
             }),
             resource_common_data: RefundFlowData {
                 status: refund_status,
-                resp_code: Some(resp_code),
-                resp_msg: Some(resp_msg),
                 ..router_data.resource_common_data
             },
             ..router_data

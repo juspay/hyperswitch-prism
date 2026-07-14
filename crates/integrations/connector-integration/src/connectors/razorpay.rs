@@ -951,8 +951,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
-            resp_code: None,
-            resp_msg: None,
         })
     }
 
@@ -982,8 +980,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             raw_connector_response: Some(String::from_utf8_lossy(&request_body_copy).to_string()),
             status_code: 200,
             response_headers: None,
-            resp_code: None,
-            resp_msg: None,
         })
     }
 }

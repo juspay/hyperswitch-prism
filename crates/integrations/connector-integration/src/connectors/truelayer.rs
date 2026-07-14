@@ -864,8 +864,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .payment_source
                 .as_ref()
                 .and_then(|ps| ps.id.clone()),
-            resp_code: None,
-            resp_msg: None,
         })
     }
 
@@ -908,8 +906,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ),
                 status_code: 200,
                 response_headers: None,
-                resp_code: None,
-                resp_msg: None,
             },
         )
     }

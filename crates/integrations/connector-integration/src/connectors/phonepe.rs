@@ -236,8 +236,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
-            resp_code: None,
-            resp_msg: None,
         })
     }
 

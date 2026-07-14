@@ -215,8 +215,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
-            resp_code: None,
-            resp_msg: None,
         })
     }
 
@@ -260,8 +258,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 ),
                 status_code: 200,
                 response_headers: None,
-                resp_code: None,
-                resp_msg: None,
             },
         )
     }

@@ -2564,8 +2564,6 @@ message PaymentServiceAuthorizeResponse {
   // on every response (success, pending, failure) with a connector-normalised
   // code and human-readable message. Consumed by euler-api-txns to persist to
   // PGR.respCode / PGR.respMessage and drive GSM lookups.
-  optional string resp_code = 23;
-  optional string resp_msg = 24;
 }
 
 // Request message for synchronizing payment status
@@ -2702,8 +2700,6 @@ message PaymentServiceGetResponse {
   // Gateway-status-map (GSM) lookup keys. See PaymentServiceAuthorizeResponse
   // for semantics — populated on every response and consumed by euler-api-txns
   // to drive GSM lookups.
-  optional string resp_code = 36;
-  optional string resp_msg = 37;
 }
 
 // Request message for voiding a payment
@@ -3165,8 +3161,6 @@ message RefundResponse {
   // Gateway-status-map (GSM) lookup keys. See PaymentServiceAuthorizeResponse
   // for semantics — populated on every refund response and consumed by
   // euler-api-txns to drive GSM lookups.
-  optional string resp_code = 25;
-  optional string resp_msg = 26;
 }
 
 // Request message for voiding/reversing a refund before settlement.

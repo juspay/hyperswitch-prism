@@ -2876,8 +2876,6 @@ impl TryFrom<FiuuRefundSyncResponse> for RefundWebhookDetailsResponse {
                 error_message: None,
                 raw_connector_response: None,
                 response_headers: None,
-                resp_code: None,
-                resp_msg: None,
             }),
             _ => Err(IntegrationError::NotImplemented(
                 "webhook body decoding failed".to_string(),

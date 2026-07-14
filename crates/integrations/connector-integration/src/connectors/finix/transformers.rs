@@ -2202,8 +2202,6 @@ pub(super) fn build_finix_payment_webhook_response(
         network_txn_id: None,
         payment_method_update: None,
         sender_payment_instrument_id: None,
-        resp_code: None,
-        resp_msg: None,
     })
 }
 
@@ -2235,8 +2233,6 @@ pub(super) fn build_finix_refund_webhook_response(
         raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
         status_code: 200,
         response_headers: None,
-        resp_code: None,
-        resp_msg: None,
     })
 }
 
