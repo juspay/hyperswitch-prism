@@ -2767,6 +2767,10 @@ message PaymentServiceReverseResponse {
 
   // Reference
   optional string merchant_reverse_id = 6;
+
+  // Raw Request and Response for debugging
+  optional SecretString raw_connector_request = 7;
+  optional SecretString raw_connector_response = 8;
 }
 
 // Request message for creating an access token
@@ -2955,6 +2959,9 @@ message PaymentServiceCaptureResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 15;
+
+  // Raw Response for debugging
+  optional SecretString raw_connector_response = 16;
 }
 
 // Request message for creating an order
@@ -3337,6 +3344,9 @@ message PaymentServiceSetupRecurringResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 17;
+
+  // Raw Response for debugging
+  optional SecretString raw_connector_response = 18;
 }
 
 // Request message for repeat payment (MIT - Merchant Initiated Transaction)
@@ -3746,6 +3756,10 @@ message PaymentServiceIncrementalAuthorizationResponse {
 
   // State Information
   optional ConnectorState state = 6;
+
+  // Raw Request and Response for debugging
+  optional SecretString raw_connector_request = 7;
+  optional SecretString raw_connector_response = 8;
 }
 
 // IDs extracted from a payment webhook.
