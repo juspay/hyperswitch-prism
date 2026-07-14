@@ -214,7 +214,7 @@ Each credential value is provided as `{ value: string }` to support secret manag
 | `braintree` | ✅ | ✅ | ✅ | ✅ | ○ |
 | `cybersource` | ✅ | ✅ | ✅ | ✅ | ○ |
 | `mollie` | — | ✅ | ✅ | ✅ | ○ |
-| `authorizedotnet` | — | ✅ | ✅ | ✅ | ○ |
+| `authorizedotnet` | — | ○ | ○ | ○ | ○ |
 
 **Legend**
 

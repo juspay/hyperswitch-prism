@@ -21,6 +21,7 @@ pub const SUPPORTED_FLOWS: &[&str] = &[
     "customer_create",
     "get",
     "incremental_authorization",
+    "parse_event",
     "proxy_authorize",
     "proxy_setup_recurring",
     "recurring_charge",
@@ -133,6 +134,21 @@ pub fn build_get_request(connector_transaction_id: &str) -> PaymentServiceGetReq
     }
 }
 
+#[allow(dead_code)]
+pub fn build_handle_event_request() -> EventServiceHandleRequest {
+    EventServiceHandleRequest {
+        merchant_event_id: Some("probe_event_001".to_string()),  // Caller-supplied correlation key, echoed in the response. Not used by UCS for processing.
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
+        ..Default::default()
+    }
+}
+
 pub fn build_incremental_authorization_request() -> PaymentServiceIncrementalAuthorizationRequest {
     PaymentServiceIncrementalAuthorizationRequest {
         merchant_authorization_id: Some("probe_auth_001".to_string()), // Identification.
@@ -144,6 +160,18 @@ pub fn build_incremental_authorization_request() -> PaymentServiceIncrementalAut
         }),
         reason: Some("incremental_auth_probe".to_string()), // Optional Fields.
         ..Default::default()
+    }
+}
+
+pub fn build_parse_event_request() -> EventServiceParseRequest {
+    EventServiceParseRequest {
+        request_details: Some(RequestDetails {
+            method: HttpMethod::Post.into(),  // HTTP method of the request (e.g., GET, POST).
+            uri: Some("https://example.com/webhook".to_string()),  // URI of the request.
+            headers: [].into_iter().collect::<HashMap<_, _>>(),  // Headers of the HTTP request.
+            body: "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}".as_bytes().to_vec(),  // Body of the HTTP request.
+            ..Default::default()
+        }),
     }
 }
 
@@ -650,6 +678,16 @@ pub async fn process_incremental_authorization(
     Ok(format!("status: {:?}", response.status()))
 }
 
+// Flow: EventService.ParseEvent
+#[allow(dead_code)]
+pub async fn process_parse_event(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client.parse_event(build_parse_event_request())?;
+    Ok(format!("{response:?}"))
+}
+
 // Flow: PaymentService.ProxyAuthorize
 #[allow(dead_code)]
 pub async fn process_proxy_authorize(
@@ -782,6 +820,7 @@ async fn main() {
         "process_incremental_authorization" => {
             process_incremental_authorization(&client, "txn_001").await
         }
+        "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_proxy_setup_recurring" => process_proxy_setup_recurring(&client, "txn_001").await,
         "process_recurring_charge" => process_recurring_charge(&client, "txn_001").await,
@@ -791,7 +830,7 @@ async fn main() {
         "process_tokenize" => process_tokenize(&client, "txn_001").await,
         "process_void" => process_void(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_customer_create, process_get, process_incremental_authorization, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_authorize, process_tokenize, process_void", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_checkout_card, process_refund, process_void_payment, process_get_payment, process_authorize, process_capture, process_create_client_authentication_token, process_customer_create, process_get, process_incremental_authorization, process_parse_event, process_proxy_authorize, process_proxy_setup_recurring, process_recurring_charge, process_refund_get, process_setup_recurring, process_token_authorize, process_tokenize, process_void", flow);
             return;
         }
     };

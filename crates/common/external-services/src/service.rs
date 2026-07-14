@@ -12,6 +12,7 @@ use common_utils::{
     ext_traits::AsyncExt,
     lineage,
     request::{Method, Request, RequestContent},
+    request_metrics::ConnectorLatencyTracker,
 };
 use domain_types::{
     connector_types::{ConnectorResponseHeaders, RawConnectorRequestResponse},
@@ -513,6 +514,7 @@ pub struct EventProcessingParams<'a> {
     pub tenant_id: &'a str,
     pub merchant_id: &'a str,
     pub return_raw_connector_data: bool,
+    pub connector_latency: ConnectorLatencyTracker,
 }
 
 #[cfg(feature = "injector-client")]
@@ -817,6 +819,9 @@ where
                         })
                     };
                     let external_service_elapsed = external_service_start_latency.elapsed();
+                    event_params
+                        .connector_latency
+                        .add_connector_time(external_service_elapsed);
                     metrics::EXTERNAL_SERVICE_API_CALLS_LATENCY
                         .with_label_values(&[
                             &method.to_string(),
@@ -929,6 +934,9 @@ where
                         });
 
                     let external_service_elapsed = external_service_start_latency.elapsed();
+                    event_params
+                        .connector_latency
+                        .add_connector_time(external_service_elapsed);
                     metrics::EXTERNAL_SERVICE_API_CALLS_LATENCY
                         .with_label_values(&[
                             "PUBLISH",

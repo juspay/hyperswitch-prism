@@ -280,8 +280,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .body
             .parse_struct("TrustlyWebhookBody")
             .change_context(errors::WebhookError::WebhookBodyDecodingFailed)?;
+        let message_id = webhook_body.params.data.messageid.clone();
 
-        Ok(trustly::get_webhook_event(webhook_body.method))
+        Ok(trustly::get_webhook_event(
+            webhook_body.method,
+            message_id.expose(),
+        ))
     }
 
     fn get_webhook_event_reference(
@@ -385,6 +389,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         Ok(
             domain_types::connector_types::RefundWebhookDetailsResponse {
                 connector_refund_id: Some(details.params.data.orderid.clone()),
+                merchant_transaction_id: None,
                 status,
                 connector_response_reference_id: Some(details.params.uuid.clone()),
                 error_code: details.params.data.errorcode,

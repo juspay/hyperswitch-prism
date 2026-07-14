@@ -427,8 +427,8 @@
         "error": "This feature is not implemented: Selected payment method through worldpay"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through worldpay"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -511,8 +511,8 @@
         "error": "This feature is not implemented: Selected payment method through worldpay"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through worldpay"
       },
       "Sofort": {
         "status": "not_implemented",
