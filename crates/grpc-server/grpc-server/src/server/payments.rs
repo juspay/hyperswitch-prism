@@ -1722,8 +1722,7 @@ impl PaymentService for Payments {
         .await
     }
 
-    // Adapter: converts the tokenized payload and delegates to `authorize`, which owns the
-    // logging wrapper and emits the golden log line for this request.
+    // Converts the tokenized payload and delegates; `authorize` owns the logging wrapper.
     #[tracing::instrument(
         name = "token_authorize",
         fields(
@@ -1746,8 +1745,7 @@ impl PaymentService for Payments {
         <Self as PaymentService>::authorize(self, inner_request).await
     }
 
-    // Adapter: converts the tokenized payload and delegates to `setup_recurring`, which owns the
-    // logging wrapper and emits the golden log line for this request.
+    // Converts the tokenized payload and delegates; `setup_recurring` owns the logging wrapper.
     #[tracing::instrument(
         name = "token_setup_recurring",
         fields(

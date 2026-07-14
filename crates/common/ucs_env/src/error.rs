@@ -30,7 +30,7 @@ where
     }
 }
 
-/// Failures in UCS's own gRPC plumbing, raised before any transformation runs.
+/// Failures in the gRPC plumbing itself, raised before request transformation.
 #[derive(Debug, Clone, PartialEq, thiserror::Error, strum::AsRefStr)]
 #[strum(serialize_all = "SCREAMING_SNAKE_CASE")]
 pub enum InternalError {
@@ -44,9 +44,9 @@ pub enum InternalError {
 
 /// Every error that can reach the gRPC boundary; one variant per leaf error type.
 ///
-/// Handlers return `Report<GrpcError>` and never build a `tonic::Status`. There is no
-/// `From<tonic::Status>` for this type, and there must not be one: without it a hand-built status
-/// does not compile, so every error reaches the logging wrapper with its stack intact.
+/// Handlers return `Report<GrpcError>` rather than constructing a `tonic::Status`. No
+/// `From<tonic::Status>` impl exists for this type: adding one would let a hand-built status
+/// compile and bypass the logging in `IntoGrpcStatus`.
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum GrpcError {
     #[error("Integration error: {0}")]
@@ -132,11 +132,10 @@ pub enum ConfigurationError {
     IoError(#[from] std::io::Error),
 }
 
-/// Pure error-to-status mapping.
+/// Pure error-to-status mapping, without logging.
 ///
-/// Private on purpose: the only public path to a `Status` is `IntoGrpcStatus`, which logs the
-/// report first. A public non-logging mapper would let callers produce a `Status` that never
-/// reaches the alerting pipeline.
+/// Private: `IntoGrpcStatus` is the only reachable path to a `Status`, and it logs the report
+/// first. A public non-logging mapper would allow statuses that never reach alerting.
 trait ToGrpcStatus {
     fn to_grpc_status_unlogged(&self) -> Status;
 }
@@ -265,13 +264,9 @@ impl ToGrpcStatus for WebhookError {
             | Self::WebhookReferenceIdNotFound
             | Self::WebhookResourceObjectNotFound
             | Self::WebhookVerificationSecretNotFound => Status::not_found(msg),
-            // Caller omitted a required field — bad request from SDK user.
             Self::WebhookMissingRequiredField { .. } => Status::invalid_argument(msg),
-            // Bad body from the webhook sender — genuinely bad argument.
             Self::WebhookBodyDecodingFailed => Status::invalid_argument(msg),
-            // Caller did not supply required business context (e.g. capture_method).
             Self::WebhookMissingRequiredContext { .. } => Status::invalid_argument(msg),
-            // Signature mismatch or configured secret is wrong — authentication failure.
             Self::WebhookSourceVerificationFailed | Self::WebhookVerificationSecretInvalid => {
                 Status::unauthenticated(msg)
             }
@@ -282,7 +277,7 @@ impl ToGrpcStatus for WebhookError {
     }
 }
 
-/// UCS plumbing failed and the caller cannot act on it: bare `internal`, no proto details.
+/// Not actionable by the caller: bare `internal`, no proto details.
 impl ToGrpcStatus for InternalError {
     fn to_grpc_status_unlogged(&self) -> Status {
         Status::internal(self.to_string())
@@ -304,7 +299,7 @@ impl ToGrpcStatus for GrpcError {
 
 /// gRPC status mapping for `GrpcError`, the error every gRPC handler returns.
 ///
-/// The report is logged here, once, while its frames are still attached.
+/// The report is logged here, while its frames are still attached.
 impl IntoGrpcStatus for Report<GrpcError> {
     fn into_grpc_status(self) -> Status {
         let context = self.current_context();
