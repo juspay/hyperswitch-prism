@@ -113,7 +113,21 @@ impl EventService for EventServiceImpl {
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&metadata_payload.connector)
                             .ok_or_else(|| {
-                                ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext::default() })
+                                ucs_env::error::GrpcError::from(
+                                    domain_types::errors::IntegrationError::InvalidDataFormat {
+                                        field_name: "connector",
+                                        context: domain_types::errors::IntegrationErrorContext {
+                                            suggested_action: Some(
+                                                "Send a connector that supports webhook parsing"
+                                                    .to_string(),
+                                            ),
+                                            doc_url: None,
+                                            additional_context: Some(
+                                                metadata_payload.connector.get_connector_name(),
+                                            ),
+                                        },
+                                    },
+                                )
                             })?;
 
                     let response = connector_integration::webhook_utils::parse_webhook_event(
@@ -172,7 +186,19 @@ impl EventService for EventServiceImpl {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
                     let connector = metadata_payload.connector.clone().as_payment().ok_or_else(|| {
-                        ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::NotSupported { message: "Surcharge connectors not supported for webhook events".to_string(), connector: "N/A", context: domain_types::errors::IntegrationErrorContext::default() })
+                        ucs_env::error::GrpcError::from(
+                            domain_types::errors::IntegrationError::FlowNotSupported {
+                                flow: FlowName::IncomingWebhook.to_string(),
+                                connector: metadata_payload.connector.get_connector_name(),
+                                context: domain_types::errors::IntegrationErrorContext {
+                                    suggested_action: Some(
+                                        "Route webhook events to a payment connector".to_string(),
+                                    ),
+                                    doc_url: None,
+                                    additional_context: None,
+                                },
+                            },
+                        )
                     })?;
                     let _request_id = &metadata_payload.request_id;
                     let connector_config = &metadata_payload.connector_config;
@@ -317,11 +343,17 @@ impl EventService for EventServiceImpl {
                     let event_type_enum = grpc_api_types::payments::NotifyEventType::try_from(
                         request_data.payload.event_type,
                     )
-                    .map_err(|_| {
+                    .map_err(|error| {
                         error_stack::Report::new(ucs_env::error::GrpcError::from(
                             domain_types::errors::IntegrationError::InvalidDataFormat {
                                 field_name: "event_type",
-                                context: domain_types::errors::IntegrationErrorContext::default(),
+                                context: domain_types::errors::IntegrationErrorContext {
+                                    suggested_action: Some(
+                                        "Send a supported NotifyEventType value".to_string(),
+                                    ),
+                                    doc_url: None,
+                                    additional_context: Some(error.to_string()),
+                                },
                             },
                         ))
                     })?;
@@ -368,12 +400,19 @@ impl EventService for EventServiceImpl {
                             )
                             .await
                         }
-                        _other_event_type => {
+                        grpc_api_types::payments::NotifyEventType::Unspecified => {
                             Err(error_stack::Report::new(ucs_env::error::GrpcError::from(
                                 domain_types::errors::IntegrationError::InvalidDataFormat {
                                     field_name: "event_type",
-                                    context: domain_types::errors::IntegrationErrorContext::default(
-                                    ),
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        suggested_action: Some(
+                                            "Send a supported NotifyEventType value".to_string(),
+                                        ),
+                                        doc_url: None,
+                                        additional_context: Some(
+                                            "event_type is unspecified".to_string(),
+                                        ),
+                                    },
                                 },
                             )))
                         }
@@ -404,11 +443,19 @@ impl EventServiceImpl {
             &metadata_payload.connector,
         )
         .ok_or_else(|| {
-            ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::NotSupported {
-                message: "Invalid connector type for this flow".to_string(),
-                connector: "N/A",
-                context: domain_types::errors::IntegrationErrorContext::default(),
-            })
+            ucs_env::error::GrpcError::from(
+                domain_types::errors::IntegrationError::FlowNotSupported {
+                    flow: "SurchargePaymentSucceeded".to_string(),
+                    connector: metadata_payload.connector.get_connector_name(),
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Route this flow to a surcharge connector".to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: None,
+                    },
+                },
+            )
         })?;
 
         let connector_integration: BoxedConnectorIntegrationV2<
@@ -503,11 +550,19 @@ impl EventServiceImpl {
             &metadata_payload.connector,
         )
         .ok_or_else(|| {
-            ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::NotSupported {
-                message: "Invalid connector type for this flow".to_string(),
-                connector: "N/A",
-                context: domain_types::errors::IntegrationErrorContext::default(),
-            })
+            ucs_env::error::GrpcError::from(
+                domain_types::errors::IntegrationError::FlowNotSupported {
+                    flow: "SurchargeRefundSucceeded".to_string(),
+                    connector: metadata_payload.connector.get_connector_name(),
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some(
+                            "Route this flow to a surcharge connector".to_string(),
+                        ),
+                        doc_url: None,
+                        additional_context: None,
+                    },
+                },
+            )
         })?;
 
         let connector_integration: BoxedConnectorIntegrationV2<
@@ -602,11 +657,17 @@ impl EventServiceImpl {
             &metadata_payload.connector,
         )
         .ok_or_else(|| {
-            ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::NotSupported {
-                message: "Invalid connector type for this flow".to_string(),
-                connector: "N/A",
-                context: domain_types::errors::IntegrationErrorContext::default(),
-            })
+            ucs_env::error::GrpcError::from(
+                domain_types::errors::IntegrationError::FlowNotSupported {
+                    flow: "FrmPaymentOutcome".to_string(),
+                    connector: metadata_payload.connector.get_connector_name(),
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some("Route this flow to a FRM connector".to_string()),
+                        doc_url: None,
+                        additional_context: None,
+                    },
+                },
+            )
         })?;
 
         let connector_integration: BoxedConnectorIntegrationV2<
@@ -698,11 +759,17 @@ impl EventServiceImpl {
             &metadata_payload.connector,
         )
         .ok_or_else(|| {
-            ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::NotSupported {
-                message: "Invalid connector type for this flow".to_string(),
-                connector: "N/A",
-                context: domain_types::errors::IntegrationErrorContext::default(),
-            })
+            ucs_env::error::GrpcError::from(
+                domain_types::errors::IntegrationError::FlowNotSupported {
+                    flow: "FrmRefundProcessed".to_string(),
+                    connector: metadata_payload.connector.get_connector_name(),
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some("Route this flow to a FRM connector".to_string()),
+                        doc_url: None,
+                        additional_context: None,
+                    },
+                },
+            )
         })?;
 
         let connector_integration: BoxedConnectorIntegrationV2<
@@ -794,11 +861,17 @@ impl EventServiceImpl {
             &metadata_payload.connector,
         )
         .ok_or_else(|| {
-            ucs_env::error::GrpcError::from(domain_types::errors::IntegrationError::NotSupported {
-                message: "Invalid connector type for this flow".to_string(),
-                connector: "N/A",
-                context: domain_types::errors::IntegrationErrorContext::default(),
-            })
+            ucs_env::error::GrpcError::from(
+                domain_types::errors::IntegrationError::FlowNotSupported {
+                    flow: "FrmChargebackReceived".to_string(),
+                    connector: metadata_payload.connector.get_connector_name(),
+                    context: domain_types::errors::IntegrationErrorContext {
+                        suggested_action: Some("Route this flow to a FRM connector".to_string()),
+                        doc_url: None,
+                        additional_context: None,
+                    },
+                },
+            )
         })?;
 
         let connector_integration: BoxedConnectorIntegrationV2<
