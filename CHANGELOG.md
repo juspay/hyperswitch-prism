@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.14.1
+
+### Features
+
+- **connector:** [datatrans] Card 3DS + Recurring (SetupMandate + MIT) to HS Direct parity ([#1935](https://github.com/juspay/connector-service/pull/1935)) ([`ed008b3`](https://github.com/juspay/connector-service/commit/ed008b35189fdf02918050b343026639a5d68cec))
+
+**Full Changelog:** [`2026.07.14.0...2026.07.14.1`](https://github.com/juspay/connector-service/compare/2026.07.14.0...2026.07.14.1)
+
+- - -
+
 ## 2026.07.14.0
 
 ### Bug Fixes
