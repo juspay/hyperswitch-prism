@@ -10257,7 +10257,7 @@ pub fn generate_payment_capture_response(
         .resource_common_data
         .get_raw_connector_request();
 
-     let raw_connector_response = router_data_v2
+    let raw_connector_response = router_data_v2
         .resource_common_data
         .get_raw_connector_response();
 
