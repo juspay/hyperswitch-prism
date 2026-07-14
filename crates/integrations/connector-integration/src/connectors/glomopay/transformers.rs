@@ -13,7 +13,7 @@ use domain_types::{
     },
     errors,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::PaymentSynIntegrityObject,
     router_response_types::RedirectForm,
@@ -943,6 +943,9 @@ pub struct GlomopayPaymentSyncItem {
     // echoing the request context.
     pub requested_amount: Option<MinorUnit>,
     pub requested_currency: Option<Currency>,
+    pub error_code: Option<String>,
+    pub error_description: Option<String>,
+    pub error_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -997,9 +1000,34 @@ impl TryFrom<ResponseRouterData<GlomopayPaymentSyncResponse, Self>>
                 _ => (None, None),
             };
 
-        Ok(Self {
-            response: Ok(PaymentsResponseData::TransactionResponse {
-                resource_id: ResponseId::ConnectorTransactionId(payment.id),
+        // Mirror the payment-webhook error surfacing: on a terminal Failed
+        // status, promote the item's error_code / error_message /
+        // error_description into an ErrorResponse so euler's GSM lookup and
+        // PGR persistence get actionable codes rather than an opaque failure.
+        let response = if matches!(payment.status, GlomopayPaymentStatus::Failed) {
+            let code = payment
+                .error_code
+                .clone()
+                .unwrap_or_else(|| "failed".to_string());
+            let message = payment
+                .error_message
+                .clone()
+                .or_else(|| payment.error_description.clone())
+                .unwrap_or_else(|| "Glomopay reported payment failure".to_string());
+            Err(ErrorResponse {
+                code,
+                message: message.clone(),
+                reason: Some(message),
+                status_code: item.http_code,
+                attempt_status: Some(FlowStatus::Payment(AttemptStatus::Failure)),
+                connector_transaction_id: Some(payment.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+            })
+        } else {
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(payment.id.clone()),
                 redirection_data: None,
                 mandate_reference: None,
                 connector_metadata: None,
@@ -1009,7 +1037,11 @@ impl TryFrom<ResponseRouterData<GlomopayPaymentSyncResponse, Self>>
                 incremental_authorization_allowed: None,
                 status_code: item.http_code,
                 splits: None,
-            }),
+            })
+        };
+
+        Ok(Self {
+            response,
             resource_common_data: PaymentFlowData {
                 status,
                 resp_code: Some(resp_code),

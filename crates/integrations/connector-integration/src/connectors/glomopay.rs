@@ -219,7 +219,15 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_payments(req);
             let email = req.request.get_email()?;
-            Ok(format!("{base_url}customer?email_address={}", email.peek()))
+            // Percent-encode the email so query-special characters (notably `+`,
+            // which is interpreted as space in application/x-www-form-urlencoded)
+            // round-trip intact. Without this, emails like `alice+tag@x.com` are
+            // decoded server-side as `alice tag@x.com`, the lookup misses, and
+            // the fall-through create-customer path duplicates the record.
+            Ok(format!(
+                "{base_url}customer?email_address={}",
+                urlencoding::encode(email.peek())
+            ))
         }
     }
 );
@@ -393,8 +401,18 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let base_url = self.connector_base_url_refunds(req);
             let request_id = &req.resource_common_data.connector_request_reference_id;
+            // Fail loudly on an empty reference id. Dropping the ?request_id
+            // filter would return every refund on the merchant's account and
+            // the response transformer would silently pick the first one —
+            // effectively reporting an unrelated refund's status as if it
+            // belonged to the current one.
             if request_id.is_empty() {
-                Ok(format!("{base_url}refunds"))
+                Err(error_stack::report!(
+                    errors::IntegrationError::MissingRequiredField {
+                        field_name: "connector_request_reference_id",
+                        context: Default::default(),
+                    }
+                ))
             } else {
                 Ok(format!("{base_url}refunds?request_id={request_id}"))
             }
