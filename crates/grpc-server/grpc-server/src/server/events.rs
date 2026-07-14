@@ -117,10 +117,7 @@ impl EventService for EventServiceImpl {
                                     domain_types::errors::IntegrationError::InvalidDataFormat {
                                         field_name: "connector",
                                         context: domain_types::errors::IntegrationErrorContext {
-                                            suggested_action: Some(
-                                                "Send a connector that supports webhook parsing"
-                                                    .to_string(),
-                                            ),
+                                            suggested_action: None,
                                             doc_url: None,
                                             additional_context: Some(
                                                 metadata_payload.connector.get_connector_name(),
@@ -192,7 +189,8 @@ impl EventService for EventServiceImpl {
                                 connector: metadata_payload.connector.get_connector_name(),
                                 context: domain_types::errors::IntegrationErrorContext {
                                     suggested_action: Some(
-                                        "Route webhook events to a payment connector".to_string(),
+                                        "Check connector rollout/configuration and call only flows implemented for this connector"
+                                            .to_string(),
                                     ),
                                     doc_url: None,
                                     additional_context: None,
@@ -348,9 +346,7 @@ impl EventService for EventServiceImpl {
                             domain_types::errors::IntegrationError::InvalidDataFormat {
                                 field_name: "event_type",
                                 context: domain_types::errors::IntegrationErrorContext {
-                                    suggested_action: Some(
-                                        "Send a supported NotifyEventType value".to_string(),
-                                    ),
+                                    suggested_action: None,
                                     doc_url: None,
                                     additional_context: Some(error.to_string()),
                                 },
@@ -406,12 +402,14 @@ impl EventService for EventServiceImpl {
                                     field_name: "event_type",
                                     context: domain_types::errors::IntegrationErrorContext {
                                         suggested_action: Some(
-                                            "Send a supported NotifyEventType value".to_string(),
+                                            "Set event_type to one of SURCHARGE_PAYMENT_SUCCEEDED, \
+                                             SURCHARGE_REFUND_SUCCEEDED, FRM_PAYMENT_SUCCEEDED, \
+                                             FRM_PAYMENT_FAILURE, FRM_REFUND_PROCESSED or \
+                                             FRM_CHARGEBACK_RECEIVED"
+                                                .to_string(),
                                         ),
                                         doc_url: None,
-                                        additional_context: Some(
-                                            "event_type is unspecified".to_string(),
-                                        ),
+                                        additional_context: None,
                                     },
                                 },
                             )))
@@ -449,7 +447,8 @@ impl EventServiceImpl {
                     connector: metadata_payload.connector.get_connector_name(),
                     context: domain_types::errors::IntegrationErrorContext {
                         suggested_action: Some(
-                            "Route this flow to a surcharge connector".to_string(),
+                            "Check connector rollout/configuration and call only flows implemented for this connector"
+                                .to_string(),
                         ),
                         doc_url: None,
                         additional_context: None,
@@ -556,7 +555,8 @@ impl EventServiceImpl {
                     connector: metadata_payload.connector.get_connector_name(),
                     context: domain_types::errors::IntegrationErrorContext {
                         suggested_action: Some(
-                            "Route this flow to a surcharge connector".to_string(),
+                            "Check connector rollout/configuration and call only flows implemented for this connector"
+                                .to_string(),
                         ),
                         doc_url: None,
                         additional_context: None,
@@ -662,7 +662,10 @@ impl EventServiceImpl {
                     flow: "FrmPaymentOutcome".to_string(),
                     connector: metadata_payload.connector.get_connector_name(),
                     context: domain_types::errors::IntegrationErrorContext {
-                        suggested_action: Some("Route this flow to a FRM connector".to_string()),
+                        suggested_action: Some(
+                            "Check connector rollout/configuration and call only flows implemented for this connector"
+                                .to_string(),
+                        ),
                         doc_url: None,
                         additional_context: None,
                     },
@@ -764,7 +767,10 @@ impl EventServiceImpl {
                     flow: "FrmRefundProcessed".to_string(),
                     connector: metadata_payload.connector.get_connector_name(),
                     context: domain_types::errors::IntegrationErrorContext {
-                        suggested_action: Some("Route this flow to a FRM connector".to_string()),
+                        suggested_action: Some(
+                            "Check connector rollout/configuration and call only flows implemented for this connector"
+                                .to_string(),
+                        ),
                         doc_url: None,
                         additional_context: None,
                     },
@@ -866,7 +872,10 @@ impl EventServiceImpl {
                     flow: "FrmChargebackReceived".to_string(),
                     connector: metadata_payload.connector.get_connector_name(),
                     context: domain_types::errors::IntegrationErrorContext {
-                        suggested_action: Some("Route this flow to a FRM connector".to_string()),
+                        suggested_action: Some(
+                            "Check connector rollout/configuration and call only flows implemented for this connector"
+                                .to_string(),
+                        ),
                         doc_url: None,
                         additional_context: None,
                     },
