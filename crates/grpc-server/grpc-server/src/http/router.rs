@@ -58,7 +58,7 @@ pub fn create_router(state: AppState) -> Router {
             post(handlers::composite::payment_methods::recharge),
         )
         .route(
-            "/composite/device_data_collection",
+            "/composite/pre_authenticate",
             post(handlers::composite::payments::device_data_collection),
         )
         .route(
