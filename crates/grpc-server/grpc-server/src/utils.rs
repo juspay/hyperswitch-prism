@@ -595,7 +595,6 @@ macro_rules! implement_connector_operation {
             &self,
             request: $crate::request::RequestData<$request_type>,
         ) -> Result<tonic::Response<$response_type>, error_stack::Report<ucs_env::error::GrpcError>> {
-            #[allow(unused_imports)]
             use ucs_env::error::ResultExtGrpcError;
             tracing::info!(concat!($log_prefix, "_FLOW: initiated"));
             let config = request
@@ -890,7 +889,6 @@ macro_rules! implement_connector_operation {
             &self,
             request: $crate::request::RequestData<$request_type>,
         ) -> Result<tonic::Response<$response_type>, error_stack::Report<ucs_env::error::GrpcError>> {
-            #[allow(unused_imports)]
             use ucs_env::error::ResultExtGrpcError;
             tracing::info!(concat!($log_prefix, "_FLOW: initiated"));
             let config = request
