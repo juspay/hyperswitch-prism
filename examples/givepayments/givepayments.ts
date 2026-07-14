@@ -47,11 +47,7 @@ function _buildRecurringChargeRequest(): types.IRecurringPaymentServiceChargeReq
             }
         },
         "returnUrl": "https://example.com/recurring-return",
-        "address": {  // Address Information.
-            "billingAddress": {
-                "email": {"value": "test@example.com"}  // Contact Information.
-            }
-        },
+        "email": {"value": "test@example.com"},  // Customer Information.
         "connectorCustomerId": "cust_probe_123",
         "browserInfo": {  // Browser Information.
             "colorDepth": 24,  // Display Information.
