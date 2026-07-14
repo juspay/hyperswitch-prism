@@ -33,7 +33,8 @@ use domain_types::{
     payment_method_data::{
         self, ApplePayDecryptedData, ApplePayWalletData, CardDetailsForNetworkTransactionId,
         GooglePayDecryptedData, GooglePayWalletData, NetworkTokenData, PaymentMethodData,
-        PaymentMethodDataTypes, RawCardNumber, SamsungPayWalletData, WalletData,
+        PaymentMethodDataTypes, RawCardNumber, SamsungPayWalletData, StoredCardForNetworkTransactionId,
+        WalletData,
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorSpecificConfig, ErrorResponse,
@@ -344,7 +345,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::PaymentMethodToken(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-                | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message:
                             domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -2584,6 +2586,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             PaymentMethodData::MandatePayment
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::StoredCardForNetworkTransactionId(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
@@ -2701,7 +2704,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("Cybersource"),
                     connector: "Cybersource",
@@ -3729,7 +3733,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                     Default::default(),
@@ -4013,7 +4018,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                     Default::default(),
@@ -5079,6 +5085,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
                     Self::try_from((&item, card))
                 }
+                PaymentMethodData::StoredCardForNetworkTransactionId(card) => {
+                    Self::try_from((&item, card))
+                }
                 PaymentMethodData::NetworkToken(token_data) => Self::try_from((&item, token_data)),
                 PaymentMethodData::CardRedirect(_)
                 | PaymentMethodData::PayLater(_)
@@ -5239,6 +5248,95 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let order_information = OrderInformationWithBill::try_from((item, Some(bill_to)))?;
 
         let card_issuer = ccard.get_card_issuer();
+        let card_type = match card_issuer {
+            Ok(issuer) => Some(card_issuer_to_string(issuer)),
+            Err(_) => None,
+        };
+
+        let payment_information =
+            RepeatPaymentInformation::Cards(Box::new(CardWithNtiPaymentInformation {
+                card: CardWithNti {
+                    number: ccard.card_number.clone(),
+                    expiration_month: ccard.card_exp_month.clone(),
+                    expiration_year: ccard.card_exp_year.clone(),
+                    security_code: None,
+                    card_type: card_type.clone(),
+                    type_selection_indicator: Some("1".to_owned()),
+                },
+            }));
+
+        let processing_information = ProcessingInformation::try_from((item, None, card_type))?;
+        let client_reference_information = ClientReferenceInformation::from(item);
+        let merchant_defined_information = convert_metadata_to_merchant_defined_info(
+            item.router_data
+                .request
+                .metadata
+                .clone()
+                .map(|metadata| metadata.expose()),
+            item.router_data.request.merchant_order_id.clone(),
+        );
+
+        let consumer_authentication_information = item
+            .router_data
+            .request
+            .authentication_data
+            .as_ref()
+            .map(|authn_data| {
+                build_consumer_auth_information(authn_data, ccard.card_network.as_ref())
+            });
+
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
+            consumer_authentication_information,
+            merchant_defined_information,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<(
+        &CybersourceRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+        &StoredCardForNetworkTransactionId,
+    )> for CybersourceRepeatPaymentRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(
+        (item, ccard): (
+            &CybersourceRouterData<
+                RouterDataV2<
+                    RepeatPayment,
+                    PaymentFlowData,
+                    RepeatPaymentData<T>,
+                    PaymentsResponseData,
+                >,
+                T,
+            >,
+            &StoredCardForNetworkTransactionId,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let email = item
+            .router_data
+            .resource_common_data
+            .get_billing_email()
+            .or(item.router_data.request.get_email())?;
+        let bill_to = build_bill_to(
+            item.router_data.resource_common_data.get_optional_billing(),
+            email,
+        )?;
+        let order_information = OrderInformationWithBill::try_from((item, Some(bill_to)))?;
+
+        let card_issuer = domain_types::utils::get_card_issuer(ccard.card_number.peek());
         let card_type = match card_issuer {
             Ok(issuer) => Some(card_issuer_to_string(issuer)),
             Err(_) => None,

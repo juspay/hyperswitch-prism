@@ -188,6 +188,7 @@ message PaymentMethod {
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
     NetworkTokenData network_token = 121; // Network token data
     DecryptedWalletTokenDetailsForNetworkTransactionId decrypted_wallet_token_details_for_network_transaction_id = 122; // Network Transaction ID and Decrypted Wallet Token Details
+    StoredCardForNetworkTransactionId stored_card_for_network_transaction_id = 123; // Locker-sourced (payment_method_id) card details for a network-transaction-id MIT
     
     // GIFT CARDS (130-139)
     Givex givex = 137;                                         // Givex gift card
@@ -1542,6 +1543,24 @@ message CardDetailsForNetworkTransactionId {
     optional string bank_code = 8;
     optional SecretString nick_name = 9;
     optional SecretString card_holder_name = 10;
+}
+
+// Locker-sourced (payment_method_id) card details for a network-transaction-id MIT.
+// Mirrors CardDetailsForNetworkTransactionId but is produced only when the card is
+// pulled from the Hyperswitch card locker via a stored payment_method_id, so a
+// connector can distinguish a stored-credential replay from an inline card+NTI.
+message StoredCardForNetworkTransactionId {
+    CardNumberType card_number = 1;
+    SecretString card_exp_month = 2;
+    SecretString card_exp_year = 3;
+    optional string card_issuer = 4;
+    optional CardNetwork card_network = 5;
+    optional string card_type = 6;
+    optional string card_issuing_country = 7;
+    optional string bank_code = 8;
+    optional SecretString nick_name = 9;
+    optional SecretString card_holder_name = 10;
+    optional SecretString network_transaction_id = 11;
 }
 
 // Decrypted wallet token details with network transaction ID for recurring payments

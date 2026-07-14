@@ -1562,7 +1562,8 @@ fn create_stripe_payment_method<
         | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+        | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
             Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
@@ -5104,7 +5105,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
                 Err(IntegrationError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
                     Default::default(),
@@ -5451,6 +5453,31 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
                     let payment_data = match item.request.payment_method_data {
                         PaymentMethodData::CardDetailsForNetworkTransactionId(
+                            ref card_details_for_network_transaction_id,
+                        ) => StripePaymentMethodData::CardNetworkTransactionId(
+                            StripeCardNetworkTransactionIdData {
+                                payment_method_data_type: StripePaymentMethodType::Card,
+                                payment_method_data_card_number:
+                                    card_details_for_network_transaction_id.card_number.clone(),
+                                payment_method_data_card_exp_month:
+                                    card_details_for_network_transaction_id
+                                        .card_exp_month
+                                        .clone(),
+                                payment_method_data_card_exp_year:
+                                    card_details_for_network_transaction_id
+                                        .card_exp_year
+                                        .clone(),
+                                payment_method_data_card_cvc: None,
+                                payment_method_auth_type: None,
+                                payment_method_data_card_preferred_network:
+                                    card_details_for_network_transaction_id
+                                        .card_network
+                                        .clone()
+                                        .and_then(get_stripe_card_network),
+                                request_overcapture: None,
+                            },
+                        ),
+                        PaymentMethodData::StoredCardForNetworkTransactionId(
                             ref card_details_for_network_transaction_id,
                         ) => StripePaymentMethodData::CardNetworkTransactionId(
                             StripeCardNetworkTransactionIdData {

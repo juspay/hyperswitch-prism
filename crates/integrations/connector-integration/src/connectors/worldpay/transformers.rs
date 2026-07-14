@@ -170,6 +170,42 @@ fn fetch_payment_instrument<
                 card_number: RawCardNumber(raw_card_details.card_number)
             }))
         }
+        PaymentMethodData::StoredCardForNetworkTransactionId(raw_card_details) => {
+            let exp_month_str = raw_card_details.card_exp_month.peek().to_string();
+            let mut exp_year = raw_card_details.card_exp_year.peek().clone();
+            if exp_year.len() == 2 {
+                exp_year = format!("20{exp_year}");
+            }
+            let exp_year_str = exp_year;
+            when(
+                exp_month_str.contains("{{") || exp_year_str.contains("{{"),
+                || {
+                    Err(error_stack::report!(IntegrationError::NotSupported {
+                        message: "Worldpay requires numeric expiry values; vault token placeholders are not supported for proxy flows".to_string(),
+                        connector: "Worldpay",
+                        context: Default::default(),
+                    }))
+                },
+            )?;
+            let expiry_month: i8 = exp_month_str
+                .parse::<i8>()
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?;
+            let expiry_year: i32 = exp_year_str
+                .parse::<i32>()
+                .change_context(IntegrationError::RequestEncodingFailed {
+                    context: Default::default(),
+                })?;
+            Ok(PaymentInstrument::RawCardForNTI(RawCardDetails {
+                payment_type: PaymentType::Plain,
+                expiry_date: ExpiryDate {
+                    month: Secret::new(expiry_month),
+                    year: Secret::new(expiry_year),
+                },
+                card_number: RawCardNumber(raw_card_details.card_number)
+            }))
+        }
         PaymentMethodData::MandatePayment => {
             Err(IntegrationError::NotImplemented("MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string() , Default::default()).into())
         }
@@ -310,7 +346,8 @@ fn create_three_ds_request<
         &router_data.request.payment_method_data,
     ) {
         // 3DS for NTI flow
-        (_, PaymentMethodData::CardDetailsForNetworkTransactionId(_)) => Ok(None),
+        (_, PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+        | (_, PaymentMethodData::StoredCardForNetworkTransactionId(_)) => Ok(None),
         // 3DS for regular payments
         (enums::AuthenticationType::ThreeDs, _) => {
             let browser_info = router_data.request.browser_info.as_ref().ok_or(
@@ -416,7 +453,8 @@ fn get_token_and_agreement<
             }),
         ),
         // NTI with raw card data
-        (PaymentMethodData::CardDetailsForNetworkTransactionId(_), _, _) => (
+        (PaymentMethodData::CardDetailsForNetworkTransactionId(_), _, _)
+        | (PaymentMethodData::StoredCardForNetworkTransactionId(_), _, _) => (
             None,
             mandate_ids.and_then(|mandate_ids| {
                 mandate_ids

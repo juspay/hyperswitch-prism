@@ -1801,6 +1801,18 @@ struct AuthorizeAssembly {
     original_recurring_amount: Option<StringMajorUnit>,
 }
 
+/// Card fields shared by the two network-transaction-id payment methods — the
+/// inline `CardDetailsForNetworkTransactionId` and the locker-sourced
+/// (payment_method_id) `StoredCardForNetworkTransactionId`. The stored variant
+/// also carries the network transaction id in-band.
+struct NtiCardView {
+    card_number: Secret<String>,
+    card_exp_month: String,
+    card_exp_year: String,
+    card_network: Option<CardNetwork>,
+    network_transaction_id: Option<String>,
+}
+
 fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>(
     item: &TsysTransitRouterData<
         RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
@@ -1809,19 +1821,44 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
 ) -> Result<AuthorizeAssembly, Report<IntegrationError>> {
     let router_data = &item.router_data;
     let auth = TsysTransitAuthType::try_from(&router_data.connector_config)?;
-    let mandate_dispatch = decode_mandate_dispatch(router_data.request.mandate_id.as_ref());
-    let is_cit_setup = matches!(mandate_dispatch, MandateDispatch::None)
-        && (router_data.request.setup_future_usage == Some(FutureUsage::OffSession)
-            || router_data.request.off_session == Some(true));
     let card_opt = match &router_data.request.payment_method_data {
         PaymentMethodData::Card(card) => Some(card),
         _ => None,
     };
-    let nti_card_opt: Option<&CardDetailsForNetworkTransactionId> =
-        match &router_data.request.payment_method_data {
-            PaymentMethodData::CardDetailsForNetworkTransactionId(nti) => Some(nti),
-            _ => None,
-        };
+    let nti_card_opt: Option<NtiCardView> = match &router_data.request.payment_method_data {
+        PaymentMethodData::CardDetailsForNetworkTransactionId(nti) => Some(NtiCardView {
+            card_number: Secret::new(nti.card_number.peek().to_string()),
+            card_exp_month: nti.card_exp_month.peek().clone(),
+            card_exp_year: nti.card_exp_year.peek().clone(),
+            card_network: nti.card_network.clone(),
+            network_transaction_id: None,
+        }),
+        PaymentMethodData::StoredCardForNetworkTransactionId(sc) => Some(NtiCardView {
+            card_number: Secret::new(sc.card_number.peek().to_string()),
+            card_exp_month: sc.card_exp_month.peek().clone(),
+            card_exp_year: sc.card_exp_year.peek().clone(),
+            card_network: sc.card_network.clone(),
+            network_transaction_id: sc
+                .network_transaction_id
+                .as_ref()
+                .map(|n| n.peek().clone()),
+        }),
+        _ => None,
+    };
+    // A stored-card (payment_method_id) MIT carries its network transaction id
+    // in-band; when no mandate reference resolved one, drive the COF/MIT
+    // indicators from it so the replay sends the correct previousNetworkTransactionID.
+    let mandate_dispatch = match decode_mandate_dispatch(router_data.request.mandate_id.as_ref()) {
+        MandateDispatch::None => nti_card_opt
+            .as_ref()
+            .and_then(|n| n.network_transaction_id.clone())
+            .map(|ntid| MandateDispatch::Ntid { ntid })
+            .unwrap_or(MandateDispatch::None),
+        other => other,
+    };
+    let is_cit_setup = matches!(mandate_dispatch, MandateDispatch::None)
+        && (router_data.request.setup_future_usage == Some(FutureUsage::OffSession)
+            || router_data.request.off_session == Some(true));
     if matches!(mandate_dispatch, MandateDispatch::Vault { .. }) {
     } else if card_opt.is_none() && nti_card_opt.is_none() {
         return Err(IntegrationError::NotSupported {
@@ -1862,7 +1899,7 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
     })?;
     let card_network = card
         .and_then(|c| c.card_network.clone())
-        .or_else(|| nti_card_opt.and_then(|n| n.card_network.clone()));
+        .or_else(|| nti_card_opt.as_ref().and_then(|n| n.card_network.clone()));
     let merchant_metadata_early = match router_data.request.metadata.as_ref() {
         Some(meta) => serde_json::from_value::<TsysTransitMerchantMetadata>(meta.clone().expose())
             .change_context(IntegrationError::InvalidDataFormat {
@@ -1925,16 +1962,16 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
                 None,
                 None,
             )
-        } else if let Some(nti) = nti_card_opt {
-            let month = nti.card_exp_month.peek().clone();
-            let year_full = nti.card_exp_year.peek().clone();
+        } else if let Some(nti) = nti_card_opt.as_ref() {
+            let month = nti.card_exp_month.clone();
+            let year_full = nti.card_exp_year.clone();
             let year_short = if year_full.len() == 4 {
                 year_full[2..].to_string()
             } else {
                 year_full
             };
             (
-                Some(Secret::new(nti.card_number.peek().to_string())),
+                Some(nti.card_number.clone()),
                 Some(Secret::new(format!("{}/{}", month, year_short))),
                 None,
                 None,
@@ -2391,7 +2428,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(transaction_id.clone()),
             redirection_data: None,
-            mandate_reference: None,
+            // Store the network transaction id AS-IS as the connector mandate id
+            // so a later payment_method_id MIT can replay the stored credential.
+            // The same value is also surfaced as network_txn_id below, so HS can
+            // drive either the connector-mandate or network-transaction-id path.
+            mandate_reference: body.card_transaction_identifier.clone().map(|ntid| {
+                Box::new(MandateReference {
+                    connector_mandate_id: Some(ntid),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
+                })
+            }),
             connector_metadata: None,
             // Store the network transaction identifier (NOT the per-transaction
             // authCode) so later Mastercard/Visa MITs replay the correct

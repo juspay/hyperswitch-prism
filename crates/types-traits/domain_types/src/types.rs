@@ -2043,6 +2043,31 @@ impl<
                         },
                     ))
                 }
+                grpc_api_types::payments::payment_method::PaymentMethod::StoredCardForNetworkTransactionId(
+                    stored_card_for_nti,
+                ) => {
+                    let card_number = stored_card_for_nti.card_number
+                        .ok_or_else(|| IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Missing card number for stored-card network transaction ID".to_string()), ..Default::default() } })?;
+
+                    Ok(Self::StoredCardForNetworkTransactionId(
+                        payment_method_data::StoredCardForNetworkTransactionId {
+                            card_number,
+                            card_exp_month: stored_card_for_nti.card_exp_month.ok_or_else(|| IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Missing card expiration month".to_string()), ..Default::default() } })?,
+                            card_exp_year: stored_card_for_nti.card_exp_year.ok_or_else(|| IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Missing card expiration year".to_string()), ..Default::default() } })?,
+                            card_issuer: stored_card_for_nti.card_issuer,
+                            card_network: stored_card_for_nti
+                                .card_network
+                                .and_then(|network_i32| grpc_payment_types::CardNetwork::try_from(network_i32).ok())
+                                .and_then(|network| CardNetwork::foreign_try_from(network).ok()),
+                            card_type: stored_card_for_nti.card_type,
+                            card_issuing_country: stored_card_for_nti.card_issuing_country,
+                            bank_code: stored_card_for_nti.bank_code,
+                            nick_name: stored_card_for_nti.nick_name,
+                            card_holder_name: stored_card_for_nti.card_holder_name,
+                            network_transaction_id: stored_card_for_nti.network_transaction_id,
+                        },
+                    ))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::NetworkToken(
                     network_token_data,
                 ) => {
@@ -2667,6 +2692,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 // NETWORK TRANSACTION METHODS - recurring payments
                 // ============================================================================
                 grpc_api_types::payments::payment_method::PaymentMethod::CardDetailsForNetworkTransactionId(_) => Ok(Some(PaymentMethodType::Card)),
+                grpc_api_types::payments::payment_method::PaymentMethod::StoredCardForNetworkTransactionId(_) => Ok(Some(PaymentMethodType::Card)),
                 grpc_api_types::payments::payment_method::PaymentMethod::NetworkToken(_) => Ok(Some(PaymentMethodType::Card)),
                 grpc_payment_types::payment_method::PaymentMethod::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => Ok(Some(PaymentMethodType::NetworkToken)),
                 // ============================================================================
