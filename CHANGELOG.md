@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.14.0
+
+### Bug Fixes
+
+- **cybersource:** Set MIT initiator for repeat_payment ConnectorMandateId (shadow diff #17471) ([#1805](https://github.com/juspay/connector-service/pull/1805)) ([`44792c2`](https://github.com/juspay/connector-service/commit/44792c24793aafbf4276c58852e03e6ae6436ceb))
+
+**Full Changelog:** [`2026.07.13.0...2026.07.14.0`](https://github.com/juspay/connector-service/compare/2026.07.13.0...2026.07.14.0)
+
+- - -
+
 ## 2026.07.13.0
 
 ### Features
