@@ -3317,6 +3317,9 @@ message PaymentServiceSetupRecurringRequest {
   // future intended MIT type (e.g. Recurring vs Installment), so connectors
   // can emit the correct CIT-side credential-on-file intent codes.
   optional MitCategory mit_category = 36;
+
+  // Partner / merchant application identifiers initiating the request.
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 37;
 }
 
 // Response message for a mandate setup operation
