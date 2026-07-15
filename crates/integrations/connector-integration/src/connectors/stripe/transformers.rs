@@ -1563,7 +1563,7 @@ fn create_stripe_payment_method<
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
+        | PaymentMethodData::RawStoredCardForPMID(_) => {
             Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
@@ -5106,7 +5106,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
+            | PaymentMethodData::RawStoredCardForPMID(_) => {
                 Err(IntegrationError::NotImplemented(
                     get_unimplemented_payment_method_error_message("stripe"),
                     Default::default(),
@@ -5477,10 +5477,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 request_overcapture: None,
                             },
                         ),
-                        // StoredCardForNetworkTransactionId is only produced for
+                        // RawStoredCardForPMID is only produced for
                         // connectors opted into the payment_method_id StoredCard flow
                         // (tsys_transit); Stripe never receives it.
-                        PaymentMethodData::StoredCardForNetworkTransactionId(_)
+                        PaymentMethodData::RawStoredCardForPMID(_)
                         | PaymentMethodData::CardRedirect(_)
                         | PaymentMethodData::Wallet(_)
                         | PaymentMethodData::PayLater(_)

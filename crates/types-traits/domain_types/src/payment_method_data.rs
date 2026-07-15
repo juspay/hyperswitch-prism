@@ -265,7 +265,7 @@ impl Card<DefaultPCIHolder> {
 pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
     Card(Card<T>),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
-    StoredCardForNetworkTransactionId(StoredCardForNetworkTransactionId),
+    RawStoredCardForPMID(RawStoredCardForPMID),
     DecryptedWalletTokenDetailsForNetworkTransactionId(
         DecryptedWalletTokenDetailsForNetworkTransactionId,
     ),
@@ -1557,7 +1557,7 @@ pub struct CardDetailsForNetworkTransactionId {
 /// from the Hyperswitch card locker via a stored `payment_method_id` — letting a
 /// connector distinguish a stored-credential replay from an inline card+NTI.
 #[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
-pub struct StoredCardForNetworkTransactionId {
+pub struct RawStoredCardForPMID {
     pub card_number: cards::CardNumber,
     pub card_exp_month: Secret<String>,
     pub card_exp_year: Secret<String>,

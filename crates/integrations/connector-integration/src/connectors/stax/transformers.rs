@@ -1107,7 +1107,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
+            | PaymentMethodData::RawStoredCardForPMID(_) => {
                 Err(IntegrationError::NotImplemented(
                     "Only card and ACH bank debit tokenization are supported for Stax".to_string(),
                     Default::default(),

@@ -114,7 +114,7 @@ impl TxProfile {
         let card_network = match &request.payment_method_data {
             PaymentMethodData::Card(card) => card.card_network.clone(),
             PaymentMethodData::CardDetailsForNetworkTransactionId(nti) => nti.card_network.clone(),
-            PaymentMethodData::StoredCardForNetworkTransactionId(sc) => sc.card_network.clone(),
+            PaymentMethodData::RawStoredCardForPMID(sc) => sc.card_network.clone(),
             _ => None,
         };
         let acceptance = AcceptanceProfile::derive(

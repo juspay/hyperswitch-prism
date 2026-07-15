@@ -345,7 +345,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-                | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
+                | PaymentMethodData::RawStoredCardForPMID(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message:
                             domain_types::utils::get_unimplemented_payment_method_error_message(
@@ -2585,7 +2585,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             PaymentMethodData::MandatePayment
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::StoredCardForNetworkTransactionId(_)
+            | PaymentMethodData::RawStoredCardForPMID(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
@@ -2704,7 +2704,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
+            | PaymentMethodData::RawStoredCardForPMID(_) => {
                 Err(error_stack::report!(IntegrationError::NotSupported {
                     message: utils::get_unimplemented_payment_method_error_message("Cybersource"),
                     connector: "Cybersource",
@@ -3733,7 +3733,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
+            | PaymentMethodData::RawStoredCardForPMID(_) => {
                 Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                     Default::default(),
@@ -4018,7 +4018,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
+            | PaymentMethodData::RawStoredCardForPMID(_) => {
                 Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Cybersource"),
                     Default::default(),
@@ -5085,10 +5085,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     Self::try_from((&item, card))
                 }
                 PaymentMethodData::NetworkToken(token_data) => Self::try_from((&item, token_data)),
-                // StoredCardForNetworkTransactionId is only produced for connectors
+                // RawStoredCardForPMID is only produced for connectors
                 // opted into the payment_method_id StoredCard flow (tsys_transit);
                 // Cybersource never receives it, so it is not implemented here.
-                PaymentMethodData::StoredCardForNetworkTransactionId(_)
+                PaymentMethodData::RawStoredCardForPMID(_)
                 | PaymentMethodData::CardRedirect(_)
                 | PaymentMethodData::PayLater(_)
                 | PaymentMethodData::Wallet(_)

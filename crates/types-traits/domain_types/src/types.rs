@@ -2043,14 +2043,14 @@ impl<
                         },
                     ))
                 }
-                grpc_api_types::payments::payment_method::PaymentMethod::StoredCardForNetworkTransactionId(
+                grpc_api_types::payments::payment_method::PaymentMethod::RawStoredCardForPmid(
                     stored_card_for_nti,
                 ) => {
                     let card_number = stored_card_for_nti.card_number
                         .ok_or_else(|| IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Missing card number for stored-card network transaction ID".to_string()), ..Default::default() } })?;
 
-                    Ok(Self::StoredCardForNetworkTransactionId(
-                        payment_method_data::StoredCardForNetworkTransactionId {
+                    Ok(Self::RawStoredCardForPMID(
+                        payment_method_data::RawStoredCardForPMID {
                             card_number,
                             card_exp_month: stored_card_for_nti.card_exp_month.ok_or_else(|| IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Missing card expiration month".to_string()), ..Default::default() } })?,
                             card_exp_year: stored_card_for_nti.card_exp_year.ok_or_else(|| IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Missing card expiration year".to_string()), ..Default::default() } })?,
@@ -2692,7 +2692,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 // NETWORK TRANSACTION METHODS - recurring payments
                 // ============================================================================
                 grpc_api_types::payments::payment_method::PaymentMethod::CardDetailsForNetworkTransactionId(_) => Ok(Some(PaymentMethodType::Card)),
-                grpc_api_types::payments::payment_method::PaymentMethod::StoredCardForNetworkTransactionId(_) => Ok(Some(PaymentMethodType::Card)),
+                grpc_api_types::payments::payment_method::PaymentMethod::RawStoredCardForPmid(_) => Ok(Some(PaymentMethodType::Card)),
                 grpc_api_types::payments::payment_method::PaymentMethod::NetworkToken(_) => Ok(Some(PaymentMethodType::Card)),
                 grpc_payment_types::payment_method::PaymentMethod::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => Ok(Some(PaymentMethodType::NetworkToken)),
                 // ============================================================================

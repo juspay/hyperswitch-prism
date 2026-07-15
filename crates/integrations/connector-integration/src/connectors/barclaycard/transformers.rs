@@ -136,7 +136,7 @@ fn payment_method_data_label<T: PaymentMethodDataTypes>(
         PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
             "card_details_for_network_transaction_id"
         }
-        PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
+        PaymentMethodData::RawStoredCardForPMID(_) => {
             "stored_card_for_network_transaction_id"
         }
         PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {

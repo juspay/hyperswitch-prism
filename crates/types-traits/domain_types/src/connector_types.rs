@@ -3942,7 +3942,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
             PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
                 Self::CardDetailsForNetworkTransactionId
             }
-            PaymentMethodData::StoredCardForNetworkTransactionId(_) => {
+            PaymentMethodData::RawStoredCardForPMID(_) => {
                 Self::CardDetailsForNetworkTransactionId
             }
             PaymentMethodData::NetworkToken(_) => Self::NetworkToken,

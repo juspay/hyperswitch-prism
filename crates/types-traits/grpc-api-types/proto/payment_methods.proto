@@ -188,7 +188,7 @@ message PaymentMethod {
     CardDetailsForNetworkTransactionId card_details_for_network_transaction_id = 120; // Card details with network transaction ID
     NetworkTokenData network_token = 121; // Network token data
     DecryptedWalletTokenDetailsForNetworkTransactionId decrypted_wallet_token_details_for_network_transaction_id = 122; // Network Transaction ID and Decrypted Wallet Token Details
-    StoredCardForNetworkTransactionId stored_card_for_network_transaction_id = 123; // Locker-sourced (payment_method_id) card details for a network-transaction-id MIT
+    RawStoredCardForPMID raw_stored_card_for_pmid = 123; // Locker-sourced (payment_method_id) card details for a network-transaction-id MIT
     
     // GIFT CARDS (130-139)
     Givex givex = 137;                                         // Givex gift card
@@ -1549,7 +1549,7 @@ message CardDetailsForNetworkTransactionId {
 // Mirrors CardDetailsForNetworkTransactionId but is produced only when the card is
 // pulled from the Hyperswitch card locker via a stored payment_method_id, so a
 // connector can distinguish a stored-credential replay from an inline card+NTI.
-message StoredCardForNetworkTransactionId {
+message RawStoredCardForPMID {
     CardNumberType card_number = 1;
     SecretString card_exp_month = 2;
     SecretString card_exp_year = 3;
