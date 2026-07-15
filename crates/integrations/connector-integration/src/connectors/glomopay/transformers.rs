@@ -592,15 +592,34 @@ impl TryFrom<ResponseRouterData<GlomopayCreateOrderResponse, Self>>
         let response = item.response;
         let order_id = response.id.clone();
 
-        // If Glomopay returns a non-proceedable order status, fail early so
+        // If Glomopay returns a non-proceedable order status, return early so
         // the caller does not attempt POST /payment against an order that is
         // not ready. Per order.md the enum is:
         //   active | paid | failed | action_required | under_review | expired
-        // Only `active` (and, rarely, `paid`/`under_review`) are safe to
-        // proceed with. `action_required` typically means sanction screening
-        // triggered and RFI documents are required; `failed`/`expired` are
-        // terminal on Glomopay's side.
+        // Only `active` (and, rarely, `paid`) are safe to proceed with.
+        // `action_required`, `failed`, and `expired` are terminal failures.
+        // `under_review` means the order is pending manual review — return Pending.
         if let Some(status) = response.status.as_deref() {
+            if matches!(status, "under_review") {
+                return Ok(Self {
+                    response: Err(ErrorResponse {
+                        code: "ORDER_UNDER_REVIEW".to_string(),
+                        message: format!("Glomopay order '{}' is under review.", order_id),
+                        reason: Some(format!("Glomopay order '{}' is under review.", order_id)),
+                        status_code: item.http_code,
+                        attempt_status: Some(FlowStatus::Payment(AttemptStatus::Pending)),
+                        connector_transaction_id: Some(order_id),
+                        network_decline_code: None,
+                        network_advice_code: None,
+                        network_error_message: None,
+                    }),
+                    resource_common_data: PaymentFlowData {
+                        status: AttemptStatus::Pending,
+                        ..item.router_data.resource_common_data
+                    },
+                    ..item.router_data
+                });
+            }
             if matches!(status, "action_required" | "failed" | "expired") {
                 let code = format!("ORDER_{}", status.to_uppercase());
                 let message = format!(
@@ -805,7 +824,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         item: ResponseRouterData<GlomopayAuthorizeResponse, Self>,
     ) -> Result<Self, Self::Error> {
         let response = item.response;
-        let status = AttemptStatus::from(response.status);
+        let status = match response.status {
+            GlomopayPaymentStatus::ActionRequired => AttemptStatus::Failure,
+            other => AttemptStatus::from(other),
+        };
 
         let redirect_url = response
             .next_steps
