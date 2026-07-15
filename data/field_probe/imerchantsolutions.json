@@ -84,7 +84,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"walletToken\":{\"type\":\"applepay\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"nonce\":\"AAAAAA==\",\"eci\":\"05\"},\"shopperName\":{\"firstName\":null,\"lastName\":null},\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"storePaymentMethod\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"walletToken\":{\"type\":\"applepay\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"nonce\":\"AAAAAA==\",\"eci\":\"05\"},\"shopperName\":{},\"billing\":{},\"deliveryAddress\":{},\"manualCapture\":false,\"storePaymentMethod\":false}"
         }
       },
       "ApplePayThirdPartySdk": {
@@ -171,7 +171,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"card\":{\"number\":\"4111111111111111\",\"cvv\":\"737\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"holder\":\"John Doe\"},\"shopperName\":{\"firstName\":null,\"lastName\":null},\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"storePaymentMethod\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"card\":{\"number\":\"4111111111111111\",\"cvv\":\"737\",\"expiry_month\":\"03\",\"expiry_year\":\"2030\",\"holder\":\"John Doe\"},\"shopperName\":{},\"billing\":{},\"deliveryAddress\":{},\"manualCapture\":false,\"storePaymentMethod\":false}"
         }
       },
       "CashappQr": {
@@ -292,7 +292,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"walletToken\":{\"type\":\"googlepay\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"nonce\":\"AAAAAA==\",\"eci\":\"05\"},\"shopperName\":{\"firstName\":null,\"lastName\":null},\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"storePaymentMethod\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_txn_001\",\"walletToken\":{\"type\":\"googlepay\",\"number\":\"4111111111111111\",\"expiryMonth\":\"03\",\"expiryYear\":\"2030\",\"nonce\":\"AAAAAA==\",\"eci\":\"05\"},\"shopperName\":{},\"billing\":{},\"deliveryAddress\":{},\"manualCapture\":false,\"storePaymentMethod\":false}"
         }
       },
       "GooglePayThirdPartySdk": {
@@ -763,7 +763,7 @@
             "via": "HyperSwitch",
             "x-api-key": "probe_key"
           },
-          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"card\":{\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"holder\":\"John Doe\"},\"shopperName\":{\"firstName\":null,\"lastName\":null},\"billing\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"deliveryAddress\":{\"address\":null,\"city\":null,\"state\":null,\"postalCode\":null,\"country\":null},\"manualCapture\":false,\"storePaymentMethod\":false}"
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"reference\":\"probe_proxy_txn_001\",\"card\":{\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"expiry_month\":\"{{$card_exp_month}}\",\"expiry_year\":\"{{$card_exp_year}}\",\"holder\":\"John Doe\"},\"shopperName\":{},\"billing\":{},\"deliveryAddress\":{},\"manualCapture\":false,\"storePaymentMethod\":false}"
         }
       }
     },
