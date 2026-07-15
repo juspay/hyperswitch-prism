@@ -611,8 +611,10 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 "threeDSServerTransID".to_string(),
                                 response.three_ds_server_trans_id.clone(),
                             );
-                            if let Some(acs_reference_number) =
-                                response.authentication_response.acs_reference_number.clone()
+                            if let Some(acs_reference_number) = response
+                                .authentication_response
+                                .acs_reference_number
+                                .clone()
                             {
                                 form_fields
                                     .insert("acsReferenceNumber".to_string(), acs_reference_number);
