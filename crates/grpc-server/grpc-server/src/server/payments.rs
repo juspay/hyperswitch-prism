@@ -360,14 +360,21 @@ fn build_customer_event_params<'a>(
     }
 }
 
+/// Outcome of a connector-side customer lookup. `Found` means the connector
+/// returned an existing customer we can reuse; `NotFound` covers both the
+/// clean "no such customer" response and infra errors on the GET call — the
+/// caller falls through to POST create in either case.
+enum ConnectorCustomerLookup {
+    Found(grpc_api_types::payments::CustomerServiceCreateResponse),
+    NotFound,
+}
+
 /// For connectors that require lookup-before-create (e.g. Glomopay, which
 /// rejects duplicate emails), run GET to search for an existing customer.
-/// Returns `Ok(Some(response))` on hit — caller should return it directly.
-/// Returns `Ok(None)` to fall through to POST create (either the connector
-/// doesn't need a lookup, the customer wasn't found, or the GET call errored
-/// on infrastructure — all three mean "try to create instead").
+/// Callers must gate this on `connector.should_lookup_connector_customer()`
+/// themselves; this function assumes the connector supports the flow.
 #[allow(clippy::too_many_arguments)]
-async fn try_lookup_existing_connector_customer(
+async fn internal_get_connector_customer(
     connector_data: &ConnectorData<DefaultPCIHolder>,
     payment_flow_data: &PaymentFlowData,
     connector_config: &ConnectorSpecificConfig,
@@ -379,11 +386,7 @@ async fn try_lookup_existing_connector_customer(
     lineage_ids: &lineage::LineageIds<'_>,
     metadata_payload: &utils::MetadataPayload,
     test_context: Option<external_services::service::TestContext>,
-) -> Result<Option<grpc_api_types::payments::CustomerServiceCreateResponse>, tonic::Status> {
-    if !connector_data.connector.should_lookup_connector_customer() {
-        return Ok(None);
-    }
-
+) -> Result<ConnectorCustomerLookup, tonic::Status> {
     let get_integration: BoxedConnectorIntegrationV2<
         '_,
         GetConnectorCustomer,
@@ -413,7 +416,7 @@ async fn try_lookup_existing_connector_customer(
         .api_tags
         .get_tag(FlowName::GetConnectorCustomer, None);
 
-    if let Ok(get_result) = Box::pin(
+    let call_result = Box::pin(
         external_services::service::execute_connector_processing_step(
             &config.proxy,
             get_integration,
@@ -426,22 +429,23 @@ async fn try_lookup_existing_connector_customer(
             get_api_tag,
         ),
     )
-    .await
-    {
-        if get_result.response.is_ok() {
+    .await;
+
+    match call_result {
+        Ok(get_result) if get_result.response.is_ok() => {
             let lookup_response = generate_get_connector_customer_response(get_result)
                 .map_err(|e| e.into_grpc_status())?;
-            return Ok(Some(lookup_response));
+            Ok(ConnectorCustomerLookup::Found(lookup_response))
         }
-        // response is Err (e.g. CUSTOMER_NOT_FOUND) — fall through to POST create
+        // GET returned Err (e.g. CUSTOMER_NOT_FOUND) OR infra error —
+        // caller falls through to POST create.
+        _ => Ok(ConnectorCustomerLookup::NotFound),
     }
-    // Infrastructure error from GET — fall through to POST create
-    Ok(None)
 }
 
 /// Execute the POST create for a connector customer.
 #[allow(clippy::too_many_arguments)]
-async fn execute_create_connector_customer(
+async fn internal_create_connector_customer(
     connector_data: &ConnectorData<DefaultPCIHolder>,
     payment_flow_data: &PaymentFlowData,
     connector_config: &ConnectorSpecificConfig,
@@ -587,41 +591,54 @@ impl CustomerService for Customer {
 
                     // For connectors that require a lookup before create (e.g. Glomopay which
                     // rejects duplicate emails), first run GET to search for an existing customer.
-                    // If found, return immediately. If not, fall through to POST create.
-                    if let Some(lookup_response) = try_lookup_existing_connector_customer(
-                        &connector_data,
-                        &payment_flow_data,
-                        connector_config,
-                        &connector_customer_request_data,
-                        &metadata_payload.connector,
-                        &service_name,
-                        &config,
-                        &metadata_payload.request_id,
-                        &metadata_payload.lineage_ids,
-                        &metadata_payload,
-                        test_context.clone(),
-                    )
-                    .await?
+                    // Skip the lookup entirely for connectors that don't advertise support.
+                    let existing_customer = if connector_data
+                        .connector
+                        .should_lookup_connector_customer()
                     {
-                        return Ok(tonic::Response::new(lookup_response));
-                    }
+                        match internal_get_connector_customer(
+                            &connector_data,
+                            &payment_flow_data,
+                            connector_config,
+                            &connector_customer_request_data,
+                            &metadata_payload.connector,
+                            &service_name,
+                            &config,
+                            &metadata_payload.request_id,
+                            &metadata_payload.lineage_ids,
+                            &metadata_payload,
+                            test_context.clone(),
+                        )
+                        .await?
+                        {
+                            ConnectorCustomerLookup::Found(x) => Some(x),
+                            ConnectorCustomerLookup::NotFound => None,
+                        }
+                    } else {
+                        None
+                    };
 
-                    let connector_customer_response = execute_create_connector_customer(
-                        &connector_data,
-                        &payment_flow_data,
-                        connector_config,
-                        &connector_customer_request_data,
-                        &metadata_payload.connector,
-                        &service_name,
-                        &config,
-                        &metadata_payload.request_id,
-                        &metadata_payload.lineage_ids,
-                        &metadata_payload,
-                        test_context,
-                    )
-                    .await?;
+                    let customer_response = match existing_customer {
+                        Some(x) => x,
+                        None => {
+                            internal_create_connector_customer(
+                                &connector_data,
+                                &payment_flow_data,
+                                connector_config,
+                                &connector_customer_request_data,
+                                &metadata_payload.connector,
+                                &service_name,
+                                &config,
+                                &metadata_payload.request_id,
+                                &metadata_payload.lineage_ids,
+                                &metadata_payload,
+                                test_context,
+                            )
+                            .await?
+                        }
+                    };
 
-                    Ok(tonic::Response::new(connector_customer_response))
+                    Ok(tonic::Response::new(customer_response))
                 })
             },
         )

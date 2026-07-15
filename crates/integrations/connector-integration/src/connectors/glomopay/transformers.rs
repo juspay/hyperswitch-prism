@@ -21,10 +21,52 @@ use domain_types::{
     router_request_types::PaymentSynIntegrityObject,
     router_response_types::RedirectForm,
 };
-use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::connectors::glomopay::GlomopayAmountConvertor;
+
+// ============================================================================
+// Supported countries (see SupportedCountries.md)
+// ============================================================================
+
+// Countries Glomo will accept in the customer `country` field (ISO 3166-1
+// alpha-3). Anything outside this set is rejected server-side; we fail fast
+// with a NotSupported error instead of forwarding.
+const GLOMOPAY_SUPPORTED_COUNTRIES: &[&str] = &[
+    "ABW", "AGO", "AIA", "ALB", "AND", "ARE", "ARG", "ARM", "ASM", "ATA", "ATF", "ATG", "AUS",
+    "AUT", "AZE", "BEL", "BEN", "BGD", "BHR", "BHS", "BLZ", "BMU", "BOL", "BRA", "BRB", "BRN",
+    "BTN", "BVT", "BWA", "CAN", "CCK", "CHE", "CHL", "CIV", "COG", "COK", "COL", "COM", "CPV",
+    "CRI", "CXR", "CYM", "CYP", "CZE", "DEU", "DJI", "DMA", "DNK", "DOM", "DZA", "ECU", "EGY",
+    "ESH", "ESP", "EST", "FIN", "FJI", "FLK", "FRA", "FRO", "FSM", "GAB", "GBR", "GEO", "GHA",
+    "GIB", "GLP", "GMB", "GNQ", "GRC", "GRD", "GRL", "GTM", "GUF", "GUM", "GUY", "HMD", "HND",
+    "HUN", "IDN", "IND", "IOT", "IRL", "ISL", "ISR", "ITA", "JOR", "JPN", "KAZ", "KGZ", "KHM",
+    "KIR", "KNA", "KOR", "KWT", "LAO", "LBR", "LCA", "LIE", "LKA", "LSO", "LTU", "LUX", "LVA",
+    "MAC", "MAR", "MCO", "MDG", "MDV", "MEX", "MHL", "MKD", "MLT", "MNG", "MNP", "MRT", "MSR",
+    "MTQ", "MUS", "MWI", "MYS", "MYT", "NCL", "NER", "NFK", "NIU", "NLD", "NOR", "NPL", "NRU",
+    "NZL", "OMN", "PAK", "PAN", "PCN", "PER", "PLW", "PNG", "POL", "PRI", "PRT", "PRY", "PYF",
+    "QAT", "REU", "ROU", "RWA", "SAU", "SGP", "SGS", "SHN", "SJM", "SLB", "SLE", "SLV", "SMR",
+    "SPM", "STP", "SUR", "SVK", "SVN", "SWE", "SWZ", "SYC", "TCA", "TCD", "TGO", "THA", "TJK",
+    "TKL", "TKM", "TON", "TTO", "TUV", "TWN", "UMI", "URY", "USA", "UZB", "VAT", "VCT", "VGB",
+    "VIR", "VUT", "WLF", "WSM", "ZAF", "ZMB",
+];
+
+// Countries where Glomo requires the customer `pincode` field. Absent zip
+// with one of these countries is a server-side 4xx.
+const GLOMOPAY_PINCODE_REQUIRED_COUNTRIES: &[&str] = &[
+    "AIA", "ALB", "AND", "ARG", "ARM", "ASM", "ATA", "ATF", "AUS", "AUT", "AZE", "BEL", "BGD",
+    "BHR", "BLZ", "BMU", "BOL", "BRA", "BRB", "BRN", "BTN", "BVT", "CAN", "CCK", "CHE", "CHL",
+    "CIV", "COK", "COL", "CPV", "CRI", "CXR", "CYM", "CYP", "CZE", "DEU", "DMA", "DNK", "DOM",
+    "DZA", "ECU", "EGY", "ESH", "ESP", "EST", "FIN", "FJI", "FLK", "FRA", "FRO", "FSM", "GAB",
+    "GBR", "GEO", "GIB", "GLP", "GMB", "GRC", "GRL", "GTM", "GUF", "GUM", "HMD", "HND", "HUN",
+    "IDN", "IND", "IOT", "IRL", "ISL", "ISR", "ITA", "JOR", "JPN", "KAZ", "KGZ", "KHM", "KIR",
+    "KOR", "KWT", "LAO", "LCA", "LIE", "LKA", "LSO", "LTU", "LUX", "LVA", "MAR", "MCO", "MDG",
+    "MDV", "MEX", "MHL", "MKD", "MLT", "MNG", "MNP", "MSR", "MTQ", "MUS", "MYS", "MYT", "NCL",
+    "NER", "NFK", "NLD", "NOR", "NPL", "NZL", "OMN", "PAK", "PAN", "PCN", "PER", "PLW", "PNG",
+    "POL", "PRI", "PRT", "PRY", "PYF", "QAT", "REU", "ROU", "SAU", "SGP", "SGS", "SHN", "SJM",
+    "SLB", "SLV", "SMR", "SPM", "SVK", "SVN", "SWE", "SWZ", "TCA", "THA", "TJK", "TKM", "TON",
+    "TTO", "TWN", "UMI", "URY", "USA", "UZB", "VAT", "VCT", "VGB", "VIR", "WLF", "ZAF", "ZMB",
+];
 
 // ============================================================================
 // Auth
@@ -306,8 +348,8 @@ impl GlomopayRefundWebhookPayload {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GlomopayCustomerItem {
     pub id: String,
-    pub name: Option<String>,
-    pub email: Option<String>,
+    pub name: Option<Secret<String>>,
+    pub email: Option<Email>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -363,7 +405,7 @@ impl TryFrom<ResponseRouterData<GlomopayGetCustomerResponse, Self>>
 pub struct GlomopayCreateCustomerRequest {
     pub name: Secret<String>,
     pub customer_type: String,
-    pub email: Secret<String>,
+    pub email: Email,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub phone: Option<Secret<String>>,
     pub address: Secret<String>,
@@ -417,57 +459,45 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // for merchants that don't collect a separate customer profile before
         // checkout. Glomopay requires a non-empty name, so bail out only if
         // neither source is populated.
-        let name = req
-            .name
-            .as_ref()
-            .map(|n| n.peek().clone())
-            .or_else(|| {
-                flow_data
-                    .get_optional_billing_full_name()
-                    .map(|n| n.expose())
-            })
-            .ok_or_else(crate::utils::missing_field_err("customer.name"))?;
+        let name = req.get_name().or_else(|_| flow_data.get_billing_full_name())?;
 
-        let email = req
-            .email
-            .as_ref()
-            .map(|e| e.peek().peek().to_string())
-            .ok_or_else(crate::utils::missing_field_err("customer.email"))?;
+        let email = req.get_email()?;
 
-        let phone = req.phone.as_ref().map(|p| p.peek().clone());
+        let address = flow_data.get_billing_line1()?;
 
-        let address = flow_data
-            .get_optional_billing_line1()
-            .map(|l| l.expose())
-            .ok_or_else(crate::utils::missing_field_err("billing.address.line1"))?;
+        let city = flow_data.get_billing_city()?;
 
-        let city = flow_data
-            .get_optional_billing_city()
-            .map(|c| c.expose())
-            .ok_or_else(crate::utils::missing_field_err("billing.address.city"))?;
+        let state = flow_data.get_billing_state()?;
 
-        let state = flow_data
-            .get_optional_billing_state()
-            .map(|s| s.expose())
-            .ok_or_else(crate::utils::missing_field_err("billing.address.state"))?;
+        let country = CountryAlpha2::from_alpha2_to_alpha3(flow_data.get_billing_country()?)
+            .to_string();
 
-        let country = flow_data
-            .get_optional_billing_country()
-            .map(|c| CountryAlpha2::from_alpha2_to_alpha3(c).to_string())
-            .ok_or_else(crate::utils::missing_field_err("billing.address.country"))?;
+        if !GLOMOPAY_SUPPORTED_COUNTRIES.contains(&country.as_str()) {
+            return Err(error_stack::report!(
+                errors::IntegrationError::NotSupported {
+                    message: format!("country '{country}'"),
+                    connector: "glomopay",
+                    context: Default::default(),
+                }
+            ));
+        }
 
-        let zip = flow_data.get_optional_billing_zip().map(|z| z.expose());
+        let zip = flow_data.get_optional_billing_zip();
+
+        if zip.is_none() && GLOMOPAY_PINCODE_REQUIRED_COUNTRIES.contains(&country.as_str()) {
+            return Err(crate::utils::missing_field_err("billing.address.pincode")());
+        }
 
         Ok(Self {
-            name: Secret::new(name),
+            name,
             customer_type: "individual".to_string(),
-            email: Secret::new(email),
-            phone: phone.map(Secret::new),
-            address: Secret::new(address),
-            city: Secret::new(city),
-            state: Secret::new(state),
+            email,
+            phone: req.phone.clone(),
+            address,
+            city,
+            state,
             country,
-            pincode: zip.map(Secret::new),
+            pincode: zip,
         })
     }
 }
@@ -746,18 +776,23 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let (method, card) = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => {
-                // Glomopay expects a 2-digit expiry year (e.g. "30"). Euler
-                // may send it as either "30" or "2030", so normalise by
-                // taking the last two characters.
-                let expiry_year = {
-                    let full = card.card_exp_year.peek();
-                    let last_two = if full.len() >= 2 {
-                        full[full.len() - 2..].to_string()
-                    } else {
-                        full.clone()
-                    };
-                    Secret::new(last_two)
-                };
+                // Reject India-issued cards. Euler's BIN lookup may set
+                // card_issuing_country as alpha-2 ("IN") or alpha-3 ("IND"),
+                // so match both case-insensitively.
+                if let Some(issuer_country) = card.card_issuing_country.as_deref() {
+                    let normalised = issuer_country.trim().to_ascii_uppercase();
+                    if normalised == "IN" || normalised == "IND" {
+                        return Err(error_stack::report!(
+                            errors::IntegrationError::NotSupported {
+                                message: "India-issued cards are not supported".to_string(),
+                                connector: "glomopay",
+                                context: Default::default(),
+                            }
+                        ));
+                    }
+                }
+
+                let expiry_year = card.get_card_expiry_year_2_digit()?;
 
                 (
                     "card".to_string(),
