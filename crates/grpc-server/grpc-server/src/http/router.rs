@@ -59,7 +59,7 @@ pub fn create_router(state: AppState) -> Router {
         )
         .route(
             "/composite/pre_authenticate",
-            post(handlers::composite::payments::device_data_collection),
+            post(handlers::composite::payments::pre_authenticate),
         )
         .route(
             "/composite/frm/pre_risk_check",

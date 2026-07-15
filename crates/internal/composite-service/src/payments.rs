@@ -11,11 +11,10 @@ use grpc_api_types::payments::{
     payment_method_authentication_service_server::PaymentMethodAuthenticationService,
     payment_service_server::PaymentService, refund_service_server::RefundService,
     CompositeAuthorizeRequest, CompositeAuthorizeResponse, CompositeCaptureRequest,
-    CompositeCaptureResponse, CompositeDeviceDataCollectionRequest,
-    CompositeDeviceDataCollectionResponse, CompositeGetRequest, CompositeGetResponse,
-    CompositeRefundGetRequest, CompositeRefundGetResponse, CompositeRefundRequest,
-    CompositeRefundResponse, CompositeStatus, CompositeVoidRequest, CompositeVoidResponse,
-    ConnectorState, CustomerServiceCreateResponse,
+    CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse,
+    CompositePreAuthenticateRequest, CompositePreAuthenticateResponse, CompositeRefundGetRequest,
+    CompositeRefundGetResponse, CompositeRefundRequest, CompositeRefundResponse, CompositeStatus,
+    CompositeVoidRequest, CompositeVoidResponse, ConnectorState, CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -59,6 +58,16 @@ pub trait CompositeSessionTokenRequest {
     fn has_session_token(&self) -> bool;
 }
 
+/// Trait for abstracting request construction for composite pre-authenticate flows.
+pub trait CompositePreAuthenticatePayload {
+    fn build_pre_authenticate_request(
+        &self,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+    ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest;
+}
+
 impl CompositeAccessTokenRequest for CompositeAuthorizeRequest {
     fn payment_method(&self) -> Option<PaymentMethod> {
         self.payment_method.clone()
@@ -78,7 +87,7 @@ impl CompositeAccessTokenRequest for CompositeAuthorizeRequest {
     }
 }
 
-impl CompositeAccessTokenRequest for CompositeDeviceDataCollectionRequest {
+impl CompositeAccessTokenRequest for CompositePreAuthenticateRequest {
     fn payment_method(&self) -> Option<PaymentMethod> {
         self.payment_method.clone()
     }
@@ -109,6 +118,34 @@ impl CompositeSessionTokenRequest for CompositeAuthorizeRequest {
 
     fn has_session_token(&self) -> bool {
         self.session_token.is_some()
+    }
+}
+
+impl CompositePreAuthenticatePayload for CompositeAuthorizeRequest {
+    fn build_pre_authenticate_request(
+        &self,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+    ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
+        PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
+            self,
+            access_token_response,
+        ))
+    }
+}
+
+impl CompositePreAuthenticatePayload for CompositePreAuthenticateRequest {
+    fn build_pre_authenticate_request(
+        &self,
+        access_token_response: Option<
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
+    ) -> PaymentMethodAuthenticationServicePreAuthenticateRequest {
+        PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
+            self,
+            access_token_response,
+        ))
     }
 }
 
@@ -503,26 +540,19 @@ where
         Ok(authorize_response)
     }
 
-    async fn pre_authenticate<'a, Req>(
+    async fn pre_authenticate<Req>(
         &self,
-        payload: &'a Req,
+        payload: &Req,
         access_token_response: Option<
-            &'a MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+            &MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
         >,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<PaymentMethodAuthenticationServicePreAuthenticateResponse, tonic::Status>
     where
-        PaymentMethodAuthenticationServicePreAuthenticateRequest: ForeignFrom<(
-            &'a Req,
-            Option<&'a MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
-        )>,
+        Req: CompositePreAuthenticatePayload,
     {
-        let pre_auth_payload =
-            PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_from((
-                payload,
-                access_token_response,
-            ));
+        let pre_auth_payload = payload.build_pre_authenticate_request(access_token_response);
         let mut pre_auth_request = tonic::Request::new(pre_auth_payload);
         *pre_auth_request.metadata_mut() = metadata.clone();
         *pre_auth_request.extensions_mut() = extensions.clone();
@@ -835,10 +865,10 @@ where
         }))
     }
 
-    async fn process_device_data_collection(
+    async fn process_pre_authenticate(
         &self,
-        request: tonic::Request<CompositeDeviceDataCollectionRequest>,
-    ) -> Result<tonic::Response<CompositeDeviceDataCollectionResponse>, tonic::Status> {
+        request: tonic::Request<CompositePreAuthenticateRequest>,
+    ) -> Result<tonic::Response<CompositePreAuthenticateResponse>, tonic::Status> {
         let (metadata, extensions, payload) = request.into_parts();
 
         let connector =
@@ -846,7 +876,7 @@ where
         let access_token_response = self
             .create_server_authentication_token(&connector, &payload, &metadata, &extensions)
             .await?;
-        let device_data_collection_response = self
+        let pre_authenticate_response = self
             .pre_authenticate(
                 &payload,
                 access_token_response.as_ref(),
@@ -855,12 +885,10 @@ where
             )
             .await?;
 
-        Ok(tonic::Response::new(
-            CompositeDeviceDataCollectionResponse {
-                device_data_collection_response: Some(device_data_collection_response),
-                access_token_response,
-            },
-        ))
+        Ok(tonic::Response::new(CompositePreAuthenticateResponse {
+            pre_authenticate_response: Some(pre_authenticate_response),
+            access_token_response,
+        }))
     }
 
     async fn refund(
@@ -1204,11 +1232,11 @@ where
         Box::pin(self.process_composite_authorize(request)).await
     }
 
-    async fn device_data_collection(
+    async fn pre_authenticate(
         &self,
-        request: tonic::Request<CompositeDeviceDataCollectionRequest>,
-    ) -> Result<tonic::Response<CompositeDeviceDataCollectionResponse>, tonic::Status> {
-        self.process_device_data_collection(request).await
+        request: tonic::Request<CompositePreAuthenticateRequest>,
+    ) -> Result<tonic::Response<CompositePreAuthenticateResponse>, tonic::Status> {
+        self.process_pre_authenticate(request).await
     }
 
     async fn get(

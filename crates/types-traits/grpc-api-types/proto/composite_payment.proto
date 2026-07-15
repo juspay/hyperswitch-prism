@@ -148,10 +148,10 @@ message CompositeAuthorizeResponse {
   optional MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse session_token_response = 9; // Server session token flow response
 }
 
-// Generic composite request for device-data collection that includes all fields
+// Generic composite request for pre-authenticate that includes all fields
 // from PaymentMethodAuthenticationServicePreAuthenticateRequest with access token
 // bootstrapping support.
-message CompositeDeviceDataCollectionRequest {
+message CompositePreAuthenticateRequest {
   // Payment identification
   optional string merchant_order_id = 1;
 
@@ -205,11 +205,11 @@ message CompositeDeviceDataCollectionRequest {
   optional string merchant_request_id = 18;
 }
 
-// Generic composite response for device-data collection that includes access
+// Generic composite response for pre-authenticate that includes access
 // token response.
-message CompositeDeviceDataCollectionResponse {
-  // The underlying device-data collection / pre-authenticate response
-  optional PaymentMethodAuthenticationServicePreAuthenticateResponse device_data_collection_response = 1;
+message CompositePreAuthenticateResponse {
+  // The underlying pre-authenticate response
+  optional PaymentMethodAuthenticationServicePreAuthenticateResponse pre_authenticate_response = 1;
 
   // Access token generation result (populated only when bootstrapped)
   optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 2;
