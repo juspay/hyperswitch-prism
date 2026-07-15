@@ -2,6 +2,7 @@ pub mod transformers;
 
 use std::{self, fmt::Debug};
 
+use base64::{engine::general_purpose::URL_SAFE, Engine};
 use common_enums::{AttemptStatus, CurrencyUnit, RefundStatus};
 use common_utils::{
     crypto::{self, VerifySignature},
@@ -89,11 +90,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> Result<Vec<u8>, error_stack::Report<errors::WebhookError>> {
         let signature = request
             .headers
-            .get("Gp-Webhook-Signature")
+            .get("gp-webhook-signature")
             .ok_or_else(|| report!(errors::WebhookError::WebhookSignatureNotFound))
             .attach_printable("Missing incoming webhook signature for givepayments connector")?;
 
-        hex::decode(signature).change_context(errors::WebhookError::WebhookSourceVerificationFailed)
+        URL_SAFE
+            .decode(signature)
+            .change_context(errors::WebhookError::WebhookSourceVerificationFailed)
     }
 
     fn get_webhook_source_verification_message(
