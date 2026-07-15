@@ -1246,7 +1246,8 @@ fn get_stripe_payment_method_type_from_wallet_data(
         | WalletData::CashfreeRedirect(_)
         | WalletData::PayURedirect(_)
         | WalletData::EaseBuzzRedirect(_)
-        | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+        | WalletData::QwikcilverWalletDirect(_)
+        | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
             get_unimplemented_payment_method_error_message("stripe"),
             Default::default(),
         )),
@@ -1734,7 +1735,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> TryF
             | WalletData::CashfreeRedirect(_)
             | WalletData::PayURedirect(_)
             | WalletData::EaseBuzzRedirect(_)
-            | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::QwikcilverWalletDirect(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 get_unimplemented_payment_method_error_message("stripe"),
                 Default::default(),
             )
@@ -2709,24 +2711,23 @@ where
             let connector_mandate_id = Some(payment_method_id.clone().expose());
             let payment_method_id = Some(payment_method_id.expose());
 
-            let _mandate_metadata: Option<Secret<Value>> =
+            let mandate_metadata: Option<Secret<Value>> =
                 match item.router_data.request.get_split_payment_data() {
-                    Some(
-                        SplitPaymentsDetails::StripeSplitPayment(
-                            stripe_split_data,
-                        ),
-                    ) => Some(Secret::new(serde_json::json!({
-                        "transfer_account_id": stripe_split_data.transfer_account_id,
-                        "charge_type": stripe_split_data.charge_type,
-                        "application_fees": stripe_split_data.application_fees
-}))),
-                    _ => None
-};
+                    Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_data)) => {
+                        Some(Secret::new(serde_json::json!({
+                            "transfer_account_id": stripe_split_data.transfer_account_id,
+                            "charge_type": stripe_split_data.charge_type,
+                            "application_fees": stripe_split_data.application_fees
+                        })))
+                    }
+                    _ => None,
+                };
 
             MandateReference {
                 connector_mandate_id,
                 payment_method_id,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata,
             }
         });
 
@@ -3020,6 +3021,7 @@ impl<F> TryFrom<ResponseRouterData<PaymentIntentSyncResponse, Self>>
                     connector_mandate_id: Some(payment_method_id.clone()),
                     payment_method_id: Some(payment_method_id),
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 }
             });
 
@@ -3145,6 +3147,8 @@ fn extract_payment_method_connector_response_from_latest_attempt(
 
 impl<F, T> TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
     for RouterDataV2<F, PaymentFlowData, T, PaymentsResponseData>
+where
+    T: SplitPaymentData,
 {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: ResponseRouterData<SetupMandateResponse, Self>) -> Result<Self, Self::Error> {
@@ -3159,10 +3163,23 @@ impl<F, T> TryFrom<ResponseRouterData<SetupMandateResponse, Self>>
             // For backward compatibility payment_method_id & connector_mandate_id is being populated with the same value
             let connector_mandate_id = Some(payment_method_id.clone());
             let payment_method_id = Some(payment_method_id);
+            let mandate_metadata: Option<Secret<Value>> =
+                match item.router_data.request.get_split_payment_data() {
+                    Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_data)) => {
+                        Some(Secret::new(serde_json::json!({
+                            "transfer_account_id": stripe_split_data.transfer_account_id,
+                            "charge_type": stripe_split_data.charge_type,
+                            "application_fees": stripe_split_data.application_fees,
+                            "on_behalf_of": stripe_split_data.on_behalf_of,
+                        })))
+                    }
+                    _ => None,
+                };
             MandateReference {
                 connector_mandate_id,
                 payment_method_id,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata,
             }
         });
         let status = common_enums::AttemptStatus::from(item.response.status);
@@ -5426,7 +5443,9 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         mandate_options: None,
                         network_transaction_id: None,
                         mit_exemption: Some(MitExemption {
-                            network_transaction_id: Secret::new(network_transaction_id.clone()),
+                            network_transaction_id: Secret::new(
+                                network_transaction_id.network_transaction_id.clone(),
+                            ),
                         }),
                     });
 

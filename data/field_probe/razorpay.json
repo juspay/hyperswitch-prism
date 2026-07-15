@@ -317,8 +317,8 @@
         "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "PayURedirect": {
         "status": "error",
@@ -401,8 +401,8 @@
         "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "error",
+        "error": "Stuck on field: contact. Razorpay requires a contact phone number for payment creation — Missing required field: contact. Razorpay requires a contact phone number for payment creation"
       },
       "Sofort": {
         "status": "error",

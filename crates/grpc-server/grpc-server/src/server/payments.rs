@@ -562,16 +562,18 @@ impl Payments {
         };
 
         // Execute connector processing - ONLY the authorize call
-        let response = external_services::service::execute_connector_processing_step(
-            &config.proxy,
-            connector_integration,
-            router_data,
-            None,
-            event_params,
-            token_data,
-            common_enums::CallConnectorAction::Trigger,
-            test_context,
-            api_tag,
+        let response = Box::pin(
+            external_services::service::execute_connector_processing_step(
+                &config.proxy,
+                connector_integration,
+                router_data,
+                None,
+                event_params,
+                token_data,
+                common_enums::CallConnectorAction::Trigger,
+                test_context,
+                api_tag,
+            ),
         )
         .await;
 
@@ -1835,7 +1837,7 @@ impl PaymentService for Payments {
             .unwrap_or_else(|| "PaymentService".to_string());
         let config = get_config_from_request(&request)?;
 
-        grpc_logging_wrapper(
+        Box::pin(grpc_logging_wrapper(
             request,
             &service_name,
             config.clone(),
@@ -1887,7 +1889,7 @@ impl PaymentService for Payments {
                     }
                 })
             },
-        )
+        ))
         .await
     }
 
@@ -3254,12 +3256,12 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         response_type: PaymentMethodAuthenticationServicePreAuthenticateResponse,
         flow_marker: PreAuthenticate,
         resource_common_data_type: PaymentFlowData,
-        request_data_type: PaymentsPreAuthenticateData<DefaultPCIHolder>,
+        request_data_type: PaymentsPreAuthenticateData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: PaymentsPreAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_pre_authenticate_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data: ConnectorData,
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3271,12 +3273,12 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         response_type: PaymentMethodAuthenticationServiceAuthenticateResponse,
         flow_marker: Authenticate,
         resource_common_data_type: PaymentFlowData,
-        request_data_type: PaymentsAuthenticateData<DefaultPCIHolder>,
+        request_data_type: PaymentsAuthenticateData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: PaymentsAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_authenticate_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data: ConnectorData,
         all_keys_required: None,
         has_payment_method_data: option
     );
@@ -3288,12 +3290,12 @@ impl PaymentMethodAuthOperational for PaymentMethodAuthentication {
         response_type: PaymentMethodAuthenticationServicePostAuthenticateResponse,
         flow_marker: PostAuthenticate,
         resource_common_data_type: PaymentFlowData,
-        request_data_type: PaymentsPostAuthenticateData<DefaultPCIHolder>,
+        request_data_type: PaymentsPostAuthenticateData,
         response_data_type: PaymentsResponseData,
         request_data_constructor: PaymentsPostAuthenticateData::foreign_try_from,
         common_flow_data_constructor: PaymentFlowData::foreign_try_from,
         generate_response_fn: generate_payment_post_authenticate_response,
-        connector_data_type: ConnectorData<DefaultPCIHolder>,
+        connector_data: ConnectorData,
         all_keys_required: None,
         has_payment_method_data: option
     );

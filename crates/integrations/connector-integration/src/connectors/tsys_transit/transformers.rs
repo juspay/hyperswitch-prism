@@ -2183,7 +2183,9 @@ fn decode_mandate_dispatch(mandate_id: Option<&MandateIds>) -> MandateDispatch {
     if let Some(MandateReferenceId::NetworkMandateId(ntid)) =
         mandate_id.mandate_reference_id.as_ref()
     {
-        return MandateDispatch::Ntid { ntid: ntid.clone() };
+        return MandateDispatch::Ntid {
+            ntid: ntid.network_transaction_id.clone(),
+        };
     }
 
     MandateDispatch::None
@@ -2363,18 +2365,27 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )
         })?;
 
-        // On A0002 (partial approval) TSYS returns the actually approved
-        // value in <processedAmount>. Forward it as MinorUnit so the core
-        // can reconcile the partial capture/authorization against the
-        // requested amount; for the fully-approved A0000 case this is also
-        // harmless to populate.
-        let minor_amount_captured = body.processed_amount.as_ref().and_then(|amount| {
-            crate::connectors::tsys_transit::TsysTransitAmountConvertor::convert_back(
-                amount.clone(),
-                router_data.request.currency,
-            )
-            .ok()
-        });
+        // <processedAmount> reflects settled funds, so amount_captured must be
+        // populated ONLY when the transaction actually captured: a Sale (Charged)
+        // or a partial approval (PartialCharged). For an auth-only (Authorized)
+        // manual-capture flow nothing is captured yet — populating it there made
+        // HS record amount_received == amount at authorization, pushing later
+        // voids/captures into a wrong partially-captured state.
+        let is_settled = matches!(
+            status,
+            AttemptStatus::Charged | AttemptStatus::PartialCharged
+        );
+        let minor_amount_captured = is_settled
+            .then(|| {
+                body.processed_amount.as_ref().and_then(|amount| {
+                    crate::connectors::tsys_transit::TsysTransitAmountConvertor::convert_back(
+                        amount.clone(),
+                        router_data.request.currency,
+                    )
+                    .ok()
+                })
+            })
+            .flatten();
         let amount_captured = minor_amount_captured.map(|m| m.get_amount_as_i64());
 
         let payments_response_data = PaymentsResponseData::TransactionResponse {
@@ -2965,18 +2976,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 super::TsysTransitAmountConvertor::convert(amount.amount, amount.currency)
             })
             .transpose()?;
-        let void_reason = {
-            let raw = router_data
-                .request
-                .cancellation_reason
-                .clone()
-                .unwrap_or_else(|| "RETURN_REVERSAL".to_string());
-            if raw.len() > 80 {
-                raw.chars().take(80).collect()
-            } else {
-                raw
-            }
-        };
+        // TSYS <voidReason> only accepts a fixed set of enum values, so an
+        // arbitrary caller-supplied cancellation_reason (free text) is rejected
+        // with "The value of element 'voidReason' is not valid." Ignore the
+        // request value and always send a valid connector default.
+        let void_reason = "RETURN_REVERSAL".to_string();
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3083,18 +3087,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             )?),
             _ => None,
         };
-        let void_reason = {
-            let raw = router_data
-                .request
-                .cancellation_reason
-                .clone()
-                .unwrap_or_else(|| "POST_AUTH_USER_DECLINE".to_string());
-            if raw.len() > 80 {
-                raw.chars().take(80).collect()
-            } else {
-                raw
-            }
-        };
+        // TSYS <voidReason> only accepts a fixed set of enum values, so an
+        // arbitrary caller-supplied cancellation_reason (free text) is rejected
+        // with "The value of element 'voidReason' is not valid." Ignore the
+        // request value and always send a valid connector default.
+        let void_reason = "POST_AUTH_USER_DECLINE".to_string();
 
         Ok(Self {
             device_id: auth.device_id,
@@ -3502,6 +3499,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             connector_mandate_id: Some(path_a_mandate_id),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         });
 
         let connector_txn_id = response

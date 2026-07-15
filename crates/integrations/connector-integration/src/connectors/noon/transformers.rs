@@ -363,7 +363,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::QwikcilverWalletDirect(_) => {
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => {
                     Err(error_stack::report!(IntegrationError::NotSupported {
                         message: utils::get_unimplemented_payment_method_error_message("Noon"),
                         connector: "Noon",
@@ -638,6 +639,7 @@ impl<F, T> TryFrom<ResponseRouterData<NoonPaymentsResponse, Self>>
                 connector_mandate_id: Some(subscription_data.identifier.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
         Ok(Self {
@@ -1263,7 +1265,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         | WalletData::CashfreeRedirect(_)
                         | WalletData::PayURedirect(_)
                         | WalletData::EaseBuzzRedirect(_)
-                        | WalletData::QwikcilverWalletDirect(_) => {
+                        | WalletData::QwikcilverWalletDirect(_)
+                        | WalletData::Skrill(_) => {
                             Err(error_stack::report!(IntegrationError::NotSupported {
                                 message: utils::get_unimplemented_payment_method_error_message(
                                     "Noon"
@@ -1448,6 +1451,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
                 connector_mandate_id: Some(subscription_data.identifier.expose()),
                 payment_method_id: None,
                 connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
             })
         });
         Ok(Self {
@@ -1671,6 +1675,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     connector_mandate_id: Some(subscription_data.identifier.expose()),
                     payment_method_id: None,
                     connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
                 })
             });
         Ok(Self {

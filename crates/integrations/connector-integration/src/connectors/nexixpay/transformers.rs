@@ -640,6 +640,7 @@ impl TryFrom<ResponseRouterData<NexixpaySyncResponse, Self>>
                         connector_mandate_request_reference_id: m
                             .connector_mandate_request_reference_id
                             .clone(),
+                        mandate_metadata: None,
                     })
                 })
         } else {
@@ -1667,6 +1668,12 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpayPostAuthentic
                         transaction_id: Some(operation.operation_id.clone()),
                         exemption_indicator: None,
                         network_params: None,
+                        created_at: None,
+                        challenge_code: None,
+                        challenge_cancel: None,
+                        challenge_code_reason: None,
+                        message_extension: None,
+                        authentication_type: None,
                     }
                 }),
                 connector_response_reference_id: Some(operation.order_id.clone()),
@@ -2122,6 +2129,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<NexixpaySetupMandateR
             connector_mandate_id: Some(operation.order_id.clone()),
             payment_method_id: None,
             connector_mandate_request_reference_id: None,
+            mandate_metadata: None,
         }));
 
         Ok(Self {

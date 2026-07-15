@@ -4,7 +4,7 @@
     "authenticate": {
       "default": {
         "status": "error",
-        "error": "Stuck on field: connector_feature_data.flywire_recipient_fields — Missing required field: connector_feature_data.flywire_recipient_fields"
+        "error": "Stuck on field: domain_data — Missing required field: domain_data"
       }
     },
     "authorize": {
@@ -2294,8 +2294,34 @@
         }
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pay_safe_card": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
       },
       "PayURedirect": {
         "status": "supported",
@@ -2868,8 +2894,34 @@
         }
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "skrill_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api-platform-sandbox.flywire.com/payments/v1/checkout/sessions/connector_order_id/confirm",
+          "method": "Post",
+          "headers": {
+            "content-type": "application/json",
+            "via": "HyperSwitch",
+            "x-authentication-key": "probe_secret"
+          },
+          "body": "{}"
+        }
       },
       "Sofort": {
         "status": "supported",
