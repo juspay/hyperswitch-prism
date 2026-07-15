@@ -80,12 +80,19 @@ pub fn init_kafka_producer(
         .fetch_metadata(None, Duration::from_secs(5))
         .change_context(KafkaClientError::MetadataFetchFailed)?;
 
-    let _ = set_publisher(Arc::new(KafkaProducer {
+    let publisher_installed = set_publisher(Arc::new(KafkaProducer {
         producer,
         enqueue_timeout: Duration::from_millis(config.enqueue_timeout_ms),
     }));
 
-    tracing::info!(brokers = %config.brokers.join(","), "Kafka producer for publishing connector requests initialized successfully");
+    if publisher_installed {
+        tracing::info!(brokers = %config.brokers.join(","), "Kafka producer for publishing connector requests initialized successfully");
+    } else {
+        tracing::warn!(
+            brokers = %config.brokers.join(","),
+            "Kafka producer for publishing connector requests was already initialized; keeping the existing producer"
+        );
+    }
 
     Ok(())
 }
