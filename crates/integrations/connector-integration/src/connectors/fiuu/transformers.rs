@@ -689,13 +689,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::RawStoredCardForPMID(_) => {
-                Err(IntegrationError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("fiuu"),
-                    Default::default(),
-                )
-                .into())
-            }
+            | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("fiuu"),
+                Default::default(),
+            )
+            .into()),
         }?;
 
         Ok(Self {
@@ -1058,13 +1056,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::RawStoredCardForPMID(_) => {
-                Err(IntegrationError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("fiuu"),
-                    Default::default(),
-                )
-                .into())
-            }
+            | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("fiuu"),
+                Default::default(),
+            )
+            .into()),
         }?;
 
         Ok(Self {

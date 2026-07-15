@@ -3733,12 +3733,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::RawStoredCardForPMID(_) => {
-                Err(IntegrationError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
-                    Default::default(),
-                ))
-            }
+            | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                Default::default(),
+            )),
         }?;
 
         let redirect_response = item.router_data.request.redirect_response.clone().ok_or(
@@ -4018,12 +4016,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::RawStoredCardForPMID(_) => {
-                Err(IntegrationError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Cybersource"),
-                    Default::default(),
-                ))
-            }
+            | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Cybersource"),
+                Default::default(),
+            )),
         }?;
 
         let redirect_response = item.router_data.request.redirect_response.clone().ok_or(

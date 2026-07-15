@@ -772,12 +772,10 @@ fn get_payment_details_and_product<
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::RawStoredCardForPMID(_) => {
-            Err(IntegrationError::NotImplemented(
-                utils::get_unimplemented_payment_method_error_message("nexinets"),
-                Default::default(),
-            ))?
-        }
+        | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+            utils::get_unimplemented_payment_method_error_message("nexinets"),
+            Default::default(),
+        ))?,
     }
 }
 

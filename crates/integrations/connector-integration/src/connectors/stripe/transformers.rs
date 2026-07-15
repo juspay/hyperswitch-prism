@@ -1563,13 +1563,11 @@ fn create_stripe_payment_method<
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::RawStoredCardForPMID(_) => {
-            Err(IntegrationError::NotImplemented(
-                get_unimplemented_payment_method_error_message("stripe"),
-                Default::default(),
-            )
-            .into())
-        }
+        | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+            get_unimplemented_payment_method_error_message("stripe"),
+            Default::default(),
+        )
+        .into()),
     }
 }
 
@@ -5106,12 +5104,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::RawStoredCardForPMID(_) => {
-                Err(IntegrationError::NotImplemented(
-                    get_unimplemented_payment_method_error_message("stripe"),
-                    Default::default(),
-                ))?
-            }
+            | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+                get_unimplemented_payment_method_error_message("stripe"),
+                Default::default(),
+            ))?,
         }
     }
 }

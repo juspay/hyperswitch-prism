@@ -172,13 +172,11 @@ fn get_order_type_from_payment_method<T: PaymentMethodDataTypes>(
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::RawStoredCardForPMID(_) => {
-            Err(IntegrationError::NotImplemented(
-                crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
-                Default::default(),
-            ))
-            .attach_printable("Payment method not supported")?
-        }
+        | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+            crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+            Default::default(),
+        ))
+        .attach_printable("Payment method not supported")?,
     };
 
     Ok(payment_type)
@@ -367,13 +365,11 @@ fn get_gateway_from_payment_method<T: PaymentMethodDataTypes>(
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::RawStoredCardForPMID(_) => {
-            Err(IntegrationError::NotImplemented(
-                crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
-                Default::default(),
-            ))
-            .attach_printable("Payment method not supported")?
-        }
+        | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+            crate::utils::get_unimplemented_payment_method_error_message("multisafepay"),
+            Default::default(),
+        ))
+        .attach_printable("Payment method not supported")?,
     };
 
     Ok(gateway)
