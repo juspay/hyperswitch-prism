@@ -33,8 +33,8 @@ use domain_types::{
     payment_method_data::{
         self, ApplePayDecryptedData, ApplePayWalletData, CardDetailsForNetworkTransactionId,
         GooglePayDecryptedData, GooglePayWalletData, NetworkTokenData, PaymentMethodData,
-        PaymentMethodDataTypes, RawCardNumber, SamsungPayWalletData, StoredCardForNetworkTransactionId,
-        WalletData,
+        PaymentMethodDataTypes, RawCardNumber, SamsungPayWalletData,
+        StoredCardForNetworkTransactionId, WalletData,
     },
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorSpecificConfig, ErrorResponse,

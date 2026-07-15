@@ -1836,10 +1836,7 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
             card_exp_month: sc.card_exp_month.peek().clone(),
             card_exp_year: sc.card_exp_year.peek().clone(),
             card_network: sc.card_network.clone(),
-            network_transaction_id: sc
-                .network_transaction_id
-                .as_ref()
-                .map(|n| n.peek().clone()),
+            network_transaction_id: sc.network_transaction_id.as_ref().map(|n| n.peek().clone()),
         }),
         _ => None,
     };
