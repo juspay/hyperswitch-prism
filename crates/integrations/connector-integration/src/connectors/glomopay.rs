@@ -408,7 +408,7 @@ macros::macro_connector_implementation!(
             // belonged to the current one.
             if request_id.is_empty() {
                 Err(error_stack::report!(
-                    errors::IntegrationError::MissingRequiredField {
+                    IntegrationError::MissingRequiredField {
                         field_name: "connector_request_reference_id",
                         context: Default::default(),
                     }

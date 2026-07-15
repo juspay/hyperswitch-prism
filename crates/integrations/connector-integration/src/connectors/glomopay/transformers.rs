@@ -336,7 +336,7 @@ impl TryFrom<ResponseRouterData<GlomopayGetCustomerResponse, Self>>
                 connector_customer_id: customer.id,
                 status_code: item.http_code,
             }),
-            None => Err(domain_types::router_data::ErrorResponse {
+            None => Err(ErrorResponse {
                 status_code: item.http_code,
                 code: "CUSTOMER_NOT_FOUND".to_string(),
                 message: "No existing customer found for the provided email".to_string(),
