@@ -715,7 +715,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             // Case 1: PaypalSdk wallet - complete order using SDK token
             format!("v2/checkout/orders/{}/{}", paypal_wallet_data.token, action)
         } else if let Some(order_id) = &req.resource_common_data.connector_order_id {
-            // Case 2: Completing existing order (order_id from CreateOrder)
+            // Case 2: Completing an existing/redirect-approved order (order_id set on the order)
             format!("v2/checkout/orders/{order_id}/{action}")
         } else {
             // Case 3: Creating new order
