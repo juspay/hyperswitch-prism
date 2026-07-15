@@ -471,6 +471,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         vec![connector_types::WebhookIntegrityCheck::ConnectorTransactionId]
     }
 
+    fn verify_webhook_source(
+        &self,
+        _request: RequestDetails,
+        _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
+        _connector_account_details: Option<ConnectorSpecificConfig>,
+    ) -> Result<bool, error_stack::Report<WebhookError>> {
+        // Glomopay does not include a signature/HMAC header on its webhooks
+        //  Hardcode to false so callers know the webhook is
+        // untrusted; `should_psync_after_webhook = true` above ensures a
+        // follow-up authenticated PSync confirms the payload before it
+        // drives any terminal state change.
+        Ok(false)
+    }
+
     fn get_event_type(
         &self,
         request: RequestDetails,

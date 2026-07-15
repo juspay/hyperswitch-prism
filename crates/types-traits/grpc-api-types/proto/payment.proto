@@ -2560,10 +2560,6 @@ message PaymentServiceAuthorizeResponse {
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 22;
 
-  // Gateway-status-map (GSM) lookup keys. Independent of ErrorInfo — populated
-  // on every response (success, pending, failure) with a connector-normalised
-  // code and human-readable message. Consumed by euler-api-txns to persist to
-  // PGR.respCode / PGR.respMessage and drive GSM lookups.
 }
 
 // Request message for synchronizing payment status
@@ -2697,9 +2693,6 @@ message PaymentServiceGetResponse {
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 35;
 
-  // Gateway-status-map (GSM) lookup keys. See PaymentServiceAuthorizeResponse
-  // for semantics — populated on every response and consumed by euler-api-txns
-  // to drive GSM lookups.
 }
 
 // Request message for voiding a payment
@@ -3158,9 +3151,6 @@ message RefundResponse {
   // belongs to
   optional string merchant_transaction_id = 24;
 
-  // Gateway-status-map (GSM) lookup keys. See PaymentServiceAuthorizeResponse
-  // for semantics — populated on every refund response and consumed by
-  // euler-api-txns to drive GSM lookups.
 }
 
 // Request message for voiding/reversing a refund before settlement.

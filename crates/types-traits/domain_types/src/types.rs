@@ -6126,14 +6126,6 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 connector_response,
                 network_txn_link_id: None,
                 splits: None,
-                    .resource_common_data
-                    .resp_code
-                    .clone()
-                    .or_else(|| Some(err.code.clone())),
-                    .resource_common_data
-                    .resp_msg
-                    .clone()
-                    .or_else(|| Some(err.message.clone())),
             }
         }
     };
@@ -7697,14 +7689,6 @@ pub fn generate_payment_sync_response(
                 sender_payment_instrument_id: None,
                 splits: None,
                 settlement_status: None,
-                    .resource_common_data
-                    .resp_code
-                    .clone()
-                    .or_else(|| Some(e.code.clone())),
-                    .resource_common_data
-                    .resp_msg
-                    .clone()
-                    .or_else(|| Some(e.message.clone())),
                 connector_feature_data: None,
             })
         }
@@ -8493,14 +8477,6 @@ pub fn generate_refund_sync_response(
                 raw_connector_request,
                 acquirer_reference_number: None,
                 state_metadata: None,
-                    .resource_common_data
-                    .resp_code
-                    .clone()
-                    .or_else(|| Some(e.code.clone())),
-                    .resource_common_data
-                    .resp_msg
-                    .clone()
-                    .or_else(|| Some(e.message.clone())),
             })
         }
     }
@@ -8916,14 +8892,6 @@ pub fn generate_void_post_refund_response(
                 })?,
             )),
             merchant_transaction_id: None,
-                .resource_common_data
-                .resp_code
-                .clone()
-                .or_else(|| Some(e.code.clone())),
-                .resource_common_data
-                .resp_msg
-                .clone()
-                .or_else(|| Some(e.message.clone())),
         }),
     }
 }
@@ -9925,14 +9893,6 @@ pub fn generate_refund_response(
                 raw_connector_request,
                 acquirer_reference_number: None,
                 state_metadata: None,
-                    .resource_common_data
-                    .resp_code
-                    .clone()
-                    .or_else(|| Some(e.code.clone())),
-                    .resource_common_data
-                    .resp_msg
-                    .clone()
-                    .or_else(|| Some(e.message.clone())),
             })
         }
     }
