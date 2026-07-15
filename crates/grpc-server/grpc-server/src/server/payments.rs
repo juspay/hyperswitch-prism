@@ -592,31 +592,29 @@ impl CustomerService for Customer {
                     // For connectors that require a lookup before create (e.g. Glomopay which
                     // rejects duplicate emails), first run GET to search for an existing customer.
                     // Skip the lookup entirely for connectors that don't advertise support.
-                    let existing_customer = if connector_data
-                        .connector
-                        .should_lookup_connector_customer()
-                    {
-                        match internal_get_connector_customer(
-                            &connector_data,
-                            &payment_flow_data,
-                            connector_config,
-                            &connector_customer_request_data,
-                            &metadata_payload.connector,
-                            &service_name,
-                            &config,
-                            &metadata_payload.request_id,
-                            &metadata_payload.lineage_ids,
-                            &metadata_payload,
-                            test_context.clone(),
-                        )
-                        .await?
-                        {
-                            ConnectorCustomerLookup::Found(x) => Some(x),
-                            ConnectorCustomerLookup::NotFound => None,
-                        }
-                    } else {
-                        None
-                    };
+                    let existing_customer =
+                        if connector_data.connector.should_lookup_connector_customer() {
+                            match internal_get_connector_customer(
+                                &connector_data,
+                                &payment_flow_data,
+                                connector_config,
+                                &connector_customer_request_data,
+                                &metadata_payload.connector,
+                                &service_name,
+                                &config,
+                                &metadata_payload.request_id,
+                                &metadata_payload.lineage_ids,
+                                &metadata_payload,
+                                test_context.clone(),
+                            )
+                            .await?
+                            {
+                                ConnectorCustomerLookup::Found(x) => Some(x),
+                                ConnectorCustomerLookup::NotFound => None,
+                            }
+                        } else {
+                            None
+                        };
 
                     let customer_response = match existing_customer {
                         Some(x) => x,

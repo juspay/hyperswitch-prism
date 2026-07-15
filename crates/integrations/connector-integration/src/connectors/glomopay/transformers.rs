@@ -459,7 +459,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // for merchants that don't collect a separate customer profile before
         // checkout. Glomopay requires a non-empty name, so bail out only if
         // neither source is populated.
-        let name = req.get_name().or_else(|_| flow_data.get_billing_full_name())?;
+        let name = req
+            .get_name()
+            .or_else(|_| flow_data.get_billing_full_name())?;
 
         let email = req.get_email()?;
 
@@ -469,8 +471,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let state = flow_data.get_billing_state()?;
 
-        let country = CountryAlpha2::from_alpha2_to_alpha3(flow_data.get_billing_country()?)
-            .to_string();
+        let country =
+            CountryAlpha2::from_alpha2_to_alpha3(flow_data.get_billing_country()?).to_string();
 
         if !GLOMOPAY_SUPPORTED_COUNTRIES.contains(&country.as_str()) {
             return Err(error_stack::report!(
