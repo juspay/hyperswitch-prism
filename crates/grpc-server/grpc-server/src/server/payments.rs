@@ -1023,7 +1023,7 @@ impl PaymentService for Payments {
                     let payload = request_data.payload;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&connector)
-                        .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext::default() }))?;
+                        .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { additional_context: Some(connector.get_connector_name()), ..Default::default() } }))?;
                     // Get connector integration
                     let connector_integration: BoxedConnectorIntegrationV2<
                         '_,
@@ -1234,7 +1234,7 @@ impl PaymentService for Payments {
                     let connector = &metadata_payload.connector;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(connector)
-                        .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext::default() }))?;
+                        .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { additional_context: Some(connector.get_connector_name()), ..Default::default() } }))?;
 
                     // Check if connector supports access tokens
                     let connectors = utils::connectors_with_connector_config_overrides(
@@ -1371,7 +1371,7 @@ impl PaymentService for Payments {
 
                        let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&connector)
-                        .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext::default() }))?;
+                        .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { additional_context: Some(connector.get_connector_name()), ..Default::default() } }))?;
 
                     let decoded_body = match connector_data
                         .connector
@@ -1516,7 +1516,7 @@ impl PaymentService for Payments {
                     let connector = &metadata_payload.connector;
                        let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(connector)
-                        .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext::default() }))?;
+                        .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { additional_context: Some(connector.get_connector_name()), ..Default::default() } }))?;
 
                     // Check if connector supports access tokens
                     let connectors = utils::connectors_with_connector_config_overrides(
@@ -2623,7 +2623,10 @@ impl MerchantAuthentication {
                         message: "Surcharge connectors do not support server authentication tokens"
                             .to_string(),
                         connector: "N/A",
-                        context: domain_types::errors::IntegrationErrorContext::default(),
+                        context: domain_types::errors::IntegrationErrorContext {
+                            suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
+                            ..Default::default()
+                        },
                     },
                 )));
             }
@@ -2829,7 +2832,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                     let connector_config = &metadata_payload.connector_config;
 
                     let connector_data: ConnectorData<DefaultPCIHolder> = ConnectorData::from_connector_variant(&connector)
-            .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext::default() }))?;
+            .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { additional_context: Some(connector.get_connector_name()), ..Default::default() } }))?;
 
                     let connectors = utils::connectors_with_connector_config_overrides(
                         connector_config,
@@ -3061,7 +3064,7 @@ impl RecurringPaymentService for RecurringPayments {
                     let connector_config = &metadata_payload.connector_config;
 
                         let connector_data: ConnectorData<DefaultPCIHolder> = ConnectorData::from_connector_variant(&metadata_payload.connector)
-            .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext::default() }))?;
+            .ok_or_else(|| ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "connector", context: domain_types::errors::IntegrationErrorContext { additional_context: Some(metadata_payload.connector.get_connector_name()), ..Default::default() } }))?;
                     // Get connector integration
                     let connector_integration: BoxedConnectorIntegrationV2<
                         '_,

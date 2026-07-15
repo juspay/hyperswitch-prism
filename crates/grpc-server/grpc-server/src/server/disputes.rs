@@ -124,8 +124,10 @@ impl DisputeService for Disputes {
                             ucs_env::error::GrpcError::from(
                                 domain_types::errors::IntegrationError::InvalidDataFormat {
                                     field_name: "connector",
-                                    context: domain_types::errors::IntegrationErrorContext::default(
-                                    ),
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        additional_context: Some(connector.get_connector_name()),
+                                        ..Default::default()
+                                    },
                                 },
                             )
                         })?;
@@ -357,8 +359,10 @@ impl DisputeService for Disputes {
                             ucs_env::error::GrpcError::from(
                                 domain_types::errors::IntegrationError::InvalidDataFormat {
                                     field_name: "connector",
-                                    context: domain_types::errors::IntegrationErrorContext::default(
-                                    ),
+                                    context: domain_types::errors::IntegrationErrorContext {
+                                        additional_context: Some(connector.get_connector_name()),
+                                        ..Default::default()
+                                    },
                                 },
                             )
                         })?;
