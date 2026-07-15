@@ -473,7 +473,7 @@ where
             Ok(response)
         }
         Err(err) => {
-            tracing::Span::current().record("request.url", tracing::field::display(url));
+            tracing::Span::current().record("url", tracing::field::display(url));
             Err(err)
         }
     }
@@ -872,11 +872,7 @@ where
                             Some(&event_params),
                         )
                         .map_err(report_connector_response_to_flow),
-                        Err(transport_err) => {
-                            tracing::Span::current()
-                                .record("request.url", tracing::field::display(url));
-                            Err(transport_err)
-                        }
+                        Err(transport_err) => Err(transport_err),
                     };
 
                     emit_event_with_config(event, event_params.event_config);
@@ -994,11 +990,7 @@ where
                             Some(&event_params),
                         )
                         .map_err(report_connector_response_to_flow),
-                        Err(publish_err) => {
-                            tracing::Span::current()
-                                .record("request.url", tracing::field::display(topic));
-                            Err(publish_err)
-                        }
+                        Err(publish_err) => Err(publish_err),
                     };
 
                     emit_event_with_config(event, event_params.event_config);
