@@ -311,12 +311,14 @@ impl ToGrpcStatus for GrpcError {
 impl IntoGrpcStatus for Report<GrpcError> {
     fn into_grpc_status(self) -> Status {
         let context = self.current_context();
+        let status = context.to_grpc_status_unlogged();
         logger::error!(
             error = ?self,
             error_code = %context.error_code(),
             http_status_code = ?context.http_status_code(),
+            grpc_code_name = ?status.code(),
         );
-        context.to_grpc_status_unlogged()
+        status
     }
 }
 
