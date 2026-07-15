@@ -689,10 +689,7 @@ pub enum SettlementStatus {
     NotSettled,
 }
 
-/// The connector's reported status for a flow: the raw code/message/reason as
-/// returned by the connector. Lives on the shared flow data (like
-/// `settlement_status`) so any flow can populate it. Set opt-in by connectors
-/// that report a code; absent otherwise.
+/// Connector's reported status: the raw code, message and reason as returned.
 #[derive(Debug, Clone, Default)]
 pub struct RawConnectorStatus {
     pub code: Option<String>,
@@ -752,8 +749,7 @@ pub struct PaymentFlowData {
     /// Lives on PaymentFlowData (not PaymentsSyncData) so other flows can
     /// populate it in the future if a connector starts reporting settlement state on authorize, capture, etc.
     pub settlement_status: Option<SettlementStatus>,
-    /// Raw status the connector returned (code/message/reason). Same rationale
-    /// as `settlement_status`: on the shared flow data so any flow can populate it.
+    /// Raw status the connector returned (code/message/reason).
     pub raw_connector_status: Option<RawConnectorStatus>,
 }
 
