@@ -873,7 +873,8 @@ where
                         )
                         .map_err(report_connector_response_to_flow),
                         Err(transport_err) => {
-                            tracing::Span::current().record("request.url", tracing::field::display(url));
+                            tracing::Span::current()
+                                .record("request.url", tracing::field::display(url));
                             Err(transport_err)
                         }
                     };
@@ -994,7 +995,8 @@ where
                         )
                         .map_err(report_connector_response_to_flow),
                         Err(publish_err) => {
-                            tracing::Span::current().record("request.url", tracing::field::display(topic));
+                            tracing::Span::current()
+                                .record("request.url", tracing::field::display(topic));
                             Err(publish_err)
                         }
                     };
