@@ -1805,10 +1805,10 @@ struct AuthorizeAssembly {
 /// also carries the network transaction id in-band.
 struct NtiCardView {
     card_number: Secret<String>,
-    card_exp_month: String,
-    card_exp_year: String,
+    card_exp_month: Secret<String>,
+    card_exp_year: Secret<String>,
     card_network: Option<CardNetwork>,
-    network_transaction_id: Option<String>,
+    network_transaction_id: Option<Secret<String>>,
 }
 
 fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>(
@@ -1826,17 +1826,17 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
     let nti_card_opt: Option<NtiCardView> = match &router_data.request.payment_method_data {
         PaymentMethodData::CardDetailsForNetworkTransactionId(nti) => Some(NtiCardView {
             card_number: Secret::new(nti.card_number.peek().to_string()),
-            card_exp_month: nti.card_exp_month.peek().clone(),
-            card_exp_year: nti.card_exp_year.peek().clone(),
+            card_exp_month: nti.card_exp_month.clone(),
+            card_exp_year: nti.card_exp_year.clone(),
             card_network: nti.card_network.clone(),
             network_transaction_id: None,
         }),
         PaymentMethodData::StoredCardForNetworkTransactionId(sc) => Some(NtiCardView {
             card_number: Secret::new(sc.card_number.peek().to_string()),
-            card_exp_month: sc.card_exp_month.peek().clone(),
-            card_exp_year: sc.card_exp_year.peek().clone(),
+            card_exp_month: sc.card_exp_month.clone(),
+            card_exp_year: sc.card_exp_year.clone(),
             card_network: sc.card_network.clone(),
-            network_transaction_id: sc.network_transaction_id.as_ref().map(|n| n.peek().clone()),
+            network_transaction_id: sc.network_transaction_id.clone(),
         }),
         _ => None,
     };
@@ -1846,8 +1846,10 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
     let mandate_dispatch = match decode_mandate_dispatch(router_data.request.mandate_id.as_ref()) {
         MandateDispatch::None => nti_card_opt
             .as_ref()
-            .and_then(|n| n.network_transaction_id.clone())
-            .map(|ntid| MandateDispatch::Ntid { ntid })
+            .and_then(|n| n.network_transaction_id.as_ref())
+            .map(|ntid| MandateDispatch::Ntid {
+                ntid: ntid.peek().clone(),
+            })
             .unwrap_or(MandateDispatch::None),
         other => other,
     };
@@ -1958,8 +1960,8 @@ fn extract_for_authorize<T: PaymentMethodDataTypes + Debug + Sync + Send + 'stat
                 None,
             )
         } else if let Some(nti) = nti_card_opt.as_ref() {
-            let month = nti.card_exp_month.clone();
-            let year_full = nti.card_exp_year.clone();
+            let month = nti.card_exp_month.peek().clone();
+            let year_full = nti.card_exp_year.peek().clone();
             let year_short = if year_full.len() == 4 {
                 year_full[2..].to_string()
             } else {
