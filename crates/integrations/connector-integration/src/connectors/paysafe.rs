@@ -82,12 +82,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Paysafe<T>
 {
+    /// No auth_type here, so the no-3DS restriction is enforced in the Authorize dispatch
+    /// (`transformers::is_paysafe_handle_creation_leg`): a 3DS card mints its own handle
+    /// and ignores any pre-minted token.
     fn should_do_payment_method_token(
         &self,
         _payment_method: PaymentMethod,
         _payment_method_type: Option<PaymentMethodType>,
     ) -> bool {
-        // to-do: restrict the payment method token flow to only no 3ds
         true
     }
 }
@@ -413,17 +415,16 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Redirect APMs (Skrill, Interac e-Transfer, paysafecard) create a payment
-            // handle on the FIRST leg so Paysafe returns the customer redirect link. On
-            // the SECOND leg (shopper returned / handle token echoed back) and for every
+            // Redirect APMs (Skrill, Interac e-Transfer, paysafecard) and card + 3DS
+            // create a payment handle on the FIRST leg so Paysafe returns the customer
+            // redirect link (the APM hosted page, or the 3DS ACS challenge). On the
+            // SECOND leg (shopper returned / handle token echoed back) and for every
             // other payment method, settle the handle token via v1/payments — mirrors
             // hyperswitch's Authorize + CompleteAuthorize split.
-            let endpoint = match (
-                paysafe::is_paysafe_redirect_apm(&req.request.payment_method_data),
-                paysafe::is_paysafe_apm_settle_leg(req),
-            ) {
-                (true, false) => "v1/paymenthandles",
-                _ => "v1/payments",
+            let endpoint = if paysafe::is_paysafe_handle_creation_leg(req) {
+                "v1/paymenthandles"
+            } else {
+                "v1/payments"
             };
             Ok(format!("{}{}", self.connector_base_url_payments(req), endpoint))
         }

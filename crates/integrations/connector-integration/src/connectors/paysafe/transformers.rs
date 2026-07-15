@@ -183,13 +183,9 @@ pub(crate) fn paysafe_feature_data_handle_token(
         .map(|meta| meta.payment_handle_token)
 }
 
-/// Whether this Authorize invocation is the SECOND leg of a redirect-APM payment:
-/// the shopper has returned from the Paysafe hosted redirect (`redirect_response`
-/// present) and/or the caller echoed back the leg-1 payment-handle token via
-/// `connector_feature_data`. The settle leg POSTs `v1/payments` with the payable
-/// handle token — mirrors hyperswitch's CompleteAuthorize flow. Shared by the
-/// Authorize URL selector and the Authorize request builder so both agree.
-pub(crate) fn is_paysafe_apm_settle_leg<
+/// Keyed on `PaymentMethodData::Card` rather than `resource_common_data.payment_method`:
+/// the settle leg carries only a handle token, and handle creation needs the PAN.
+pub(crate) fn is_paysafe_three_ds_card<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
     router_data: &RouterDataV2<
@@ -199,9 +195,46 @@ pub(crate) fn is_paysafe_apm_settle_leg<
         PaymentsResponseData,
     >,
 ) -> bool {
-    is_paysafe_redirect_apm(&router_data.request.payment_method_data)
+    matches!(
+        &router_data.request.payment_method_data,
+        PaymentMethodData::Card(_)
+    ) && router_data.resource_common_data.is_three_ds()
+}
+
+/// Second leg of a redirect APM or card + 3DS payment: the shopper has returned, or the
+/// leg-1 handle token was echoed back. UCS has no CompleteAuthorize flow, so this stands
+/// in for it.
+pub(crate) fn is_paysafe_settle_leg<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    router_data: &RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+) -> bool {
+    (is_paysafe_redirect_apm(&router_data.request.payment_method_data)
+        || is_paysafe_three_ds_card(router_data))
         && (router_data.request.redirect_response.is_some()
             || paysafe_feature_data_handle_token(&router_data.resource_common_data).is_some())
+}
+
+/// Leg 1: create a payment handle so Paysafe returns a redirect link (APM hosted page,
+/// or the 3DS ACS challenge). Shared by the Authorize URL selector and request builder.
+pub(crate) fn is_paysafe_handle_creation_leg<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    router_data: &RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+) -> bool {
+    (is_paysafe_redirect_apm(&router_data.request.payment_method_data)
+        || is_paysafe_three_ds_card(router_data))
+        && !is_paysafe_settle_leg(router_data)
 }
 
 /// Build a Paysafe payment-handle body for a redirect APM (Skrill, Interac
@@ -250,10 +283,70 @@ where
         let currency = router_data.request.currency;
         let amount = router_data.request.minor_amount;
 
-        let (payment_method, payment_type, account_id, profile) = match &router_data
+        // Resolved before the match: both the returnLinks and `threeDs.merchantUrl` need it.
+        let redirect_url = router_data.resource_common_data.get_return_url().ok_or(
+        IntegrationError::MissingRequiredField {
+            field_name: "return_url",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Paysafe payment handles that surface a customer redirect (redirect APMs, card + 3DS) need a return_url: it builds the returnLinks the shopper is sent back to, and is the mandatory threeDs.merchantUrl for 3DS."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        },
+    )?;
+
+        let (payment_method, payment_type, account_id, profile, settle_with_auth, three_ds) = match &router_data
         .request
         .payment_method_data
     {
+        // Card + 3DS only; card no-3DS settles a pre-minted token via v1/payments.
+        PaymentMethodData::Card(req_card) => {
+            let card = PaysafeCard {
+                card_num: req_card.card_number.clone(),
+                card_expiry: PaysafeCardExpiry {
+                    month: req_card.card_exp_month.clone(),
+                    year: req_card.get_expiry_year_4_digit(),
+                },
+                // Paysafe rejects an empty-string cvv; omit it instead.
+                cvv: if req_card.card_cvc.peek().is_empty() {
+                    None
+                } else {
+                    Some(req_card.card_cvc.clone())
+                },
+                holder_name: req_card.card_holder_name.clone().or_else(|| {
+                    router_data
+                        .resource_common_data
+                        .get_optional_billing_full_name()
+                }),
+            };
+            // Paysafe provisions 3DS and non-3DS card accounts separately and rejects a
+            // `threeDs` body on a non-3DS account (error 5040). The settle leg resolves the
+            // same slot, so handle and payment agree.
+            let account_id = account_id.get_account_id(PaysafeAccountKind::CardThreeDs, currency)?;
+            let three_ds = ThreeDs {
+                merchant_url: redirect_url.clone(),
+                // UCS carries no client-platform signal, so SDK (in-app 3DS) is not
+                // derivable here; BROWSER is also the correct channel for this redirect flow.
+                device_channel: DeviceChannel::Browser,
+                message_category: ThreeDsMessageCategory::Payment,
+                authentication_purpose: ThreeDsAuthenticationPurpose::PaymentTransaction,
+                requestor_challenge_preference: ThreeDsChallengePreference::ChallengeMandated,
+            };
+            (
+                PaysafePaymentMethod::Card { card },
+                PaysafePaymentType::Card,
+                Some(account_id),
+                None,
+                // Cards send settleWithAuth; the redirect APMs omit it.
+                Some(matches!(
+                    router_data.request.capture_method,
+                    Some(enums::CaptureMethod::Automatic) | None
+                )),
+                Some(three_ds),
+            )
+        }
         PaymentMethodData::Wallet(WalletData::Skrill(_)) => {
             // Skrill consumer id is the billing email (mandatory). The FMA carries a
             // dedicated SKRILL processing account per currency; Paysafe requires its
@@ -284,6 +377,8 @@ where
                 },
                 PaysafePaymentType::Skrill,
                 Some(skrill_account_id),
+                None,
+                None,
                 None,
             )
         }
@@ -348,6 +443,8 @@ where
                 PaysafePaymentType::InteracEtransfer,
                 Some(account_id),
                 profile,
+                None,
+                None,
             )
         }
         PaymentMethodData::GiftCard(gift_card_data)
@@ -367,11 +464,13 @@ where
                 PaysafePaymentType::Paysafecard,
                 None,
                 None,
+                None,
+                None,
             )
         }
         _ => {
             return Err(IntegrationError::NotImplemented(
-                "Only Skrill, Interac e-Transfer, and paysafecard are supported as redirect payment methods for the Paysafe Authorize flow".to_string(),
+                "Only card + 3DS, Skrill, Interac e-Transfer, and paysafecard create a payment handle in the Paysafe Authorize flow".to_string(),
                 Default::default(),
             )
             .into())
@@ -379,20 +478,6 @@ where
     };
 
         let billing_details = create_paysafe_billing_details(&router_data.resource_common_data)?;
-
-        // Paysafe requires return_links to build the customer redirect.
-        let redirect_url = router_data.resource_common_data.get_return_url().ok_or(
-        IntegrationError::MissingRequiredField {
-            field_name: "return_url",
-            context: IntegrationErrorContext {
-                additional_context: Some(
-                    "Paysafe redirect APMs need a return_url to build the returnLinks the shopper is sent back to."
-                        .to_string(),
-                ),
-                ..Default::default()
-            },
-        },
-    )?;
 
         // On successful redirect completion Paysafe must send the customer to the
         // complete_authorize_url so hyperswitch runs CompleteAuthorize (settling the
@@ -434,15 +519,15 @@ where
                 .connector_request_reference_id
                 .clone(),
             amount,
-            // Redirect APMs omit settleWithAuth on the payment-handle body.
-            settle_with_auth: None,
+            // Cards send settleWithAuth; redirect APMs omit it on the payment-handle body.
+            settle_with_auth,
             payment_method,
             currency_code: currency,
             payment_type,
             transaction_type: TransactionType::Payment,
             return_links,
             account_id,
-            three_ds: None,
+            three_ds,
             profile,
             billing_details,
         })
@@ -1435,24 +1520,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        // Redirect APMs (Skrill, Interac e-Transfer, paysafecard) create a payment
-        // handle on the FIRST Authorize leg (mirrors hyperswitch): they carry no
-        // pre-created token and must surface a customer redirect. On the SECOND leg
-        // (shopper returned from the redirect / handle token echoed back) and for
-        // every other payment method, settle the handle token via v1/payments —
-        // mirrors hyperswitch's CompleteAuthorize.
-        match (
-            is_paysafe_redirect_apm(&item.router_data.request.payment_method_data),
-            is_paysafe_apm_settle_leg(&item.router_data),
-        ) {
-            (true, false) => {
-                let handle_request = PaysafeSetupMandateRequest::try_from(&item.router_data)?;
-                Ok(Self::PaymentHandle(Box::new(handle_request)))
-            }
-            _ => {
-                let payments_request = PaysafePaymentsRequest::try_from(item)?;
-                Ok(Self::Payment(Box::new(payments_request)))
-            }
+        if is_paysafe_handle_creation_leg(&item.router_data) {
+            let handle_request = PaysafeSetupMandateRequest::try_from(&item.router_data)?;
+            Ok(Self::PaymentHandle(Box::new(handle_request)))
+        } else {
+            let payments_request = PaysafePaymentsRequest::try_from(item)?;
+            Ok(Self::Payment(Box::new(payments_request)))
         }
     }
 }
