@@ -64,7 +64,7 @@ pub enum GrpcError {
 }
 
 impl GrpcError {
-    /// Machine-readable code of the wrapped error; alerts group on this.
+    /// Machine-readable code of the wrapped error.
     pub fn error_code(&self) -> &str {
         match self {
             Self::Integration(e) => e.error_code(),
@@ -143,7 +143,7 @@ pub enum ConfigurationError {
 /// Pure error-to-status mapping, without logging.
 ///
 /// Private: `IntoGrpcStatus` is the only reachable path to a `Status`, and it logs the report
-/// first. A public non-logging mapper would allow statuses that never reach alerting.
+/// first. A public non-logging mapper would allow statuses that are never logged.
 trait ToGrpcStatus {
     fn to_grpc_status_unlogged(&self) -> Status;
 }
