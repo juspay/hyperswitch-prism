@@ -5,7 +5,7 @@
 A high-performance, type-safe Python SDK for payment processing through Hyperswitch Prism. Connect to 100+ payment processors through a single, unified API.
 
 [![PyPI version](https://badge.fury.io/py/hyperswitch-prism.svg)](https://pypi.org/project/hyperswitch-prism/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ---
 

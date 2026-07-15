@@ -23,6 +23,11 @@ on:
         required: false
         default: false
         type: boolean
+      publish_go:
+        description: 'Publish Go SDK (creates git tag for go get)'
+        required: false
+        default: false
+        type: boolean
       ref:
         description: 'Git ref to checkout (tag or branch)'
         required: false
@@ -45,6 +50,10 @@ on:
         default: false
         type: boolean
       publish_javascript:
+        required: false
+        default: false
+        type: boolean
+      publish_go:
         required: false
         default: false
         type: boolean
@@ -266,6 +275,33 @@ jobs:
           name: generated-javascript
           path: sdk/javascript/src/payments/generated/
 
+      - name: Setup Go
+        if: matrix.target == 'aarch64-apple-darwin'
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install protoc-gen-go
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11
+
+      - name: Generate Go SDK
+        if: matrix.target == 'aarch64-apple-darwin'
+        run: |
+          make -C sdk/go generate-all \
+            FFI_SKIP_BUILD=1 \
+            PLATFORM=aarch64-apple-darwin \
+            LIBRARY=$(pwd)/target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib
+
+      - name: Upload Go SDK generated files
+        if: matrix.target == 'aarch64-apple-darwin'
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-go
+          path: |
+            sdk/go/generated/
+            sdk/go/payments/zz_generated_client.go
+
   package-sdk-java:
     name: Package Java SDK
     runs-on: ubuntu-latest
@@ -446,32 +482,37 @@ jobs:
       - name: Show Preview
         run: |
           echo "╔════════════════════════════════════════════════════════════════╗"
-          echo "║        📦 SDK PUBLICATION PREVIEW                              ║"
+          echo "║         SDK PUBLICATION PREVIEW                              ║"
           echo "╚════════════════════════════════════════════════════════════════╝"
           echo ""
           echo "Java SDK (Maven Central):"
           echo "  Location: artifacts/sdk-java/"
-          ls -la artifacts/sdk-java/*.jar 2>/dev/null || echo "  ❌ No JAR found"
+          ls -la artifacts/sdk-java/*.jar 2>/dev/null || echo "   No JAR found"
           echo ""
           echo "Python SDK (PyPI):"
           echo "  Location: artifacts/sdk-python/"
-          ls -la artifacts/sdk-python/*.whl 2>/dev/null || echo "  ❌ No wheel found"
+          ls -la artifacts/sdk-python/*.whl 2>/dev/null || echo "   No wheel found"
           echo ""
           echo "JavaScript SDK (npm):"
           echo "  Location: artifacts/sdk-javascript/"
-          ls -la artifacts/sdk-javascript/*.tgz 2>/dev/null || echo "  ❌ No tarball found"
+          ls -la artifacts/sdk-javascript/*.tgz 2>/dev/null || echo "   No tarball found"
+          echo ""
+          echo "Go SDK (Go Modules):"
+          echo "  Tag: sdk/go/v${{ inputs.version }}"
+          echo "  Module: github.com/juspay/hyperswitch-prism/sdk/go"
           echo ""
           echo "═══════════════════════════════════════════════════════════════════"
           echo ""
           if [ "${{ inputs.preview_only }}" == "true" ]; then
-            echo "⚠️  PREVIEW ONLY MODE - No SDKs will be published"
-          elif [ "${{ inputs.publish_java }}" == "true" ] || [ "${{ inputs.publish_python }}" == "true" ] || [ "${{ inputs.publish_javascript }}" == "true" ]; then
-            echo "✅ The following SDKs will be published:"
+            echo "  PREVIEW ONLY MODE - No SDKs will be published"
+          elif [ "${{ inputs.publish_java }}" == "true" ] || [ "${{ inputs.publish_python }}" == "true" ] || [ "${{ inputs.publish_javascript }}" == "true" ] || [ "${{ inputs.publish_go }}" == "true" ]; then
+            echo " The following SDKs will be published:"
             [ "${{ inputs.publish_java }}" == "true" ] && echo "   - Java SDK → Maven Central"
             [ "${{ inputs.publish_python }}" == "true" ] && echo "   - Python SDK → PyPI"
             [ "${{ inputs.publish_javascript }}" == "true" ] && echo "   - JavaScript SDK → npm"
+            [ "${{ inputs.publish_go }}" == "true" ] && echo "   - Go SDK → Git tag (proxy.golang.org)"
           else
-            echo "ℹ️  No SDKs selected for publishing (all checkboxes unchecked)"
+            echo "  No SDKs selected for publishing (all checkboxes unchecked)"
           fi
           echo ""
           echo "═══════════════════════════════════════════════════════════════════"
@@ -762,9 +803,9 @@ jobs:
           find artifacts/sdk-java -name "*.jar" -exec jar -tf {} \; | head -20
           echo ""
           if [ "${{ inputs.preview_only }}" == "true" ]; then
-            echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
+            echo " PREVIEW ONLY MODE - Skipping actual publish"
           else
-            echo "✅ Will publish to Maven Central"
+            echo " Will publish to Maven Central"
           fi
       - name: Publish to Maven Central
         if: ${{ needs.setup.outputs.preview_only == 'false' }}
@@ -828,9 +869,9 @@ jobs:
           pip show artifacts/sdk-python/*.whl 2>/dev/null || echo "pip show failed"
           echo ""
           if [ "${{ inputs.preview_only }}" == "true" ]; then
-            echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
+            echo " PREVIEW ONLY MODE - Skipping actual publish"
           else
-            echo "✅ Will publish to PyPI"
+            echo " Will publish to PyPI"
           fi
       - name: Publish to PyPI
         if: ${{ needs.setup.outputs.preview_only == 'false' }}
@@ -892,9 +933,9 @@ jobs:
           tar -xzf artifacts/sdk-javascript/*.tgz -O package/package.json | head -30
           echo ""
           if [ "${{ inputs.preview_only }}" == "true" ]; then
-            echo "⚠️ PREVIEW ONLY MODE - Skipping actual publish"
+            echo " PREVIEW ONLY MODE - Skipping actual publish"
           else
-            echo "✅ Will publish to npm"
+            echo " Will publish to npm"
           fi
       - name: Publish to npm
         if: ${{ needs.setup.outputs.preview_only == 'false' }}
@@ -904,3 +945,76 @@ jobs:
         run: |
           npm ci
           npm publish ../../artifacts/sdk-javascript/*.tgz --access public
+
+  publish-go:
+    name: Publish Go SDK
+    runs-on: ubuntu-latest
+    needs: [build-binaries]
+    if: always() && inputs.publish_go == true && inputs.preview_only == false && needs.build-binaries.result == 'success'
+    env:
+      VERSION: ${{ inputs.version }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          token: ${{ secrets.CONNECTOR_SERVICE_CI_PAT }}
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Download Go SDK generated files
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-go
+          path: .
+
+      - name: Download Linux binary
+        uses: actions/download-artifact@v4
+        with:
+          name: binary-x86_64-unknown-linux-gnu
+          path: target/x86_64-unknown-linux-gnu/release
+
+      - name: Organize platform binaries
+        run: |
+          mkdir -p sdk/go/generated/uniffi/connector_service_ffi/linux
+          cp target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so \
+            sdk/go/generated/uniffi/connector_service_ffi/linux/
+
+      - name: Tidy Go module
+        run: cd sdk/go && go mod tidy
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Stage and commit generated files
+        run: |
+          git add -f sdk/go/generated/
+          git add -f sdk/go/payments/zz_generated_client.go
+          git add -f sdk/go/go.mod
+          git add -f sdk/go/go.sum
+          git commit --allow-empty -m "chore(go): add generated bindings and platform binaries for v${VERSION}"
+
+      - name: Pre-publish check
+        run: make -C sdk/go publish-check VERSION=${{ inputs.version }}
+
+      - name: Create and push Go SDK tag
+        run: |
+          TAG="sdk/go/v${VERSION}"
+          echo "Creating tag ${TAG}..."
+          git tag -a "${TAG}" -m "Release ${TAG}"
+          echo "Pushing tag ${TAG}..."
+          git push origin "${TAG}"
+          echo "Tag ${TAG} pushed successfully."
+
+      - name: Verify publication
+        run: |
+          echo "Tag sdk/go/v${VERSION} pushed."
+          echo "Go proxy will mirror within minutes."
+          echo "Verify with: go list -m -versions github.com/juspay/hyperswitch-prism/sdk/go"

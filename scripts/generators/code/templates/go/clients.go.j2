@@ -1,0 +1,46 @@
+// AUTO-GENERATED — do not edit by hand.
+// Source: services.proto ∩ bindings/uniffi.rs  |  Regenerate: make generate
+
+package payments
+
+import (
+	"context"
+
+	pb "github.com/juspay/hyperswitch-prism/sdk/go/generated/payments"
+	uniffi "github.com/juspay/hyperswitch-prism/sdk/go/generated/uniffi/connector_service_ffi"
+)
+
+{% for service in all_services %}
+// ============================================================================
+// {{ service_to_client_name(service) | upper }}
+// ============================================================================
+
+// {{ service_to_client_name(service) }} provides methods for {{ service }} flows.
+type {{ service_to_client_name(service) }} struct {
+	*ConnectorClient
+}
+
+// New{{ service_to_client_name(service) }} creates a new {{ service_to_client_name(service) }}.
+func New{{ service_to_client_name(service) }}(config *pb.ConnectorConfig, defaults *pb.RequestConfig) *{{ service_to_client_name(service) }} {
+	return &{{ service_to_client_name(service) }}{ConnectorClient: NewConnectorClient(config, defaults)}
+}
+{% for f in groups.get(service, []) %}
+
+// {{ to_pascal(f.name) }} performs a {{ f.service }}.{{ f.rpc }}.
+func (c *{{ service_to_client_name(service) }}) {{ to_pascal(f.name) }}(ctx context.Context, req *pb.{{ f.request }}, opts *pb.RequestConfig) (*pb.{{ f.response }}, error) {
+	res := &pb.{{ f.response }}{}
+	err := c.ExecuteFlow(ctx, uniffi.{{ to_pascal(f.name) }}ReqTransformer, uniffi.{{ to_pascal(f.name) }}ResTransformer, req, res, opts)
+	return res, err
+}
+{% endfor %}
+{% for f in single_groups.get(service, []) %}
+
+// {{ to_pascal(f.name) }} performs a {{ f.service }}.{{ f.rpc }}.
+func (c *{{ service_to_client_name(service) }}) {{ to_pascal(f.name) }}(ctx context.Context, req *pb.{{ f.request }}, opts *pb.RequestConfig) (*pb.{{ f.response }}, error) {
+	res := &pb.{{ f.response }}{}
+	err := c.ExecuteDirect(ctx, uniffi.{{ to_pascal(f.name) }}Transformer, req, res, opts)
+	return res, err
+}
+{% endfor %}
+
+{% endfor %}

@@ -57,6 +57,8 @@ JS_GRPC_CLIENT_OUT         = SDK_ROOT  / "javascript/src/payments/_generated_grp
 JS_GRPC_EXAMPLE_FLOWS_OUT  = REPO_ROOT / "examples/_generated_grpc_example_flows.js"
 PY_GRPC_CLIENT_OUT         = SDK_ROOT  / "python/src/payments/_generated_grpc_client.py"
 KOTLIN_GRPC_CLIENT_OUT     = SDK_ROOT  / "java/src/main/kotlin/payments/GrpcClient.kt"
+GO_CLIENT_OUT              = SDK_ROOT  / "go/payments/zz_generated_client.go"
+GO_UNIFFI_BINDINGS         = SDK_ROOT  / "go/generated/uniffi/connector_service_ffi/connector_service_ffi.go"
 
 # ── Jinja2 environment ──────────────────────────────────────────────────────
 
@@ -371,6 +373,18 @@ def to_camel(snake: str) -> str:
     return re.sub(r"_([a-z])", lambda m: m.group(1).upper(), snake)
 
 
+def to_pascal(snake: str) -> str:
+    """'create_access_token' -> 'CreateAccessToken'"""
+    camel = to_camel(snake)
+    return camel[0].upper() + camel[1:] if camel else camel
+
+
+def _pascal_to_snake(pascal: str) -> str:
+    """'CreateAccessToken' -> 'create_access_token', 'Authorize' -> 'authorize'"""
+    s = re.sub(r"(?<!^)(?=[A-Z])", "_", pascal)
+    return s.lower()
+
+
 def service_to_tonic_mod(service: str) -> str:
     """'PaymentService' -> 'payment_service_client'"""
     return to_snake_case(service) + "_client"
@@ -425,6 +439,7 @@ env.globals["service_to_grpc_js_field"]  = service_to_grpc_js_field
 env.globals["grpc_method_path"]          = grpc_method_path
 env.globals["get_flow_method_name"]      = get_flow_method_name
 env.globals["to_camel"]      = to_camel
+env.globals["to_pascal"]     = to_pascal
 env.globals["to_snake_case"] = to_snake_case
 
 
@@ -531,6 +546,7 @@ def gen_uniffi_client_ts(flows: list[dict], single_flows: list[dict]) -> None:
 
 
 KOTLIN_UNIFFI_BINDINGS = SDK_ROOT / "java/src/main/kotlin/generated/uniffi/connector_service_ffi/connector_service_ffi.kt"
+GO_UNIFFI_BINDINGS = SDK_ROOT / "go/uniffi/connector_service_ffi/connector_service_ffi.go"
 
 
 def _available_uniffi_transformers() -> Optional[set[str]]:
@@ -547,6 +563,40 @@ def _available_uniffi_transformers() -> Optional[set[str]]:
     for m in re.finditer(r"fn_func_(\w+_transformer)\b", text):
         found.add(m.group(1))
     return found
+
+
+def _available_uniffi_transformers_go() -> Optional[set[str]]:
+    """
+    Parse the generated uniffi Go bindings to find which transformer
+    functions are actually available. Returns None if the file doesn't exist
+    (treated as "all available" — don't filter).
+    """
+    if not GO_UNIFFI_BINDINGS.exists():
+        return None
+    text = GO_UNIFFI_BINDINGS.read_text()
+
+    req_transformers: set[str] = set()
+    res_transformers: set[str] = set()
+    single_transformers: set[str] = set()
+
+    for m in re.finditer(r"func (\w+)ReqTransformer\(", text):
+        req_transformers.add(m.group(1))
+    for m in re.finditer(r"func (\w+)ResTransformer\(", text):
+        res_transformers.add(m.group(1))
+    for m in re.finditer(r"func (\w+)Transformer\(", text):
+        name = m.group(1)
+        if not name.endswith("Req") and not name.endswith("Res"):
+            single_transformers.add(name)
+
+    available: set[str] = set()
+    # Standard flows need both req and res transformers
+    for prefix in req_transformers & res_transformers:
+        available.add(_pascal_to_snake(prefix))
+    # Single-step flows
+    for prefix in single_transformers:
+        available.add(_pascal_to_snake(prefix))
+
+    return available
 
 
 def gen_kotlin(flows: list[dict], single_flows: list[dict] = []) -> None:
@@ -588,6 +638,48 @@ def gen_kotlin(flows: list[dict], single_flows: list[dict] = []) -> None:
         SDK_ROOT / "java/src/main/kotlin/GeneratedFlows.kt",
         flows=flows,
         single_flows=single_flows,
+        all_services=all_services,
+        groups=groups,
+        single_groups=single_groups,
+    )
+
+
+def gen_go(flows: list[dict], single_flows: list[dict] = []) -> None:
+    """Generate client.go — per-service Go client structs with typed flow methods."""
+    available = _available_uniffi_transformers_go()
+
+    if available is not None:
+        filtered_flows = []
+        for f in flows:
+            if f["name"] in available:
+                filtered_flows.append(f)
+            else:
+                print(
+                    f"  WARNING: '{f['name']}_req_transformer' not in uniffi bindings — skipping '{f['name']}' "
+                    "from Go SDK. Run 'make -C sdk/go generate-bindings' to include it.",
+                    file=sys.stderr,
+                )
+        flows = filtered_flows
+
+        filtered_single = []
+        for f in single_flows:
+            if f["name"] in available:
+                filtered_single.append(f)
+            else:
+                print(
+                    f"  WARNING: '{f['name']}_transformer' not in uniffi bindings — skipping '{f['name']}' "
+                    "from Go SDK. Run 'make -C sdk/go generate-bindings' to include it.",
+                    file=sys.stderr,
+                )
+        single_flows = filtered_single
+
+    groups = group_by_service(flows)
+    single_groups = group_by_service(single_flows)
+    all_services = sorted(set(groups) | set(single_groups))
+
+    render(
+        "go/clients.go.j2",
+        GO_CLIENT_OUT,
         all_services=all_services,
         groups=groups,
         single_groups=single_groups,
@@ -926,7 +1018,7 @@ def main() -> None:
 
     parser.add_argument(
         "--lang",
-        choices=["python", "javascript", "kotlin", "rust", "grpc", "all"],
+        choices=["python", "javascript", "kotlin", "rust", "go", "grpc", "all"],
         default="all",
         help="Which language/SDK to generate (default: all)"
     )
@@ -980,6 +1072,10 @@ def main() -> None:
     if args.lang in ("kotlin", "all"):
         print("Generating Kotlin SDK...")
         gen_kotlin(flows, single_flows)
+
+    if args.lang in ("go", "all"):
+        print("Generating Go SDK...")
+        gen_go(flows, single_flows)
 
     print("\nDone.")
 

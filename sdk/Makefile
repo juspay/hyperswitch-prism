@@ -183,6 +183,8 @@ generate: install-deps ## Auto-discover flows and regenerate all SDK clients (pa
 		$$(for f in $$PROTO_FILES_PY; do echo $(REPO_ROOT)/crates/types-traits/grpc-api-types/proto/$$f; done)
 	@echo "Generating JavaScript protobuf stubs (proto.js / proto.d.ts)..."
 	@$(MAKE) -C $(MAKEFILE_DIR)javascript generate-proto
+	@echo "Generating Go protobuf stubs (.pb.go)..."
+	@$(MAKE) -C $(MAKEFILE_DIR)go generate-proto
 	@echo "All SDK clients regenerated successfully!"
 
 # ---------------------------------------------------------------------------
@@ -200,9 +202,11 @@ test: build-ffi-lib ## Run all SDK smoke tests (builds FFI, runs sequentially)
 	@echo; echo "═══ Python FFI ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python test-package CONNECTORS=$(CONNECTORS) 2>&1 
 	@echo; echo "═══ JavaScript FFI ═══"; echo
-	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript test-package CONNECTORS=$(CONNECTORS) 2>&1 
+	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript test-package CONNECTORS=$(CONNECTORS) 2>&1
+	@echo; echo "═══ Go FFI ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/go test-package CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "═══ Kotlin FFI ═══"; echo
-	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS) 2>&1 
+	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "All SDK smoke tests passed."
 
 test-rust: build-ffi-lib ## Run Rust FFI smoke test
@@ -318,6 +322,9 @@ test-javascript: build-ffi-lib ## Build FFI → Run JavaScript smoke test
 test-java: build-ffi-lib ## Build FFI → Run Java smoke test
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package CONNECTORS=$(CONNECTORS)
 
+test-go: build-ffi-lib ## Build FFI → Run Go smoke test
+	@$(MAKE) -C $(REPO_ROOT)/sdk/go test-package CONNECTORS=$(CONNECTORS)
+
 # ---------------------------------------------------------------------------
 # Test Mock targets - run smoke tests in mock mode (no real HTTP)
 # ---------------------------------------------------------------------------
@@ -329,6 +336,8 @@ test-mock: build-ffi-lib ## Run all SDK smoke tests in MOCK mode (verifies req_t
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "═══ JavaScript FFI (MOCK) ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/javascript test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
+	@echo; echo "═══ Go FFI (MOCK) ═══"; echo
+	@$(MAKE) -C $(REPO_ROOT)/sdk/go test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "═══ Kotlin FFI (MOCK) ═══"; echo
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java test-package-mock CONNECTORS=$(CONNECTORS) 2>&1
 	@echo; echo "All SDK mock smoke tests completed."
@@ -336,7 +345,7 @@ test-mock: build-ffi-lib ## Run all SDK smoke tests in MOCK mode (verifies req_t
 # ---------------------------------------------------------------------------
 # Distribution targets - delegate to SDK-specific dist
 # ---------------------------------------------------------------------------
-dist: dist-python dist-javascript dist-java ## Build all SDK distribution packages
+dist: dist-python dist-javascript dist-java dist-go ## Build all SDK distribution packages
 
 dist-python: build-ffi-lib ## Build FFI → Build Python wheel
 	@$(MAKE) -C $(REPO_ROOT)/sdk/python dist
@@ -346,6 +355,9 @@ dist-javascript: build-ffi-lib ## Build FFI → Build JS npm package
 
 dist-java: build-ffi-lib ## Build FFI → Build Java JAR
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java dist
+
+dist-go: build-ffi-lib ## Build FFI → Build Go SDK archive
+	@$(MAKE) -C $(REPO_ROOT)/sdk/go dist
 
 # ---------------------------------------------------------------------------
 # Pre-publish check targets - delegate to SDK-specific publish-check
@@ -360,7 +372,10 @@ publish-check-javascript: ## Run JavaScript SDK pre-publish checks
 publish-check-java: ## Run Java SDK pre-publish checks
 	@$(MAKE) -C $(REPO_ROOT)/sdk/java publish-check
 
-publish-check: publish-check-python publish-check-javascript publish-check-java ## Run all SDK pre-publish checks
+publish-check-go: ## Run Go SDK pre-publish checks
+	@$(MAKE) -C $(REPO_ROOT)/sdk/go publish-check
+
+publish-check: publish-check-python publish-check-javascript publish-check-java publish-check-go ## Run all SDK pre-publish checks
 	@echo "All SDK pre-publish checks passed."
 
 # ---------------------------------------------------------------------------

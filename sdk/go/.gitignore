@@ -1,0 +1,8 @@
+# FFI binary libraries (built dynamically, not committed)
+*.dylib
+*.so
+*.dll
+
+# Go build artifacts
+smoke-test/smoke-test
+composite

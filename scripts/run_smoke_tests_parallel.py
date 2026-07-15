@@ -409,7 +409,7 @@ def parse_text_output(sdk: str, connector: str, output: str) -> SDKResult:
                     # Check for pass/fail status - but ignore status messages like "Status: MANDATE_REVOKE_FAILED"
                     # which contain "FAILED" but aren't actual test failures
                     is_status_message = 'status:' in rest.lower()
-                    
+
                     if 'PASSED' in rest or 'MOCK VERIFIED' in rest:
                         flows.append(FlowResult(flow_name, "passed"))
                     elif 'SKIPPED' in rest:
@@ -426,6 +426,16 @@ def parse_text_output(sdk: str, connector: str, output: str) -> SDKResult:
                         elif 'FAILED' in next_line and 'status:' not in next_line.lower():
                             detail = next_line.split('—', 1)[1].strip() if '—' in next_line else None
                             flows.append(FlowResult(flow_name, "failed", detail))
+                elif 'PASSED' in rest or 'SKIPPED' in rest or 'FAILED' in rest or 'MOCK VERIFIED' in rest:
+                    # Go SDK format: [flow] PASSED / [flow] FAILED / [flow] SKIPPED
+                    # (no "running..." keyword)
+                    if 'PASSED' in rest or 'MOCK VERIFIED' in rest:
+                        flows.append(FlowResult(flow_name, "passed"))
+                    elif 'SKIPPED' in rest:
+                        flows.append(FlowResult(flow_name, "skipped"))
+                    elif 'FAILED' in rest and 'status:' not in rest.lower():
+                        detail = rest.split('—', 1)[1].strip() if '—' in rest else None
+                        flows.append(FlowResult(flow_name, "failed", detail))
 
         elif 'passed' in line_stripped.lower() and 'skipped' in line_stripped.lower() and (
             'passed,' in line_stripped.lower() or 'passed)' in line_stripped.lower()
@@ -660,6 +670,59 @@ def run_kotlin_test_batch(
         return [SDKResult("kotlin", c, "error", error="timeout") for c in connectors]
     except Exception as e:
         return [SDKResult("kotlin", c, "error", error=str(e)[:200]) for c in connectors]
+
+
+def run_go_test_batch(
+    repo_root: Path, connectors: List[str], mock: bool
+) -> List[SDKResult]:
+    """Run Go smoke test for all connectors, parse text output."""
+    smoke_test_dir = repo_root / "sdk" / "go" / "smoke-test"
+
+    # Ensure native library is present for CGO linking
+    ffi_lib_path = get_ffi_lib_path(repo_root)
+    uniffi_dir = repo_root / "sdk" / "go" / "generated" / "uniffi" / "connector_service_ffi"
+    lib_ext = "dylib" if platform.uname().system == "Darwin" else "so"
+    target_lib = uniffi_dir / f"libconnector_service_ffi.{lib_ext}"
+    if ffi_lib_path.exists() and not target_lib.exists():
+        shutil.copy(ffi_lib_path, target_lib)
+
+    creds_src = repo_root / "creds.json"
+    if creds_src.exists():
+        shutil.copy(creds_src, smoke_test_dir / "creds.json")
+
+    cmd = [
+        "go", "run", ".",
+        "--connectors", ",".join(connectors),
+        "--creds-file", "creds.json",
+    ]
+    if mock:
+        cmd.append("--mock")
+
+    env = os.environ.copy()
+    env["FLOWS_JSON_PATH"] = str(repo_root / "sdk" / "generated" / "flows.json")
+    env["NO_COLOR"] = "1"
+
+    try:
+        result = subprocess.run(
+            cmd, cwd=str(smoke_test_dir),
+            capture_output=True, text=True, timeout=300, env=env
+        )
+
+        combined = result.stdout + result.stderr
+
+        if hasattr(__builtins__, '_VERBOSE') and __builtins__._VERBOSE:
+            if result.stdout:
+                print(f"\n  [Go stdout]\n{result.stdout[-10000:]}")
+            if result.stderr:
+                print(f"\n  [Go stderr]\n{result.stderr[-10000:]}")
+
+        return parse_multi_connector_text_output(
+            "go", connectors, combined
+        )
+    except subprocess.TimeoutExpired:
+        return [SDKResult("go", c, "error", error="timeout") for c in connectors]
+    except Exception as e:
+        return [SDKResult("go", c, "error", error=str(e)[:200]) for c in connectors]
 
 
 def run_rust_test_batch(
@@ -918,6 +981,8 @@ def main() -> None:
             return sdk, run_kotlin_test_batch(repo_root, connectors, args.mock)
         elif sdk == "rust":
             return sdk, run_rust_test_batch(repo_root, connectors, args.mock)
+        elif sdk == "go":
+            return sdk, run_go_test_batch(repo_root, connectors, args.mock)
         return sdk, []
 
     with ThreadPoolExecutor(max_workers=len(sdks)) as executor:
