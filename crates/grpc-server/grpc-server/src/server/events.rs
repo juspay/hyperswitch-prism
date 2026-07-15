@@ -451,7 +451,7 @@ impl EventServiceImpl {
                 None,
                 common_enums::CallConnectorAction::Trigger,
                 None,
-                None,
+                metadata_payload.api_tag.clone(),
             ),
         )
         .await
@@ -541,7 +541,7 @@ impl EventServiceImpl {
                 None,
                 common_enums::CallConnectorAction::Trigger,
                 None,
-                None,
+                metadata_payload.api_tag.clone(),
             ),
         )
         .await
@@ -631,7 +631,7 @@ impl EventServiceImpl {
                 None,
                 common_enums::CallConnectorAction::Trigger,
                 None,
-                None,
+                metadata_payload.api_tag.clone(),
             ),
         )
         .await
@@ -718,7 +718,7 @@ impl EventServiceImpl {
                 None,
                 common_enums::CallConnectorAction::Trigger,
                 None,
-                None,
+                metadata_payload.api_tag.clone(),
             ),
         )
         .await
@@ -805,7 +805,7 @@ impl EventServiceImpl {
                 None,
                 common_enums::CallConnectorAction::Trigger,
                 None,
-                None,
+                metadata_payload.api_tag.clone(),
             ),
         )
         .await
@@ -899,7 +899,7 @@ async fn verify_webhook_source_external(
             None,
             common_enums::CallConnectorAction::Trigger,
             None,
-            None,
+            metadata_payload.api_tag.clone(),
         ),
     )
     .await

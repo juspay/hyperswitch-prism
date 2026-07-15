@@ -1,5 +1,10 @@
 use std::{collections::HashMap, str::FromStr, sync::RwLock, time::Duration};
 
+#[cfg(feature = "injector-client")]
+use art_recorder::{
+    effects as art_effects,
+    schema::{CallApiEntry, Either, HttpRequestEntry, HttpResponseEntry, RecordingEntry},
+};
 use base64::Engine;
 use common_enums::ApiClientError;
 #[cfg(feature = "injector-client")]
@@ -42,6 +47,308 @@ use url::Url;
 pub struct TestContext {
     pub session_id: String,
     pub mock_server_url: String,
+    pub protocol: TestMockServerProtocol,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TestMockServerProtocol {
+    RawHttp,
+    ArtUpload,
+}
+
+#[cfg(feature = "injector-client")]
+fn apply_test_context_to_request(
+    mut req: Request,
+    test_context: Option<&TestContext>,
+    api_tag: Option<&str>,
+) -> Request {
+    if let Some(test_ctx) = test_context {
+        let original_url = req.url.clone();
+
+        req.url = test_ctx.mock_server_url.clone();
+        req.add_header(X_API_URL, original_url.clone().into());
+        req.add_header(X_SESSION_ID, test_ctx.session_id.clone().into());
+
+        if let Some(tag) = api_tag {
+            req.add_header(X_API_TAG, tag.to_string().into());
+        }
+
+        tracing::info!(
+            "Test mode enabled: redirected {} to {}",
+            original_url,
+            test_ctx.mock_server_url
+        );
+    }
+
+    req
+}
+
+#[cfg(feature = "injector-client")]
+fn apply_test_context_to_request_with_protocol(
+    req: Request,
+    test_context: Option<&TestContext>,
+    api_tag: Option<&str>,
+) -> Result<Request, String> {
+    match test_context {
+        Some(test_context) if test_context.protocol == TestMockServerProtocol::ArtUpload => {
+            build_art_upload_replay_request(&req, test_context, api_tag)
+        }
+        _ => Ok(apply_test_context_to_request(req, test_context, api_tag)),
+    }
+}
+
+#[cfg(feature = "injector-client")]
+fn build_art_upload_replay_request(
+    original_request: &Request,
+    test_context: &TestContext,
+    api_tag: Option<&str>,
+) -> Result<Request, String> {
+    let json_request = build_art_http_request_entry(original_request)?;
+    let placeholder_response = HttpResponseEntry {
+        get_response_body: String::new(),
+        get_response_code: 0,
+        get_response_headers: HashMap::new(),
+        get_response_status: String::new(),
+    };
+    let call_api_entry =
+        CallApiEntry {
+            json_request,
+            json_result: Either::Right(serde_json::to_value(placeholder_response).map_err(
+                |error| format!("failed to serialize ART placeholder response: {error}"),
+            )?),
+            api_tag: api_tag.unwrap_or("UNKNOWN").to_string(),
+        };
+    let replay_entry = RecordingEntry::CallApi(call_api_entry);
+    let payload = serde_json::to_vec(&replay_entry)
+        .map_err(|error| format!("failed to serialize ART replay request: {error}"))?;
+    let replay_url = art_upload_mock_url(&test_context.mock_server_url, &test_context.session_id)?;
+
+    let mut request = Request::new(Method::Post, &replay_url);
+    request.add_header("content-type", "application/json".to_string().into());
+    request.add_header(X_API_URL, original_request.url.clone().into());
+    request.add_header(X_SESSION_ID, test_context.session_id.clone().into());
+    if let Some(tag) = api_tag {
+        request.add_header(X_API_TAG, tag.to_string().into());
+    }
+    request.set_body(RequestContent::RawBytes(payload));
+
+    tracing::info!(
+        "ART upload replay enabled: redirected {} to {}",
+        original_request.url,
+        replay_url
+    );
+
+    Ok(request)
+}
+
+#[cfg(feature = "injector-client")]
+fn art_upload_mock_url(mock_server_url: &str, session_id: &str) -> Result<String, String> {
+    let mut url = Url::parse(mock_server_url)
+        .map_err(|error| format!("invalid ART upload mock_server_url: {error}"))?;
+    if url.path().is_empty() || url.path() == "/" {
+        url.set_path("/mock");
+    }
+
+    let query_pairs = url
+        .query_pairs()
+        .filter(|(key, _value)| key != "guuid")
+        .map(|(key, value)| (key.into_owned(), value.into_owned()))
+        .collect::<Vec<_>>();
+    url.set_query(None);
+    {
+        let mut query = url.query_pairs_mut();
+        for (key, value) in query_pairs {
+            query.append_pair(&key, &value);
+        }
+        query.append_pair("guuid", session_id);
+    }
+
+    Ok(url.to_string())
+}
+
+#[cfg(feature = "injector-client")]
+fn decode_art_upload_replay_result(
+    response_result: Result<Response, Response>,
+) -> Result<Result<Response, Response>, String> {
+    match response_result {
+        Ok(response) => decode_art_upload_replay_response(response).map(Ok),
+        Err(response) => decode_art_upload_replay_response(response).map(Err),
+    }
+}
+
+#[cfg(feature = "injector-client")]
+fn decode_art_upload_replay_response(response: Response) -> Result<Response, String> {
+    let art_response = serde_json::from_slice::<HttpResponseEntry>(&response.response)
+        .map_err(|error| format!("failed to decode ART upload replay response: {error}"))?;
+    let response_body = BASE64_ENGINE
+        .decode(art_response.get_response_body)
+        .map_err(|error| format!("failed to decode ART replay response body: {error}"))?;
+    let status_code = u16::try_from(art_response.get_response_code).map_err(|_| {
+        format!(
+            "invalid ART replay status code {}",
+            art_response.get_response_code
+        )
+    })?;
+
+    let mut response_headers = reqwest::header::HeaderMap::new();
+    for (header_name, header_value) in art_response.get_response_headers {
+        match (
+            reqwest::header::HeaderName::from_bytes(header_name.as_bytes()),
+            reqwest::header::HeaderValue::from_str(&header_value),
+        ) {
+            (Ok(header_name), Ok(header_value)) => {
+                response_headers.insert(header_name, header_value);
+            }
+            _ => {
+                tracing::warn!(header_name, "skipping invalid ART replay response header");
+            }
+        }
+    }
+
+    Ok(Response {
+        headers: Some(response_headers),
+        response: response_body.into(),
+        status_code,
+    })
+}
+
+#[cfg(feature = "injector-client")]
+fn art_upload_replay_request_error(error: String) -> error_stack::Report<ConnectorFlowError> {
+    report!(ConnectorFlowError::Request(
+        IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        }
+    ))
+    .attach_printable(error)
+}
+
+#[cfg(feature = "injector-client")]
+fn art_upload_replay_response_error(error: String) -> error_stack::Report<ConnectorFlowError> {
+    report!(ConnectorFlowError::Response(
+        ConnectorError::response_handling_failed_http_status_unknown()
+    ))
+    .attach_printable(error)
+}
+
+#[cfg(all(test, feature = "injector-client"))]
+fn build_art_call_api_entry(
+    request: &Request,
+    response: &Response,
+    api_tag: Option<&str>,
+) -> Result<CallApiEntry, String> {
+    build_art_call_api_entry_from_request_entry(
+        build_art_http_request_entry(request)?,
+        response,
+        api_tag,
+    )
+}
+
+#[cfg(feature = "injector-client")]
+fn build_art_call_api_entry_from_request_entry(
+    json_request: HttpRequestEntry,
+    response: &Response,
+    api_tag: Option<&str>,
+) -> Result<CallApiEntry, String> {
+    let response_entry = HttpResponseEntry {
+        get_response_body: BASE64_ENGINE.encode(&response.response),
+        get_response_code: i32::from(response.status_code),
+        get_response_headers: response_headers_to_art_headers(&response.headers),
+        get_response_status: response_status_text(response.status_code),
+    };
+
+    Ok(CallApiEntry {
+        json_request,
+        json_result: Either::Right(
+            serde_json::to_value(response_entry)
+                .map_err(|error| format!("failed to serialize ART HTTP response: {error}"))?,
+        ),
+        api_tag: api_tag.unwrap_or("UNKNOWN").to_string(),
+    })
+}
+
+#[cfg(feature = "injector-client")]
+fn record_art_outgoing_http(
+    json_request: HttpRequestEntry,
+    response_result: &Result<Response, Response>,
+    api_tag: Option<&str>,
+) {
+    let response = match response_result {
+        Ok(response) | Err(response) => response,
+    };
+
+    match build_art_call_api_entry_from_request_entry(json_request, response, api_tag) {
+        Ok(entry) => {
+            if let Err(error) = art_effects::record_outgoing_http(entry) {
+                tracing::error!("failed to record ART outgoing HTTP entry: {error}");
+            }
+        }
+        Err(error) => {
+            tracing::error!("failed to build ART outgoing HTTP entry: {error}");
+        }
+    }
+}
+
+#[cfg(feature = "injector-client")]
+fn build_art_http_request_entry(request: &Request) -> Result<HttpRequestEntry, String> {
+    Ok(HttpRequestEntry {
+        get_request_method: art_http_method_name(request.method).to_string(),
+        get_request_headers: request.get_headers_map(),
+        get_request_body: request_body_to_base64(request.body.as_ref())?,
+        get_request_url: request.url.clone(),
+        get_request_timeout: None,
+        get_request_redirects: None,
+    })
+}
+
+#[cfg(feature = "injector-client")]
+fn art_http_method_name(method: Method) -> &'static str {
+    match method {
+        Method::Get => "Get",
+        Method::Post => "Post",
+        Method::Put => "Put",
+        Method::Delete => "Delete",
+        Method::Patch => "Patch",
+    }
+}
+
+#[cfg(feature = "injector-client")]
+fn request_body_to_base64(body: Option<&RequestContent>) -> Result<Option<String>, String> {
+    body.map(|body| {
+        body.get_body_bytes()
+            .map_err(|error| format!("failed to render ART request body: {error}"))
+            .map(|(bytes, _content_type)| bytes.map(|bytes| BASE64_ENGINE.encode(bytes)))
+    })
+    .transpose()
+    .map(Option::flatten)
+}
+
+#[cfg(feature = "injector-client")]
+fn response_headers_to_art_headers(
+    headers: &Option<reqwest::header::HeaderMap>,
+) -> HashMap<String, String> {
+    headers
+        .as_ref()
+        .map(|headers| {
+            headers
+                .iter()
+                .map(|(key, value)| {
+                    let value = value
+                        .to_str()
+                        .map(str::to_string)
+                        .unwrap_or_else(|_| String::from_utf8_lossy(value.as_bytes()).to_string());
+                    (key.as_str().to_lowercase(), value)
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+#[cfg(feature = "injector-client")]
+fn response_status_text(status_code: u16) -> String {
+    reqwest::StatusCode::from_u16(status_code)
+        .ok()
+        .and_then(|status| status.canonical_reason().map(str::to_string))
+        .unwrap_or_default()
 }
 
 /// Type of the vault connector
@@ -630,32 +937,21 @@ where
                 req
             });
 
-            // Apply test environment modifications if test context is provided
-            connector_request = connector_request.map(|mut req| {
-                test_context.as_ref().map(|test_ctx| {
-                    // Store original URL for x-api-url header
-                    let original_url = req.url.clone();
-
-                    // Replace URL with mock server URL
-                    req.url = test_ctx.mock_server_url.clone();
-
-                    // Add test headers
-                    req.add_header(X_API_URL, original_url.clone().into());
-                    req.add_header(X_SESSION_ID, test_ctx.session_id.clone().into());
-
-                    // Add API tag if provided
-                    api_tag.as_ref().map(|tag| {
-                        req.add_header(X_API_TAG, tag.clone().into());
-                    });
-
-                    tracing::info!(
-                        "Test mode enabled: redirected {} to {}",
-                        original_url,
-                        test_ctx.mock_server_url
-                    );
-                });
-                req
+            let art_upload_replay = test_context.as_ref().is_some_and(|test_context| {
+                test_context.protocol == TestMockServerProtocol::ArtUpload
             });
+
+            // Apply test environment modifications if test context is provided
+            connector_request = connector_request
+                .map(|req| {
+                    apply_test_context_to_request_with_protocol(
+                        req,
+                        test_context.as_ref(),
+                        api_tag.as_deref(),
+                    )
+                })
+                .transpose()
+                .map_err(art_upload_replay_request_error)?;
 
             match connector_request {
                 Some(request) => {
@@ -693,6 +989,16 @@ where
                     tracing::info!(request=?masked_request, "request of connector");
                     tracing::Span::current()
                         .record("request.body", tracing::field::display(&masked_request));
+
+                    let art_request = match build_art_http_request_entry(&request) {
+                        Ok(request) => Some(request),
+                        Err(error) => {
+                            tracing::error!(
+                                "failed to build ART outgoing HTTP request entry: {error}"
+                            );
+                            None
+                        }
+                    };
 
                     let response = if let Some(token_data) = token_data {
                         tracing::debug!(
@@ -818,6 +1124,23 @@ where
                             );
                         })
                     };
+                    let response = if art_upload_replay {
+                        response.and_then(|response| {
+                            decode_art_upload_replay_result(response)
+                                .map_err(art_upload_replay_response_error)
+                        })
+                    } else {
+                        response
+                    };
+                    if let (Some(art_request), Ok(connector_response)) =
+                        (art_request, response.as_ref())
+                    {
+                        record_art_outgoing_http(
+                            art_request,
+                            connector_response,
+                            api_tag.as_deref(),
+                        );
+                    }
                     let external_service_elapsed = external_service_start_latency.elapsed();
                     event_params
                         .connector_latency
@@ -1832,4 +2155,235 @@ pub fn error_log(action: &str, message: &serde_json::Value) {
 #[inline]
 pub fn warn_log(action: &str, message: &serde_json::Value) {
     tracing::warn!(tags = %action, json_value= %message);
+}
+
+#[cfg(all(test, feature = "injector-client"))]
+mod test_context_tests {
+    use common_utils::{
+        consts::{X_API_TAG, X_API_URL, X_SESSION_ID},
+        request::{Method, Request, RequestContent},
+    };
+    use serde_json::json;
+
+    use super::{
+        apply_test_context_to_request, build_art_upload_replay_request, TestContext,
+        TestMockServerProtocol,
+    };
+
+    #[test]
+    fn apply_test_context_redirects_request_to_mock_server() {
+        let request = Request::new(Method::Post, "https://connector.example.com/payments");
+        let test_context = TestContext {
+            session_id: "req_art_replay_123".to_string(),
+            mock_server_url: "http://localhost:3000/mockGateway".to_string(),
+            protocol: TestMockServerProtocol::RawHttp,
+        };
+
+        let request =
+            apply_test_context_to_request(request, Some(&test_context), Some("AUTHORIZE"));
+        let headers = request.get_headers_map();
+
+        assert_eq!(request.url, "http://localhost:3000/mockGateway");
+        assert_eq!(
+            headers.get(X_API_URL).map(String::as_str),
+            Some("https://connector.example.com/payments")
+        );
+        assert_eq!(
+            headers.get(X_SESSION_ID).map(String::as_str),
+            Some("req_art_replay_123")
+        );
+        assert_eq!(
+            headers.get(X_API_TAG).map(String::as_str),
+            Some("AUTHORIZE")
+        );
+    }
+
+    #[test]
+    fn apply_test_context_leaves_request_unchanged_without_context() {
+        let mut request = Request::new(Method::Post, "https://connector.example.com/payments");
+        request.add_header("existing-header", "existing-value".to_string().into());
+
+        let request = apply_test_context_to_request(request, None, Some("AUTHORIZE"));
+        let headers = request.get_headers_map();
+
+        assert_eq!(request.url, "https://connector.example.com/payments");
+        assert_eq!(
+            headers.get("existing-header").map(String::as_str),
+            Some("existing-value")
+        );
+        assert!(!headers.contains_key(X_API_URL));
+        assert!(!headers.contains_key(X_SESSION_ID));
+        assert!(!headers.contains_key(X_API_TAG));
+    }
+
+    #[test]
+    fn build_art_upload_replay_request_uses_art_mock_route_and_body_shape() {
+        let mut request = Request::new(Method::Post, "https://connector.example.com/payments");
+        request.add_header("content-type", "application/json".to_string().into());
+        request.set_body(RequestContent::RawBytes(br#"{"amount":100}"#.to_vec()));
+        let test_context = TestContext {
+            session_id: "req_art_replay_123".to_string(),
+            mock_server_url: "http://localhost:8010".to_string(),
+            protocol: TestMockServerProtocol::ArtUpload,
+        };
+
+        let replay_request =
+            build_art_upload_replay_request(&request, &test_context, Some("GW_AUTHORIZE"))
+                .expect("ART upload replay request should be built");
+        let headers = replay_request.get_headers_map();
+
+        assert_eq!(replay_request.method, Method::Post);
+        assert_eq!(
+            replay_request.url,
+            "http://localhost:8010/mock?guuid=req_art_replay_123"
+        );
+        assert_eq!(
+            headers.get("content-type").map(String::as_str),
+            Some("application/json")
+        );
+        assert_eq!(
+            headers.get(X_API_URL).map(String::as_str),
+            Some("https://connector.example.com/payments")
+        );
+        assert_eq!(
+            headers.get(X_SESSION_ID).map(String::as_str),
+            Some("req_art_replay_123")
+        );
+        assert_eq!(
+            headers.get(X_API_TAG).map(String::as_str),
+            Some("GW_AUTHORIZE")
+        );
+
+        let Some(RequestContent::RawBytes(payload)) = replay_request.body.as_ref() else {
+            panic!("ART replay request should use a raw JSON body");
+        };
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(payload)
+                .expect("ART replay payload should be JSON"),
+            json!({
+                "tag": "CallAPIEntryT",
+                "contents": {
+                    "jsonRequest": {
+                        "getRequestMethod": "Post",
+                        "getRequestHeaders": { "content-type": "application/json" },
+                        "getRequestBody": "eyJhbW91bnQiOjEwMH0=",
+                        "getRequestURL": "https://connector.example.com/payments",
+                        "getRequestTimeout": null,
+                        "getRequestRedirects": null
+                    },
+                    "jsonResult": {
+                        "Right": {
+                            "getResponseBody": "",
+                            "getResponseCode": 0,
+                            "getResponseHeaders": {},
+                            "getResponseStatus": ""
+                        }
+                    },
+                    "apiTag": "GW_AUTHORIZE"
+                }
+            })
+        );
+    }
+}
+
+#[cfg(all(test, feature = "injector-client"))]
+mod art_outgoing_http_tests {
+    use std::collections::HashMap;
+
+    use art_recorder::schema::HttpResponseEntry;
+    use base64::Engine;
+    use bytes::Bytes;
+    use common_utils::request::{Method, Request, RequestContent};
+    use domain_types::router_response_types::Response;
+    use reqwest::header::{HeaderMap, HeaderValue};
+    use serde_json::json;
+
+    use super::{build_art_call_api_entry, decode_art_upload_replay_response, BASE64_ENGINE};
+
+    #[test]
+    fn build_art_call_api_entry_records_connector_request_and_response() {
+        let mut request = Request::new(Method::Post, "https://connector.example.com/payments");
+        request.add_header("Content-Type", "application/json".to_string().into());
+        request.set_body(RequestContent::RawBytes(br#"{"amount":100}"#.to_vec()));
+
+        let mut response_headers = HeaderMap::new();
+        response_headers.insert("x-request-id", HeaderValue::from_static("req_123"));
+        let response = Response {
+            headers: Some(response_headers),
+            response: Bytes::from_static(br#"{"status":"ok"}"#),
+            status_code: 201,
+        };
+
+        let entry = build_art_call_api_entry(&request, &response, Some("AUTHORIZE"))
+            .expect("request and response should convert to ART entry");
+
+        assert_eq!(entry.api_tag, "AUTHORIZE");
+        assert_eq!(entry.json_request.get_request_method, "Post");
+        assert_eq!(
+            entry.json_request.get_request_url,
+            "https://connector.example.com/payments"
+        );
+        assert_eq!(
+            entry
+                .json_request
+                .get_request_headers
+                .get("content-type")
+                .map(String::as_str),
+            Some("application/json")
+        );
+        assert_eq!(
+            entry.json_request.get_request_body.as_deref(),
+            Some("eyJhbW91bnQiOjEwMH0=")
+        );
+
+        assert_eq!(
+            serde_json::to_value(entry.json_result).expect("jsonResult should serialize"),
+            json!({
+                "Right": {
+                    "getResponseBody": "eyJzdGF0dXMiOiJvayJ9",
+                    "getResponseCode": 201,
+                    "getResponseHeaders": {
+                        "x-request-id": "req_123"
+                    },
+                    "getResponseStatus": "Created"
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn decode_art_upload_replay_response_restores_connector_http_response() {
+        let mut response_headers = HashMap::new();
+        response_headers.insert("content-type".to_string(), "application/json".to_string());
+        let art_response = HttpResponseEntry {
+            get_response_body: BASE64_ENGINE.encode(br#"{"replayed":true}"#),
+            get_response_code: 202,
+            get_response_headers: response_headers,
+            get_response_status: "Accepted".to_string(),
+        };
+        let response = Response {
+            headers: None,
+            response: Bytes::from(
+                serde_json::to_vec(&art_response).expect("ART response should serialize"),
+            ),
+            status_code: 200,
+        };
+
+        let decoded =
+            decode_art_upload_replay_response(response).expect("ART upload response should decode");
+
+        assert_eq!(decoded.status_code, 202);
+        assert_eq!(
+            decoded.response,
+            Bytes::from_static(br#"{"replayed":true}"#)
+        );
+        assert_eq!(
+            decoded
+                .headers
+                .as_ref()
+                .and_then(|headers| headers.get("content-type"))
+                .and_then(|value| value.to_str().ok()),
+            Some("application/json")
+        );
+    }
 }

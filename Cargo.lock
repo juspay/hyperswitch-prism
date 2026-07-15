@@ -363,6 +363,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
+name = "art-recorder"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "base64 0.21.7",
+ "cbc",
+ "cipher",
+ "rand 0.8.5",
+ "reqwest 0.11.27",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "time 0.3.47",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
 name = "ascii"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1923,6 +1941,7 @@ dependencies = [
 name = "external-services"
 version = "0.1.0"
 dependencies = [
+ "art-recorder",
  "async-trait",
  "base64 0.21.7",
  "bytes",
@@ -3254,6 +3273,7 @@ dependencies = [
 name = "grpc-server"
 version = "0.1.0"
 dependencies = [
+ "art-recorder",
  "axum 0.8.8",
  "base64 0.21.7",
  "build_info",

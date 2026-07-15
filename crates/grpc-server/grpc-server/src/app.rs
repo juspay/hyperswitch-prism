@@ -25,8 +25,8 @@ use tower_http::{request_id::MakeRequestUuid, trace as tower_trace};
 use ucs_env::{configs, error::ConfigurationError, logger};
 
 use crate::{
-    config_overrides::RequestExtensionsLayer, http::config_middleware::HttpRequestExtensionsLayer,
-    utils,
+    art_recording, config_overrides::RequestExtensionsLayer,
+    http::config_middleware::HttpRequestExtensionsLayer, utils,
 };
 
 /// # Panics
@@ -149,6 +149,8 @@ impl Service {
         } else {
             logger::info!("EventPublisher disabled in configuration");
         }
+
+        art_recording::init_art_recording_publisher(&config.art_recording);
 
         #[cfg(feature = "connector-request-kafka")]
         if config.connector_request_kafka.enabled {

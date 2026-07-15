@@ -4,6 +4,12 @@ pub use ucs_interface_common::config::*;
 pub use ucs_interface_common::flow::*;
 pub use ucs_interface_common::metadata::*;
 
+use art_recorder::{
+    effects as art_effects,
+    flush::{recording_rows_from_runtime, RecEntryTransform},
+    runtime::{ArtMode, ArtRuntime, ArtRuntimeSettings, SessionContext},
+    schema::{CsvRecording, IncomingApiEntry, IncomingApiRequestEntry, IncomingApiResponseEntry},
+};
 use common_utils::{
     consts::{self, Env},
     errors::CustomResult,
@@ -19,8 +25,10 @@ use error_stack::Report;
 use http::request::Request;
 use hyperswitch_masking;
 use prost::Message;
+use serde::Serialize;
 use serde_json::Value;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, future::Future, mem::size_of_val, sync::Arc};
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use ucs_env::{configs, error::ResultExtGrpc};
 
 use crate::request::RequestData;
@@ -235,7 +243,7 @@ pub fn log_before_initialization<T>(
     service_name: &str,
 ) -> CustomResult<(), IntegrationError>
 where
-    T: serde::Serialize,
+    T: Serialize,
 {
     let metadata_payload = &request_data.extracted_metadata;
     let MetadataPayload {
@@ -266,7 +274,7 @@ where
 
 pub fn log_after_initialization<T>(result: &Result<tonic::Response<T>, tonic::Status>)
 where
-    T: serde::Serialize + std::fmt::Debug,
+    T: Serialize + std::fmt::Debug,
 {
     let current_span = tracing::Span::current();
 
@@ -304,6 +312,313 @@ where
     tracing::info!("Golden Log Line (incoming - response)");
 }
 
+fn create_art_runtime_for_request(
+    config: &configs::Config,
+    metadata_payload: &MetadataPayload,
+    flow_name: FlowName,
+    service_name: &str,
+) -> ArtRuntime {
+    let session = SessionContext {
+        request_id: metadata_payload.request_id.clone(),
+        merchant_id: metadata_payload.merchant_id.clone(),
+        connector: metadata_payload.connector.get_connector_name(),
+        flow: flow_name.as_str().to_string(),
+        hostname: service_name.to_string(),
+    };
+
+    match config.art_feature() {
+        configs::ArtFeature::Replay => ArtRuntime::replay(session, Vec::new()),
+        configs::ArtFeature::Record => ArtRuntime::recording_with_settings(
+            session,
+            Some(config.art_recording.max_entries_per_session),
+            ArtRuntimeSettings {
+                record_incoming_api: config.art_recording.record_incoming_api,
+                record_outgoing_http: config.art_recording.record_outgoing_http,
+                record_effects: config.art_recording.record_effects,
+            },
+        ),
+        configs::ArtFeature::Disabled => ArtRuntime::disabled(),
+    }
+}
+
+fn art_order_id_from_metadata(metadata_payload: &MetadataPayload) -> String {
+    metadata_payload
+        .reference_id
+        .as_deref()
+        .or(metadata_payload.resource_id.as_deref())
+        .unwrap_or(&metadata_payload.request_id)
+        .to_string()
+}
+
+pub fn resolve_api_tag(
+    config: &configs::Config,
+    metadata_payload: &MetadataPayload,
+    flow_name: FlowName,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+) -> Option<String> {
+    metadata_payload
+        .api_tag
+        .clone()
+        .or_else(|| config.api_tags.get_tag(flow_name, payment_method_type))
+}
+
+fn rec_entry_transform_from_config(
+    config: &configs::ArtRecordingConfig,
+) -> Result<RecEntryTransform<'_>, String> {
+    if !config.encrypt_entries {
+        return Ok(RecEntryTransform::Plain);
+    }
+
+    let key = config.aes_key.as_deref().ok_or_else(|| {
+        "art_recording.encrypt_entries=true requires art_recording.aes_key".to_string()
+    })?;
+    let iv = config.aes_iv.as_deref().ok_or_else(|| {
+        "art_recording.encrypt_entries=true requires art_recording.aes_iv".to_string()
+    })?;
+
+    Ok(RecEntryTransform::Aes256Cbc { key, iv })
+}
+
+fn art_recording_rows_fit_buffer_limit(rows: &[CsvRecording], max_buffer_size_mb: u64) -> bool {
+    let Some(max_buffer_size_bytes) = max_buffer_size_mb
+        .checked_mul(1024 * 1024)
+        .and_then(|bytes| usize::try_from(bytes).ok())
+    else {
+        return true;
+    };
+
+    art_recording_rows_size_bytes(rows) <= max_buffer_size_bytes
+}
+
+fn art_recording_rows_size_bytes(rows: &[CsvRecording]) -> usize {
+    rows.iter()
+        .map(|row| {
+            row.sess_id.len()
+                + row.merch_id.len()
+                + row.ord_id.len()
+                + row.val_type.len()
+                + row.rec_entry.len()
+                + size_of_val(&row.counter)
+        })
+        .sum()
+}
+
+fn flush_art_recording(runtime: &ArtRuntime, config: &configs::ArtRecordingConfig, order_id: &str) {
+    if runtime.mode() != ArtMode::Record || !config.enabled {
+        return;
+    }
+
+    let transform = match rec_entry_transform_from_config(config) {
+        Ok(transform) => transform,
+        Err(error) => {
+            tracing::error!(
+                error = %error,
+                "Failed to prepare ART recording transform; recording rows dropped"
+            );
+            return;
+        }
+    };
+
+    let rows = match recording_rows_from_runtime(runtime, Some(order_id), transform) {
+        Ok(rows) => rows,
+        Err(error) => {
+            tracing::error!(
+                error = ?error,
+                "Failed to build ART recording rows; recording rows dropped"
+            );
+            return;
+        }
+    };
+
+    if !art_recording_rows_fit_buffer_limit(&rows, config.max_buffer_size_mb) {
+        tracing::error!(
+            row_count = rows.len(),
+            max_buffer_size_mb = config.max_buffer_size_mb,
+            "ART recording rows exceeded configured buffer limit; recording rows dropped"
+        );
+        return;
+    }
+
+    if config.flush_async {
+        let config = config.clone();
+        tokio::spawn(async move {
+            crate::art_recording::publish_art_recording_rows(&rows, &config);
+        });
+    } else {
+        crate::art_recording::publish_art_recording_rows(&rows, config);
+    }
+}
+
+async fn run_art_scoped_handler<T, F, Fut, R>(
+    request_data: RequestData<T>,
+    art_runtime: ArtRuntime,
+    art_recording_config: &configs::ArtRecordingConfig,
+    art_order_id: String,
+    should_record_incoming_api: bool,
+    flow_name: FlowName,
+    service_name: &str,
+    handler: F,
+) -> Result<tonic::Response<R>, tonic::Status>
+where
+    T: Serialize,
+    F: FnOnce(RequestData<T>) -> Fut,
+    Fut: Future<Output = Result<tonic::Response<R>, tonic::Status>>,
+    R: Serialize,
+{
+    let incoming_request = (art_runtime.mode() == ArtMode::Record && should_record_incoming_api)
+        .then(|| build_incoming_grpc_api_request(&request_data, flow_name, service_name));
+    let start_time = incoming_request.as_ref().map(|_| current_art_timestamp());
+
+    let (result, mut art_runtime) =
+        art_recorder::runtime::scope(art_runtime, handler(request_data)).await;
+
+    if let (Some(incoming_request), Some(start_time)) = (incoming_request, start_time) {
+        let end_time = current_art_timestamp();
+        if let Err(error) = record_incoming_grpc_api_entry(
+            &mut art_runtime,
+            incoming_request,
+            &result,
+            flow_name,
+            service_name,
+            start_time,
+            end_time,
+        ) {
+            tracing::error!("failed to record ART incoming gRPC API entry: {error}");
+        }
+    }
+
+    flush_art_recording(&art_runtime, art_recording_config, &art_order_id);
+
+    result
+}
+
+fn current_art_timestamp() -> Value {
+    OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .map(Value::String)
+        .unwrap_or_else(|error| {
+            serde_json::json!({
+                "error": "timestamp_formatting_failed",
+                "message": error.to_string()
+            })
+        })
+}
+
+#[cfg(test)]
+fn record_incoming_grpc_api<T, R>(
+    runtime: &mut ArtRuntime,
+    request_data: &RequestData<T>,
+    grpc_response: &Result<tonic::Response<R>, tonic::Status>,
+    flow_name: FlowName,
+    service_name: &str,
+    start_time: Value,
+    end_time: Value,
+) -> Result<(), art_recorder::runtime::ArtError>
+where
+    T: Serialize,
+    R: Serialize,
+{
+    let incoming_request = build_incoming_grpc_api_request(request_data, flow_name, service_name);
+    record_incoming_grpc_api_entry(
+        runtime,
+        incoming_request,
+        grpc_response,
+        flow_name,
+        service_name,
+        start_time,
+        end_time,
+    )
+}
+
+fn build_incoming_grpc_api_request<T>(
+    request_data: &RequestData<T>,
+    flow_name: FlowName,
+    service_name: &str,
+) -> IncomingApiRequestEntry
+where
+    T: Serialize,
+{
+    IncomingApiRequestEntry {
+        api_req_body: to_json_value(&request_data.payload, "grpc_request"),
+        api_req_url: format!("grpc://{}/{}", service_name, flow_name.as_str()),
+        api_req_method: "GRPC".to_string(),
+        api_req_headers: request_data.masked_metadata.get_all_masked(),
+        api_req_query_params: HashMap::new(),
+        api_req_route_params: HashMap::new(),
+    }
+}
+
+fn record_incoming_grpc_api_entry<R>(
+    runtime: &mut ArtRuntime,
+    incoming_request: IncomingApiRequestEntry,
+    grpc_response: &Result<tonic::Response<R>, tonic::Status>,
+    flow_name: FlowName,
+    service_name: &str,
+    start_time: Value,
+    end_time: Value,
+) -> Result<(), art_recorder::runtime::ArtError>
+where
+    R: Serialize,
+{
+    let (response_body, response_headers, response_code) = match grpc_response {
+        Ok(response) => (
+            to_json_value(response.get_ref(), "grpc_response"),
+            metadata_to_headers(response.metadata()),
+            i32::from(tonic::Code::Ok),
+        ),
+        Err(status) => (
+            build_error_detail(status),
+            HashMap::new(),
+            i32::from(status.code()),
+        ),
+    };
+
+    art_effects::record_incoming_api_with_runtime(
+        runtime,
+        IncomingApiEntry {
+            api_request: incoming_request,
+            api_response: IncomingApiResponseEntry {
+                api_res_body: response_body,
+                api_res_headers: response_headers,
+                api_res_code: response_code,
+            },
+            api_tag: flow_name.as_str().to_string(),
+            hostname: service_name.to_string(),
+            start_time,
+            end_time,
+        },
+    )
+}
+
+fn metadata_to_headers(metadata: &tonic::metadata::MetadataMap) -> HashMap<String, String> {
+    metadata
+        .iter()
+        .filter_map(|entry| match entry {
+            tonic::metadata::KeyAndValueRef::Ascii(key, value) => value
+                .to_str()
+                .ok()
+                .map(|value| (key.as_str().to_string(), value.to_string())),
+            tonic::metadata::KeyAndValueRef::Binary(key, value) => Some((
+                key.as_str().to_string(),
+                String::from_utf8_lossy(value.as_encoded_bytes()).to_string(),
+            )),
+        })
+        .collect()
+}
+
+fn to_json_value<T>(value: &T, field: &'static str) -> Value
+where
+    T: Serialize,
+{
+    serde_json::to_value(value).unwrap_or_else(|error| {
+        serde_json::json!({
+            "error": "serialization_failed",
+            "field": field,
+            "message": error.to_string()
+        })
+    })
+}
+
 /// Generic gRPC logging wrapper that accepts a custom parser function.
 /// This allows different parsing strategies for different flow types
 /// (e.g., authenticated flows vs unauthenticated webhook flows).
@@ -316,18 +631,14 @@ pub async fn grpc_logging_wrapper_with_parser<T, P, F, R>(
     handler: F,
 ) -> Result<tonic::Response<R>, tonic::Status>
 where
-    T: serde::Serialize
-        + std::fmt::Debug
-        + Send
-        + 'static
-        + hyperswitch_masking::ErasedMaskSerialize,
+    T: Serialize + std::fmt::Debug + Send + 'static + hyperswitch_masking::ErasedMaskSerialize,
     P: FnOnce(tonic::Request<T>, Arc<configs::Config>) -> Result<RequestData<T>, tonic::Status>,
     F: FnOnce(
         RequestData<T>,
     ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Result<tonic::Response<R>, tonic::Status>> + Send>,
+        Box<dyn Future<Output = Result<tonic::Response<R>, tonic::Status>> + Send>,
     >,
-    R: serde::Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
+    R: Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
 {
     let current_span = tracing::Span::current();
     let start_time = tokio::time::Instant::now();
@@ -342,7 +653,24 @@ where
         event_headers = request_data.masked_metadata.get_all_masked();
         event_metadata_payload = Some(request_data.extracted_metadata.clone());
 
-        let result = handler(request_data).await;
+        let art_runtime = create_art_runtime_for_request(
+            &config,
+            &request_data.extracted_metadata,
+            flow_name,
+            service_name,
+        );
+        let art_order_id = art_order_id_from_metadata(&request_data.extracted_metadata);
+        let result = run_art_scoped_handler(
+            request_data,
+            art_runtime,
+            &config.art_recording,
+            art_order_id,
+            config.art_recording.record_incoming_api,
+            flow_name,
+            service_name,
+            handler,
+        )
+        .await;
 
         let duration = start_time.elapsed().as_millis();
         current_span.record("response_time", duration);
@@ -382,14 +710,10 @@ pub async fn grpc_logging_wrapper<T, F, Fut, R>(
     handler: F,
 ) -> Result<tonic::Response<R>, tonic::Status>
 where
-    T: serde::Serialize
-        + std::fmt::Debug
-        + Send
-        + 'static
-        + hyperswitch_masking::ErasedMaskSerialize,
+    T: Serialize + std::fmt::Debug + Send + 'static + hyperswitch_masking::ErasedMaskSerialize,
     F: FnOnce(RequestData<T>) -> Fut + Send,
-    Fut: std::future::Future<Output = Result<tonic::Response<R>, tonic::Status>> + Send,
-    R: serde::Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
+    Fut: Future<Output = Result<tonic::Response<R>, tonic::Status>> + Send,
+    R: Serialize + std::fmt::Debug + hyperswitch_masking::ErasedMaskSerialize,
 {
     let current_span = tracing::Span::current();
     let start_time = tokio::time::Instant::now();
@@ -404,7 +728,24 @@ where
         event_headers = request_data.masked_metadata.get_all_masked();
         event_metadata_payload = Some(request_data.extracted_metadata.clone());
 
-        let result = handler(request_data).await;
+        let art_runtime = create_art_runtime_for_request(
+            &config,
+            &request_data.extracted_metadata,
+            flow_name,
+            service_name,
+        );
+        let art_order_id = art_order_id_from_metadata(&request_data.extracted_metadata);
+        let result = run_art_scoped_handler(
+            request_data,
+            art_runtime,
+            &config.art_recording,
+            art_order_id,
+            config.art_recording.record_incoming_api,
+            flow_name,
+            service_name,
+            handler,
+        )
+        .await;
 
         let duration = start_time.elapsed().as_millis();
         current_span.record("response_time", duration);
@@ -470,7 +811,7 @@ fn create_and_emit_grpc_event<R>(
     metadata_payload: Option<&MetadataPayload>,
     masked_headers: HashMap<String, String>,
 ) where
-    R: serde::Serialize,
+    R: Serialize,
 {
     let connector = metadata_payload
         .map(|md| md.connector.get_connector_name())
@@ -549,7 +890,7 @@ pub fn get_config_from_request<T>(
     request: &tonic::Request<T>,
 ) -> Result<Arc<configs::Config>, tonic::Status>
 where
-    T: serde::Serialize,
+    T: Serialize,
 {
     match request.extensions().get::<Arc<configs::Config>>() {
         Some(config) => {
@@ -688,12 +1029,15 @@ macro_rules! implement_connector_operation {
             let flow_name = $crate::utils::flow_marker_to_flow_name::<$flow_marker>();
 
             // Get API tag for the current flow with payment method type
-            let api_tag = config
-                .api_tags
-                .get_tag(flow_name, router_data.request.payment_method_type);
+            let api_tag = $crate::utils::resolve_api_tag(
+                &config,
+                &metadata_payload,
+                flow_name,
+                router_data.request.payment_method_type,
+            );
 
-            // Create test context if test mode is enabled
-            let test_context = config.test.create_test_context(&request_id).map_err(|e| {
+            // Create ART replay context when replay mode is enabled.
+            let test_context = config.create_art_replay_context(&request_id).map_err(|e| {
                 tonic::Status::internal(format!("Test mode configuration error: {e}"))
             })?;
 
@@ -810,12 +1154,11 @@ macro_rules! implement_connector_operation {
             let flow_name = $crate::utils::flow_marker_to_flow_name::<$flow_marker>();
 
             // Get API tag for the current flow
-            let api_tag = config
-                .api_tags
-                .get_tag(flow_name, None);
+            let api_tag =
+                $crate::utils::resolve_api_tag(&config, &metadata_payload, flow_name, None);
 
-            // Create test context if test mode is enabled
-            let test_context = config.test.create_test_context(&request_id).map_err(|e| {
+            // Create ART replay context when replay mode is enabled.
+            let test_context = config.create_art_replay_context(&request_id).map_err(|e| {
                 tonic::Status::internal(format!("Test mode configuration error: {e}"))
             })?;
 
@@ -1099,12 +1442,11 @@ macro_rules! implement_connector_operation {
 
             // Get API tag for the current flow
 
-            let api_tag = config
-                .api_tags
-                .get_tag(flow_name, None);
+            let api_tag =
+                $crate::utils::resolve_api_tag(&config, &metadata_payload, flow_name, None);
 
-            // Create test context if test mode is enabled
-            let test_context = config.test.create_test_context(&request_id).map_err(|e| {
+            // Create ART replay context when replay mode is enabled.
+            let test_context = config.create_art_replay_context(&request_id).map_err(|e| {
                 tonic::Status::internal(format!("Test mode configuration error: {e}"))
             })?;
 
@@ -1150,4 +1492,224 @@ macro_rules! implement_connector_operation {
         result
     }
 };
+}
+
+#[cfg(test)]
+mod art_lifecycle_tests {
+    use art_recorder::{
+        runtime::{ArtMode, ArtRuntime},
+        schema::{CsvRecording, RecordingEntry},
+    };
+    use common_utils::{
+        events::FlowName, metadata::MaskedMetadata, request_metrics::ConnectorLatencyTracker,
+    };
+    use domain_types::{
+        connector_types::{ConnectorEnum, ConnectorVariant},
+        router_data::ConnectorSpecificConfig,
+    };
+    use serde::Serialize;
+    use serde_json::json;
+    use tonic::metadata::MetadataMap;
+    use ucs_env::configs;
+
+    use super::{
+        art_order_id_from_metadata, art_recording_rows_fit_buffer_limit,
+        create_art_runtime_for_request, record_incoming_grpc_api, resolve_api_tag, MetadataPayload,
+    };
+    use crate::request::RequestData;
+
+    fn metadata_payload() -> MetadataPayload {
+        MetadataPayload {
+            tenant_id: "tenant_123".to_string(),
+            request_id: "req_phase_5".to_string(),
+            merchant_id: "merchant_123".to_string(),
+            connector: ConnectorVariant::Payment(ConnectorEnum::Stripe),
+            lineage_ids: common_utils::lineage::LineageIds::empty(""),
+            connector_config: ConnectorSpecificConfig::NoKey,
+            reference_id: None,
+            api_tag: None,
+            shadow_mode: false,
+            resource_id: None,
+            environment: None,
+            proxy_name: None,
+            connector_latency: ConnectorLatencyTracker::default(),
+        }
+    }
+
+    fn base_config() -> configs::Config {
+        configs::Config::new().expect("default config should load")
+    }
+
+    #[test]
+    fn art_runtime_uses_replay_mode_when_test_config_is_enabled() {
+        let mut config = base_config();
+        config.test.enabled = true;
+        config.test.mock_server_url = Some("http://localhost:3000/mockGateway".to_string());
+        config.art_recording.enabled = true;
+
+        let runtime = create_art_runtime_for_request(
+            &config,
+            &metadata_payload(),
+            FlowName::Authorize,
+            "PaymentService",
+        );
+
+        assert_eq!(runtime.mode(), ArtMode::Replay);
+        let session = runtime
+            .session()
+            .expect("replay mode should create session");
+        assert_eq!(session.session_id(), "req_phase_5");
+        assert_eq!(session.merchant_id, "merchant_123");
+        assert_eq!(session.connector, "stripe");
+        assert_eq!(session.flow, "Authorize");
+        assert_eq!(session.hostname, "PaymentService");
+    }
+
+    #[test]
+    fn art_runtime_uses_record_mode_when_recording_config_is_enabled() {
+        let mut config = base_config();
+        config.art_recording.enabled = true;
+        config.art_recording.max_entries_per_session = 1;
+
+        let mut runtime = create_art_runtime_for_request(
+            &config,
+            &metadata_payload(),
+            FlowName::Authorize,
+            "PaymentService",
+        );
+
+        assert_eq!(runtime.mode(), ArtMode::Record);
+        runtime
+            .record_entry(RecordingEntry::Timestamp(
+                art_recorder::schema::TimestampEntry::new(json!("now"), "first"),
+            ))
+            .expect("first entry should fit max_entries_per_session");
+        let error = runtime
+            .record_entry(RecordingEntry::Timestamp(
+                art_recorder::schema::TimestampEntry::new(json!("later"), "second"),
+            ))
+            .expect_err("second entry should exceed max_entries_per_session");
+        assert!(error
+            .to_string()
+            .contains("ART recorder reached max entries per session: 1"));
+    }
+
+    #[test]
+    fn art_order_id_prefers_reference_then_resource_then_request_id() {
+        let mut metadata = metadata_payload();
+        metadata.reference_id = Some("ref_123".to_string());
+        metadata.resource_id = Some("res_123".to_string());
+        assert_eq!(art_order_id_from_metadata(&metadata), "ref_123");
+
+        metadata.reference_id = None;
+        assert_eq!(art_order_id_from_metadata(&metadata), "res_123");
+
+        metadata.resource_id = None;
+        assert_eq!(art_order_id_from_metadata(&metadata), "req_phase_5");
+    }
+
+    #[test]
+    fn resolve_api_tag_prefers_request_header_then_config() {
+        let mut config = base_config();
+        config
+            .api_tags
+            .tags
+            .insert("psync".to_string(), "CONFIG_PSYNC".to_string());
+
+        let mut metadata = metadata_payload();
+        metadata.api_tag = Some("HEADER_PSYNC".to_string());
+
+        assert_eq!(
+            resolve_api_tag(&config, &metadata, FlowName::Psync, None).as_deref(),
+            Some("HEADER_PSYNC")
+        );
+
+        metadata.api_tag = None;
+
+        assert_eq!(
+            resolve_api_tag(&config, &metadata, FlowName::Psync, None).as_deref(),
+            Some("CONFIG_PSYNC")
+        );
+    }
+
+    #[test]
+    fn art_recording_rows_fit_configured_buffer_limit() {
+        let rows = vec![CsvRecording {
+            sess_id: "req_123".to_string(),
+            merch_id: "merchant_123".to_string(),
+            ord_id: "order_123".to_string(),
+            counter: 1,
+            val_type: "UUIDEntryT".to_string(),
+            rec_entry: "x".repeat(128),
+        }];
+
+        assert!(art_recording_rows_fit_buffer_limit(&rows, 1));
+        assert!(!art_recording_rows_fit_buffer_limit(&rows, 0));
+    }
+
+    #[derive(Clone, Debug, Serialize)]
+    struct TestPayload {
+        amount: i64,
+    }
+
+    #[derive(Clone, Debug, Serialize)]
+    struct TestResponse {
+        status: &'static str,
+    }
+
+    #[test]
+    fn record_incoming_grpc_api_appends_eulerhs_incoming_entry() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert(
+            "x-request-id",
+            "req_phase_5".parse().expect("valid metadata"),
+        );
+        metadata.insert(
+            "x-merchant-id",
+            "merchant_123".parse().expect("valid metadata"),
+        );
+
+        let request_data = RequestData {
+            payload: TestPayload { amount: 100 },
+            extracted_metadata: metadata_payload(),
+            masked_metadata: MaskedMetadata::new(metadata, Default::default()),
+            extensions: tonic::Extensions::default(),
+        };
+        let response = Ok(tonic::Response::new(TestResponse { status: "ok" }));
+        let mut runtime = ArtRuntime::recording(
+            art_recorder::runtime::SessionContext {
+                request_id: "req_phase_5".to_string(),
+                merchant_id: "merchant_123".to_string(),
+                connector: "stripe".to_string(),
+                flow: "Authorize".to_string(),
+                hostname: "PaymentService".to_string(),
+            },
+            Some(10),
+        );
+
+        record_incoming_grpc_api(
+            &mut runtime,
+            &request_data,
+            &response,
+            FlowName::Authorize,
+            "PaymentService",
+            json!("2026-07-07T13:00:00Z"),
+            json!("2026-07-07T13:00:01Z"),
+        )
+        .expect("incoming API entry should record");
+
+        assert!(matches!(
+            runtime.recorded_entries(),
+            [RecordingEntry::IncomingApi(entry)]
+                if entry.api_tag == "Authorize"
+                    && entry.hostname == "PaymentService"
+                    && entry.api_request.api_req_method == "GRPC"
+                    && entry.api_request.api_req_url == "grpc://PaymentService/Authorize"
+                    && entry.api_request.api_req_body == json!({"amount": 100})
+                    && entry.api_response.api_res_code == 0
+                    && entry.api_response.api_res_body == json!({"status": "ok"})
+                    && entry.start_time == json!("2026-07-07T13:00:00Z")
+                    && entry.end_time == json!("2026-07-07T13:00:01Z")
+        ));
+    }
 }

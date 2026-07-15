@@ -4,6 +4,7 @@ members = [
   "crates/types-traits/grpc-api-types",
   "crates/integrations/connector-integration",
   "crates/common/external-services",
+  "crates/common/art-recorder",
   "crates/grpc-server/grpc-server",
   "crates/common/config_patch_derive",
   "sdk/rust-grpc-client",
@@ -91,6 +92,7 @@ unused_qualifications = "warn"
 
 [workspace.lints.clippy]
 as_conversions = "warn"
+disallowed_methods = "warn"
 expect_used = "warn"
 index_refutable_slice = "warn"
 indexing_slicing = "warn"

@@ -108,6 +108,7 @@ impl DisputeService for Disputes {
                         lineage_ids,
                         connector_config,
                         reference_id,
+                        api_tag,
                         resource_id,
                         shadow_mode,
                         proxy_name,
@@ -182,7 +183,7 @@ impl DisputeService for Disputes {
                             None,
                             common_enums::CallConnectorAction::Trigger,
                             None,
-                            None,
+                            api_tag,
                         ),
                     )
                     .await
@@ -335,6 +336,7 @@ impl DisputeService for Disputes {
                         lineage_ids,
                         connector_config,
                         reference_id,
+                        api_tag,
                         resource_id,
                         shadow_mode,
                         proxy_name,
@@ -410,7 +412,7 @@ impl DisputeService for Disputes {
                             None,
                             common_enums::CallConnectorAction::Trigger,
                             None,
-                            None,
+                            api_tag,
                         ),
                     )
                     .await

@@ -111,6 +111,7 @@ struct EventParams<'a> {
     request_id: &'a str,
     lineage_ids: &'a lineage::LineageIds<'a>,
     reference_id: &'a Option<String>,
+    api_tag: &'a Option<String>,
     resource_id: &'a Option<String>,
     shadow_mode: bool,
     proxy_name: Option<&'a str>,
@@ -345,12 +346,10 @@ impl CustomerService for Customer {
                 Box::pin(async move {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
-                    let (connector, request_id, lineage_ids) = (
-                        metadata_payload.connector,
-                        metadata_payload.request_id,
-                        metadata_payload.lineage_ids,
-                    );
-                    let connector_config = &metadata_payload.connector_config;
+                    let connector = metadata_payload.connector.clone();
+                    let request_id = metadata_payload.request_id.clone();
+                    let lineage_ids = metadata_payload.lineage_ids.clone();
+                    let connector_config = metadata_payload.connector_config.clone();
                     //get connector data
                     let connector_data: ConnectorData<DefaultPCIHolder> =
                         ConnectorData::from_connector_variant(&connector).ok_or_else(|| {
@@ -367,7 +366,7 @@ impl CustomerService for Customer {
                     > = connector_data.connector.get_connector_integration_v2();
 
                     let connectors = utils::connectors_with_connector_config_overrides(
-                        connector_config,
+                        &connector_config,
                         &config,
                     )
                     .into_grpc_status()?;
@@ -400,13 +399,16 @@ impl CustomerService for Customer {
                     };
 
                     // Get API tag for CreateConnectorCustomer flow
-                    let api_tag = config
-                        .api_tags
-                        .get_tag(FlowName::CreateConnectorCustomer, None);
+                    let api_tag = utils::resolve_api_tag(
+                        &config,
+                        &metadata_payload,
+                        FlowName::CreateConnectorCustomer,
+                        None,
+                    );
 
-                    // Create test context if test mode is enabled
+                    // Create ART replay context when replay mode is enabled.
                     let test_context =
-                        config.test.create_test_context(&request_id).map_err(|e| {
+                        config.create_art_replay_context(&request_id).map_err(|e| {
                             tonic::Status::internal(format!("Test mode configuration error: {e}"))
                         })?;
 
@@ -532,14 +534,16 @@ impl Payments {
         };
 
         // Get API tag for the current flow with payment method type from domain layer
-        let api_tag = config
-            .api_tags
-            .get_tag(FlowName::Authorize, router_data.request.payment_method_type);
+        let api_tag = utils::resolve_api_tag(
+            config,
+            metadata_payload,
+            FlowName::Authorize,
+            router_data.request.payment_method_type,
+        );
 
-        // Create test context if test mode is enabled
+        // Create ART replay context when replay mode is enabled.
         let test_context = config
-            .test
-            .create_test_context(request_id)
+            .create_art_replay_context(request_id)
             .map_err(|e| tonic::Status::internal(format!("Test mode configuration error: {e}")))?;
 
         // Execute connector processing
@@ -658,15 +662,16 @@ impl Payments {
         };
 
         // Get API tag for the current flow with payment method type from domain layer
-        let api_tag = config.api_tags.get_tag(
+        let api_tag = utils::resolve_api_tag(
+            config,
+            metadata_payload,
             FlowName::SetupMandate,
             setup_mandate_request_data.payment_method_type,
         );
 
-        // Create test context if test mode is enabled
+        // Create ART replay context when replay mode is enabled.
         let test_context = config
-            .test
-            .create_test_context(request_id)
+            .create_art_replay_context(request_id)
             .map_err(|e| tonic::Status::internal(format!("Test mode configuration error: {e}")))?;
 
         let event_params = EventProcessingParams {
@@ -975,12 +980,12 @@ impl PaymentService for Payments {
                 Box::pin(async move {
                     let metadata_payload = request_data.extracted_metadata;
                     let utils::MetadataPayload {
-                        connector,
+                        ref connector,
                         ..
                     } = metadata_payload;
                     let payload = request_data.payload;
                     let connector_data: ConnectorData<DefaultPCIHolder> =
-                        ConnectorData::from_connector_variant(&connector)
+                        ConnectorData::from_connector_variant(connector)
                         .ok_or_else(|| tonic::Status::invalid_argument("Invalid Connector Received"))?;
                     // Get connector integration
                     let connector_integration: BoxedConnectorIntegrationV2<
@@ -1049,14 +1054,16 @@ impl PaymentService for Payments {
                     let flow_name = utils::flow_marker_to_flow_name::<PSync>();
 
                     // Get API tag for the current flow with payment method type
-                    let api_tag = config
-                        .api_tags
-                        .get_tag(flow_name, payments_sync_data.payment_method_type);
+                    let api_tag = utils::resolve_api_tag(
+                        &config,
+                        &metadata_payload,
+                        flow_name,
+                        payments_sync_data.payment_method_type,
+                    );
 
-                    // Create test context if test mode is enabled
+                    // Create ART replay context when replay mode is enabled.
                     let test_context = config
-                        .test
-                        .create_test_context(&metadata_payload.request_id)
+                        .create_art_replay_context(&metadata_payload.request_id)
                         .map_err(|e| {
                             tonic::Status::internal(format!("Test mode configuration error: {e}"))
                         })?;
@@ -2416,12 +2423,12 @@ impl PaymentMethod {
         };
 
         // Get API tag for PaymentMethodToken flow
-        let api_tag = config.api_tags.get_tag(FlowName::PaymentMethodToken, None);
+        let api_tag =
+            utils::resolve_api_tag(config, metadata_payload, FlowName::PaymentMethodToken, None);
 
-        // Create test context if test mode is enabled
+        // Create ART replay context when replay mode is enabled.
         let test_context = config
-            .test
-            .create_test_context(request_id)
+            .create_art_replay_context(request_id)
             .map_err(|e| tonic::Status::internal(format!("Test mode configuration error: {e}")))?;
 
         // Execute connector processing
@@ -2525,14 +2532,15 @@ impl MerchantAuthentication {
         };
 
         // Get API tag for ServerSessionAuthenticationToken flow with payment method type if available
-        let api_tag = config
-            .api_tags
-            .get_tag(FlowName::ServerSessionAuthenticationToken, None);
+        let api_tag = event_params.api_tag.clone().or_else(|| {
+            config
+                .api_tags
+                .get_tag(FlowName::ServerSessionAuthenticationToken, None)
+        });
 
-        // Create test context if test mode is enabled
+        // Create ART replay context when replay mode is enabled.
         let test_context = config
-            .test
-            .create_test_context(event_params.request_id)
+            .create_art_replay_context(event_params.request_id)
             .map_err(|e| tonic::Status::internal(format!("Test mode configuration error: {e}")))?;
 
         // Create event processing parameters
@@ -2648,14 +2656,15 @@ impl MerchantAuthentication {
         };
 
         // Get API tag for ServerAuthenticationToken flow with payment method type if available
-        let api_tag = config
-            .api_tags
-            .get_tag(FlowName::ServerAuthenticationToken, None);
+        let api_tag = event_params.api_tag.clone().or_else(|| {
+            config
+                .api_tags
+                .get_tag(FlowName::ServerAuthenticationToken, None)
+        });
 
-        // Create test context if test mode is enabled
+        // Create ART replay context when replay mode is enabled.
         let test_context = config
-            .test
-            .create_test_context(event_params.request_id)
+            .create_art_replay_context(event_params.request_id)
             .map_err(|e| tonic::Status::internal(format!("Test mode configuration error: {e}")))?;
 
         // Execute connector processing
@@ -2845,6 +2854,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         request_id: &request_id,
                         lineage_ids: &lineage_ids,
                         reference_id: &metadata_payload.reference_id,
+                        api_tag: &metadata_payload.api_tag,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         proxy_name: metadata_payload.proxy_name.as_deref(),
@@ -2959,6 +2969,7 @@ impl MerchantAuthenticationService for MerchantAuthentication {
                         request_id: &request_id,
                         lineage_ids: &lineage_ids,
                         reference_id: &metadata_payload.reference_id,
+                        api_tag: &metadata_payload.api_tag,
                         resource_id: &metadata_payload.resource_id,
                         shadow_mode: metadata_payload.shadow_mode,
                         proxy_name: metadata_payload.proxy_name.as_deref(),
@@ -3046,10 +3057,8 @@ impl RecurringPaymentService for RecurringPayments {
                 Box::pin(async move {
                     let payload = request_data.payload;
                     let metadata_payload = request_data.extracted_metadata;
-                    let (request_id, lineage_ids) = (
-                        metadata_payload.request_id,
-                        metadata_payload.lineage_ids,
-                    );
+                    let request_id = metadata_payload.request_id.clone();
+                    let lineage_ids = metadata_payload.lineage_ids.clone();
                     let connector_config = &metadata_payload.connector_config;
 
                         let connector_data: ConnectorData<DefaultPCIHolder> = ConnectorData::from_connector_variant(&metadata_payload.connector)
@@ -3150,14 +3159,16 @@ impl RecurringPaymentService for RecurringPayments {
                         response: Err(ErrorResponse::default()),
                     };
                     // Get API tag for RepeatPayment flow
-                    let api_tag = config.api_tags.get_tag(
+                    let api_tag = utils::resolve_api_tag(
+                        &config,
+                        &metadata_payload,
                         FlowName::RepeatPayment,
                         repeat_payment_data.payment_method_type,
                     );
 
-                    // Create test context if test mode is enabled
+                    // Create ART replay context when replay mode is enabled.
                     let test_context =
-                        config.test.create_test_context(&request_id).map_err(|e| {
+                        config.create_art_replay_context(&request_id).map_err(|e| {
                             tonic::Status::internal(format!("Test mode configuration error: {e}"))
                         })?;
 

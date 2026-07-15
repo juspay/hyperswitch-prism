@@ -1,6 +1,7 @@
 //! Kafka writer implementation for sending formatted log messages to Kafka.
 
 use std::{
+    collections::HashMap,
     io::{self, Write},
     sync::Arc,
     time::Duration,
@@ -131,7 +132,37 @@ impl KafkaWriter {
         reconnect_backoff_min_ms: Option<u64>,
         reconnect_backoff_max_ms: Option<u64>,
     ) -> Result<Self, KafkaWriterError> {
+        Self::new_with_config(
+            brokers,
+            topic,
+            batch_size,
+            linger_ms,
+            queue_buffering_max_messages,
+            queue_buffering_max_kbytes,
+            reconnect_backoff_min_ms,
+            reconnect_backoff_max_ms,
+            HashMap::new(),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new_with_config(
+        brokers: Vec<String>,
+        topic: String,
+        batch_size: Option<usize>,
+        linger_ms: Option<u64>,
+        queue_buffering_max_messages: Option<usize>,
+        queue_buffering_max_kbytes: Option<usize>,
+        reconnect_backoff_min_ms: Option<u64>,
+        reconnect_backoff_max_ms: Option<u64>,
+        custom_config: HashMap<String, String>,
+    ) -> Result<Self, KafkaWriterError> {
         let mut config = ClientConfig::new();
+
+        for (key, value) in custom_config {
+            config.set(key, value);
+        }
+
         config.set("bootstrap.servers", brokers.join(","));
 
         if let Some(min_backoff) = reconnect_backoff_min_ms {
