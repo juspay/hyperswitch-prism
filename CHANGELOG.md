@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.15.0
+
+### Bug Fixes
+
+- **tsys_transit:** Correct amount_captured for auth-only + valid voidReason on cancel ([#1936](https://github.com/juspay/connector-service/pull/1936)) ([`1d7b327`](https://github.com/juspay/connector-service/commit/1d7b327413a0caf93c6fd80a4b904710e9aa7748))
+
+**Full Changelog:** [`2026.07.14.1...2026.07.15.0`](https://github.com/juspay/connector-service/compare/2026.07.14.1...2026.07.15.0)
+
+- - -
+
 ## 2026.07.14.1
 
 ### Features
