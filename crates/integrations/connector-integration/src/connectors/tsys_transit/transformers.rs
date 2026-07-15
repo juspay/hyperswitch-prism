@@ -17,9 +17,7 @@ use domain_types::{
         RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
-    payment_method_data::{
-        Card, CardDetailsForNetworkTransactionId, PaymentMethodData, PaymentMethodDataTypes,
-    },
+    payment_method_data::{Card, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     utils::split_full_name as split_domain_full_name,
