@@ -2559,7 +2559,6 @@ message PaymentServiceAuthorizeResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 22;
-
 }
 
 // Request message for synchronizing payment status
@@ -2692,7 +2691,6 @@ message PaymentServiceGetResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 35;
-
 }
 
 // Request message for voiding a payment
@@ -3150,7 +3148,6 @@ message RefundResponse {
   // Merchant's reference for the original payment/transaction the refund
   // belongs to
   optional string merchant_transaction_id = 24;
-
 }
 
 // Request message for voiding/reversing a refund before settlement.
