@@ -5477,32 +5477,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 request_overcapture: None,
                             },
                         ),
-                        PaymentMethodData::StoredCardForNetworkTransactionId(
-                            ref card_details_for_network_transaction_id,
-                        ) => StripePaymentMethodData::CardNetworkTransactionId(
-                            StripeCardNetworkTransactionIdData {
-                                payment_method_data_type: StripePaymentMethodType::Card,
-                                payment_method_data_card_number:
-                                    card_details_for_network_transaction_id.card_number.clone(),
-                                payment_method_data_card_exp_month:
-                                    card_details_for_network_transaction_id
-                                        .card_exp_month
-                                        .clone(),
-                                payment_method_data_card_exp_year:
-                                    card_details_for_network_transaction_id
-                                        .card_exp_year
-                                        .clone(),
-                                payment_method_data_card_cvc: None,
-                                payment_method_auth_type: None,
-                                payment_method_data_card_preferred_network:
-                                    card_details_for_network_transaction_id
-                                        .card_network
-                                        .clone()
-                                        .and_then(get_stripe_card_network),
-                                request_overcapture: None,
-                            },
-                        ),
-                        PaymentMethodData::CardRedirect(_)
+                        // StoredCardForNetworkTransactionId is only produced for
+                        // connectors opted into the payment_method_id StoredCard flow
+                        // (tsys_transit); Stripe never receives it.
+                        PaymentMethodData::StoredCardForNetworkTransactionId(_)
+                        | PaymentMethodData::CardRedirect(_)
                         | PaymentMethodData::Wallet(_)
                         | PaymentMethodData::PayLater(_)
                         | PaymentMethodData::BankRedirect(_)

@@ -170,42 +170,16 @@ fn fetch_payment_instrument<
                 card_number: RawCardNumber(raw_card_details.card_number)
             }))
         }
-        PaymentMethodData::StoredCardForNetworkTransactionId(raw_card_details) => {
-            let exp_month_str = raw_card_details.card_exp_month.peek().to_string();
-            let mut exp_year = raw_card_details.card_exp_year.peek().clone();
-            if exp_year.len() == 2 {
-                exp_year = format!("20{exp_year}");
-            }
-            let exp_year_str = exp_year;
-            when(
-                exp_month_str.contains("{{") || exp_year_str.contains("{{"),
-                || {
-                    Err(error_stack::report!(IntegrationError::NotSupported {
-                        message: "Worldpay requires numeric expiry values; vault token placeholders are not supported for proxy flows".to_string(),
-                        connector: "Worldpay",
-                        context: Default::default(),
-                    }))
-                },
-            )?;
-            let expiry_month: i8 = exp_month_str
-                .parse::<i8>()
-                .change_context(IntegrationError::RequestEncodingFailed {
-                    context: Default::default(),
-                })?;
-            let expiry_year: i32 = exp_year_str
-                .parse::<i32>()
-                .change_context(IntegrationError::RequestEncodingFailed {
-                    context: Default::default(),
-                })?;
-            Ok(PaymentInstrument::RawCardForNTI(RawCardDetails {
-                payment_type: PaymentType::Plain,
-                expiry_date: ExpiryDate {
-                    month: Secret::new(expiry_month),
-                    year: Secret::new(expiry_year),
-                },
-                card_number: RawCardNumber(raw_card_details.card_number)
-            }))
-        }
+        // StoredCardForNetworkTransactionId is only produced for connectors opted
+        // into the payment_method_id StoredCard flow (tsys_transit); Worldpay never
+        // receives it.
+        PaymentMethodData::StoredCardForNetworkTransactionId(_) => Err(
+            IntegrationError::NotImplemented(
+                "StoredCardForNetworkTransactionId is not supported by Worldpay".to_string(),
+                Default::default(),
+            )
+            .into(),
+        ),
         PaymentMethodData::MandatePayment => {
             Err(IntegrationError::NotImplemented("MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string() , Default::default()).into())
         }
