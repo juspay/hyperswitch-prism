@@ -1213,6 +1213,19 @@ message ConnectorMandateReferenceId {
   optional string connector_mandate_id = 1;
   optional string payment_method_id = 2;
   optional string connector_mandate_request_reference_id = 3;
+  // Opaque connector mandate metadata that newer hyperswitch clients round-trip
+  // (e.g. Airwallex stores its payment-method token here for MITs).
+  optional SecretString mandate_metadata = 4;
+}
+
+// Flat mandate reference the connector returns for future recurring payments.
+// Read by newer hyperswitch clients via the `mandate_reference_details` response
+// field (the `mandate_reference` oneof field is deprecated).
+message MandateReferenceDetails {
+  optional string connector_mandate_id = 1;
+  optional string payment_method_id = 2;
+  optional string connector_mandate_request_reference_id = 3;
+  optional SecretString mandate_metadata = 4;
 }
 
 message NetworkTokenWithNTI {
@@ -2429,6 +2442,8 @@ message PaymentServiceAuthorizeResponse {
 
   // Mandate and Connector Response
   optional MandateReference mandate_reference = 16;
+  // Flat mandate reference read by newer hyperswitch clients (mandate_reference is deprecated).
+  optional MandateReferenceDetails mandate_reference_details = 22;
   optional ConnectorResponseData connector_response = 17;
   optional SecretString connector_feature_data =
       18; // Connector-specific metadata for the transaction
@@ -2517,6 +2532,7 @@ message PaymentServiceGetResponse {
 
   // Transaction Details
   optional MandateReference mandate_reference = 6;
+  optional MandateReferenceDetails mandate_reference_details = 35;
   optional string network_transaction_id = 7;
   // A scheme-generated reference that Mastercard intends to use for tracking and linking transactions across the ecosystem.
   // Distinct from network_transaction_id.
@@ -2625,6 +2641,7 @@ message PaymentServiceVoidResponse {
 
   // Mandate Details
   optional MandateReference mandate_reference = 9;
+  optional MandateReferenceDetails mandate_reference_details = 14;
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 10;
@@ -2849,6 +2866,7 @@ message PaymentServiceCaptureResponse {
 
   // Mandate Details
   MandateReference mandate_reference = 10;
+  optional MandateReferenceDetails mandate_reference_details = 15;
 
   // Authorization Details
   optional bool incremental_authorization_allowed = 11;
@@ -2887,6 +2905,10 @@ message PaymentServiceCreateOrderRequest {
   // Payment Method Type
   optional PaymentMethodType payment_method_type =
       8; // The type of payment method (e.g., apple_pay, google_pay)
+
+  // Order line items. Required by some connectors (e.g. Airwallex PayLater /
+  // Klarna) when creating the order/payment-intent.
+  repeated OrderDetailsWithAmount order_details = 9;
 }
 
 // Response message for create order operation
@@ -3206,6 +3228,7 @@ message PaymentServiceSetupRecurringResponse {
 
   // Mandate Details
   MandateReference mandate_reference = 6; // Reference to the created mandate
+  optional MandateReferenceDetails mandate_reference_details = 17;
 
   // Redirection and Transaction Details
   optional RedirectForm redirection_data =
@@ -3346,6 +3369,7 @@ message RecurringPaymentServiceChargeResponse {
   optional string network_transaction_id = 7;
   optional string merchant_charge_id = 8;
   optional MandateReference mandate_reference = 9;
+  optional MandateReferenceDetails mandate_reference_details = 17;
 
   // State Information
   optional ConnectorState state = 10;

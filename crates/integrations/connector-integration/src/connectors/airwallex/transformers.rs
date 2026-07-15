@@ -164,8 +164,35 @@ pub struct IndonesianBankTransferData {
 pub struct IndonesianBankTransferDetails {
     pub shopper_name: Secret<String>,
     pub shopper_email: Email,
-    pub bank_name: common_enums::BankNames,
+    // The Airwallex bank token (e.g. "mandiri", "cimb_niaga"), mapped from the
+    // domain `BankNames` via `AirwallexIndonesianBankName` — the raw serde string
+    // of `BankNames` does not match Airwallex's tokens.
+    pub bank_name: String,
     pub country_code: common_enums::CountryAlpha2,
+}
+
+// Maps the domain `BankNames` to the exact Airwallex Indonesian bank_transfer token.
+// Tokens sourced from Airwallex `/pa/config/banks?payment_method_type=bank_transfer&country_code=ID`.
+// Banks Airwallex does not support for Indonesia are rejected as NotImplemented.
+pub struct AirwallexIndonesianBankName(String);
+
+impl TryFrom<&common_enums::BankNames> for AirwallexIndonesianBankName {
+    type Error = error_stack::Report<IntegrationError>;
+    fn try_from(bank: &common_enums::BankNames) -> Result<Self, Self::Error> {
+        match bank {
+            common_enums::BankNames::BankMandiri => Ok(Self("mandiri".to_string())),
+            common_enums::BankNames::BankDanamon => Ok(Self("danamon".to_string())),
+            common_enums::BankNames::BankNegaraIndonesia => Ok(Self("bni".to_string())),
+            common_enums::BankNames::BankRakyatIndonesia => Ok(Self("bri".to_string())),
+            common_enums::BankNames::CimbNiaga => Ok(Self("cimb_niaga".to_string())),
+            common_enums::BankNames::Maybank => Ok(Self("maybank".to_string())),
+            common_enums::BankNames::PermataBank => Ok(Self("permata".to_string())),
+            _ => Err(error_stack::report!(IntegrationError::NotImplemented(
+                crate::utils::get_unimplemented_payment_method_error_message("airwallex"),
+                Default::default()
+            ))),
+        }
+    }
 }
 
 // Shared Airwallex PayLater enum. Each PayLater payment method gets its own variant so
@@ -661,11 +688,15 @@ fn get_banktransfer_details(
                             context: Default::default(),
                         }
                     })?,
-                    // `bank_name` is required by Airwallex to route the Indonesian bank transfer.
-                    bank_name: (*bank_name).ok_or(IntegrationError::MissingRequiredField {
-                        field_name: "bank_name",
-                        context: Default::default(),
-                    })?,
+                    // `bank_name` is required by Airwallex to route the Indonesian bank transfer;
+                    // map the domain bank to Airwallex's exact token (rejecting unsupported banks).
+                    bank_name: AirwallexIndonesianBankName::try_from(
+                        bank_name.as_ref().ok_or(IntegrationError::MissingRequiredField {
+                            field_name: "bank_name",
+                            context: Default::default(),
+                        })?,
+                    )?
+                    .0,
                     country_code: resource_common_data.get_billing_country().map_err(|_| {
                         IntegrationError::MissingRequiredField {
                             field_name: "country_code",
@@ -1225,13 +1256,42 @@ impl TryFrom<ResponseRouterData<AirwallexSyncResponse, Self>>
             .and_then(|attempt| attempt.network_transaction_id.clone())
             .or_else(|| item.response.network_transaction_id.clone());
 
+        // Surface the Airwallex PaymentConsent as the connector mandate reference here too, so a
+        // CIT (setup_future_usage) whose final state is fetched via PSync (e.g. card 3DS that
+        // returns through the sync leg) still stores connector_mandate_id (payment_consent_id) +
+        // payment_method.id for future MITs. Mirrors the Authorize/SetupMandate response builders;
+        // `payment_consent_id` is only present when a consent was set up (the CIT path), so a plain
+        // sync leaves mandate_reference None.
+        let airwallex_payment_method_id = item
+            .response
+            .latest_payment_attempt
+            .as_ref()
+            .and_then(|lpa| lpa.payment_method.as_ref())
+            .and_then(|pm| pm.id.clone())
+            .or_else(|| {
+                item.response
+                    .payment_method
+                    .as_ref()
+                    .and_then(|pm| pm.id.clone())
+            });
+        let mandate_reference = item
+            .response
+            .payment_consent_id
+            .clone()
+            .map(|id| MandateReference {
+                connector_mandate_id: Some(id.expose()),
+                payment_method_id: airwallex_payment_method_id,
+                connector_mandate_request_reference_id: None,
+            })
+            .map(Box::new);
+
         let intent_id = item.response.id;
 
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(intent_id.clone()),
                 redirection_data: None,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id,
                 network_txn_link_id: None,
@@ -1361,10 +1421,12 @@ impl TryFrom<ResponseRouterData<AirwallexCaptureResponse, Self>>
 
 #[derive(Debug, Serialize)]
 pub struct AirwallexRefundRequest {
-    pub payment_attempt_id: String, // From connector_transaction_id
-    pub amount: StringMajorUnit,    // Refund amount in major units
-    pub reason: Option<String>,     // Refund reason if provided
-    pub request_id: String,         // Unique identifier for idempotency
+    // connector_transaction_id is the Airwallex payment *intent* id (int_...); the
+    // /pa/refunds/create endpoint accepts it as payment_intent_id.
+    pub payment_intent_id: String, // From connector_transaction_id (the intent id)
+    pub amount: StringMajorUnit,   // Refund amount in major units
+    pub reason: Option<String>,    // Refund reason if provided
+    pub request_id: String,        // Unique identifier for idempotency
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1410,8 +1472,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             T,
         >,
     ) -> Result<Self, Self::Error> {
-        // Extract payment attempt ID from connector_transaction_id
-        let payment_attempt_id = item.router_data.request.connector_transaction_id.clone();
+        // connector_transaction_id is the Airwallex payment intent id (int_...).
+        let payment_intent_id = item.router_data.request.connector_transaction_id.clone();
 
         // Extract refund amount from RefundsData and convert to major units (hyperswitch pattern)
         let refund_amount = item.router_data.request.refund_amount;
@@ -1435,7 +1497,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         );
 
         Ok(Self {
-            payment_attempt_id,
+            payment_intent_id,
             amount,
             reason: item.router_data.request.reason.clone(),
             request_id,
@@ -1887,8 +1949,35 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 context: Default::default(),
             })?;
 
-        // For now, no order data - can be enhanced later when order details are needed
-        let order = None;
+        // Populate the order line items when provided. Airwallex requires `order.products`
+        // at payment-intent creation for PayLater methods (e.g. Klarna); the sum of
+        // (quantity * unit_price) must equal the intent amount.
+        let order = match item.router_data.request.order_details.as_ref() {
+            Some(order_details) if !order_details.is_empty() => {
+                let products = order_details
+                    .iter()
+                    .map(|detail| {
+                        let unit_price = item
+                            .connector
+                            .amount_converter
+                            .convert(detail.amount, item.router_data.request.currency)
+                            .map_err(|_| IntegrationError::RequestEncodingFailed {
+                                context: Default::default(),
+                            })?;
+                        Ok(AirwallexProductData {
+                            name: detail.product_name.clone(),
+                            quantity: detail.quantity,
+                            unit_price,
+                        })
+                    })
+                    .collect::<Result<Vec<_>, error_stack::Report<IntegrationError>>>()?;
+                Some(AirwallexOrderData {
+                    products,
+                    shipping: None,
+                })
+            }
+            _ => None,
+        };
 
         // Generate unique request_id for CreateOrder step
         let request_id = format!(
@@ -2246,6 +2335,13 @@ pub struct AirwallexRepeatPaymentMethodId {
     pub id: String,
 }
 
+// Connector mandate metadata that hyperswitch round-trips opaquely. Carries the Airwallex
+// payment-method token so a later MIT can replay it (mirrors the upstream HS airwallex connector).
+#[derive(Debug, Deserialize)]
+pub struct AirwallexMandateMetadata {
+    pub id: Option<String>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct AirwallexRepeatPaymentRequest {
     pub request_id: String,
@@ -2293,13 +2389,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // payment_method.id (pm_...). The connector rejects the request with
         // "triggered_by should not be set, payment_method.id should be provided
         // when triggered_by is set" if payment_method.id is missing.
-        let (connector_mandate_id, payment_method_id) =
+        let (connector_mandate_id, payment_method_id, mandate_metadata) =
             match &item.router_data.request.mandate_reference {
                 MandateReferenceId::ConnectorMandateId(cm) => (
                     cm.get_connector_mandate_id(),
                     cm.get_payment_method_id().cloned(),
+                    cm.get_mandate_metadata(),
                 ),
-                _ => (None, None),
+                _ => (None, None, None),
             };
 
         let connector_mandate_id =
@@ -2307,8 +2404,16 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 field_name: "connector_mandate_id",
                 context: Default::default(),
             })?;
-        let payment_method_id =
-            payment_method_id.ok_or(IntegrationError::MissingRequiredField {
+        // Airwallex MIT replays the Airwallex payment-method token. hyperswitch stores its OWN id
+        // in payment_method_id but round-trips the connector token in mandate_metadata as
+        // {"id": ...}; prefer that, falling back to payment_method_id for older stored mandates.
+        let payment_method_id = mandate_metadata
+            .and_then(|meta| {
+                serde_json::from_value::<AirwallexMandateMetadata>(meta.expose()).ok()
+            })
+            .and_then(|meta| meta.id)
+            .or(payment_method_id)
+            .ok_or(IntegrationError::MissingRequiredField {
                 field_name: "payment_method_id",
                 context: Default::default(),
             })?;

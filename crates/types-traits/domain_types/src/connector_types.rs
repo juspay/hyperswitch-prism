@@ -1928,6 +1928,9 @@ pub struct PaymentCreateOrderData {
     pub metadata: Option<SecretSerdeValue>,
     pub webhook_url: Option<String>,
     pub payment_method_type: Option<common_enums::PaymentMethodType>,
+    // Order line items, needed by some connectors (e.g. Airwallex PayLater/Klarna)
+    // at order/intent creation time.
+    pub order_details: Option<Vec<payment_address::OrderDetailsWithAmount>>,
 }
 
 #[derive(Debug, Clone)]
