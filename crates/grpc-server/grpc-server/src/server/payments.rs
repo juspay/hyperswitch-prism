@@ -1096,7 +1096,6 @@ impl PaymentService for Payments {
                     }
                 };
 
-
                 Ok(tonic::Response::new(authorize_response))
             })
         }))
@@ -1763,7 +1762,6 @@ impl PaymentService for Payments {
                         payment_method_data,
                         ))
                         .await?
-
                     },
                     PaymentMethodDataAction::Card(card_details) => {
                         tracing::info!("SETUP_RECURRING_FLOW: Processing regular setup recurring (no injector)");
@@ -2225,7 +2223,6 @@ impl PaymentMethodService for PaymentMethod {
                         payment_method_data,
                         ))
                         .await?
-
                     },
                     PaymentMethodDataAction::Card(card_details) => {
                         tracing::info!("REGULAR: Processing regular payment authorization (no injector)");
