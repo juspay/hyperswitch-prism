@@ -2905,7 +2905,7 @@ message PaymentClientAuthenticationContext {
 }
 
 // Authenticator-specific context for client authentication token creation
-message AuthenticatorClientContext {
+message AuthenticatorClientAuthenticationContext {
   optional string return_url = 1;           // OAuth redirect URL for Link completion
   optional string webhook_url = 2;          // Webhook endpoint for events
   repeated CountryAlpha2 country_codes = 3; // ISO-3166-1 alpha-2 country codes

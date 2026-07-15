@@ -12640,6 +12640,7 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                         .get_connector_response_headers_as_map(),
                     merchant_payment_method_id: Some(token_clone),
                     state: None,
+                    connector_payment_method_id: None,
                 },
             )
         }
@@ -12663,6 +12664,7 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                     .get_connector_response_headers_as_map(),
                 merchant_payment_method_id: e.connector_transaction_id,
                 state: None,
+                connector_payment_method_id: None,
             },
         ),
     }
