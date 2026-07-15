@@ -19,6 +19,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.14.1
+
+### Features
+
+- **connector:** [datatrans] Card 3DS + Recurring (SetupMandate + MIT) to HS Direct parity ([#1935](https://github.com/juspay/connector-service/pull/1935)) ([`ed008b3`](https://github.com/juspay/connector-service/commit/ed008b35189fdf02918050b343026639a5d68cec))
+
+**Full Changelog:** [`2026.07.14.0...2026.07.14.1`](https://github.com/juspay/connector-service/compare/2026.07.14.0...2026.07.14.1)
+
+- - -
+
+## 2026.07.14.0
+
+### Bug Fixes
+
+- **cybersource:** Set MIT initiator for repeat_payment ConnectorMandateId (shadow diff #17471) ([#1805](https://github.com/juspay/connector-service/pull/1805)) ([`44792c2`](https://github.com/juspay/connector-service/commit/44792c24793aafbf4276c58852e03e6ae6436ceb))
+
+**Full Changelog:** [`2026.07.13.0...2026.07.14.0`](https://github.com/juspay/connector-service/compare/2026.07.13.0...2026.07.14.0)
+
+- - -
+
+## 2026.07.13.0
+
+### Features
+
+- **framework:** Mapped issuer_details field between domain and proto ([#1883](https://github.com/juspay/connector-service/pull/1883)) ([`534add4`](https://github.com/juspay/connector-service/commit/534add411dcb59da8d41660699d764b13b292dcf))
+
+**Full Changelog:** [`2026.07.10.1...2026.07.13.0`](https://github.com/juspay/connector-service/compare/2026.07.10.1...2026.07.13.0)
+
+- - -
+
+## 2026.07.10.1
+
+### Features
+
+- **cybersource:** Emit consumerAuthenticationInformation in SetupMandate + Authorize ([#1594](https://github.com/juspay/connector-service/pull/1594)) ([`bfb78ae`](https://github.com/juspay/connector-service/commit/bfb78aeb39255f67601678973c6a1595d26c68b9))
+
+**Full Changelog:** [`2026.07.10.0...2026.07.10.1`](https://github.com/juspay/connector-service/compare/2026.07.10.0...2026.07.10.1)
+
+- - -
+
+## 2026.07.10.0
+
+### Bug Fixes
+
+- **clippy:** Resolve rust 1.97 clippy lints across the workspace ([#1862](https://github.com/juspay/connector-service/pull/1862)) ([`a776b05`](https://github.com/juspay/connector-service/commit/a776b054e36ea46520a1d084b3155d05ece07ddc))
+- **jpmorgan:** Make merchant_purchase_description / softMerchant optional ([#1818](https://github.com/juspay/connector-service/pull/1818)) ([`f614196`](https://github.com/juspay/connector-service/commit/f614196634eceb16489d189fcb995a1425446f8d))
+- **payload:** Include description in card authorize request body ([#18038](https://github.com/juspay/connector-service/pull/18038)) ([#1842](https://github.com/juspay/connector-service/pull/1842)) ([`cb6fe41`](https://github.com/juspay/connector-service/commit/cb6fe415bdf06228d99b473334d70792a3463c2e))
+- **sdk:** Remove removed baseUrl option from JS smoke-test tsconfig ([#1857](https://github.com/juspay/connector-service/pull/1857)) ([`c0f8e5e`](https://github.com/juspay/connector-service/commit/c0f8e5e35c2262e558e036605ad85e32267d19cb))
+
+**Full Changelog:** [`2026.07.09.1...2026.07.10.0`](https://github.com/juspay/connector-service/compare/2026.07.09.1...2026.07.10.0)
+
+- - -
+
+## 2026.07.09.1
+
+### Features
+
+- **netcetera:** External 3DS (EMVCo) connector for VGS external-vaul… ([#1788](https://github.com/juspay/connector-service/pull/1788)) ([`4dd9850`](https://github.com/juspay/connector-service/commit/4dd9850d8adb427b700b03ae68c074f517ead8d2))
+
+**Full Changelog:** [`2026.07.09.0...2026.07.09.1`](https://github.com/juspay/connector-service/compare/2026.07.09.0...2026.07.09.1)
+
+- - -
+
 ## 2026.07.09.0
 
 ### Bug Fixes

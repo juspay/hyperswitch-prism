@@ -3462,6 +3462,13 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                 // is not used for Qwikcilver — configure via the proto
                 // QwikcilverConfig path instead.
                 ConnectorEnum::Qwikcilver => Err(err().into()),
+                // Netcetera is an authentication-only (3DS) no-key connector (mTLS is
+                // handled on the VGS outbound route, merchant fields ride
+                // `connector_feature_data`). Its `connector_config` is set to
+                // `ConnectorSpecificConfig::NoKey` via the `X_AUTH = "NoKey"` shortcut in
+                // `request.rs`, so it never flows through this deprecated auth-credentials
+                // -> config conversion (same opt-out as Qwikcilver above).
+                ConnectorEnum::Netcetera => Err(err().into()),
                 // Flywire requires `recipient_id` (drives currency, payout target
                 // and required institutional fields), which the legacy BodyKey
                 // creds path cannot supply. Configure Flywire via the proto
