@@ -109,7 +109,6 @@ jobs:
               - '**/*.rs'
             ci:
               - '.github/**'
-
       - name: Extract changed connector names
         id: connector-names
         if: steps.filter.outputs.connector == 'true'
@@ -543,6 +542,7 @@ jobs:
             done
             echo "🔍 Connector-only PR — scoping tests to: $CONNECTOR_NAMES"
             cargo nextest run \
+              --features grpc-server/connector-request-kafka \
               --config-file .nextest.toml \
               --profile ci \
               --no-tests=warn \
@@ -550,6 +550,7 @@ jobs:
           else
             echo "🔍 Running full test suite (event=$EVENT)"
             cargo nextest run \
+              --features grpc-server/connector-request-kafka \
               --config-file .nextest.toml \
               --profile ci \
               -E "$SCHEMA_EXCLUDE"
@@ -758,4 +759,3 @@ jobs:
             fi
           done
           echo "✅ All CI checks passed (or were skipped due to path filtering)"
-

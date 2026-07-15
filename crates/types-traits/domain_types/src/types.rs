@@ -3031,6 +3031,8 @@ pub struct SetupRecurringRequest {
     pub connector_testing_data: Option<Secret<String>>,
     pub l2_l3_data: Option<grpc_payment_types::L2l3Data>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub partner_merchant_identifier_details:
+        Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
 }
 
 /// ============================================================================
@@ -3210,6 +3212,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             connector_testing_data: req.connector_testing_data,
             l2_l3_data: req.l2_l3_data,
             mit_category,
+            partner_merchant_identifier_details: req.partner_merchant_identifier_details,
         }
     }
 }
@@ -3259,6 +3262,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             connector_testing_data: None,
             l2_l3_data: None,
             mit_category: None,
+            partner_merchant_identifier_details: None,
         }
     }
 }
@@ -4185,6 +4189,10 @@ impl<
                 .authentication_data
                 .clone()
                 .map(router_request_types::AuthenticationData::try_from)
+                .transpose()?,
+            partner_merchant_identifier_details: value
+                .partner_merchant_identifier_details
+                .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -7134,6 +7142,14 @@ pub fn generate_payment_void_post_capture_response(
                 .clone(),
         });
 
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+
     match transaction_response {
         Ok(response) => match response {
             PaymentsResponseData::TransactionResponse {
@@ -7164,6 +7180,8 @@ pub fn generate_payment_void_post_capture_response(
                     response_headers: router_data_v2
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
+                    raw_connector_request,
+                    raw_connector_response,
                 })
             }
             PaymentsResponseData::PostCaptureVoidResponse {
@@ -7192,6 +7210,8 @@ pub fn generate_payment_void_post_capture_response(
                     response_headers: router_data_v2
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
+                    raw_connector_request,
+                    raw_connector_response,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -7234,6 +7254,8 @@ pub fn generate_payment_void_post_capture_response(
                 response_headers: router_data_v2
                     .resource_common_data
                     .get_connector_response_headers_as_map(),
+                raw_connector_request,
+                raw_connector_response,
             })
         }
     }
@@ -10214,6 +10236,14 @@ pub fn generate_payment_incremental_authorization_response(
         None
     };
 
+    let raw_connector_request = router_data_v2
+        .resource_common_data
+        .get_raw_connector_request();
+
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+
     match router_data_v2.response {
         Ok(response) => match response {
             PaymentsResponseData::IncrementalAuthorizationResponse {
@@ -10233,6 +10263,8 @@ pub fn generate_payment_incremental_authorization_response(
                         .resource_common_data
                         .get_connector_response_headers_as_map(),
                     state,
+                    raw_connector_request,
+                    raw_connector_response,
                 })
             }
             _ => Err(report!(ConnectorError::UnexpectedResponseError {
@@ -10263,6 +10295,8 @@ pub fn generate_payment_incremental_authorization_response(
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
             state,
+            raw_connector_request,
+            raw_connector_response,
         }),
     }
 }
@@ -10307,6 +10341,10 @@ pub fn generate_payment_capture_response(
     let raw_connector_request = router_data_v2
         .resource_common_data
         .get_raw_connector_request();
+
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
 
     let connector_response = router_data_v2
         .resource_common_data
@@ -10368,6 +10406,7 @@ pub fn generate_payment_capture_response(
                         .get_connector_response_headers_as_map(),
                     state,
                     raw_connector_request,
+                    raw_connector_response,
                     incremental_authorization_allowed,
                     mandate_reference: mandate_reference_grpc,
                     mandate_reference_details,
@@ -10425,6 +10464,7 @@ pub fn generate_payment_capture_response(
                     .get_connector_response_headers_as_map(),
                 state,
                 raw_connector_request,
+                raw_connector_response,
                 incremental_authorization_allowed: None,
                 mandate_reference: None,
                 mandate_reference_details: None,
@@ -10821,6 +10861,10 @@ impl<
                 .authentication_data
                 .clone()
                 .map(router_request_types::AuthenticationData::try_from)
+                .transpose()?,
+            partner_merchant_identifier_details: value
+                .partner_merchant_identifier_details
+                .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -11363,6 +11407,10 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
         .resource_common_data
         .get_raw_connector_request();
 
+    let raw_connector_response = router_data_v2
+        .resource_common_data
+        .get_raw_connector_response();
+
     let connector_response = router_data_v2
         .resource_common_data
         .connector_response
@@ -11487,6 +11535,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                         .get_connector_response_headers_as_map(),
                     state,
                     raw_connector_request,
+                    raw_connector_response,
                     connector_response,
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
@@ -11548,6 +11597,7 @@ pub fn generate_setup_mandate_response<T: PaymentMethodDataTypes>(
                     .get_connector_response_headers_as_map(),
                 state,
                 raw_connector_request,
+                raw_connector_response,
                 connector_response,
                 connector_feature_data: None,
                 captured_amount: None,
@@ -14719,8 +14769,24 @@ impl<
                 .domain_data
                 .map(connector_types::DomainData::foreign_try_from)
                 .transpose()?,
+            sdk_information: value
+                .metadata
+                .as_ref()
+                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
+                .and_then(|m| m.sdk_information),
+            device_channel: value
+                .metadata
+                .as_ref()
+                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
+                .and_then(|m| m.device_channel),
         })
     }
+}
+
+#[derive(serde::Deserialize)]
+struct AuthenticateSdkMetadata {
+    device_channel: Option<connector_types::DeviceChannel>,
+    sdk_information: Option<connector_types::SdkInformation>,
 }
 
 impl<
@@ -15930,6 +15996,7 @@ pub fn tokenized_setup_recurring_to_base(
         session_token: None,
         shipping_cost: None,
         mit_category: None,
+        partner_merchant_identifier_details: None,
     }
 }
 
@@ -16144,6 +16211,7 @@ pub fn proxied_setup_recurring_to_base(
         session_token: None,
         shipping_cost: None,
         mit_category: None,
+        partner_merchant_identifier_details: None,
     })
 }
 
