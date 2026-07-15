@@ -1981,6 +1981,7 @@ message ClientAuthenticationTokenData {
     PaypalClientAuthenticationResponse paypal = 2;
     ApplepayClientAuthenticationResponse apple_pay = 3;
     ConnectorSpecificClientAuthenticationResponse connector_specific = 4;
+    PlaidClientAuthenticationResponse plaid = 5;
   }
 }
 
@@ -2154,6 +2155,13 @@ message RevolutClientAuthenticationResponse {
   string order_id = 1;
   // The client authentication token for SDK initialization
   SecretString token = 2;
+}
+
+// Plaid Link SDK initialization data — link_token for Plaid Link initialization
+message PlaidClientAuthenticationResponse {
+  string link_token = 1;                          // Required: The Plaid Link token
+  optional int64 expires_in_seconds = 2;          // Expiration timestamp (seconds since epoch)
+  optional string hosted_link_url = 3;            // Hosted Link URL (if enabled)
 }
 
 // Stripe SDK initialization data — client_secret for stripe.confirmPayment()
@@ -2874,8 +2882,9 @@ message MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
   // Domain-specific context
   oneof domain_context {
     PaymentClientAuthenticationContext payment = 4;
-    // FrmClientAuthenticationContext frm = 5;      // future: device fingerprinting
-    // PayoutClientAuthenticationContext payout = 6; // future: payout verification widget
+    AuthenticatorClientAuthenticationContext authenticator = 8; // Account linking, identity verification
+    // FrmClientAuthenticationContext frm = 6;      // future: device fingerprinting
+    // PayoutClientAuthenticationContext payout = 7; // future: payout verification widget
   }
 
   // Connector-specific permissions for client authentication token
@@ -2893,6 +2902,16 @@ message PaymentClientAuthenticationContext {
   optional Customer customer = 6;
   optional SecretString metadata = 7;
   optional string return_url = 8;
+}
+
+// Authenticator-specific context for client authentication token creation
+message AuthenticatorClientContext {
+  optional string return_url = 1;           // OAuth redirect URL for Link completion
+  optional string webhook_url = 2;          // Webhook endpoint for events
+  repeated CountryAlpha2 country_codes = 3; // ISO-3166-1 alpha-2 country codes
+  optional string locale = 4;               // Locale/language preference (e.g., "en", "es", "en-US")
+  optional Customer customer = 5;           // User/customer context
+  optional string metadata = 6;             // Additional provider-specific config as JSON
 }
 
 // Response message for SDK session
@@ -4146,6 +4165,8 @@ message PaymentMethodServiceTokenizeResponse {
 
   // State Information
   optional ConnectorState state = 6;
+
+  optional string connector_payment_method_id = 7; // Connector-issued payment method ID
 }
 
 message PaymentMethodServiceCreateRequest {
