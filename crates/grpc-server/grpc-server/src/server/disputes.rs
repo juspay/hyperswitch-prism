@@ -125,7 +125,7 @@ impl DisputeService for Disputes {
                                 domain_types::errors::IntegrationError::InvalidDataFormat {
                                     field_name: "connector",
                                     context: domain_types::errors::IntegrationErrorContext {
-                                        additional_context: Some(connector.get_connector_name()),
+                                        suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
                                         ..Default::default()
                                     },
                                 },
@@ -360,7 +360,7 @@ impl DisputeService for Disputes {
                                 domain_types::errors::IntegrationError::InvalidDataFormat {
                                     field_name: "connector",
                                     context: domain_types::errors::IntegrationErrorContext {
-                                        additional_context: Some(connector.get_connector_name()),
+                                        suggested_action: Some("Check connector rollout/configuration and call only flows implemented for this connector".to_string()),
                                         ..Default::default()
                                     },
                                 },
