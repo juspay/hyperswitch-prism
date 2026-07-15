@@ -180,31 +180,23 @@ struct CardDetails<T: PaymentMethodDataTypes> {
     cvv: Secret<String>,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     holder: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct ShopperName {
-    #[serde(skip_serializing_if = "Option::is_none")]
     first_name: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     last_name: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct AddressDetails {
-    #[serde(skip_serializing_if = "Option::is_none")]
     address: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     city: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     state: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     postal_code: Option<Secret<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     country: Option<CountryAlpha2>,
 }
 
