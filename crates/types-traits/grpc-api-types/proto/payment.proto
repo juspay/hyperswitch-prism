@@ -4213,6 +4213,7 @@ message PaymentMethodServiceGetRequest {
   optional SecretString metadata = 6; // Additional metadata for the connector
   optional bool test_mode = 7;
   PaymentMethodType payment_method_type = 8; // PaymentMethodType enum (CARD, WALLET, UPI, etc.)
+  optional string payment_method_token = 9;  // PaymentMethod Token Information
 }
 
 message PaymentMethodServiceGetResponse {
@@ -4252,6 +4253,7 @@ enum WalletStatus {
 message PaymentMethodDetails {
   oneof details {
     WalletDetails wallet = 1; // Wallet-specific details (stored value, container, or hybrid)
+    BankAccountDetails bank_account = 2; // Bank account details (ACH, BACS, SEPA, EFT)
   }
 }
 
@@ -4283,6 +4285,55 @@ message WalletItem {
   WalletItemStatus status = 3;             // Current status of this item (ACTIVE, INACTIVE, DEPLETED, EXPIRED)
   optional Money available_balance = 4;    // Remaining balance if this item is balance-bearing
   optional string expiry_date = 5;         // Expiry date in ISO 8601 format (e.g., "2026-12-31")
+}
+
+// Bank account type for payment processing
+enum BankAccountType {
+  BANK_ACCOUNT_SUBTYPE_UNSPECIFIED = 0;
+  CHECKING = 1;
+  SAVINGS = 2;
+}
+
+// Bank account details containing one or more accounts
+message BankAccountDetails {
+  repeated BankAccount accounts = 1;
+}
+
+// Individual bank account credential with routing details
+message BankAccount {
+  string account_name = 1;                       // Account display name
+  BankTransferDetails account_details = 2;       // Region-specific routing details
+  SecretString account_id = 3;                   // Unique account identifier
+  optional BankAccountType account_type = 4;     // Account type: checking, savings
+  optional Money balance = 5;                    // Current balance
+  optional Money available_balance = 6;          // Available balance
+}
+
+// Payment method type details discriminated by region
+message BankTransferDetails {
+  oneof details {
+    BankAccountDetailsAch ach = 1;     // US ACH
+    BankAccountDetailsBacs bacs = 2;   // UK BACS
+    BankAccountDetailsSepa sepa = 3;   // EU SEPA
+  }
+}
+
+// ACH bank account details (United States)
+message BankAccountDetailsAch {
+  SecretString account_number = 1;
+  SecretString routing_number = 2;
+}
+
+// BACS bank account details (United Kingdom)
+message BankAccountDetailsBacs {
+  SecretString account_number = 1;
+  SecretString sort_code = 2;
+}
+
+// SEPA bank account details (European Union)
+message BankAccountDetailsSepa {
+  SecretString iban = 1;
+  SecretString bic = 2;
 }
 
 // Request message for recharging a payment method
