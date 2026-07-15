@@ -3035,6 +3035,8 @@ pub struct SetupRecurringRequest {
     pub connector_testing_data: Option<Secret<String>>,
     pub l2_l3_data: Option<grpc_payment_types::L2l3Data>,
     pub mit_category: Option<common_enums::MitCategory>,
+    pub partner_merchant_identifier_details:
+        Option<grpc_payment_types::PartnerMerchantIdentifierDetails>,
 }
 
 /// ============================================================================
@@ -3214,6 +3216,7 @@ impl From<grpc_payment_types::PaymentServiceSetupRecurringRequest> for SetupRecu
             connector_testing_data: req.connector_testing_data,
             l2_l3_data: req.l2_l3_data,
             mit_category,
+            partner_merchant_identifier_details: req.partner_merchant_identifier_details,
         }
     }
 }
@@ -3263,6 +3266,7 @@ impl From<grpc_payment_types::PaymentServiceProxySetupRecurringRequest> for Setu
             connector_testing_data: None,
             l2_l3_data: None,
             mit_category: None,
+            partner_merchant_identifier_details: None,
         }
     }
 }
@@ -4189,6 +4193,10 @@ impl<
                 .authentication_data
                 .clone()
                 .map(router_request_types::AuthenticationData::try_from)
+                .transpose()?,
+            partner_merchant_identifier_details: value
+                .partner_merchant_identifier_details
+                .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
                 .transpose()?,
         })
     }
@@ -10834,6 +10842,10 @@ impl<
                 .clone()
                 .map(router_request_types::AuthenticationData::try_from)
                 .transpose()?,
+            partner_merchant_identifier_details: value
+                .partner_merchant_identifier_details
+                .map(connector_types::PartnerMerchantIdentifierDetails::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -15989,6 +16001,7 @@ pub fn tokenized_setup_recurring_to_base(
         session_token: None,
         shipping_cost: None,
         mit_category: None,
+        partner_merchant_identifier_details: None,
     }
 }
 
@@ -16203,6 +16216,7 @@ pub fn proxied_setup_recurring_to_base(
         session_token: None,
         shipping_cost: None,
         mit_category: None,
+        partner_merchant_identifier_details: None,
     })
 }
 

@@ -203,7 +203,7 @@ connector_id: datatrans
 doc: docs/connectors/datatrans.md
 scenarios: checkout_autocapture, checkout_card, refund, void_payment, get_payment
 payment_methods: Card
-flows: authorize, capture, create_client_authentication_token, get, proxy_authorize, refund, refund_get, reverse, token_authorize, void
+flows: authorize, capture, create_client_authentication_token, get, proxy_authorize, proxy_setup_recurring, refund, refund_get, reverse, setup_recurring, token_authorize, void
 examples_python: examples/datatrans/datatrans.py
 
 ## dLocal
