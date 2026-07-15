@@ -1360,7 +1360,7 @@ impl PaymentService for Payments {
                         .map(domain_types::connector_types::RequestDetails::foreign_try_from)
                         .transpose()
                         .map_err(|e| e.to_grpc_error())?
-                        .ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() }))?;
+                        .ok_or(ucs_env::error::GrpcError::from(IntegrationError::MissingRequiredField { field_name: "request_details", context: domain_types::errors::IntegrationErrorContext::default() }))?;
 
                     let secrets = payload
                         .redirect_response_secrets

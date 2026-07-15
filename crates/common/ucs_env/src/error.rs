@@ -75,6 +75,14 @@ impl GrpcError {
             Self::Internal(e) => e.as_ref(),
         }
     }
+
+    /// HTTP status code from the connector response, when the wrapped error carries one.
+    pub fn http_status_code(&self) -> Option<u16> {
+        match self {
+            Self::Connector(e) => e.http_status_code(),
+            _ => None,
+        }
+    }
 }
 
 impl From<ConnectorFlowError> for GrpcError {
@@ -306,6 +314,7 @@ impl IntoGrpcStatus for Report<GrpcError> {
         logger::error!(
             error = ?self,
             error_code = %context.error_code(),
+            http_status_code = ?context.http_status_code(),
         );
         context.to_grpc_status_unlogged()
     }
@@ -319,12 +328,7 @@ impl IntoGrpcStatus for Report<IntegrationError> {
 
 impl IntoGrpcStatus for Report<ConnectorError> {
     fn into_grpc_status(self) -> Status {
-        logger::error!(
-            error = ?self,
-            error_code = %self.current_context().error_code(),
-            http_status_code = ?self.current_context().http_status_code(),
-        );
-        self.current_context().to_grpc_status_unlogged()
+        self.to_grpc_error().into_grpc_status()
     }
 }
 
