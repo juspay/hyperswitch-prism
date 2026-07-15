@@ -413,17 +413,19 @@ async fn try_lookup_existing_connector_customer(
         .api_tags
         .get_tag(FlowName::GetConnectorCustomer, None);
 
-    if let Ok(get_result) = Box::pin(external_services::service::execute_connector_processing_step(
-        &config.proxy,
-        get_integration,
-        get_router_data,
-        None,
-        get_event_params,
-        None,
-        common_enums::CallConnectorAction::Trigger,
-        test_context,
-        get_api_tag,
-    ))
+    if let Ok(get_result) = Box::pin(
+        external_services::service::execute_connector_processing_step(
+            &config.proxy,
+            get_integration,
+            get_router_data,
+            None,
+            get_event_params,
+            None,
+            common_enums::CallConnectorAction::Trigger,
+            test_context,
+            get_api_tag,
+        ),
+    )
     .await
     {
         if get_result.response.is_ok() {
@@ -481,17 +483,19 @@ async fn execute_create_connector_customer(
         metadata_payload,
     );
 
-    let response = Box::pin(external_services::service::execute_connector_processing_step(
-        &config.proxy,
-        connector_integration,
-        connector_customer_router_data,
-        None,
-        external_event_params,
-        None,
-        common_enums::CallConnectorAction::Trigger,
-        test_context,
-        api_tag,
-    ))
+    let response = Box::pin(
+        external_services::service::execute_connector_processing_step(
+            &config.proxy,
+            connector_integration,
+            connector_customer_router_data,
+            None,
+            external_event_params,
+            None,
+            common_enums::CallConnectorAction::Trigger,
+            test_context,
+            api_tag,
+        ),
+    )
     .await
     .into_grpc_status()?;
 

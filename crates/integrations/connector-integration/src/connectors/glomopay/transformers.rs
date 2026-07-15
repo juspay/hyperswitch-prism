@@ -1,6 +1,9 @@
 use crate::types::ResponseRouterData;
 use common_enums::{AttemptStatus, CountryAlpha2, Currency, RefundStatus};
-use common_utils::{pii::Email, types::{MinorUnit, Money}};
+use common_utils::{
+    pii::Email,
+    types::{MinorUnit, Money},
+};
 use domain_types::{
     connector_flow::{
         Authorize, CreateConnectorCustomer, CreateOrder, GetConnectorCustomer, PSync, RSync, Refund,
