@@ -1208,11 +1208,11 @@ fn payment_method_data_to_proto_payment_method(
             sort_code,
             iban,
             account_holder_name,
-            additional_payment_details,
+            additional_details,
         }) => {
-            let additional_details = additional_payment_details
+            let additional_details = additional_details
                 .map(|details| {
-                    serde_json::to_string(&details).change_context(
+                    serde_json::to_string(details.peek()).map(Secret::new).change_context(
                         ConnectorError::ResponseHandlingFailed {
                             context: ResponseTransformationErrorContext {
                                 additional_context: Some(
@@ -1793,7 +1793,9 @@ impl<
                             sort_code: open_banking.sort_code,
                             iban: open_banking.iban,
                             account_holder_name: open_banking.account_holder_name,
-                            additional_payment_details: open_banking.additional_details.and_then(|details| serde_json::from_str(&details).ok()),
+                            additional_details: open_banking
+                                .additional_details
+                                .and_then(|details| serde_json::from_str(details.peek()).ok().map(Secret::new)),
                         },
                     ))
                 }

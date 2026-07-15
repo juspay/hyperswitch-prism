@@ -12,7 +12,9 @@ use domain_types::{
         VerifyWebhookSourceFlowData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{BankRedirectData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{
+        BankRedirectData, DefaultPCIHolder, PaymentMethodData, PaymentMethodDataTypes,
+    },
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     router_request_types::VerifyWebhookSourceRequestData,
@@ -21,7 +23,7 @@ use domain_types::{
     utils::is_payment_failure,
 };
 use error_stack::ResultExt;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use openssl::{
     bn::{BigNum, BigNumContext},
     ec::{EcGroup, EcKey, EcPoint},
@@ -386,7 +388,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 sort_code,
                 iban,
                 account_holder_name,
-                additional_payment_details,
+                additional_details,
             }) => {
                 let currency = item.router_data.request.currency;
                 let amount_in_minor = item.router_data.request.amount;
@@ -402,15 +404,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
                 let metadata = TruelayerMetadata::try_from(&item.router_data.connector_config)?;
 
-                let provider_selection = if additional_payment_details.is_some()
+                let provider_selection = if additional_details.is_some()
                     && account_holder_name.is_some()
                     && ((account_number.is_some() && sort_code.is_some()) || iban.is_some())
                 {
                     ProviderSelection {
                         _type: ProviderSelectionType::Preselected,
-                        provider_id: additional_payment_details
+                        provider_id: additional_details
                             .as_ref()
-                            .and_then(|details| details.get("provider_id"))
+                            .and_then(|details| details.peek().get("provider_id"))
                             .and_then(|pid| pid.as_str())
                             .map(|s| s.to_string()),
                         remitter: Some(Remitter {
@@ -737,8 +739,8 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                         .and_then(|pm| pm.provider_selection.as_ref())
                         .and_then(|ps| ps.provider_id.clone());
 
-                    let additional_payment_details =
-                        provider_id.map(|pid| serde_json::json!({ "provider_id": pid }));
+                    let additional_details = provider_id
+                        .map(|pid| Secret::new(serde_json::json!({ "provider_id": pid })));
 
                     let connector_returned_payment_method_details =
                         PaymentMethodData::<DefaultPCIHolder>::BankRedirect(
@@ -747,7 +749,7 @@ impl<F, T> TryFrom<ResponseRouterData<TruelayerPSyncResponseData, Self>>
                                 sort_code,
                                 iban,
                                 account_holder_name,
-                                additional_payment_details,
+                                additional_details,
                             },
                         );
 

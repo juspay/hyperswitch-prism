@@ -959,7 +959,7 @@ message OpenBanking {
   // Name of the account holder
   optional SecretString account_holder_name = 4;
   // Additional payment details as a JSON string
-  optional string additional_details = 5;
+  optional SecretString additional_details = 5;
 }
 
 // Open Banking Payment Initiation Service
