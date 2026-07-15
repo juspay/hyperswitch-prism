@@ -1,25 +1,28 @@
 use crate::{connectors::mollie::MollieRouterData, types::ResponseRouterData};
 use common_utils::{
     pii::Email,
-    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
+    types::{AmountConvertor, MinorUnit, StringMajorUnit, StringMajorUnitForConnector},
 };
 use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, PaymentMethodToken, RSync, Refund,
-        Void,
+        Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer, PSync,
+        PaymentMethodToken, RSync, Refund, SetupMandate, Void,
     },
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        ConnectorSpecificClientAuthenticationResponse,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, ConnectorCustomerData,
+        ConnectorCustomerResponse, ConnectorSpecificClientAuthenticationResponse, MandateReference,
         MollieClientAuthenticationResponse as MollieClientAuthenticationResponseDomain,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
         PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
         PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData,
-        ResponseId,
+        ResponseId, SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{PayLaterData, PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
+    payment_method_data::{
+        BankDebitData, BankRedirectData, PayLaterData, PaymentMethodData, PaymentMethodDataTypes,
+        RawCardNumber, WalletData,
+    },
     router_data::ConnectorSpecificConfig,
     router_data_v2::RouterDataV2,
     router_response_types::RedirectForm,
@@ -93,10 +96,16 @@ pub struct MolliePaymentsRequest {
     #[serde(flatten)]
     pub payment_method_data: MolliePaymentMethodData,
     pub sequence_type: SequenceType,
-    pub capture_mode: MollieCaptureMode,
+    // captureMode is only accepted by Mollie for `oneoff` payments; it must be
+    // omitted for `first` / `recurring` (mandate) sequences.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capture_mode: Option<MollieCaptureMode>,
     // These fields are always null in Hyperswitch but must be present
     pub locale: Option<String>,
     pub cancel_url: Option<String>,
+    // `customerId` is required for `first`/`recurring` payments and omitted for
+    // one-time payments.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub customer_id: Option<String>,
 }
 
@@ -108,6 +117,128 @@ pub enum MolliePaymentMethodData {
     #[serde(rename = "creditcard")]
     CreditCard(Box<CreditCardMethodData>),
     Klarna(Box<KlarnaMethodData>),
+    /// PayPal wallet via Mollie. Emitted as `"method": "paypal"` (from the
+    /// container `rename_all = "lowercase"`). PayPal is a redirect flow — Mollie
+    /// returns a checkout URL for the customer to approve the payment. Only the
+    /// optional billing/shipping addresses are forwarded; PayPal itself collects
+    /// the account details on its hosted page.
+    Paypal(Box<PaypalMethodData>),
+    /// Apple Pay wallet via Mollie. Emitted as `"method": "applepay"` (from the
+    /// container `rename_all = "lowercase"`). Mollie is handed the Apple Pay
+    /// payment token string (the decrypted/serialized `PKPaymentToken`) via the
+    /// `applePayPaymentToken` field and settles the wallet payment directly, so
+    /// no redirect and no address forwarding is required here.
+    Applepay(Box<ApplePayMethodData>),
+    /// iDeal bank redirect via Mollie. Emitted as `"method": "ideal"` (from the
+    /// container `rename_all = "lowercase"`, no magic string). iDeal is a redirect
+    /// flow — Mollie returns a checkout URL for the customer to authenticate at
+    /// their bank. The issuer bank is optional; when omitted Mollie shows its own
+    /// bank picker on the hosted checkout page.
+    Ideal(Box<IdealMethodData>),
+    /// Sofort bank redirect via Mollie. Emitted as `"method": "sofort"` (from the
+    /// container `rename_all = "lowercase"`, no magic string). Sofort is a redirect
+    /// flow — Mollie returns a checkout URL for the customer to authenticate at
+    /// their bank. It carries no extra request fields (Mollie collects the bank
+    /// details on its hosted page), so this is a plain unit variant.
+    Sofort,
+    /// Bancontact bank redirect via Mollie. Emitted as `"method": "bancontact"`
+    /// (from the container `rename_all = "lowercase"`, no magic string). Bancontact
+    /// is a redirect flow — Mollie returns a checkout URL for the customer to
+    /// authenticate. It carries no extra request fields (Mollie collects the card /
+    /// bank details on its hosted page), so this is a plain unit variant.
+    Bancontact,
+    /// EPS bank redirect via Mollie. Emitted as `"method": "eps"` (from the
+    /// container `rename_all = "lowercase"`, no magic string). EPS is a redirect
+    /// flow — Mollie returns a checkout URL for the customer to authenticate at
+    /// their bank. It carries no extra request fields (Mollie collects the bank
+    /// details on its hosted page), so this is a plain unit variant.
+    Eps,
+    /// Giropay bank redirect via Mollie. Emitted as `"method": "giropay"` (from
+    /// the container `rename_all = "lowercase"`, no magic string). Giropay is a
+    /// redirect flow — Mollie returns a checkout URL for the customer to
+    /// authenticate at their bank. It carries no extra request fields (Mollie
+    /// collects the bank details on its hosted page), so this is a plain unit
+    /// variant.
+    Giropay,
+    /// Przelewy24 bank redirect via Mollie. Emitted as `"method": "przelewy24"`
+    /// (from the container `rename_all = "lowercase"`, no magic string). Unlike the
+    /// other bank redirects this is not a bare unit variant — it carries a boxed
+    /// `Przelewy24MethodData` with a single optional `billingEmail`. Przelewy24 is a
+    /// redirect flow — Mollie returns a checkout URL for the customer to authenticate
+    /// at their bank. Mirrors the reference hyperswitch connector.
+    Przelewy24(Box<Przelewy24MethodData>),
+    /// SEPA Direct Debit via Mollie. Emitted as `"method": "directdebit"` (from
+    /// the container `rename_all = "lowercase"`, no magic string). Unlike the
+    /// bank-redirect methods this is not a redirect flow — Mollie debits the
+    /// supplied IBAN directly, so the request carries the consumer's IBAN
+    /// (`consumerAccount`) and optional name (`consumerName`). Mirrors the
+    /// reference hyperswitch connector.
+    DirectDebit(Box<DirectDebitMethodData>),
+    // Recurring / Merchant-Initiated charge that references an existing mandate.
+    // Serialized untagged so it emits only `mandateId` (no `method`
+    // discriminator) — Mollie infers the method from the mandate.
+    #[serde(untagged)]
+    MandatePayment(Box<MandatePaymentMethodData>),
+}
+
+// Mandate (MIT) payment body — carries only the mandate id.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandatePaymentMethodData {
+    pub mandate_id: Secret<String>,
+}
+
+// PayPal (wallet) payment body. Mollie collects the PayPal account details on
+// its hosted checkout page, so the request only forwards the optional
+// billing/shipping addresses for risk assessment.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PaypalMethodData {
+    pub billing_address: Option<MollieAddress>,
+    pub shipping_address: Option<MollieAddress>,
+}
+
+// Apple Pay (wallet) payment body. Mollie expects the Apple Pay payment token —
+// the decrypted/serialized `PKPaymentToken` produced by the Apple Pay session —
+// under `applePayPaymentToken` (from the container `rename_all = "camelCase"`).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplePayMethodData {
+    pub apple_pay_payment_token: Secret<String>,
+}
+
+// iDeal (bank redirect) payment body. The optional `issuer` selects a specific
+// iDeal issuer bank up front; when it is `None` the field is omitted and Mollie
+// presents its own bank picker on the hosted checkout page. The issuer is not
+// currently sourced from prism's `BankRedirectData::Ideal` request, so it is
+// left as `None` (mirrors the reference hyperswitch connector).
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IdealMethodData {
+    pub issuer: Option<Secret<String>>,
+}
+
+// Przelewy24 (bank redirect) payment body. Przelewy24 carries a single optional
+// method-specific field, `billingEmail` (from the container `rename_all =
+// "camelCase"`), which Mollie prefills on the P24 flow. It is sourced from the
+// request billing email when present; when `None` the field is omitted and only
+// `"method": "przelewy24"` is emitted. Mirrors the reference hyperswitch connector.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Przelewy24MethodData {
+    pub billing_email: Option<Email>,
+}
+
+// SEPA Direct Debit payment body. Mollie debits the supplied IBAN
+// (`consumerAccount`, from the container `rename_all = "camelCase"`) directly.
+// The consumer's name (`consumerName`) is optional and sourced from the request
+// billing full name; when `None` the field is omitted. Mirrors the reference
+// hyperswitch connector.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectDebitMethodData {
+    consumer_name: Option<Secret<String>>,
+    consumer_account: Secret<String>,
 }
 
 // Klarna (PayLater) Method Data
@@ -196,6 +327,188 @@ pub enum SequenceType {
 pub enum MollieCaptureMode {
     Manual,
     Automatic,
+}
+
+// Build a Mollie address object from a Hyperswitch address wrapper, matching the
+// existing card-payment formatting (comma-joined street/line, no region field).
+// Returns `None` when the address or any required postal field is absent so the
+// caller can simply omit the address block.
+fn build_mollie_address(
+    address: Option<&domain_types::payment_address::Address>,
+) -> Option<MollieAddress> {
+    let address = address?.address.as_ref()?;
+    let line1 = address.line1.as_ref()?.peek().to_string();
+    let street_and_number = match address.line2.as_ref() {
+        Some(line2) => format!("{},{}", line1, line2.peek().as_str()),
+        None => line1,
+    };
+    Some(MollieAddress {
+        street_and_number: Secret::new(street_and_number),
+        postal_code: Secret::new(address.zip.as_ref()?.peek().to_string()),
+        city: address.city.as_ref()?.peek().to_string(),
+        region: None,
+        country: address.country?,
+    })
+}
+
+// Map a wallet payment method to the corresponding Mollie payment body. PayPal
+// (redirect) and Apple Pay are supported; every other wallet returns
+// NotImplemented so the caller surfaces a precise, method-named error.
+fn mollie_wallet_payment_method(
+    wallet_data: &WalletData,
+    billing_address: Option<&domain_types::payment_address::Address>,
+    shipping_address: Option<&domain_types::payment_address::Address>,
+) -> Result<MolliePaymentMethodData, error_stack::Report<IntegrationError>> {
+    match wallet_data {
+        WalletData::PaypalRedirect(_) => Ok(MolliePaymentMethodData::Paypal(Box::new(
+            PaypalMethodData {
+                billing_address: build_mollie_address(billing_address),
+                shipping_address: build_mollie_address(shipping_address),
+            },
+        ))),
+        WalletData::ApplePay(applepay_wallet_data) => {
+            // Mollie settles Apple Pay directly (no redirect); it only needs the
+            // encrypted Apple Pay payment token string. Require it explicitly so a
+            // missing token surfaces as a field-named error rather than a silent
+            // default.
+            let apple_pay_payment_token = applepay_wallet_data
+                .payment_data
+                .get_encrypted_apple_pay_payment_data_mandatory()
+                .change_context(IntegrationError::MissingRequiredField {
+                    field_name: "apple_pay_payment_token",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Mollie Apple Pay requires the encrypted Apple Pay payment token (applePayPaymentToken)."
+                                .to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                })?
+                .to_owned();
+            Ok(MolliePaymentMethodData::Applepay(Box::new(
+                ApplePayMethodData {
+                    apple_pay_payment_token: Secret::new(apple_pay_payment_token),
+                },
+            )))
+        }
+        _ => Err(IntegrationError::NotImplemented(
+            "Selected wallet payment method is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+    }
+}
+
+// Map a bank-redirect payment method to the corresponding Mollie payment body.
+// iDeal is supported; every other bank redirect returns a method-named
+// NotImplemented (segregated from NotSupported) so the caller surfaces a precise
+// error. This helper mirrors `mollie_wallet_payment_method` and is the extension
+// point for the later Sofort/Bancontact/EPS/Giropay/Przelewy24 tasks.
+fn mollie_bank_redirect_payment_method(
+    bank_redirect_data: &BankRedirectData,
+    billing_email: Option<Email>,
+) -> Result<MolliePaymentMethodData, error_stack::Report<IntegrationError>> {
+    match bank_redirect_data {
+        // iDeal redirect flow. The issuer bank is optional and not currently
+        // sourced from the request, so it is omitted (`issuer: None`) and Mollie
+        // shows its own bank picker — matches the reference hyperswitch connector.
+        // Fields are intentionally ignored (`{ .. }`) because no issuer is sourced.
+        BankRedirectData::Ideal { .. } => {
+            Ok(MolliePaymentMethodData::Ideal(Box::new(IdealMethodData {
+                issuer: None,
+            })))
+        }
+        // Sofort redirect flow. Sofort carries no extra request fields — Mollie
+        // collects the bank details on its hosted checkout page and returns a
+        // redirect URL — so it emits only `"method": "sofort"` (unit variant,
+        // method name from the container `rename_all`). Fields are intentionally
+        // ignored (`{ .. }`) because nothing is sourced from the request.
+        BankRedirectData::Sofort { .. } => Ok(MolliePaymentMethodData::Sofort),
+        // Bancontact redirect flow. Mollie treats Bancontact as a redirect method
+        // (not raw card), collecting the card / bank details on its hosted checkout
+        // page and returning a redirect URL, so it emits only `"method":
+        // "bancontact"` (unit variant, method name from the container `rename_all`).
+        // The card fields on `BancontactCard` are intentionally ignored (`{ .. }`)
+        // because Mollie sources them itself.
+        BankRedirectData::BancontactCard { .. } => Ok(MolliePaymentMethodData::Bancontact),
+        // EPS redirect flow. EPS carries no extra request fields — Mollie collects
+        // the bank details on its hosted checkout page and returns a redirect URL —
+        // so it emits only `"method": "eps"` (unit variant, method name from the
+        // container `rename_all`). Fields are intentionally ignored (`{ .. }`)
+        // because nothing is sourced from the request.
+        BankRedirectData::Eps { .. } => Ok(MolliePaymentMethodData::Eps),
+        // Giropay redirect flow. Giropay carries no extra request fields — Mollie
+        // collects the bank details on its hosted checkout page and returns a
+        // redirect URL — so it emits only `"method": "giropay"` (unit variant,
+        // method name from the container `rename_all`). Fields are intentionally
+        // ignored (`{ .. }`) because nothing is sourced from the request.
+        BankRedirectData::Giropay { .. } => Ok(MolliePaymentMethodData::Giropay),
+        // Przelewy24 redirect flow. Unlike the other bank redirects, Przelewy24
+        // carries one optional method-specific field, `billingEmail`, sourced from
+        // the request billing email (omitted when absent). Mollie collects the bank
+        // selection on its hosted checkout page and returns a redirect URL. Fields on
+        // the request variant are intentionally ignored (`{ .. }`) because only the
+        // billing email (passed in) is forwarded — matches the reference connector.
+        BankRedirectData::Przelewy24 { .. } => Ok(MolliePaymentMethodData::Przelewy24(Box::new(
+            Przelewy24MethodData { billing_email },
+        ))),
+        // Any other bank redirect is not implemented for Mollie.
+        _ => Err(IntegrationError::NotImplemented(
+            "Selected bank redirect payment method is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+    }
+}
+
+// Map a bank-debit payment method to the corresponding Mollie payment body.
+// SEPA Direct Debit is supported; every other bank debit returns a method-named
+// NotImplemented (segregated from NotSupported) so the caller surfaces a precise
+// error. This helper mirrors `mollie_wallet_payment_method` /
+// `mollie_bank_redirect_payment_method`.
+fn mollie_bank_debit_payment_method(
+    bank_debit_data: &BankDebitData,
+    consumer_name: Option<Secret<String>>,
+) -> Result<MolliePaymentMethodData, error_stack::Report<IntegrationError>> {
+    match bank_debit_data {
+        // SEPA Direct Debit. Mollie debits the supplied IBAN directly (no
+        // redirect); forward the IBAN as `consumerAccount` and the optional
+        // billing full name as `consumerName`.
+        BankDebitData::SepaBankDebit { iban, .. } => Ok(MolliePaymentMethodData::DirectDebit(
+            Box::new(DirectDebitMethodData {
+                consumer_name,
+                consumer_account: iban.clone(),
+            }),
+        )),
+        // ACH / EFT / SEPA-Guaranteed / BECS / BACS direct debits are not
+        // implemented for Mollie. Each is enumerated explicitly (no `_` catch-all)
+        // and names the attempted method so the caller surfaces a precise error.
+        BankDebitData::AchBankDebit { .. } => Err(IntegrationError::NotImplemented(
+            "ACH bank debit is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        BankDebitData::EftBankDebit { .. } => Err(IntegrationError::NotImplemented(
+            "EFT bank debit is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        BankDebitData::SepaGuaranteedBankDebit { .. } => Err(IntegrationError::NotImplemented(
+            "SEPA guaranteed bank debit is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        BankDebitData::BecsBankDebit { .. } => Err(IntegrationError::NotImplemented(
+            "BECS bank debit is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+        BankDebitData::BacsBankDebit { .. } => Err(IntegrationError::NotImplemented(
+            "BACS bank debit is not implemented for Mollie".to_string(),
+            Default::default(),
+        )
+        .into()),
+    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -377,7 +690,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                         })?
                         .peek()
                         .to_string(),
-                    region: None,
+                    // Klarna risk assessment uses the billing state/region when
+                    // available; mirror the reference connector which forwards
+                    // the optional state rather than always sending null.
+                    region: address.state.clone(),
                     country: address
                         .country
                         .ok_or(IntegrationError::MissingRequiredField {
@@ -446,6 +762,45 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     lines: vec![line],
                 }))
             }
+            PaymentMethodData::Wallet(wallet_data) => {
+                // PayPal (redirect) wallet. Mollie returns a 201 with a checkout
+                // URL for the customer to approve the payment; forward the
+                // optional billing/shipping addresses for risk assessment.
+                let billing_address = item
+                    .resource_common_data
+                    .address
+                    .get_payment_method_billing();
+                let shipping_address = item.resource_common_data.address.get_shipping();
+                mollie_wallet_payment_method(wallet_data, billing_address, shipping_address)?
+            }
+            PaymentMethodData::BankRedirect(bank_redirect_data) => {
+                // Bank redirect (iDeal / Sofort / Bancontact / EPS / Giropay /
+                // Przelewy24). Mollie returns a 201 with a checkout URL for the
+                // customer to authenticate at their bank. Przelewy24 additionally
+                // forwards the optional billing email; the other methods ignore it.
+                let billing_email = item.resource_common_data.get_optional_billing_email();
+                mollie_bank_redirect_payment_method(bank_redirect_data, billing_email)?
+            }
+            PaymentMethodData::BankDebit(ref bank_debit_data) => {
+                // SEPA Direct Debit. Not a redirect — Mollie debits the supplied
+                // IBAN directly (expect a 201 with status pending/paid). Forward
+                // the optional billing full name as the consumer name.
+                let consumer_name = item.resource_common_data.get_optional_billing_full_name();
+                mollie_bank_debit_payment_method(bank_debit_data, consumer_name)?
+            }
+            PaymentMethodData::MandatePayment => {
+                // MIT / recurring charge referencing a stored mandate.
+                MolliePaymentMethodData::MandatePayment(Box::new(MandatePaymentMethodData {
+                    mandate_id: Secret::new(
+                        item.request.get_connector_mandate_id().change_context(
+                            IntegrationError::MissingRequiredField {
+                                field_name: "connector_mandate_id",
+                                context: Default::default(),
+                            },
+                        )?,
+                    ),
+                }))
+            }
             _ => {
                 return Err(IntegrationError::NotImplemented(
                     "Payment method not yet implemented for Mollie".to_string(),
@@ -455,17 +810,47 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // For regular payments, always use oneoff sequence type
-        // Following Hyperswitch pattern: only use "first" or "recurring" for explicit mandate flows
-        let sequence_type = SequenceType::Oneoff;
+        // Derive the Mollie sequenceType:
+        //   First     -> CIT that creates a mandate (customer_acceptance + OffSession)
+        //   Recurring -> MIT using a stored mandate
+        //   Oneoff    -> normal one-time payment (existing behavior)
+        let sequence_type = if item.request.is_customer_initiated_mandate_payment() {
+            SequenceType::First
+        } else if item.request.is_mandate_payment() {
+            SequenceType::Recurring
+        } else {
+            SequenceType::Oneoff
+        };
 
-        // captureMode is required for oneoff payments
-        let capture_mode =
-            if item.request.capture_method == Some(common_enums::CaptureMethod::Automatic) {
+        // captureMode is only sent for oneoff payments; omitted for first/recurring.
+        // Use is_auto_capture() (true for None/Automatic/SequentialAutomatic) to match
+        // the reference: a plain sale with no explicit capture_method must default to
+        // automatic capture, not manual.
+        let capture_mode = if sequence_type == SequenceType::Oneoff {
+            Some(if item.request.is_auto_capture() {
                 MollieCaptureMode::Automatic
             } else {
                 MollieCaptureMode::Manual
-            };
+            })
+        } else {
+            None
+        };
+
+        // customerId is required whenever the payment is part of a mandate
+        // (first or recurring); read it from the connector customer created by
+        // the CreateConnectorCustomer flow.
+        let customer_id = if item.request.is_mandate_payment() {
+            Some(
+                item.resource_common_data
+                    .get_connector_customer_id()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name: "connector_customer_id",
+                        context: Default::default(),
+                    })?,
+            )
+        } else {
+            None
+        };
 
         // Build metadata - match Hyperswitch format with orderId
         // Always use orderId format, not connector_meta_data
@@ -502,7 +887,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             // Match Hyperswitch: these are always null
             locale: None,
             cancel_url: None,
-            customer_id: None,
+            customer_id,
         })
     }
 }
@@ -554,6 +939,27 @@ pub struct MolliePaymentsResponse {
     pub expires_at: Option<String>,
     #[serde(rename = "_links")]
     pub links: MollieLinks,
+    // Present when the payment created/uses a mandate (first / recurring).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mandate_id: Option<Secret<String>>,
+    // `sequenceType` is echoed back by Mollie for mandate payments.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sequence_type: Option<SequenceType>,
+}
+
+impl MolliePaymentsResponse {
+    // Build the Hyperswitch mandate reference from Mollie's `mandateId`, which
+    // is surfaced back so later MIT charges can select the mandate.
+    fn mandate_reference(&self) -> Option<Box<MandateReference>> {
+        self.mandate_id.as_ref().map(|id| {
+            Box::new(MandateReference {
+                connector_mandate_id: Some(id.clone().expose()),
+                payment_method_id: None,
+                connector_mandate_request_reference_id: None,
+                mandate_metadata: None,
+            })
+        })
+    }
 }
 
 // Status mapping implementation - CRITICAL: NEVER HARDCODE STATUS VALUES
@@ -592,11 +998,13 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MolliePaymentsRespons
             })
         });
 
+        let mandate_reference = item.response.mandate_reference();
+
         Ok(Self {
             response: Ok(PaymentsResponseData::TransactionResponse {
                 resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
                 redirection_data,
-                mandate_reference: None,
+                mandate_reference,
                 connector_metadata: None,
                 network_txn_id: None,
                 network_txn_link_id: None,
@@ -833,10 +1241,11 @@ impl TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
 
 // ===== PAYMENT METHOD TOKEN FLOW TYPES AND TRANSFORMERS =====
 
-// Mollie Customer Request structure (for tokenization)
+// Mollie Customer Request structure (CreateConnectorCustomer flow)
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MollieCustomerRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<Email>,
@@ -844,11 +1253,47 @@ pub struct MollieCustomerRequest {
     pub metadata: Option<serde_json::Value>,
 }
 
+// Request transformer for CreateConnectorCustomer flow — POST /customers
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        MollieRouterData<
+            RouterDataV2<
+                CreateConnectorCustomer,
+                PaymentFlowData,
+                ConnectorCustomerData,
+                ConnectorCustomerResponse,
+            >,
+            T,
+        >,
+    > for MollieCustomerRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: MollieRouterData<
+            RouterDataV2<
+                CreateConnectorCustomer,
+                PaymentFlowData,
+                ConnectorCustomerData,
+                ConnectorCustomerResponse,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let request = &item.router_data.request;
+        Ok(Self {
+            name: request.name.clone(),
+            email: request.email.clone().map(|email| email.expose()),
+            metadata: None,
+        })
+    }
+}
+
 // Mollie Customer Response structure
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MollieCustomerResponse {
-    pub id: String,       // cust_xxx format
+    pub id: String,       // cst_xxx format
     pub resource: String, // "customer"
     pub mode: String,     // "test" or "live"
     pub name: Option<Secret<String>>,
@@ -856,6 +1301,26 @@ pub struct MollieCustomerResponse {
     pub created_at: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub metadata: Option<serde_json::Value>,
+}
+
+// Response transformer for CreateConnectorCustomer flow — stores `id` as the
+// connector customer id consumed by SetupMandate / recurring Authorize.
+impl<F, T> TryFrom<ResponseRouterData<MollieCustomerResponse, Self>>
+    for RouterDataV2<F, PaymentFlowData, T, ConnectorCustomerResponse>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<MollieCustomerResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            response: Ok(ConnectorCustomerResponse {
+                connector_customer_id: item.response.id,
+                status_code: item.http_code,
+            }),
+            ..item.router_data
+        })
+    }
 }
 
 // Mollie Card Token Request structure (for /card-tokens endpoint)
@@ -1082,6 +1547,191 @@ pub type MollieCaptureResponse = MolliePaymentsResponse;
 pub type MolliePSyncResponse = MolliePaymentsResponse;
 pub type MollieVoidResponse = MolliePaymentsResponse;
 pub type MollieRSyncResponse = MollieRefundResponse;
+pub type MollieSetupMandateResponse = MolliePaymentsResponse;
+// Distinct alias so the connector macro generates a unique bridge/templating
+// marker while reusing the shared MolliePaymentsRequest body + TryFrom.
+pub type MollieSetupMandateRequest = MolliePaymentsRequest;
+
+// ===== SETUP MANDATE FLOW (first payment that creates the mandate) =====
+// Reuses the shared MolliePaymentsRequest / MolliePaymentsResponse against the
+// same POST /payments endpoint, but forces `sequenceType=first`, a zero amount
+// and a required `customerId` (created by CreateConnectorCustomer).
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        MollieRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for MolliePaymentsRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: MollieRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let item = item.router_data;
+
+        // SetupMandate sends the verification amount. Match the reference and use the
+        // request's amount when provided (Mollie's `first`-sequence payment requires a
+        // non-zero amount); fall back to zero only when no amount is present.
+        let converter = StringMajorUnitForConnector;
+        let setup_amount = item
+            .request
+            .minor_amount
+            .unwrap_or_else(|| MinorUnit::new(0));
+        let amount_value = converter
+            .convert(setup_amount, item.request.currency)
+            .change_context(IntegrationError::RequestEncodingFailed {
+                context: Default::default(),
+            })
+            .attach_printable("Failed to convert setup-mandate amount to string major unit")?;
+
+        // Only Card / pre-tokenized card is supported for mandate creation.
+        let payment_method_data = match &item.request.payment_method_data {
+            PaymentMethodData::PaymentMethodToken(t) => {
+                MolliePaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
+                    card_token: Some(t.token.clone()),
+                    billing_address: None,
+                    shipping_address: None,
+                }))
+            }
+            PaymentMethodData::Card(_card_data) => {
+                let billing_address = item
+                    .resource_common_data
+                    .address
+                    .get_payment_method_billing()
+                    .and_then(|billing| {
+                        let address = billing.address.as_ref()?;
+                        let line1 = address.line1.as_ref()?.peek().to_string();
+                        let street_and_number = match address.line2.as_ref() {
+                            Some(line2) => format!("{},{}", line1, line2.peek().as_str()),
+                            None => line1,
+                        };
+                        Some(MollieAddress {
+                            street_and_number: Secret::new(street_and_number),
+                            postal_code: Secret::new(address.zip.as_ref()?.peek().to_string()),
+                            city: address.city.as_ref()?.peek().to_string(),
+                            region: None,
+                            country: address.country?,
+                        })
+                    });
+                MolliePaymentMethodData::CreditCard(Box::new(CreditCardMethodData {
+                    card_token: None,
+                    billing_address,
+                    shipping_address: None,
+                }))
+            }
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    "Only card payments are supported for Mollie mandate setup".to_string(),
+                    Default::default(),
+                )
+                .into());
+            }
+        };
+
+        let mut metadata_map = serde_json::Map::new();
+        metadata_map.insert(
+            "orderId".to_string(),
+            serde_json::Value::String(
+                item.resource_common_data
+                    .connector_request_reference_id
+                    .clone(),
+            ),
+        );
+
+        Ok(Self {
+            amount: MollieAmount {
+                currency: item.request.currency,
+                value: amount_value,
+            },
+            description: item
+                .resource_common_data
+                .description
+                .clone()
+                .unwrap_or_else(|| "Mandate setup".to_string()),
+            redirect_url: item.request.router_return_url.clone().unwrap_or_default(),
+            webhook_url: "".to_string(),
+            metadata: serde_json::Value::Object(metadata_map),
+            payment_method_data,
+            sequence_type: SequenceType::First,
+            capture_mode: None,
+            locale: None,
+            cancel_url: None,
+            customer_id: Some(
+                item.resource_common_data
+                    .get_connector_customer_id()
+                    .change_context(IntegrationError::MissingRequiredField {
+                        field_name: "connector_customer_id",
+                        context: Default::default(),
+                    })?,
+            ),
+        })
+    }
+}
+
+// Response transformer for SetupMandate — surfaces the created mandate via
+// `mandate_reference` and the 3DS checkout URL for cardholder authentication.
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<MolliePaymentsResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<MolliePaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let status = item.response.status.to_attempt_status();
+
+        let redirection_data = item.response.links.checkout.as_ref().and_then(|checkout| {
+            url::Url::parse(&checkout.href).ok().map(|url| {
+                Box::new(RedirectForm::from((
+                    url,
+                    common_utils::request::Method::Get,
+                )))
+            })
+        });
+
+        let mandate_reference = item.response.mandate_reference();
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(item.response.id.clone()),
+                redirection_data,
+                mandate_reference,
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id: Some(item.response.id),
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+                splits: None,
+            }),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
 
 // ---- ClientAuthenticationToken flow types ----
 
