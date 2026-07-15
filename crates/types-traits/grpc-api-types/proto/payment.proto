@@ -1091,6 +1091,16 @@ message NetworkParams {
   optional CartesBancairesParams cartes_bancaires = 1;
 }
 
+// Type of decoupled (external) 3DS authentication that was performed.
+enum DecoupledAuthenticationType {
+  // Unspecified/default value.
+  DECOUPLED_AUTHENTICATION_TYPE_UNSPECIFIED = 0;
+  // Challenge flow - the cardholder was challenged by the ACS.
+  DECOUPLED_AUTHENTICATION_TYPE_CHALLENGE = 1;
+  // Frictionless flow - authentication completed without a challenge.
+  DECOUPLED_AUTHENTICATION_TYPE_FRICTIONLESS = 2;
+}
+
 // Additional authentication data, typically from 3DS
 message AuthenticationData {
   // Electronic Commerce Indicator (ECI) from 3DS.
@@ -1116,6 +1126,26 @@ message AuthenticationData {
   optional ExemptionIndicator exemption_indicator = 10;
   // Network-specific parameters for 3DS processing.
   optional NetworkParams network_params = 11;
+  // Authentication timestamp (Unix epoch seconds, UTC) when the 3DS
+  // authentication was performed. Used by connectors (e.g. Cybersource) that
+  // send an authenticationDate in their request.
+  optional int64 created_at = 12;
+  // 3DS challenge code from the ACS challenge flow (e.g. Cybersource
+  // challengeCode).
+  optional string challenge_code = 13;
+  // 3DS challenge cancellation indicator (e.g. Cybersource
+  // challengeCancelCode).
+  optional string challenge_cancel = 14;
+  // Reason associated with the 3DS challenge code (e.g. Cybersource
+  // signedParesStatusReason).
+  optional string challenge_code_reason = 15;
+  // JSON-serialized 3DS message extension attributes (e.g. Cartes Bancaires
+  // score used for Cybersource networkScore).
+  optional string message_extension = 16;
+  // Type of decoupled (external) authentication performed (challenge vs
+  // frictionless). Used by connectors (e.g. Cybersource
+  // effectiveAuthenticationType).
+  optional DecoupledAuthenticationType authentication_type = 17;
 }
 
 // Details of customer acceptance for mandates or terms
@@ -2768,6 +2798,10 @@ message PaymentServiceReverseResponse {
 
   // Reference
   optional string merchant_reverse_id = 6;
+
+  // Raw Request and Response for debugging
+  optional SecretString raw_connector_request = 7;
+  optional SecretString raw_connector_response = 8;
 }
 
 // Request message for creating an access token
@@ -2956,6 +2990,9 @@ message PaymentServiceCaptureResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 15;
+
+  // Raw Response for debugging
+  optional SecretString raw_connector_response = 16;
 }
 
 // Request message for creating an order
@@ -3287,6 +3324,9 @@ message PaymentServiceSetupRecurringRequest {
   // future intended MIT type (e.g. Recurring vs Installment), so connectors
   // can emit the correct CIT-side credential-on-file intent codes.
   optional MitCategory mit_category = 36;
+
+  // Partner / merchant application identifiers initiating the request.
+  optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 37;
 }
 
 // Response message for a mandate setup operation
@@ -3338,6 +3378,9 @@ message PaymentServiceSetupRecurringResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 17;
+
+  // Raw Response for debugging
+  optional SecretString raw_connector_response = 18;
 }
 
 // Request message for repeat payment (MIT - Merchant Initiated Transaction)
@@ -3748,6 +3791,10 @@ message PaymentServiceIncrementalAuthorizationResponse {
 
   // State Information
   optional ConnectorState state = 6;
+
+  // Raw Request and Response for debugging
+  optional SecretString raw_connector_request = 7;
+  optional SecretString raw_connector_response = 8;
 }
 
 // IDs extracted from a payment webhook.

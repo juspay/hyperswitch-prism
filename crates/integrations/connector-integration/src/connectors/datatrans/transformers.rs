@@ -1,24 +1,30 @@
+use std::collections::HashMap;
+
 use crate::types::ResponseRouterData;
 use base64::{engine::general_purpose::STANDARD, Engine};
 use common_enums::{AttemptStatus, Currency, PostCaptureVoidStatus, RefundStatus};
-use common_utils::MinorUnit;
-use domain_types::errors::{ConnectorError, IntegrationError};
+use common_utils::{pii::Email, request::Method, MinorUnit};
+use domain_types::errors::{ConnectorError, IntegrationError, IntegrationErrorContext};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, Void, VoidPC,
+        Authorize, Capture, ClientAuthenticationToken, PSync, RSync, Refund, RepeatPayment,
+        SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
         ConnectorSpecificClientAuthenticationResponse,
         DatatransClientAuthenticationResponse as DatatransClientAuthenticationResponseDomain,
-        PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
-        RefundSyncData, RefundsData, RefundsResponseData, ResponseId,
+        MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
+        PaymentsResponseData, PaymentsSyncData, RefundFlowData, RefundSyncData, RefundsData,
+        RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{PaymentMethodData, PaymentMethodDataTypes, RawCardNumber},
-    router_data::ConnectorSpecificConfig,
+    router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
+    router_response_types::RedirectForm,
+    types::{AdditionalCardInfo, AdditionalPaymentData},
 };
 use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
@@ -26,7 +32,52 @@ use serde::{Deserialize, Serialize};
 // Error message constants
 const DEFAULT_ERROR_CODE: &str = "UNKNOWN_ERROR";
 const DEFAULT_ERROR_MESSAGE: &str = "Unknown error occurred";
+/// Code used when Datatrans returns a non-JSON error body (e.g. an HTML gateway error page)
+/// that carries no structured error code. Mirrors HS Direct's HTML fallback.
+const NO_ERROR_CODE: &str = "NO_ERROR_CODE";
 const UNSUPPORTED_PAYMENT_METHOD_ERROR: &str = "Only card payments are supported for Datatrans";
+
+/// Datatrans hosted redirect/challenge host — sandbox environment
+/// (paired with the `api.sandbox.datatrans.com` API base_url).
+const REDIRECTION_SBX_URL: &str = "https://pay.sandbox.datatrans.com";
+/// Datatrans hosted redirect/challenge host — production environment.
+const REDIRECTION_PROD_URL: &str = "https://pay.datatrans.com";
+
+/// Selects the Datatrans hosted challenge host that mirrors the API `base_url`
+/// environment: the sandbox API base (`api.sandbox.datatrans.com`) pairs with
+/// `pay.sandbox.datatrans.com`, and production with `pay.datatrans.com`.
+///
+/// Derived from `base_url` (not `test_mode`) because HS does not forward
+/// `test_mode` in the SetupRecurring gRPC request; relying on `test_mode` would
+/// otherwise route sandbox challenges to the production host.
+fn datatrans_redirection_host(base_url: &str) -> &'static str {
+    if base_url.contains("sandbox") {
+        REDIRECTION_SBX_URL
+    } else {
+        REDIRECTION_PROD_URL
+    }
+}
+/// Card `type` discriminator sent to Datatrans for raw PAN card data.
+const CARD_TYPE_PLAIN: &str = "PLAIN";
+/// Card `type` discriminator sent to Datatrans for a stored-alias charge
+/// (MIT / RepeatPayment): the alias created by SetupMandate is reused in place of a PAN.
+const CARD_TYPE_ALIAS: &str = "ALIAS";
+/// Error surfaced when a Datatrans MIT/RepeatPayment carries a mandate reference type
+/// this connector cannot charge via an alias (only connector-stored alias mandates work).
+const UNSUPPORTED_MANDATE_REFERENCE_ERROR: &str =
+    "Only connector-stored alias mandates are supported for Datatrans repeat payments";
+/// Datatrans `authenticationResponse` value flagging a completed external 3DS
+/// authentication (`Y` = authenticated) when forwarding passthrough cavv/eci/xid.
+const THREE_DS_AUTHENTICATION_RESPONSE_Y: &str = "Y";
+
+/// Builds an `IntegrationErrorContext` carrying Datatrans-specific remediation detail,
+/// so error sites never fall back to a context-free `Default::default()`.
+fn datatrans_context(additional_context: &str) -> IntegrationErrorContext {
+    IntegrationErrorContext {
+        additional_context: Some(additional_context.to_string()),
+        ..Default::default()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct DatatransAuthType {
@@ -85,6 +136,18 @@ impl DatatransErrorResponse {
     pub fn message(&self) -> String {
         self.error.message.clone()
     }
+
+    /// Builds an error from a non-JSON body (e.g. an HTML gateway error page) so the raw page
+    /// text is surfaced instead of a deserialization failure. Mirrors HS Direct's HTML fallback
+    /// (decoded lossily as UTF-8 rather than pulling in an ISO-8859-10 codec).
+    pub fn from_non_json_body(body: &[u8]) -> Self {
+        Self {
+            error: DatatransErrorDetail {
+                code: NO_ERROR_CODE.to_string(),
+                message: String::from_utf8_lossy(body).trim().to_string(),
+            },
+        }
+    }
 }
 
 impl Default for DatatransErrorResponse {
@@ -117,6 +180,59 @@ pub struct DatatransCard<
     #[serde(skip_serializing_if = "Option::is_none")]
     #[serde(rename = "type")]
     pub card_type: Option<String>,
+    /// The `3D` object driving card 3DS: either merchant-supplied external
+    /// authentication artifacts (`Authentication`) or cardholder details that ask
+    /// Datatrans to run native 3DS (`Cardholder`). Omitted for non-3DS card payments.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "3D")]
+    pub three_ds: Option<ThreeDSecureData>,
+}
+
+/// The `3D` object attached to a Datatrans card in an Authorize request.
+#[derive(Debug, Serialize, Clone)]
+#[serde(untagged)]
+pub enum ThreeDSecureData {
+    /// Native 3DS: Datatrans drives the ACS challenge using these cardholder details.
+    Cardholder(ThreedsInfo),
+    /// Passthrough external 3DS: the merchant already authenticated and forwards
+    /// the resulting cavv/eci/xid to Datatrans.
+    Authentication(ThreeDSData),
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct ThreedsInfo {
+    pub cardholder: CardHolder,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CardHolder {
+    pub cardholder_name: Secret<String>,
+    pub email: Email,
+}
+
+/// External (passthrough) 3DS authentication data forwarded to Datatrans.
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSData {
+    #[serde(rename = "threeDSTransactionId")]
+    pub three_ds_transaction_id: Option<Secret<String>>,
+    pub cavv: Secret<String>,
+    pub eci: Option<String>,
+    pub xid: Option<Secret<String>>,
+    #[serde(rename = "threeDSVersion")]
+    pub three_ds_version: Option<String>,
+    #[serde(rename = "authenticationResponse")]
+    pub authentication_response: String,
+}
+
+/// Redirect return URLs supplied to Datatrans for the native 3DS challenge (`/v1/transactions`).
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RedirectUrls {
+    pub success_url: Option<String>,
+    pub cancel_url: Option<String>,
+    pub error_url: Option<String>,
 }
 
 // Authorize request structure based on tech spec
@@ -127,13 +243,33 @@ pub struct DatatransPaymentsRequest<
 > {
     pub currency: Currency,
     pub refno: String,
-    pub amount: MinorUnit,
+    /// Charge amount in minor units. Omitted (`None`) for zero-auth SetupMandate/CIT
+    /// alias creation, where no amount is captured; always present for Authorize.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<MinorUnit>,
     pub card: DatatransCard<T>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auto_settle: Option<bool>,
+    /// Present only for native 3DS: the cardholder is redirected here after the
+    /// ACS challenge. Omitted for passthrough external 3DS and no-3DS payments.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub redirect: Option<RedirectUrls>,
     // Don't skip serializing - we want "option": null to appear in JSON
     pub option: Option<DatatransPaymentOptions>,
 }
+
+/// SetupMandate (zero-auth CIT alias creation) reuses the Authorize request and
+/// response shapes verbatim. These aliases give the connector-service Bridge macro
+/// distinct templating type names per flow (the Bridge is keyed on request/response
+/// type identity) without duplicating the underlying structs.
+pub type DatatransSetupMandateRequest<T> = DatatransPaymentsRequest<T>;
+pub type DatatransSetupMandateResponse = DatatransPaymentsResponse;
+
+/// MIT / RepeatPayment reuses the Authorize request and response shapes: the stored alias
+/// is charged via the same `/v1/transactions/authorize` endpoint. These aliases give the
+/// Bridge macro distinct per-flow templating type names without duplicating the structs.
+pub type DatatransRepeatPaymentRequest<T> = DatatransPaymentsRequest<T>;
+pub type DatatransRepeatPaymentResponse = DatatransPaymentsResponse;
 
 // Payment options for Datatrans API
 #[derive(Debug, Serialize)]
@@ -170,18 +306,37 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         >,
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
+        // Native 3DS = merchant asks Datatrans to run the challenge (auth_type is ThreeDs and no
+        // external authentication artifacts were supplied). This is the only case that needs the
+        // redirect return URLs; passthrough external 3DS and no-3DS payments do not redirect.
+        let is_native_three_ds = router_data.resource_common_data.is_three_ds()
+            && router_data.request.authentication_data.is_none();
+        // CIT ("purchase + save card"): a customer-initiated Authorize that also registers a
+        // reusable Datatrans alias for later MIT/RepeatPayment. Mirrors the HS Direct Authorize
+        // path, which sets `createAlias` and redirect URLs for `is_mandate_payment()`.
+        let is_mandate_payment = router_data.request.is_mandate_payment();
+
         // Extract card data or token
-        let card = match &router_data.request.payment_method_data {
+        let (card, redirect) = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card_data) => {
                 // Direct card flow - use raw card details
-                DatatransCard {
+                let card = DatatransCard {
                     alias: None,
                     number: Some(card_data.card_number.clone()),
                     expiry_month: Some(card_data.card_exp_month.clone()),
                     expiry_year: Some(card_data.get_card_expiry_year_2_digit()?),
                     cvv: Some(card_data.card_cvc.clone()),
-                    card_type: Some("PLAIN".to_string()),
-                }
+                    card_type: Some(CARD_TYPE_PLAIN.to_string()),
+                    three_ds: build_three_ds_data(router_data)?,
+                };
+                // Return URLs are required for a native-3DS challenge OR a CIT alias
+                // registration (which Datatrans runs through the redirect-capable endpoint).
+                let redirect = (is_native_three_ds || is_mandate_payment).then(|| RedirectUrls {
+                    success_url: router_data.request.router_return_url.clone(),
+                    cancel_url: router_data.request.router_return_url.clone(),
+                    error_url: router_data.request.router_return_url.clone(),
+                });
+                (card, redirect)
             }
             // TODO: CardToken flow for Datatrans Secure Fields SDK.
             // When the client SDK collects card data via Secure Fields, the transactionId
@@ -192,27 +347,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             PaymentMethodData::PaymentMethodToken(token_data) => {
                 let token = token_data.token.clone();
 
-                DatatransCard {
+                let card = DatatransCard {
                     alias: Some(token),
                     number: None,
                     expiry_month: None,
                     expiry_year: None,
                     cvv: None,
                     card_type: None,
-                }
+                    three_ds: None,
+                };
+                (card, None)
             }
             _ => Err(IntegrationError::NotImplemented(
                 UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string(),
-                Default::default(),
+                datatrans_context(
+                    "Datatrans Authorize supports raw card or Secure Fields token payment methods only",
+                ),
             ))?,
         };
 
-        // Determine auto_settle based on capture method
-        let auto_settle = match router_data.request.capture_method {
-            Some(common_enums::CaptureMethod::Automatic) => Some(true),
-            Some(common_enums::CaptureMethod::Manual) => Some(false),
-            _ => None, // Let connector decide default behavior
-        };
+        // auto_settle mirrors is_auto_capture(): Automatic/SequentialAutomatic/None -> true,
+        // Manual/ManualMultiple/Scheduled -> false. (SequentialAutomatic previously fell through
+        // to None and let the connector default it — now correctly maps to true.)
+        let auto_settle = Some(router_data.request.is_auto_capture());
 
         Ok(Self {
             currency: router_data.request.currency,
@@ -220,11 +377,63 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 .resource_common_data
                 .connector_request_reference_id
                 .clone(),
-            amount: router_data.request.minor_amount,
+            amount: Some(router_data.request.minor_amount),
             card,
             auto_settle,
-            option: None, // Set to null to match Hyperswitch
+            redirect,
+            // CIT mandate registration asks Datatrans to persist a reusable alias
+            // (surfaced later via PSync as `connector_mandate_id`); non-mandate Authorize
+            // sends `option: null`.
+            option: is_mandate_payment.then_some(DatatransPaymentOptions {
+                create_alias: Some(true),
+            }),
         })
+    }
+}
+
+/// Builds the optional `3D` object for a raw-card Authorize request.
+/// - external/passthrough 3DS (merchant supplied `authentication_data`) -> `Authentication`
+/// - Datatrans-native 3DS (`auth_type == ThreeDs`, no external data) -> `Cardholder`
+/// - no 3DS -> `None`
+fn build_three_ds_data<
+    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
+>(
+    router_data: &RouterDataV2<
+        Authorize,
+        PaymentFlowData,
+        PaymentsAuthorizeData<T>,
+        PaymentsResponseData,
+    >,
+) -> Result<Option<ThreeDSecureData>, error_stack::Report<IntegrationError>> {
+    if let Some(auth_data) = &router_data.request.authentication_data {
+        let cavv = auth_data.cavv.clone().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "authentication_data.cavv",
+                context: datatrans_context(
+                    "Datatrans passthrough external 3DS requires the cavv authentication value"
+                ),
+            })
+        })?;
+        Ok(Some(ThreeDSecureData::Authentication(ThreeDSData {
+            three_ds_transaction_id: auth_data
+                .threeds_server_transaction_id
+                .clone()
+                .map(Secret::new),
+            cavv,
+            eci: auth_data.eci.clone(),
+            xid: auth_data.ds_trans_id.clone().map(Secret::new),
+            three_ds_version: auth_data.message_version.as_ref().map(|v| v.to_string()),
+            authentication_response: THREE_DS_AUTHENTICATION_RESPONSE_Y.to_string(),
+        })))
+    } else if router_data.resource_common_data.is_three_ds() {
+        Ok(Some(ThreeDSecureData::Cardholder(ThreedsInfo {
+            cardholder: CardHolder {
+                cardholder_name: router_data.resource_common_data.get_billing_full_name()?,
+                email: router_data.resource_common_data.get_billing_email()?,
+            },
+        })))
+    } else {
+        Ok(None)
     }
 }
 
@@ -234,17 +443,71 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 pub struct DatatransCardResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub masked: Option<String>,
+    /// Stored card token created when `option.createAlias=true` (SetupMandate/CIT).
+    /// Surfaced from PSync as the `connector_mandate_id` that MIT/RepeatPayment reuses.
+    /// Masked in logs; the domain `connector_mandate_id` boundary requires the plain value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alias: Option<Secret<String>>,
 }
 
-// Authorize response structure based on tech spec
+// Authorize response — Datatrans returns either a settled/authorized transaction or,
+// for native 3DS, a 3DS-enrolled response carrying the redirect transactionId.
+// Variant order matters for `#[serde(untagged)]`: `ThreeDSResponse` requires the `3D`
+// object and is tried first, so a plain transaction response (no `3D`) falls through
+// to `TransactionResponse`. Connector errors (non-2xx) are handled by `build_error_response`.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(untagged)]
+pub enum DatatransPaymentsResponse {
+    ThreeDSResponse(Datatrans3DSResponse),
+    TransactionResponse(DatatransSuccessResponse),
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DatatransPaymentsResponse {
+pub struct DatatransSuccessResponse {
     pub transaction_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub acquirer_authorization_code: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub card: Option<DatatransCardResponse>,
+}
+
+/// Native 3DS enrollment response. The `3D` object's presence discriminates this
+/// variant from a plain transaction response; the cardholder must be redirected to
+/// the Datatrans challenge page identified by `transaction_id`.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Datatrans3DSResponse {
+    pub transaction_id: String,
+    #[serde(rename = "3D")]
+    pub three_ds: ThreeDSEnrolled,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreeDSEnrolled {
+    /// Whether the card is enrolled in 3DS; drives untagged variant discrimination
+    /// (a plain transaction response has no `3D`/`enrolled` field).
+    pub enrolled: bool,
+}
+
+/// Derives the attempt status for a Datatrans Authorize response.
+/// Native 3DS responses need a cardholder challenge -> `AuthenticationPending`;
+/// a completed transaction is `Charged` when auto-captured, else `Authorized`.
+fn get_authorize_status(
+    response: &DatatransPaymentsResponse,
+    is_auto_capture: bool,
+) -> AttemptStatus {
+    match response {
+        DatatransPaymentsResponse::ThreeDSResponse(_) => AttemptStatus::AuthenticationPending,
+        DatatransPaymentsResponse::TransactionResponse(_) => {
+            if is_auto_capture {
+                AttemptStatus::Charged
+            } else {
+                AttemptStatus::Authorized
+            }
+        }
+    }
 }
 
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
@@ -256,31 +519,462 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     fn try_from(
         item: ResponseRouterData<DatatransPaymentsResponse, Self>,
     ) -> Result<Self, Self::Error> {
-        // Datatrans authorize endpoint returns 200 on success
-        // The presence of transactionId indicates success
-        // Status mapping:
-        // - If we get a 200 response with transactionId, the payment is authorized
-        // - Based on autoSettle parameter, it's either Charged or Authorized
-        let is_auto_settle =
-            item.router_data.request.capture_method == Some(common_enums::CaptureMethod::Automatic);
+        let is_auto_capture = item.router_data.request.is_auto_capture();
+        let status = get_authorize_status(&item.response, is_auto_capture);
 
-        let status = if is_auto_settle {
-            AttemptStatus::Charged
-        } else {
-            AttemptStatus::Authorized
+        let payments_response_data = match &item.response {
+            DatatransPaymentsResponse::TransactionResponse(response) => {
+                // Non-3DS / passthrough external 3DS: no redirect. The alias (for mandates)
+                // is surfaced later via PSync, not on this response.
+                PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        response.transaction_id.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: response.acquirer_authorization_code.clone(),
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                    splits: None,
+                }
+            }
+            DatatransPaymentsResponse::ThreeDSResponse(response) => {
+                // Native 3DS: redirect the cardholder to the Datatrans challenge page.
+                // Host is derived from the connector's configured API base_url so the
+                // sandbox challenge stays on the sandbox host (see
+                // `datatrans_redirection_host`).
+                let redirection_host = datatrans_redirection_host(
+                    &item
+                        .router_data
+                        .resource_common_data
+                        .connectors
+                        .datatrans
+                        .base_url,
+                );
+                let redirection_data = RedirectForm::Form {
+                    endpoint: format!("{}/v1/start/{}", redirection_host, response.transaction_id),
+                    method: Method::Get,
+                    form_fields: HashMap::new(),
+                };
+                PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        response.transaction_id.clone(),
+                    ),
+                    redirection_data: Some(Box::new(redirection_data)),
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                    splits: None,
+                }
+            }
         };
 
-        let payments_response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(item.response.transaction_id.clone()),
-            redirection_data: None,
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            network_txn_link_id: None,
-            connector_response_reference_id: item.response.acquirer_authorization_code.clone(),
-            incremental_authorization_allowed: None,
-            status_code: item.http_code,
-            splits: None,
+        Ok(Self {
+            response: Ok(payments_response_data),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== SETUP MANDATE (ZERO-AUTH CIT) FLOW =====
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::DatatransRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for DatatransPaymentsRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::DatatransRouterData<
+            RouterDataV2<
+                SetupMandate,
+                PaymentFlowData,
+                SetupMandateRequestData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        let card = match &router_data.request.payment_method_data {
+            PaymentMethodData::Card(card_data) => DatatransCard {
+                alias: None,
+                number: Some(card_data.card_number.clone()),
+                expiry_month: Some(card_data.card_exp_month.clone()),
+                expiry_year: Some(card_data.get_card_expiry_year_2_digit()?),
+                cvv: Some(card_data.card_cvc.clone()),
+                card_type: Some(CARD_TYPE_PLAIN.to_string()),
+                // Zero-auth alias creation always runs Datatrans-native 3DS: send the
+                // cardholder details so Datatrans can drive the ACS challenge.
+                three_ds: Some(ThreeDSecureData::Cardholder(ThreedsInfo {
+                    cardholder: CardHolder {
+                        cardholder_name: router_data
+                            .resource_common_data
+                            .get_billing_full_name()?,
+                        email: router_data.resource_common_data.get_billing_email()?,
+                    },
+                })),
+            },
+            PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::Wallet(_)
+            | PaymentMethodData::PayLater(_)
+            | PaymentMethodData::BankRedirect(_)
+            | PaymentMethodData::BankDebit(_)
+            | PaymentMethodData::BankTransfer(_)
+            | PaymentMethodData::Crypto(_)
+            | PaymentMethodData::MandatePayment
+            | PaymentMethodData::Reward
+            | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::Upi(_)
+            | PaymentMethodData::Voucher(_)
+            | PaymentMethodData::GiftCard(_)
+            | PaymentMethodData::PaymentMethodToken(_)
+            | PaymentMethodData::OpenBanking(_)
+            | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::MobilePayment(_)
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
+                Err(IntegrationError::NotImplemented(
+                    UNSUPPORTED_PAYMENT_METHOD_ERROR.to_string(),
+                    datatrans_context(
+                        "Datatrans SetupMandate (zero-auth alias creation) supports raw card payment method only",
+                    ),
+                ))?
+            }
+        };
+
+        Ok(Self {
+            currency: router_data.request.currency,
+            refno: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            // Zero-auth: no amount is charged; the field is omitted from the request.
+            amount: None,
+            card,
+            // Zero-auth alias creation cannot be manually captured.
+            auto_settle: Some(true),
+            redirect: Some(RedirectUrls {
+                success_url: router_data.request.router_return_url.clone(),
+                cancel_url: router_data.request.router_return_url.clone(),
+                error_url: router_data.request.router_return_url.clone(),
+            }),
+            // Ask Datatrans to persist a reusable alias for later MIT/RepeatPayment.
+            option: Some(DatatransPaymentOptions {
+                create_alias: Some(true),
+            }),
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<DatatransPaymentsResponse, Self>>
+    for RouterDataV2<
+        SetupMandate,
+        PaymentFlowData,
+        SetupMandateRequestData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<DatatransPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        // Zero-auth alias creation cannot be manually captured, so status is derived
+        // with auto-capture semantics (`Charged` on a completed transaction).
+        let status = get_authorize_status(&item.response, true);
+
+        let payments_response_data = match &item.response {
+            DatatransPaymentsResponse::TransactionResponse(response) => {
+                // The reusable alias is surfaced later via PSync (`card.alias`),
+                // not on this setup response — matching the reference behaviour.
+                PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        response.transaction_id.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: response.acquirer_authorization_code.clone(),
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                    splits: None,
+                }
+            }
+            DatatransPaymentsResponse::ThreeDSResponse(response) => {
+                // Native 3DS: redirect the cardholder to the Datatrans challenge page.
+                // Host is derived from the connector's configured API base_url (not
+                // `test_mode`, which HS omits from the SetupRecurring request) so the
+                // sandbox challenge stays on the sandbox host.
+                let redirection_host = datatrans_redirection_host(
+                    &item
+                        .router_data
+                        .resource_common_data
+                        .connectors
+                        .datatrans
+                        .base_url,
+                );
+                let redirection_data = RedirectForm::Form {
+                    endpoint: format!("{}/v1/start/{}", redirection_host, response.transaction_id),
+                    method: Method::Get,
+                    form_fields: HashMap::new(),
+                };
+                PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        response.transaction_id.clone(),
+                    ),
+                    redirection_data: Some(Box::new(redirection_data)),
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                    splits: None,
+                }
+            }
+        };
+
+        Ok(Self {
+            response: Ok(payments_response_data),
+            resource_common_data: PaymentFlowData {
+                status,
+                ..item.router_data.resource_common_data
+            },
+            ..item.router_data
+        })
+    }
+}
+
+// ===== REPEAT PAYMENT (MIT) FLOW =====
+
+/// Datatrans expects a 2-digit `expiryYear`. The stored-card `card_exp_year` supplied in the
+/// MIT request's additional card data may arrive as `YY` or `YYYY`; take the last two digits.
+/// Vault template tokens (`{{...}}`) pass through unchanged for injector substitution.
+fn additional_card_expiry_year_2_digit(
+    additional_card: &AdditionalCardInfo,
+) -> Result<Secret<String>, error_stack::Report<IntegrationError>> {
+    let year = additional_card.card_exp_year.clone().ok_or_else(|| {
+        error_stack::report!(IntegrationError::MissingRequiredField {
+            field_name: "additional_payment_data.card.card_exp_year",
+            context: datatrans_context(
+                "Datatrans MIT requires the stored card expiry year for the alias charge",
+            ),
+        })
+    })?;
+    let year_value = year.peek();
+    let two_digit = if year_value.contains("{{") {
+        year_value.to_string()
+    } else {
+        year_value
+            .get(year_value.len().saturating_sub(2)..)
+            .ok_or_else(|| {
+                error_stack::report!(IntegrationError::InvalidDataFormat {
+                    field_name: "additional_payment_data.card.card_exp_year",
+                    context: datatrans_context("Expected expiry year format: YY or YYYY"),
+                })
+            })?
+            .to_string()
+    };
+    Ok(Secret::new(two_digit))
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        super::DatatransRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for DatatransPaymentsRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: super::DatatransRouterData<
+            RouterDataV2<
+                RepeatPayment,
+                PaymentFlowData,
+                RepeatPaymentData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+
+        // MIT reuses the Datatrans alias persisted by SetupMandate (createAlias=true), surfaced
+        // to HS as the `connector_mandate_id`. Only the connector-stored alias path is chargeable
+        // here; network-transaction-id / network-token MIT is not supported by this connector.
+        let alias = match &router_data.request.mandate_reference {
+            MandateReferenceId::ConnectorMandateId(connector_mandate_id) => connector_mandate_id
+                .get_connector_mandate_id()
+                .ok_or_else(|| {
+                    error_stack::report!(IntegrationError::MissingRequiredField {
+                        field_name: "mandate_reference.connector_mandate_id",
+                        context: datatrans_context(
+                            "Datatrans MIT requires the stored alias/connector_mandate_id created by SetupMandate",
+                        ),
+                    })
+                })?,
+            MandateReferenceId::NetworkMandateId(_)
+            | MandateReferenceId::NetworkTokenWithNTI(_) => {
+                // Datatrans MIT can only charge a connector-stored alias; scheme-level
+                // network-transaction-id / network-token mandates are not a Datatrans
+                // capability (NotSupported, not merely not-yet-built).
+                Err(IntegrationError::NotSupported {
+                    message: UNSUPPORTED_MANDATE_REFERENCE_ERROR.to_string(),
+                    connector: "datatrans",
+                    context: datatrans_context(
+                        "Datatrans MIT charges the stored connector alias only; network-transaction-id / network-token mandates are unsupported",
+                    ),
+                })?
+            }
+        };
+
+        // Card expiry for the alias charge comes from the stored card's additional data
+        // (there is no PAN in a MIT request). Mirrors the HS Direct `create_mandate_details`
+        // path that reads `additional_payment_method_data.Card`.
+        let additional_card = match &router_data.request.additional_payment_data {
+            Some(AdditionalPaymentData::Card(card)) => card,
+            None => Err(IntegrationError::MissingRequiredField {
+                field_name: "additional_payment_data",
+                context: datatrans_context(
+                    "Datatrans MIT requires stored card additional data (expiry) for the alias charge",
+                ),
+            })?,
+        };
+        let expiry_month = additional_card.card_exp_month.clone().ok_or_else(|| {
+            error_stack::report!(IntegrationError::MissingRequiredField {
+                field_name: "additional_payment_data.card.card_exp_month",
+                context: datatrans_context(
+                    "Datatrans MIT requires the stored card expiry month for the alias charge",
+                ),
+            })
+        })?;
+        let expiry_year = additional_card_expiry_year_2_digit(additional_card)?;
+
+        let card = DatatransCard {
+            alias: Some(Secret::new(alias)),
+            expiry_month: Some(expiry_month),
+            expiry_year: Some(expiry_year),
+            number: None,
+            cvv: None,
+            card_type: Some(CARD_TYPE_ALIAS.to_string()),
+            // MIT charges an already-3DS-authenticated alias; no cardholder challenge / redirect.
+            three_ds: None,
+        };
+
+        Ok(Self {
+            currency: router_data.request.currency,
+            refno: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            amount: Some(router_data.request.minor_amount),
+            card,
+            // auto_settle mirrors is_auto_capture(): Automatic/SequentialAutomatic/None -> true,
+            // Manual/ManualMultiple/Scheduled -> false.
+            auto_settle: Some(router_data.request.is_auto_capture()),
+            // MIT never redirects and never re-creates an alias.
+            redirect: None,
+            option: None,
+        })
+    }
+}
+
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<ResponseRouterData<DatatransPaymentsResponse, Self>>
+    for RouterDataV2<RepeatPayment, PaymentFlowData, RepeatPaymentData<T>, PaymentsResponseData>
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<DatatransPaymentsResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let is_auto_capture = item.router_data.request.is_auto_capture();
+        let status = get_authorize_status(&item.response, is_auto_capture);
+
+        let payments_response_data = match &item.response {
+            DatatransPaymentsResponse::TransactionResponse(response) => {
+                // Charged (auto-capture) or Authorized: the alias charge settles immediately;
+                // no redirect, and the mandate_reference is not re-surfaced on a MIT charge.
+                PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        response.transaction_id.clone(),
+                    ),
+                    redirection_data: None,
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: response.acquirer_authorization_code.clone(),
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                    splits: None,
+                }
+            }
+            DatatransPaymentsResponse::ThreeDSResponse(response) => {
+                // Not expected for MIT (the alias is already 3DS-authenticated), but the untagged
+                // response can technically carry it; surface the challenge redirect defensively
+                // rather than treating it as a settled transaction.
+                let redirection_host = datatrans_redirection_host(
+                    &item
+                        .router_data
+                        .resource_common_data
+                        .connectors
+                        .datatrans
+                        .base_url,
+                );
+                let redirection_data = RedirectForm::Form {
+                    endpoint: format!("{}/v1/start/{}", redirection_host, response.transaction_id),
+                    method: Method::Get,
+                    form_fields: HashMap::new(),
+                };
+                PaymentsResponseData::TransactionResponse {
+                    resource_id: ResponseId::ConnectorTransactionId(
+                        response.transaction_id.clone(),
+                    ),
+                    redirection_data: Some(Box::new(redirection_data)),
+                    mandate_reference: None,
+                    connector_metadata: None,
+                    network_txn_id: None,
+                    network_txn_link_id: None,
+                    connector_response_reference_id: None,
+                    incremental_authorization_allowed: None,
+                    status_code: item.http_code,
+                    splits: None,
+                }
+            }
         };
 
         Ok(Self {
@@ -321,9 +1015,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-// Payment Status Enumeration from Datatrans API
+// Payment Status Enumeration from Datatrans API.
+// Datatrans emits snake_case statuses (e.g. `challenge_ongoing`).
 #[derive(Debug, Deserialize, Clone, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 pub enum DatatransPaymentStatus {
     Initialized,
     Authenticated,
@@ -332,26 +1027,76 @@ pub enum DatatransPaymentStatus {
     Transmitted,
     Canceled,
     Failed,
+    /// 3DS challenge is in progress — the cardholder has not finished the ACS challenge.
+    ChallengeOngoing,
+    /// 3DS challenge is required before the transaction can proceed.
+    ChallengeRequired,
 }
 
-// Status mapping for sync responses
-impl From<DatatransPaymentStatus> for AttemptStatus {
-    fn from(status: DatatransPaymentStatus) -> Self {
-        match status {
-            // Success statuses - payment is completed/settled
-            DatatransPaymentStatus::Settled | DatatransPaymentStatus::Transmitted => Self::Charged,
+/// Datatrans transaction `type` reported on a sync response. Datatrans emits
+/// snake_case values. The type is required to interpret `status` correctly, because
+/// the same status means different things across transaction kinds (see
+/// [`sync_attempt_status`]).
+#[derive(Debug, Deserialize, Clone, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DatatransTransactionType {
+    /// Standard Authorize/Capture payment transaction.
+    Payment,
+    /// Refund/credit transaction. Not an attempt-status carrier — refunds are tracked
+    /// via `RefundStatus`/RSync, so for `AttemptStatus` this maps to `Failure`
+    /// (mirrors the HS Direct reference).
+    Credit,
+    /// Zero-auth mandate alias creation (`option.createAlias=true`). A completed
+    /// `card_check` has no capture step, so `authorized`/`settled`/`transmitted` all
+    /// mean the alias was successfully created (→ `Charged`).
+    CardCheck,
+}
 
-            // Authorization status - payment is authorized but not captured
-            DatatransPaymentStatus::Authorized => Self::Authorized,
-
-            // Failure status
-            DatatransPaymentStatus::Failed | DatatransPaymentStatus::Canceled => Self::Failure,
-
-            // Pending statuses - payment is in progress
-            DatatransPaymentStatus::Initialized | DatatransPaymentStatus::Authenticated => {
-                Self::Pending
+/// Derives the PSync `AttemptStatus` from BOTH the Datatrans transaction `type` and its
+/// `status`, mirroring the HS Direct reference (`impl From<SyncResponse> for AttemptStatus`).
+///
+/// The mapping is type-aware because a status alone is ambiguous:
+/// - `Payment`: `Authorized` stays `Authorized` (a manual-capture auth must not read as
+///   captured until Capture settles it — capture-method-aware); `Settled`/`Transmitted` →
+///   `Charged`.
+/// - `CardCheck` (zero-auth mandate): `Authorized`/`Settled`/`Transmitted` all → `Charged`,
+///   because a completed alias creation is a success with no separate capture step. This is
+///   what makes a finished zero-auth mandate read as succeeded.
+/// - `Credit` (refund): `Failure` for `AttemptStatus` (refunds handled via RSync).
+///
+/// Each per-type `status` match is exhaustive (no wildcard) so a new `DatatransPaymentStatus`
+/// variant fails to compile rather than silently defaulting.
+fn sync_attempt_status(
+    transaction_type: &DatatransTransactionType,
+    status: DatatransPaymentStatus,
+) -> AttemptStatus {
+    match transaction_type {
+        DatatransTransactionType::Payment => match status {
+            DatatransPaymentStatus::Authorized => AttemptStatus::Authorized,
+            DatatransPaymentStatus::Settled | DatatransPaymentStatus::Transmitted => {
+                AttemptStatus::Charged
             }
-        }
+            DatatransPaymentStatus::ChallengeOngoing
+            | DatatransPaymentStatus::ChallengeRequired => AttemptStatus::AuthenticationPending,
+            DatatransPaymentStatus::Canceled => AttemptStatus::Voided,
+            DatatransPaymentStatus::Failed => AttemptStatus::Failure,
+            DatatransPaymentStatus::Initialized | DatatransPaymentStatus::Authenticated => {
+                AttemptStatus::Pending
+            }
+        },
+        DatatransTransactionType::CardCheck => match status {
+            DatatransPaymentStatus::Settled
+            | DatatransPaymentStatus::Transmitted
+            | DatatransPaymentStatus::Authorized => AttemptStatus::Charged,
+            DatatransPaymentStatus::ChallengeOngoing
+            | DatatransPaymentStatus::ChallengeRequired => AttemptStatus::AuthenticationPending,
+            DatatransPaymentStatus::Canceled => AttemptStatus::Voided,
+            DatatransPaymentStatus::Failed => AttemptStatus::Failure,
+            DatatransPaymentStatus::Initialized | DatatransPaymentStatus::Authenticated => {
+                AttemptStatus::Pending
+            }
+        },
+        DatatransTransactionType::Credit => AttemptStatus::Failure,
     }
 }
 
@@ -371,10 +1116,14 @@ pub struct DatatransHistoryEntry {
 pub struct DatatransSyncResponse {
     pub transaction_id: String,
     #[serde(rename = "type")]
-    pub transaction_type: String,
+    pub transaction_type: DatatransTransactionType,
     pub status: DatatransPaymentStatus,
-    pub currency: Currency,
-    pub refno: String,
+    // Optional: the reference does not require these and a minimal Datatrans sync body may
+    // omit them; keeping them optional avoids a deserialization failure on such responses.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<Currency>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refno: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refno2: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -395,13 +1144,33 @@ pub struct DatatransTransactionDetail {
     pub authorize: Option<DatatransActionDetail>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub settle: Option<DatatransActionDetail>,
+    /// Failure detail present on a failed transaction; surfaced as the connector error
+    /// code/message so a failed sync reports the reason (mirrors HS Direct).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fail: Option<DatatransFailDetail>,
+}
+
+// Failure detail block from a failed Datatrans transaction sync.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DatatransFailDetail {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 // Action detail structure
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatatransActionDetail {
-    pub amount: MinorUnit,
+    /// Amount for this action, in minor units. Optional: a `card_check` (zero-auth
+    /// mandate) transaction's `detail.authorize` carries only the
+    /// `acquirerAuthorizationCode` and no `amount`, whereas a `payment`/`settle`
+    /// action does include it. `Option` accepts both shapes so PSync deserialization
+    /// no longer fails on a card_check sync response.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<MinorUnit>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub acquirer_authorization_code: Option<String>,
 }
@@ -416,32 +1185,79 @@ impl TryFrom<ResponseRouterData<DatatransSyncResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        // Map Datatrans status to UCS status
-        let status = AttemptStatus::from(response.status.clone());
+        // Map Datatrans status to UCS status, type-aware: a `card_check` (zero-auth
+        // mandate) `authorized` means the alias was created successfully (→ Charged),
+        // whereas a `payment` `authorized` is only an authorization (→ Authorized).
+        let status = sync_attempt_status(&response.transaction_type, response.status.clone());
 
-        // Extract acquirer authorization code from detail or history
-        let connector_response_reference_id = response.detail.as_ref().and_then(|d| {
-            d.authorize
+        // On a failed sync, surface the connector failure detail (code/message/reason) instead
+        // of a silent Failure with no error — mirrors HS Direct.
+        let response = if status == AttemptStatus::Failure {
+            let (code, message) = match response.detail.as_ref().and_then(|d| d.fail.as_ref()) {
+                Some(fail) => (
+                    fail.reason
+                        .clone()
+                        .unwrap_or_else(|| DEFAULT_ERROR_CODE.to_string()),
+                    fail.message
+                        .clone()
+                        .unwrap_or_else(|| DEFAULT_ERROR_MESSAGE.to_string()),
+                ),
+                None => (
+                    DEFAULT_ERROR_CODE.to_string(),
+                    DEFAULT_ERROR_MESSAGE.to_string(),
+                ),
+            };
+            Err(ErrorResponse {
+                code,
+                message: message.clone(),
+                reason: Some(message),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(response.transaction_id.clone()),
+                network_advice_code: None,
+                network_decline_code: None,
+                network_error_message: None,
+            })
+        } else {
+            // Extract acquirer authorization code from detail
+            let connector_response_reference_id = response.detail.as_ref().and_then(|d| {
+                d.authorize
+                    .as_ref()
+                    .and_then(|a| a.acquirer_authorization_code.clone())
+                    .or_else(|| {
+                        d.settle
+                            .as_ref()
+                            .and_then(|s| s.acquirer_authorization_code.clone())
+                    })
+            });
+
+            // Datatrans returns the stored-card `alias` on sync once `createAlias` succeeded
+            // (SetupMandate/CIT). Surface it as the `connector_mandate_id` that MIT reuses.
+            // `.peek()` exposes the value only at the domain `connector_mandate_id` boundary.
+            // Only surfaced on a non-failure sync (a failed transaction has no usable alias).
+            let mandate_reference = response
+                .card
                 .as_ref()
-                .and_then(|a| a.acquirer_authorization_code.clone())
-                .or_else(|| {
-                    d.settle
-                        .as_ref()
-                        .and_then(|s| s.acquirer_authorization_code.clone())
-                })
-        });
+                .and_then(|card| card.alias.as_ref())
+                .map(|alias| MandateReference {
+                    connector_mandate_id: Some(alias.peek().clone()),
+                    payment_method_id: None,
+                    connector_mandate_request_reference_id: None,
+                    mandate_metadata: None,
+                });
 
-        let payments_response_data = PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(response.transaction_id.clone()),
-            redirection_data: None,
-            mandate_reference: None,
-            connector_metadata: None,
-            network_txn_id: None,
-            network_txn_link_id: None,
-            connector_response_reference_id,
-            incremental_authorization_allowed: None,
-            status_code: item.http_code,
-            splits: None,
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(response.transaction_id.clone()),
+                redirection_data: None,
+                mandate_reference: mandate_reference.map(Box::new),
+                connector_metadata: None,
+                network_txn_id: None,
+                network_txn_link_id: None,
+                connector_response_reference_id,
+                incremental_authorization_allowed: None,
+                status_code: item.http_code,
+                splits: None,
+            })
         };
 
         Ok(Self {
@@ -449,7 +1265,7 @@ impl TryFrom<ResponseRouterData<DatatransSyncResponse, Self>>
                 status,
                 ..item.router_data.resource_common_data.clone()
             },
-            response: Ok(payments_response_data),
+            response,
             ..item.router_data.clone()
         })
     }
@@ -589,10 +1405,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         Ok(Self {
             amount,
             currency: router_data.request.currency,
-            refno: router_data
-                .resource_common_data
-                .connector_request_reference_id
-                .clone(),
+            // Send the refund's own id as the Datatrans `refno` (mirrors HS Direct, which uses
+            // `refund_id`), so the credit is reconciled against the refund rather than the payment.
+            refno: router_data.request.refund_id.clone(),
             refno2: None,
         })
     }
@@ -659,41 +1474,47 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 }
 
 // Refund Status Enumeration from Datatrans API
-#[derive(Debug, Deserialize, Clone, Serialize)]
-#[serde(rename_all = "lowercase")]
-pub enum DatatransRefundStatus {
-    Initialized,
-    Settled,
-    Transmitted,
-    Failed,
-}
-
-// Status mapping for refund sync responses
-impl From<DatatransRefundStatus> for RefundStatus {
-    fn from(status: DatatransRefundStatus) -> Self {
-        match status {
-            // Success statuses - refund is completed
-            DatatransRefundStatus::Settled | DatatransRefundStatus::Transmitted => Self::Success,
-
-            // Failure status
-            DatatransRefundStatus::Failed => Self::Failure,
-
-            // Pending status - refund is in progress
-            DatatransRefundStatus::Initialized => Self::Pending,
+/// Type-aware refund-sync status mapping, mirroring HS Direct `From<SyncResponse> for RefundStatus`.
+/// A refund settles under the `credit` transaction type; a `payment`/`card_check` transaction
+/// synced on the refund endpoint is not a refund and maps to `Failure`. The full
+/// `DatatransPaymentStatus` enum is used so credit transactions in challenge/authorized/canceled
+/// states map correctly instead of failing to deserialize.
+fn sync_refund_status(
+    transaction_type: &DatatransTransactionType,
+    status: DatatransPaymentStatus,
+) -> RefundStatus {
+    match transaction_type {
+        DatatransTransactionType::Credit => match status {
+            DatatransPaymentStatus::Settled | DatatransPaymentStatus::Transmitted => {
+                RefundStatus::Success
+            }
+            DatatransPaymentStatus::ChallengeOngoing
+            | DatatransPaymentStatus::ChallengeRequired => RefundStatus::Pending,
+            DatatransPaymentStatus::Initialized
+            | DatatransPaymentStatus::Authenticated
+            | DatatransPaymentStatus::Authorized
+            | DatatransPaymentStatus::Canceled
+            | DatatransPaymentStatus::Failed => RefundStatus::Failure,
+        },
+        DatatransTransactionType::Payment | DatatransTransactionType::CardCheck => {
+            RefundStatus::Failure
         }
     }
 }
 
-// RSync Response structure - uses same structure as payment sync but for refund transaction
+// RSync Response structure - uses the same shape as payment sync but for a refund (credit)
+// transaction. `currency`/`refno` are optional (a minimal credit body may omit them).
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DatatransRefundSyncResponse {
     pub transaction_id: String,
     #[serde(rename = "type")]
-    pub transaction_type: String,
-    pub status: DatatransRefundStatus,
-    pub currency: Currency,
-    pub refno: String,
+    pub transaction_type: DatatransTransactionType,
+    pub status: DatatransPaymentStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<Currency>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refno: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub refno2: Option<String>,
 }
@@ -708,8 +1529,8 @@ impl TryFrom<ResponseRouterData<DatatransRefundSyncResponse, Self>>
     ) -> Result<Self, Self::Error> {
         let response = &item.response;
 
-        // Map Datatrans refund status to UCS RefundStatus
-        let refund_status = RefundStatus::from(response.status.clone());
+        // Map Datatrans refund status to UCS RefundStatus, type-aware (credit vs payment/card_check).
+        let refund_status = sync_refund_status(&response.transaction_type, response.status.clone());
 
         let refunds_response_data = RefundsResponseData {
             connector_refund_id: response.transaction_id.clone(),
