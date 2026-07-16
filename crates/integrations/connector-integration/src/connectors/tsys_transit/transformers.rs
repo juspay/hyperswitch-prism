@@ -2269,13 +2269,10 @@ fn decode_mandate_id_string(raw: &str) -> MandateDispatch {
             _ => {}
         }
     }
-    if let Some(ntid) = raw.strip_prefix("ntid:") {
-        if !ntid.is_empty() {
-            return MandateDispatch::Ntid {
-                ntid: ntid.to_string(),
-            };
-        }
-    }
+    // Network transaction id is never stored as a connector_mandate_id (PSP
+    // token) for tsys_transit — it arrives via `NetworkMandateId` and is
+    // decoded in `decode_mandate_dispatch`. Nothing writes an `ntid:` prefixed
+    // connector_mandate_id, so there is nothing to strip here.
     MandateDispatch::None
 }
 fn map_authorize_status(response: &TsysTransitAuthorizeResponse) -> AttemptStatus {
