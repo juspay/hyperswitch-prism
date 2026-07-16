@@ -297,6 +297,17 @@ where
         },
     )?;
 
+        // Paysafe returns the shopper here after the native-3DS ACS challenge. It must land on
+        // the complete_authorize_url so hyperswitch runs CompleteAuthorize (a second Authorize
+        // leg in UCS) and settles the handle into a payment; the plain return_url only triggers
+        // a PSync, which cannot advance AuthenticationPending. Falls back to the return_url when
+        // complete_authorize_url is absent.
+        let complete_authorize_url = router_data
+            .request
+            .complete_authorize_url
+            .clone()
+            .unwrap_or_else(|| redirect_url.clone());
+
         let (payment_method, payment_type, account_id, profile, settle_with_auth, three_ds) = match &router_data
         .request
         .payment_method_data
@@ -326,7 +337,10 @@ where
             // same slot, so handle and payment agree.
             let account_id = account_id.get_account_id(PaysafeAccountKind::CardThreeDs, currency)?;
             let three_ds = ThreeDs {
-                merchant_url: redirect_url.clone(),
+                // The ACS returns the shopper to merchantUrl after the challenge; point it at
+                // the complete_authorize_url so the return lands on hyperswitch's
+                // CompleteAuthorize route (which settles), not the PSync route.
+                merchant_url: complete_authorize_url.clone(),
                 // UCS carries no client-platform signal, so SDK (in-app 3DS) is not
                 // derivable here; BROWSER is also the correct channel for this redirect flow.
                 device_channel: DeviceChannel::Browser,
@@ -479,17 +493,9 @@ where
 
         let billing_details = create_paysafe_billing_details(&router_data.resource_common_data)?;
 
-        // On successful redirect completion Paysafe must send the customer to the
-        // complete_authorize_url so hyperswitch runs CompleteAuthorize (settling the
-        // payment handle into a payment). Routing on_completed to the plain return_url
-        // only triggers a PSync, which finds no settled payment yet and fails. Falls
-        // back to the return_url when complete_authorize_url is absent.
-        let complete_authorize_url = router_data
-            .request
-            .complete_authorize_url
-            .clone()
-            .unwrap_or_else(|| redirect_url.clone());
-
+        // on_completed is the success return; route it to complete_authorize_url (computed
+        // above) so hyperswitch runs CompleteAuthorize and settles the handle. The plain
+        // return_url only triggers a PSync, which cannot advance the payment.
         let return_links = Some(vec![
             ReturnLink {
                 rel: LinkType::Default,
@@ -498,7 +504,7 @@ where
             },
             ReturnLink {
                 rel: LinkType::OnCompleted,
-                href: complete_authorize_url,
+                href: complete_authorize_url.clone(),
                 method: Method::Get.to_string(),
             },
             ReturnLink {
