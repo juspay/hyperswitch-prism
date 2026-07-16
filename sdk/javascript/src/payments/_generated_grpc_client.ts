@@ -469,6 +469,7 @@ const _MSG_FIELD_TYPES: Record<string, Record<string, string>> = {
   PaymentMethodServiceRechargeResponse: { "paymentMethodDetails": "PaymentMethodDetails", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   CustomerServiceCreateRequest: { "address": "PaymentAddress", "splitPayments": "SplitPaymentsDetails" },
   CustomerServiceCreateResponse: { "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
+  CustomerServiceGetRequest: { "customer": "Customer" },
   CustomerServiceGetResponse: { "customer": "Customer", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
   CustomerServiceUpdateRequest: { "address": "PaymentAddress" },
   CustomerServiceUpdateResponse: { "customer": "Customer", "error": "ErrorInfo", "responseHeaders": "ResponseHeadersEntry" },
@@ -600,6 +601,11 @@ export class GrpcCustomerClient {
   async customerCreate(req: unknown): Promise<unknown> {
     return callGrpc(this.ffi, this.config, "customer/customer_create",
       req, types.CustomerServiceCreateRequest, types.CustomerServiceCreateResponse);
+  }
+  /** CustomerService.Get — Retrieves customer details from the payment processor. Callers typically use this before Create to implement get-or-create semantics for connectors that reject duplicates (e.g. Glomopay). */
+  async customerGet(req: unknown): Promise<unknown> {
+    return callGrpc(this.ffi, this.config, "customer/customer_get",
+      req, types.CustomerServiceGetRequest, types.CustomerServiceGetResponse);
   }
 }
 
