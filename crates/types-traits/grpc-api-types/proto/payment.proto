@@ -1977,10 +1977,13 @@ message CardDetailUpdate {
 
 message ClientAuthenticationTokenData {
   oneof sdk_type {
+    // Wallet SDKs — standalone digital wallets, independent of payment connector
     GpayClientAuthenticationResponse google_pay = 1;
     PaypalClientAuthenticationResponse paypal = 2;
     ApplepayClientAuthenticationResponse apple_pay = 3;
+    // Connector SDKs — payment connector-specific SDKs for rendering payment forms
     ConnectorSpecificClientAuthenticationResponse connector_specific = 4;
+    // Authenticator SDKs — account linking/verification flows
     PlaidClientAuthenticationResponse plaid = 5;
   }
 }
@@ -2883,8 +2886,8 @@ message MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest {
   oneof domain_context {
     PaymentClientAuthenticationContext payment = 4;
     AuthenticatorClientAuthenticationContext authenticator = 8; // Account linking, identity verification
-    // FrmClientAuthenticationContext frm = 6;      // future: device fingerprinting
-    // PayoutClientAuthenticationContext payout = 7; // future: payout verification widget
+    // FrmClientAuthenticationContext frm = 5;      // future: device fingerprinting
+    // PayoutClientAuthenticationContext payout = 6; // future: payout verification widget
   }
 
   // Connector-specific permissions for client authentication token
@@ -4287,13 +4290,6 @@ message WalletItem {
   optional string expiry_date = 5;         // Expiry date in ISO 8601 format (e.g., "2026-12-31")
 }
 
-// Bank account type for payment processing
-enum BankAccountType {
-  BANK_ACCOUNT_SUBTYPE_UNSPECIFIED = 0;
-  CHECKING = 1;
-  SAVINGS = 2;
-}
-
 // Bank account details containing one or more accounts
 message BankAccountDetails {
   repeated BankAccount accounts = 1;
@@ -4302,20 +4298,15 @@ message BankAccountDetails {
 // Individual bank account credential with routing details
 message BankAccount {
   string account_name = 1;                       // Account display name
-  BankTransferDetails account_details = 2;       // Region-specific routing details
-  SecretString account_id = 3;                   // Unique account identifier
-  optional BankType bank_type = 4;               // Account type: checking, savings
+  SecretString account_id = 2;                   // Unique account identifier
+  optional BankType bank_type = 3;               // Account type: checking, savings
+  optional BankHolderType bank_holder_type = 4;  // Bank holder type
   optional Money balance = 5;                    // Current balance
   optional Money available_balance = 6;          // Available balance
-  optional BankHolderType bank_holder_type = 7;  // Bank holder type
-}
-
-// Payment method type details discriminated by region
-message BankTransferDetails {
-  oneof details {
-    BankAccountDetailsAch ach = 1;     // US ACH
-    BankAccountDetailsBacs bacs = 2;   // UK BACS
-    BankAccountDetailsSepa sepa = 3;   // EU SEPA
+  oneof account_details {                        // account details details discriminated by region
+    BankAccountDetailsAch ach = 7;               // US ACH
+    BankAccountDetailsBacs bacs = 8;             // UK BACS
+    BankAccountDetailsSepa sepa = 9;             // EU SEPA
   }
 }
 
