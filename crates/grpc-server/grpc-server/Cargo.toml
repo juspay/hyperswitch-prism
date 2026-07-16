@@ -9,6 +9,7 @@ grpc-api-types = { path = "../../types-traits/grpc-api-types" }
 superposition_core = { workspace = true }
 connector-integration = { path = "../../integrations/connector-integration" }
 external-services = { path = "../../common/external-services" }
+art-recorder = { path = "../../common/art-recorder" }
 domain_types = { path = "../../types-traits/domain_types" }
 interfaces = { path = "../../types-traits/interfaces" }
 cards = { path = "../../types-traits/cards", package = "ucs_cards" }
@@ -96,7 +97,8 @@ serial_test = "3.2.0"
 
 [features]
 default = []
-kafka = ["tracing-kafka", "common_utils/kafka"]
+art-recording-kafka = ["tracing-kafka"]
+kafka = ["art-recording-kafka", "common_utils/kafka"]
 connector-request-kafka = ["dep:connector_request_kafka", "external-services/connector-request-kafka"]
 # Push gRPC metrics over OTLP to an OpenTelemetry Collector, in addition to the
 # Prometheus /metrics scrape endpoint.

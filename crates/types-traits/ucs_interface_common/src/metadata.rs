@@ -36,6 +36,11 @@ pub struct MetadataPayload {
     /// URLs from the merged runtime config instead.
     pub connector_config: ConnectorSpecificConfig,
     pub reference_id: Option<String>,
+    /// Euler-compatible API tag supplied by the caller.
+    ///
+    /// This is optional request metadata and is used only by callers that intentionally send
+    /// `x-api-tag`; existing config-derived API tag behavior remains the fallback.
+    pub api_tag: Option<String>,
     pub shadow_mode: bool,
     pub resource_id: Option<String>,
     /// Environment dimension for superposition config resolution (e.g., "production", "sandbox")
@@ -60,6 +65,7 @@ pub fn get_metadata_payload(
     let request_id = request_id_from_metadata(metadata)?;
     let lineage_ids = extract_lineage_fields_from_metadata(metadata, &server_config.lineage);
     let reference_id = reference_id_from_metadata(metadata)?;
+    let api_tag = api_tag_from_metadata(metadata)?;
     let resource_id = resource_id_from_metadata(metadata)?;
     let shadow_mode = shadow_mode_from_metadata(metadata);
     let environment = environment_from_metadata(metadata);
@@ -73,6 +79,7 @@ pub fn get_metadata_payload(
         lineage_ids,
         connector_config,
         reference_id,
+        api_tag,
         shadow_mode,
         resource_id,
         environment,
@@ -270,6 +277,12 @@ pub fn reference_id_from_metadata(
     parse_optional_metadata(metadata, consts::X_REFERENCE_ID).map(|s| s.map(|s| s.to_string()))
 }
 
+pub fn api_tag_from_metadata(
+    metadata: &metadata::MetadataMap,
+) -> CustomResult<Option<String>, IntegrationError> {
+    parse_optional_metadata(metadata, consts::X_API_TAG).map(|s| s.map(|s| s.to_string()))
+}
+
 pub fn resource_id_from_metadata(
     metadata: &metadata::MetadataMap,
 ) -> CustomResult<Option<String>, IntegrationError> {
@@ -390,6 +403,14 @@ mod tests {
         let metadata = MetadataMap::new();
         let tenant_id = tenant_id_from_metadata(&metadata).expect("should not fail");
         assert_eq!(tenant_id, "public");
+    }
+
+    #[test]
+    fn api_tag_resolves_when_present() {
+        let mut metadata = MetadataMap::new();
+        metadata.insert(consts::X_API_TAG, "GW_INIT_COLLECT".parse().unwrap());
+        let api_tag = api_tag_from_metadata(&metadata).expect("should resolve");
+        assert_eq!(api_tag.as_deref(), Some("GW_INIT_COLLECT"));
     }
 
     #[test]

@@ -1,0 +1,14 @@
+disallowed-methods = [
+    { path = "common_utils::date_time::date_as_yyyymmddthhmmssmmmz", reason = "ART replay must use art_recorder::effects for deterministic timestamps" },
+    { path = "common_utils::date_time::now", reason = "ART replay must use art_recorder::effects for deterministic timestamps" },
+    { path = "common_utils::date_time::now_unix_timestamp", reason = "ART replay must use art_recorder::effects for deterministic timestamps" },
+    { path = "chrono::offset::utc::Utc::now", reason = "ART replay must use art_recorder::effects for deterministic timestamps" },
+    { path = "std::time::SystemTime::now", reason = "ART replay must use art_recorder::effects for deterministic timestamps" },
+    { path = "time::OffsetDateTime::now_utc", reason = "ART replay must use art_recorder::effects for deterministic timestamps" },
+    { path = "ucs_common_utils::date_time::date_as_yyyymmddthhmmssmmmz", reason = "ART replay must use art_recorder::effects for deterministic timestamps" },
+    { path = "ucs_common_utils::date_time::now", reason = "ART replay must use art_recorder::effects for deterministic timestamps" },
+    { path = "ucs_common_utils::date_time::now_unix_timestamp", reason = "ART replay must use art_recorder::effects for deterministic timestamps" },
+    { path = "uuid::Uuid::new_v4", reason = "ART replay must use art_recorder::effects::uuid_v4 for deterministic UUIDs" },
+    { path = "uuid::Uuid::now_v7", reason = "ART replay must use art_recorder::effects::uuid_v7 for deterministic UUIDs" },
+    { path = "rand::thread_rng", reason = "ART replay must use art_recorder::effects for deterministic random values" },
+]

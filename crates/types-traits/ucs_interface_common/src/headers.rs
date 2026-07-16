@@ -43,6 +43,7 @@ const HEADERS: &[&str] = &[
     consts::X_CONNECTOR_CONFIG,
     consts::X_RESOURCE_ID,
     consts::X_ENVIRONMENT,
+    consts::X_API_TAG,
 ];
 
 fn to_metadata_value(key: &str, value: &str) -> Result<MetadataValue<Ascii>, InterfaceError> {
@@ -76,4 +77,29 @@ pub fn headers_to_masked_metadata<H: HeaderSource>(
 ) -> Result<MaskedMetadata, InterfaceError> {
     let metadata = headers_to_metadata(headers)?;
     Ok(MaskedMetadata::new(metadata, masking_config))
+}
+
+#[cfg(test)]
+#[allow(clippy::expect_used)]
+mod tests {
+    use super::*;
+    use http::{HeaderMap, HeaderValue};
+
+    #[test]
+    fn headers_to_metadata_forwards_api_tag() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            consts::X_API_TAG,
+            HeaderValue::from_static("GW_INIT_COLLECT"),
+        );
+
+        let metadata = headers_to_metadata(&headers).expect("headers should convert");
+
+        assert_eq!(
+            metadata
+                .get(consts::X_API_TAG)
+                .and_then(|value| value.to_str().ok()),
+            Some("GW_INIT_COLLECT")
+        );
+    }
 }

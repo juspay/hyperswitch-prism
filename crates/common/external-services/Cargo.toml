@@ -45,6 +45,7 @@ hyper = "1.6.0"
 http-body = "1.0.1"
 domain_types = { path = "../../types-traits/domain_types" }
 interfaces = { path = "../../types-traits/interfaces" }
+art-recorder = { path = "../art-recorder" }
 common_utils = { path = "../common_utils", package = "ucs_common_utils", features = [
     "async_ext",
 ] }

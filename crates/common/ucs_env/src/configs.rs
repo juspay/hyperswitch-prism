@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -37,6 +37,8 @@ pub struct Config {
     #[serde(default)]
     pub test: TestConfig,
     #[serde(default)]
+    pub art_recording: ArtRecordingConfig,
+    #[serde(default)]
     pub api_tags: ApiTagConfig,
     #[serde(default)]
     pub webhook_source_verification_call: WebhookSourceVerificationCall,
@@ -47,6 +49,13 @@ pub struct Config {
     #[serde(skip)]
     #[patch(ignore)]
     pub superposition_config: Option<Arc<SuperpositionConfig>>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ArtFeature {
+    Disabled,
+    Replay,
+    Record,
 }
 
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
@@ -79,6 +88,30 @@ pub struct TestConfig {
     #[serde(default)]
     pub enabled: bool,
     pub mock_server_url: Option<String>,
+    #[serde(default)]
+    pub mock_server_protocol: MockServerProtocol,
+}
+
+/// Wire protocol expected by the configured test mock server.
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, config_patch_derive::Patch,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum MockServerProtocol {
+    /// Preserve the existing behavior: send the original connector HTTP request to mock_server_url.
+    #[default]
+    RawHttp,
+    /// Use art-upload's /mock API with a CallAPIEntryT request body and guuid session lookup.
+    ArtUpload,
+}
+
+impl From<MockServerProtocol> for external_services::service::TestMockServerProtocol {
+    fn from(protocol: MockServerProtocol) -> Self {
+        match protocol {
+            MockServerProtocol::RawHttp => Self::RawHttp,
+            MockServerProtocol::ArtUpload => Self::ArtUpload,
+        }
+    }
 }
 
 impl TestConfig {
@@ -99,9 +132,212 @@ impl TestConfig {
                     .map(|url| external_services::service::TestContext {
                         session_id: request_id.to_string(),
                         mock_server_url: url.clone(),
+                        protocol: self.mock_server_protocol.into(),
                     })
             })
             .transpose()
+    }
+}
+
+fn default_art_buffer_size_mb() -> u64 {
+    16
+}
+
+fn default_art_max_entries_per_session() -> usize {
+    10_000
+}
+
+fn default_art_kafka_topic() -> String {
+    "art-recordings".to_string()
+}
+
+#[derive(Clone, Deserialize, Debug, Serialize, PartialEq, config_patch_derive::Patch)]
+pub struct ArtRecordingConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_true")]
+    pub record_incoming_api: bool,
+    #[serde(default = "default_true")]
+    pub record_outgoing_http: bool,
+    #[serde(default = "default_true")]
+    pub record_effects: bool,
+    #[serde(default)]
+    pub encrypt_entries: bool,
+    pub aes_key: Option<String>,
+    pub aes_iv: Option<String>,
+    #[serde(default = "default_art_buffer_size_mb")]
+    pub max_buffer_size_mb: u64,
+    #[serde(default = "default_art_max_entries_per_session")]
+    pub max_entries_per_session: usize,
+    #[serde(default = "default_true")]
+    pub flush_async: bool,
+    #[serde(default)]
+    pub kafka_brokers: Vec<String>,
+    #[serde(default = "default_art_kafka_topic")]
+    pub kafka_topic: String,
+    #[serde(default)]
+    pub kafka_properties: HashMap<String, String>,
+}
+
+impl Default for ArtRecordingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            record_incoming_api: true,
+            record_outgoing_http: true,
+            record_effects: true,
+            encrypt_entries: false,
+            aes_key: None,
+            aes_iv: None,
+            max_buffer_size_mb: default_art_buffer_size_mb(),
+            max_entries_per_session: default_art_max_entries_per_session(),
+            flush_async: true,
+            kafka_brokers: Vec::new(),
+            kafka_topic: default_art_kafka_topic(),
+            kafka_properties: HashMap::new(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod test_config_tests {
+    use super::{ArtFeature, ArtRecordingConfig, Config, MockServerProtocol, TestConfig};
+
+    #[test]
+    fn create_test_context_returns_none_when_disabled() {
+        let config = TestConfig {
+            enabled: false,
+            mock_server_url: Some("http://localhost:3000/mockGateway".to_string()),
+            mock_server_protocol: MockServerProtocol::RawHttp,
+        };
+
+        let context = config
+            .create_test_context("req_disabled")
+            .expect("disabled test config should not error");
+
+        assert!(context.is_none());
+    }
+
+    #[test]
+    fn create_test_context_requires_mock_server_url_when_enabled() {
+        let config = TestConfig {
+            enabled: true,
+            mock_server_url: None,
+            mock_server_protocol: MockServerProtocol::RawHttp,
+        };
+
+        let error = config
+            .create_test_context("req_missing_url")
+            .expect_err("enabled test config without mock_server_url should error");
+
+        assert!(
+            error
+                .to_string()
+                .contains("Test mode enabled but mock_server_url is not set"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn create_test_context_uses_request_id_as_session_id() {
+        let config = TestConfig {
+            enabled: true,
+            mock_server_url: Some("http://localhost:3000/mockGateway".to_string()),
+            mock_server_protocol: MockServerProtocol::RawHttp,
+        };
+
+        let context = config
+            .create_test_context("req_art_replay_123")
+            .expect("valid test config should create context")
+            .expect("enabled test config should return context");
+
+        assert_eq!(context.session_id, "req_art_replay_123");
+        assert_eq!(context.mock_server_url, "http://localhost:3000/mockGateway");
+        assert_eq!(
+            context.protocol,
+            external_services::service::TestMockServerProtocol::RawHttp
+        );
+    }
+
+    #[test]
+    fn create_test_context_carries_mock_server_protocol() {
+        let config = TestConfig {
+            enabled: true,
+            mock_server_url: Some("http://localhost:8010".to_string()),
+            mock_server_protocol: MockServerProtocol::ArtUpload,
+        };
+
+        let context = config
+            .create_test_context("req_art_replay_123")
+            .expect("valid test config should create context")
+            .expect("enabled test config should return context");
+
+        assert_eq!(context.mock_server_url, "http://localhost:8010");
+        assert_eq!(
+            context.protocol,
+            external_services::service::TestMockServerProtocol::ArtUpload
+        );
+    }
+
+    fn config_with_art_modes(test_enabled: bool, recording_enabled: bool) -> Config {
+        let mut config = Config::new().expect("default config should load");
+        config.test = TestConfig {
+            enabled: test_enabled,
+            mock_server_url: Some("http://localhost:3000/mockGateway".to_string()),
+            mock_server_protocol: MockServerProtocol::RawHttp,
+        };
+        config.art_recording = ArtRecordingConfig {
+            enabled: recording_enabled,
+            ..Default::default()
+        };
+        config
+    }
+
+    #[test]
+    fn art_feature_is_disabled_when_replay_and_recording_are_disabled() {
+        let config = config_with_art_modes(false, false);
+
+        assert_eq!(config.art_feature(), ArtFeature::Disabled);
+        assert!(config
+            .create_art_replay_context("req_art_disabled")
+            .expect("disabled ART feature should not error")
+            .is_none());
+    }
+
+    #[test]
+    fn art_feature_uses_recording_when_only_recording_is_enabled() {
+        let config = config_with_art_modes(false, true);
+
+        assert_eq!(config.art_feature(), ArtFeature::Record);
+        assert!(config
+            .create_art_replay_context("req_art_record")
+            .expect("record ART feature should not create replay context")
+            .is_none());
+    }
+
+    #[test]
+    fn art_feature_uses_replay_when_test_config_is_enabled() {
+        let config = config_with_art_modes(true, false);
+
+        assert_eq!(config.art_feature(), ArtFeature::Replay);
+        let context = config
+            .create_art_replay_context("req_art_replay")
+            .expect("replay ART feature should create replay context")
+            .expect("replay context should exist");
+
+        assert_eq!(context.session_id, "req_art_replay");
+        assert_eq!(context.mock_server_url, "http://localhost:3000/mockGateway");
+    }
+
+    #[test]
+    fn art_feature_prefers_replay_when_replay_and_recording_are_enabled() {
+        let config = config_with_art_modes(true, true);
+
+        assert_eq!(config.art_feature(), ArtFeature::Replay);
+        assert!(config
+            .create_art_replay_context("req_art_replay_precedence")
+            .expect("replay ART feature should create replay context")
+            .is_some());
     }
 }
 
@@ -122,7 +358,7 @@ impl TestConfig {
 #[derive(Clone, Deserialize, Debug, Default, Serialize, PartialEq, config_patch_derive::Patch)]
 pub struct ApiTagConfig {
     #[serde(default)]
-    pub tags: std::collections::HashMap<String, String>,
+    pub tags: HashMap<String, String>,
 }
 
 impl ApiTagConfig {
@@ -322,6 +558,26 @@ impl WebhookSourceVerificationCall {
 }
 
 impl Config {
+    pub fn art_feature(&self) -> ArtFeature {
+        if self.test.enabled {
+            ArtFeature::Replay
+        } else if self.art_recording.enabled {
+            ArtFeature::Record
+        } else {
+            ArtFeature::Disabled
+        }
+    }
+
+    pub fn create_art_replay_context(
+        &self,
+        request_id: &str,
+    ) -> Result<Option<external_services::service::TestContext>, config::ConfigError> {
+        match self.art_feature() {
+            ArtFeature::Replay => self.test.create_test_context(request_id),
+            ArtFeature::Record | ArtFeature::Disabled => Ok(None),
+        }
+    }
+
     /// Function to build the configuration by picking it from default locations
     pub fn new() -> Result<Self, config::ConfigError> {
         Self::new_with_config_path(None)
@@ -346,6 +602,7 @@ impl Config {
                     .with_list_parse_key("database.tenants")
                     .with_list_parse_key("log.kafka.brokers")
                     .with_list_parse_key("events.brokers")
+                    .with_list_parse_key("art_recording.kafka_brokers")
                     .with_list_parse_key("connector_request_kafka.brokers")
                     .with_list_parse_key("unmasked_headers.keys"),
             )

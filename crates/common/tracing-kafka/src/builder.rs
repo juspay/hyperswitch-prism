@@ -1,6 +1,6 @@
 //! Builder pattern implementation for KafkaWriter
 
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use super::writer::{KafkaWriter, KafkaWriterError};
 
@@ -15,6 +15,7 @@ pub struct KafkaWriterBuilder {
     queue_buffering_max_kbytes: Option<usize>,
     reconnect_backoff_min_ms: Option<u64>,
     reconnect_backoff_max_ms: Option<u64>,
+    custom_config: HashMap<String, String>,
 }
 
 impl KafkaWriterBuilder {
@@ -72,6 +73,12 @@ impl KafkaWriterBuilder {
         self
     }
 
+    /// Sets arbitrary librdkafka producer configuration entries.
+    pub fn custom_config(mut self, custom_config: HashMap<String, String>) -> Self {
+        self.custom_config = custom_config;
+        self
+    }
+
     /// Builds the KafkaWriter with the configured settings
     pub fn build(self) -> Result<KafkaWriter, KafkaWriterError> {
         let brokers = self.brokers.ok_or_else(|| {
@@ -86,7 +93,7 @@ impl KafkaWriterBuilder {
             ))
         })?;
 
-        KafkaWriter::new(
+        KafkaWriter::new_with_config(
             brokers,
             topic,
             self.batch_size,
@@ -95,6 +102,30 @@ impl KafkaWriterBuilder {
             self.queue_buffering_max_kbytes,
             self.reconnect_backoff_min_ms,
             self.reconnect_backoff_max_ms,
+            self.custom_config,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::KafkaWriterBuilder;
+
+    #[test]
+    fn custom_config_stores_librdkafka_properties() {
+        let builder = KafkaWriterBuilder::new().custom_config(HashMap::from([(
+            "security.protocol".to_string(),
+            "SASL_SSL".to_string(),
+        )]));
+
+        assert_eq!(
+            builder
+                .custom_config
+                .get("security.protocol")
+                .map(String::as_str),
+            Some("SASL_SSL")
+        );
     }
 }

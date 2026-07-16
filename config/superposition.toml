@@ -41,6 +41,7 @@ events_partition_key_field = { value = "request_id", schema = { type = "string" 
 # Test configuration
 test_enabled = { value = false, schema = { type = "boolean" } }
 test_mock_server_url = { value = "http://localhost:3000/mockGateway", schema = { type = "string" } }
+test_mock_server_protocol = { value = "raw_http", schema = { type = "string" } }
 
 # Lineage configuration
 lineage_enabled = { value = false, schema = { type = "boolean" } }
@@ -79,6 +80,7 @@ events_static_values_message_log_type = { value = "", schema = { type = "string"
 
 # API tags (required for development overrides)
 api_tags_tags_psync = { value = "", schema = { type = "string" } }
+api_tags_tags_authorize_upicollect = { value = "", schema = { type = "string" } }
 
 [dimensions]
 # Environment dimension - determines which environment configuration to use
@@ -112,6 +114,7 @@ events_static_values_category = "OUTGOING_API"
 events_static_values_message_req_type = "EXTERNAL"
 events_static_values_message_log_type = "API_CALL"
 api_tags_tags_psync = "GW_TXN_SYNC"
+api_tags_tags_authorize_upicollect = "GW_INIT_COLLECT"
 proxy_bypass_urls = []
 
 [[overrides]]

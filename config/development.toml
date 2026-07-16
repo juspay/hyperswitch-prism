@@ -19,7 +19,7 @@ buffer_limit = 100000
 [server]
 host = "0.0.0.0"
 port = 8000
-type = "grpc"
+type = "http"
 
 [metrics]
 host = "0.0.0.0"
@@ -40,8 +40,22 @@ connector_request_timeout = 30
 bypass_urls = []
 
 [test]
+enabled = true
+mock_server_url = "http://localhost:8010"
+mock_server_protocol = "art_upload"
+
+
+[art_recording]
 enabled = false
-mock_server_url = "http://localhost:3000/mockGateway"
+record_incoming_api = true
+record_outgoing_http = true
+record_effects = true
+encrypt_entries = false
+max_buffer_size_mb = 16
+max_entries_per_session = 10000
+flush_async = true
+kafka_brokers = ["localhost:9092"]
+kafka_topic = "art-recordings"
 
 # API tag configuration for flow-based tagging
 # Supports both simple flow tags and payment-method-specific tags
@@ -52,6 +66,7 @@ mock_server_url = "http://localhost:3000/mockGateway"
 #
 [api_tags.tags]
 psync = "GW_TXN_SYNC"
+authorize_upicollect = "GW_INIT_COLLECT"
 
 # Connectors that require an external API call for webhook source verification
 [webhook_source_verification_call] # comma-separated list of connector names (case-insensitive)

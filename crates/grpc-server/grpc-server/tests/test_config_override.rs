@@ -589,6 +589,60 @@ mod unit {
     }
 
     #[test]
+    fn test_art_recording_config_override() {
+        let override_json = json!({
+            "art_recording": {
+                "enabled": true,
+                "record_incoming_api": false,
+                "record_outgoing_http": true,
+                "record_effects": true,
+                "encrypt_entries": true,
+                "aes_key": "0123456789abcdef0123456789abcdef",
+                "aes_iv": "abcdef9876543210",
+                "max_buffer_size_mb": 32,
+                "max_entries_per_session": 512,
+                "flush_async": false,
+                "kafka_brokers": ["localhost:9092", "localhost:9093"],
+                "kafka_topic": "art-recordings",
+                "kafka_properties": {
+                    "security.protocol": "SASL_SSL"
+                }
+            },
+        });
+        let new_config = apply_override(override_json);
+
+        assert!(new_config.art_recording.enabled);
+        assert!(!new_config.art_recording.record_incoming_api);
+        assert!(new_config.art_recording.record_outgoing_http);
+        assert!(new_config.art_recording.record_effects);
+        assert!(new_config.art_recording.encrypt_entries);
+        assert_eq!(
+            new_config.art_recording.aes_key.as_deref(),
+            Some("0123456789abcdef0123456789abcdef")
+        );
+        assert_eq!(
+            new_config.art_recording.aes_iv.as_deref(),
+            Some("abcdef9876543210")
+        );
+        assert_eq!(new_config.art_recording.max_buffer_size_mb, 32);
+        assert_eq!(new_config.art_recording.max_entries_per_session, 512);
+        assert!(!new_config.art_recording.flush_async);
+        assert_eq!(
+            new_config.art_recording.kafka_brokers,
+            vec!["localhost:9092".to_string(), "localhost:9093".to_string()]
+        );
+        assert_eq!(new_config.art_recording.kafka_topic, "art-recordings");
+        assert_eq!(
+            new_config
+                .art_recording
+                .kafka_properties
+                .get("security.protocol")
+                .map(String::as_str),
+            Some("SASL_SSL")
+        );
+    }
+
+    #[test]
     fn test_api_tags_override() {
         let override_json = json!({
             "api_tags": {
