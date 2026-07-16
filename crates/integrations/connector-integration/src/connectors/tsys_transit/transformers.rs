@@ -2451,23 +2451,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             splits: None,
         };
 
-        // A successful authorization (Authorized) settles no funds yet, so
-        // amount_captured must stay empty until an actual Sale/capture. Only a
-        // Sale (Charged) or a partial settlement carries a captured amount.
-        // Passing the cloned auth-flow value through made a manual-capture auth
-        // report amount_received == amount, which HS then treated as already
-        // captured and pushed voids/captures into a wrong partially-captured state.
-        let is_settled = matches!(
-            status,
-            AttemptStatus::Charged | AttemptStatus::PartialCharged
-        );
-        let amount_captured = is_settled
-            .then_some(router_data.resource_common_data.amount_captured)
-            .flatten();
-        let minor_amount_captured = is_settled
-            .then_some(router_data.resource_common_data.minor_amount_captured)
-            .flatten();
-
         Ok(Self {
             resource_common_data: PaymentFlowData {
                 status,
