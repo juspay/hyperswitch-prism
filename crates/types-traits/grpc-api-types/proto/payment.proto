@@ -110,6 +110,14 @@ message ConnectorErrorDetails {
   optional FlowStatus status = 5;
 }
 
+// The connector's reported status for this response: the code, message and
+// reason returned by the connector, when provided.
+message RawConnectorStatus {
+  optional string code = 1;    // Connector status/response code, e.g. "05"
+  optional string message = 2; // Status message, e.g. "Do not honor"
+  optional string reason = 3;  // Additional detail, when present
+}
+
 // Metadata consolidates all metadata types
 message Metadata {
   SecretString general = 1; // General metadata
@@ -2555,6 +2563,8 @@ message PaymentServiceAuthorizeResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 22;
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 23;
 }
 
 // Request message for synchronizing payment status
@@ -2687,6 +2697,8 @@ message PaymentServiceGetResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 35;
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 36;
 }
 
 // Request message for voiding a payment
@@ -2760,6 +2772,8 @@ message PaymentServiceVoidResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 14;
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 15;
 }
 
 // Request message for reversing a captured payment if not yet settled (similar
@@ -2991,6 +3005,8 @@ message PaymentServiceCaptureResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 15;
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 17;
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 16;
@@ -3151,6 +3167,8 @@ message RefundResponse {
   // Merchant's reference for the original payment/transaction the refund
   // belongs to
   optional string merchant_transaction_id = 24;
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 25;
 }
 
 // Request message for voiding/reversing a refund before settlement.
@@ -3379,6 +3397,8 @@ message PaymentServiceSetupRecurringResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 17;
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 19;
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 18;
@@ -3522,6 +3542,9 @@ message RecurringPaymentServiceChargeResponse {
   // PaymentServiceAuthorizeResponse.redirection_data so a redirected recurring
   // charge can surface a next_action to the buyer.
   optional RedirectForm redirection_data = 18;
+
+  // The connector's reported status (code/message/reason).
+  optional RawConnectorStatus raw_connector_status = 19;
 }
 
 // Request message for a mandate revoke operation

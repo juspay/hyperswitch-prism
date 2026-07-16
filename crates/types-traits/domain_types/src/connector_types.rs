@@ -691,6 +691,14 @@ pub enum SettlementStatus {
     NotSettled,
 }
 
+/// Connector's reported status: the raw code, message and reason as returned.
+#[derive(Debug, Clone, Default)]
+pub struct RawConnectorStatus {
+    pub code: Option<String>,
+    pub message: Option<String>,
+    pub reason: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentFlowData {
     pub merchant_id: common_utils::id_type::MerchantId,
@@ -743,6 +751,8 @@ pub struct PaymentFlowData {
     /// Lives on PaymentFlowData (not PaymentsSyncData) so other flows can
     /// populate it in the future if a connector starts reporting settlement state on authorize, capture, etc.
     pub settlement_status: Option<SettlementStatus>,
+    /// Raw status the connector returned (code/message/reason).
+    pub raw_connector_status: Option<RawConnectorStatus>,
 }
 
 impl PaymentFlowData {
@@ -2564,6 +2574,8 @@ pub struct RefundFlowData {
     /// Required by connectors (e.g. 2C2P PACO) that demand a per-request
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
+    /// Raw status the connector returned (code/message/reason) for the refund.
+    pub raw_connector_status: Option<RawConnectorStatus>,
 }
 
 impl RawConnectorRequestResponse for RefundFlowData {
