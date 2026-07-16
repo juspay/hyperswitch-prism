@@ -1984,12 +1984,12 @@ message ClientAuthenticationTokenData {
     // Connector SDKs — payment connector-specific SDKs for rendering payment forms
     ConnectorSpecificClientAuthenticationResponse connector_specific = 4;
     // Authenticator SDKs — account linking/verification flows
-    AuthenticatorSpecificClientAuthenticationResponse authenticator_specific = 5;
+    AuthenticatorConnectorSpecificClientAuthenticationResponse authenticator_specific = 5;
   }
 }
 
 // Generic authenticator connector-specific SDK session data — discriminated by connector
-message AuthenticatorSpecificClientAuthenticationResponse {
+message AuthenticatorConnectorSpecificClientAuthenticationResponse {
   oneof connector {
     PlaidClientAuthenticationResponse plaid = 1;
   }
