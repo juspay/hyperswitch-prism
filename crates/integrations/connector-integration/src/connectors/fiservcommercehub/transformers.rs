@@ -109,21 +109,30 @@ fn encrypt_card_data_no_cvc(
     key_id: String,
     public_key_der: &[u8],
 ) -> Result<EncryptedCardData, error_stack::Report<errors::IntegrationError>> {
-    let card_data = card.card_number.peek().to_string();
+    let card_data = card.card_number.get_card_no();
     let name_on_card = card
-        .card_holder_name
-        .as_ref()
-        .map(|n| n.peek().clone())
-        .ok_or(errors::IntegrationError::MissingRequiredField {
+        .get_cardholder_name()
+        .change_context(errors::IntegrationError::MissingRequiredField {
             field_name: "card_holder_name",
             context: errors::IntegrationErrorContext {
+                doc_url: Some(FISERV_PAYMENT_METHOD_ENCRYPTION_URL.to_string()),
+                suggested_action: Some(
+                    "Provide card_holder_name as it is required for card encryption".to_string(),
+                ),
                 additional_context: Some(
                     "card_holder_name is required for card encryption".to_string(),
                 ),
-                ..Default::default()
             },
-        })?;
-    let expiration_month = card.card_exp_month.peek().to_string();
+        })?
+        .peek()
+        .clone();
+    let expiration_month = card
+        .get_card_expiry_month_2_digit()
+        .change_context(errors::IntegrationError::RequestEncodingFailed {
+            context: Default::default(),
+        })?
+        .peek()
+        .to_string();
     let expiration_year = card.get_expiry_year_4_digit().peek().to_string();
 
     let plain_block = format!("{card_data}{name_on_card}{expiration_month}{expiration_year}");
