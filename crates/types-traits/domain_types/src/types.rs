@@ -13382,6 +13382,7 @@ impl
     ) -> Result<Self, error_stack::Report<Self::Error>> {
         let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
         Ok(Self {
+            raw_connector_status: None,
             merchant_id: merchant_id_from_header,
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
