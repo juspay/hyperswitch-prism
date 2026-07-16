@@ -3349,13 +3349,15 @@ impl ForeignTryFrom<grpc_api_types::payments::CardDetailsWithNoCvc>
             _ => Some(CardNetwork::foreign_try_from(card.card_network())?),
         };
         Ok(payment_method_data::CardWithNoCvc {
-            card_number: card.card_number.ok_or(IntegrationError::InvalidDataFormat {
-                field_name: "unknown",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Missing card number".to_string()),
-                    ..Default::default()
-                },
-            })?,
+            card_number: card
+                .card_number
+                .ok_or(IntegrationError::InvalidDataFormat {
+                    field_name: "unknown",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Missing card number".to_string()),
+                        ..Default::default()
+                    },
+                })?,
             card_exp_month: card
                 .card_exp_month
                 .ok_or(IntegrationError::InvalidDataFormat {

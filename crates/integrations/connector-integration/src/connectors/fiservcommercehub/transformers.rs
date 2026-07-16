@@ -649,8 +649,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 )
             }
             PaymentMethodData::CardWithNoCvc(card) => {
-                let encrypted_card =
-                    encrypt_card_data_no_cvc(card, key_id, &public_key_der)?;
+                let encrypted_card = encrypt_card_data_no_cvc(card, key_id, &public_key_der)?;
 
                 let stored_credentials =
                     if router_data.request.is_customer_initiated_mandate_payment() {
@@ -1955,8 +1954,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })
             }
             PaymentMethodData::CardWithNoCvc(card) => {
-                let encrypted_card =
-                    encrypt_card_data_no_cvc(card, key_id, &public_key_der)?;
+                let encrypted_card = encrypt_card_data_no_cvc(card, key_id, &public_key_der)?;
 
                 FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
                     encryption_data: FiservcommercehubEncryptionData {
