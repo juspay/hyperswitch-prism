@@ -8571,7 +8571,7 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                    message: value.error_message.clone(),
+                    message: value.error_message,
                     code: value.error_code,
                     reason: None,
                     connector_transaction_id: None,
@@ -9160,8 +9160,8 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                    message: value.error_message.clone(),
-                    code: value.error_code.clone(),
+                    message: value.error_message,
+                    code: value.error_code,
                     reason: None,
                     connector_transaction_id: None,
                     status: None,
@@ -13169,24 +13169,20 @@ impl ForeignTryFrom<grpc_api_types::payments::CustomerServiceGetRequest> for Con
     fn foreign_try_from(
         value: grpc_api_types::payments::CustomerServiceGetRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        // Get requests carry identity fields inside the nested `customer` message.
-        // Each connector's GetConnectorCustomer flow picks which field it looks up
-        // by (Glomopay uses email; other connectors may use connector_customer_id).
-        let customer = value.customer;
-        let email = customer
-            .as_ref()
-            .and_then(|c| c.email.clone())
+        // Get requests carry identity fields flat at the top level. Each
+        // connector's GetConnectorCustomer flow picks which one it uses —
+        // Glomopay uses `email`; other connectors may use connector_customer_id.
+        let email = value
+            .email
             .and_then(|email_str| Email::try_from(email_str.expose()).ok());
-        let name = customer.as_ref().and_then(|c| c.name.clone());
-        let phone = customer.as_ref().and_then(|c| c.phone_number.clone());
 
         Ok(Self {
             customer_id: value.merchant_customer_id.map(Secret::new),
             email: email.map(Secret::new),
-            name: name.map(Secret::new),
+            name: None,
             description: None,
             split_payments: None,
-            phone: phone.map(|p| Secret::new(p.expose())),
+            phone: value.phone_number,
             preprocessing_id: None,
         })
     }
@@ -13219,12 +13215,7 @@ impl
             auth_type: common_enums::AuthenticationType::default(),
             connector_request_reference_id: value.merchant_customer_id.unwrap_or_default(),
             customer_id: None,
-            connector_customer: value.connector_customer_id.clone().or_else(|| {
-                value
-                    .customer
-                    .as_ref()
-                    .and_then(|c| c.connector_customer_id.clone())
-            }),
+            connector_customer: value.connector_customer_id.clone(),
             description: None,
             return_url: None,
             connector_feature_data: None,

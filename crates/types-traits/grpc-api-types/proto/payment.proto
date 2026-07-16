@@ -4376,15 +4376,15 @@ message CustomerServiceGetRequest {
   // Identification
   optional string merchant_customer_id = 1;
 
-  // Connector-assigned customer ID, when known. Optional because callers may
-  // instead identify the customer via `customer` fields (e.g. lookup by email).
+  // Customer Information — connector-side ID (kept optional; callers doing
+  // lookup-by-email won't have this yet and shouldn't be forced to send a
+  // placeholder empty string).
   optional string connector_customer_id = 2;
 
-  // Customer identity fields the connector can look up by (email, phone, name,
-  // connector_customer_id, etc.). The connector's GetConnectorCustomer flow
-  // picks which field it uses — Glomopay uses `email`, other connectors may
-  // key off `connector_customer_id` or other identifiers.
-  optional Customer customer = 3;
+  // Identity fields the connector can look up by. The connector's
+  // GetConnectorCustomer flow picks which one it uses — Glomopay uses `email`.
+  optional SecretString email = 3;         // Email address of the customer
+  optional SecretString phone_number = 4;  // Phone number of the customer
 }
 
 // Response message for getting a customer

@@ -1,8 +1,8 @@
 use common_utils::events::FlowName;
 use domain_types::connector_flow::{
-    Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateOrder,
-    DefendDispute, GetConnectorCustomer, IncrementalAuthorization, MandateRevoke, PSync,
-    PaymentMethodEligibility, PaymentMethodToken, PayoutCreate, PayoutCreateLink,
+    Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
+    CreateOrder, DefendDispute, GetConnectorCustomer, IncrementalAuthorization, MandateRevoke,
+    PSync, PaymentMethodEligibility, PaymentMethodToken, PayoutCreate, PayoutCreateLink,
     PayoutCreateRecipient, PayoutEnrollDisburseAccount, PayoutGet, PayoutStage, PayoutTransfer,
     PayoutVoid, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
     ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence, Void, VoidPC,
@@ -85,6 +85,8 @@ where
         FlowName::PaymentMethodEligibility
     } else if type_id == std::any::TypeId::of::<GetConnectorCustomer>() {
         FlowName::GetConnectorCustomer
+    } else if type_id == std::any::TypeId::of::<CreateConnectorCustomer>() {
+        FlowName::CreateConnectorCustomer
     } else {
         tracing::warn!("Unknown flow marker type: {}", std::any::type_name::<F>());
         FlowName::Unknown

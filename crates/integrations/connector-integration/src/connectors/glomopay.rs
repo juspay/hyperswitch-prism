@@ -446,7 +446,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         true
     }
 
-    fn should_lookup_connector_customer(&self) -> bool {
+    fn should_get_connector_customer(&self) -> bool {
         true
     }
 }

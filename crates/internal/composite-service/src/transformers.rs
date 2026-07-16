@@ -4,7 +4,8 @@ use grpc_api_types::payments::{
     CompositePaymentMethodCreateRequest, CompositePaymentMethodGetRequest,
     CompositePaymentMethodRechargeRequest, CompositeRefundGetRequest, CompositeRefundRequest,
     CompositeVerifyRedirectResponseRequest, CompositeVoidRequest, ConnectorState,
-    CustomerServiceCreateRequest, CustomerServiceCreateResponse,
+    CustomerServiceCreateRequest, CustomerServiceCreateResponse, CustomerServiceGetRequest,
+    CustomerServiceGetResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -29,6 +30,36 @@ use crate::utils::{
 
 pub trait ForeignFrom<F>: Sized {
     fn foreign_from(item: F) -> Self;
+}
+
+pub trait ForeignTryFrom<F>: Sized {
+    type Error;
+    fn foreign_try_from(item: F) -> Result<Self, Self::Error>;
+}
+
+/// Convert a `CustomerServiceGetResponse` into a create-shaped response for
+/// downstream callers that expect `CustomerServiceCreateResponse`. Returns
+/// `Err(())` when the get response carries no customer with a
+/// `connector_customer_id` — caller should treat that as "not found on
+/// connector" and fall through to CREATE.
+impl ForeignTryFrom<CustomerServiceGetResponse> for CustomerServiceCreateResponse {
+    type Error = ();
+
+    fn foreign_try_from(get_response: CustomerServiceGetResponse) -> Result<Self, Self::Error> {
+        let connector_customer_id = get_response
+            .customer
+            .as_ref()
+            .and_then(|c| c.connector_customer_id.clone())
+            .ok_or(())?;
+
+        Ok(Self {
+            merchant_customer_id: get_response.merchant_customer_id,
+            connector_customer_id,
+            error: None,
+            status_code: get_response.status_code,
+            response_headers: get_response.response_headers,
+        })
+    }
 }
 
 impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorVariant)>
@@ -153,6 +184,30 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceCreateRequest {
             connector_feature_data: item.connector_feature_data.clone(),
             test_mode: item.test_mode,
             split_payments: item.split_payments.clone(),
+        }
+    }
+}
+
+/// Build a `CustomerServiceGetRequest` for a lookup-before-create flow.
+/// Only carries identity fields — the connector's `GetConnectorCustomer`
+/// implementation picks which one to look up by (Glomopay uses email).
+impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceGetRequest {
+    fn foreign_from(item: &CompositeAuthorizeRequest) -> Self {
+        let customer = item.customer.as_ref();
+        Self {
+            merchant_customer_id: item
+                .merchant_customer_id
+                .clone()
+                .or_else(|| customer.and_then(|c| c.id.clone())),
+            connector_customer_id: None,
+            email: item
+                .email
+                .clone()
+                .or_else(|| customer.and_then(|c| c.email.clone())),
+            phone_number: item
+                .phone_number
+                .clone()
+                .or_else(|| customer.and_then(|c| c.phone_number.clone())),
         }
     }
 }

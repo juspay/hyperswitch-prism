@@ -211,7 +211,7 @@ pub trait ValidationTrait: ConnectorCommon {
         false
     }
 
-    fn should_lookup_connector_customer(&self) -> bool {
+    fn should_get_connector_customer(&self) -> bool {
         false
     }
 
