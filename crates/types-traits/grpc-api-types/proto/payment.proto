@@ -4303,7 +4303,7 @@ message BankAccount {
   optional BankHolderType bank_holder_type = 4;  // Bank holder type
   optional Money balance = 5;                    // Current balance
   optional Money available_balance = 6;          // Available balance
-  oneof account_details {                        // account details details discriminated by region
+  oneof account_details {                        // Account details discriminated by region
     BankAccountDetailsAch ach = 7;               // US ACH
     BankAccountDetailsBacs bacs = 8;             // UK BACS
     BankAccountDetailsSepa sepa = 9;             // EU SEPA
