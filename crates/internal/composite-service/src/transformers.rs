@@ -198,16 +198,24 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceGetRequest {
             merchant_customer_id: item
                 .merchant_customer_id
                 .clone()
-                .or_else(|| customer.and_then(|c| c.id.clone())),
-            connector_customer_id: None,
+                .or_else(|| customer.and_then(|customer_data| customer_data.id.clone())),
+            connector_customer_id: item
+                .state
+                .as_ref()
+                .and_then(|state| state.connector_customer_id.clone())
+                .or_else(|| {
+                    customer.and_then(|customer_data| customer_data.connector_customer_id.clone())
+                }),
             email: item
                 .email
                 .clone()
-                .or_else(|| customer.and_then(|c| c.email.clone())),
+                .or_else(|| customer.and_then(|customer_data| customer_data.email.clone())),
             phone_number: item
                 .phone_number
                 .clone()
-                .or_else(|| customer.and_then(|c| c.phone_number.clone())),
+                .or_else(|| {
+                    customer.and_then(|customer_data| customer_data.phone_number.clone())
+                }),
         }
     }
 }

@@ -398,11 +398,12 @@ impl CustomerService for Customer {
         tonic::Response<grpc_api_types::payments::CustomerServiceCreateResponse>,
         tonic::Status,
     > {
+        info!("CREATE_CONNECTOR_CUSTOMER_FLOW: initiated");
         let service_name = request
             .extensions()
             .get::<String>()
             .cloned()
-            .unwrap_or_else(|| "PaymentService".to_string());
+            .unwrap_or_else(|| "CustomerService".to_string());
         let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,
@@ -442,11 +443,12 @@ impl CustomerService for Customer {
         request: tonic::Request<grpc_api_types::payments::CustomerServiceGetRequest>,
     ) -> Result<tonic::Response<grpc_api_types::payments::CustomerServiceGetResponse>, tonic::Status>
     {
+        info!("GET_CONNECTOR_CUSTOMER_FLOW: initiated");
         let service_name = request
             .extensions()
             .get::<String>()
             .cloned()
-            .unwrap_or_else(|| "PaymentService".to_string());
+            .unwrap_or_else(|| "CustomerService".to_string());
         let config = get_config_from_request(&request).into_grpc_status()?;
         grpc_logging_wrapper(
             request,

@@ -4399,13 +4399,8 @@ message CustomerServiceGetRequest {
   // Identification
   optional string merchant_customer_id = 1;
 
-  // Customer Information — connector-side ID (kept optional; callers doing
-  // lookup-by-email won't have this yet and shouldn't be forced to send a
-  // placeholder empty string).
+  // Customer Information
   optional string connector_customer_id = 2;
-
-  // Identity fields the connector can look up by. The connector's
-  // GetConnectorCustomer flow picks which one it uses — Glomopay uses `email`.
   optional SecretString email = 3;         // Email address of the customer
   optional SecretString phone_number = 4;  // Phone number of the customer
 }

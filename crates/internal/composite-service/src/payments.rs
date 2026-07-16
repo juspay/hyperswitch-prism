@@ -374,7 +374,7 @@ where
     /// Returns `Found(response)` when the connector confirms an existing
     /// customer with an ID; returns `NotFound` on any lookup failure or
     /// empty result — caller should fall through to CREATE in that case.
-    async fn try_lookup_existing_connector_customer(
+    async fn get_connector_customer(
         &self,
         payload: &CompositeAuthorizeRequest,
         metadata: &tonic::metadata::MetadataMap,
@@ -421,20 +421,23 @@ where
             // Try lookup first for connectors that support get-or-create
             // semantics (e.g. Glomopay). If the customer already exists on
             // the connector, reuse that ID instead of hitting CREATE.
-            let existing = if connector_data.connector.should_get_connector_customer() {
-                match self
-                    .try_lookup_existing_connector_customer(payload, metadata, extensions)
-                    .await
-                {
-                    ConnectorCustomerLookup::Found(existing) => Some(existing),
-                    ConnectorCustomerLookup::NotFound => None,
-                }
-            } else {
-                None
-            };
+            let existing_customer_response =
+                if connector_data.connector.should_get_connector_customer() {
+                    match self
+                        .get_connector_customer(payload, metadata, extensions)
+                        .await
+                    {
+                        ConnectorCustomerLookup::Found(customer_response) => {
+                            Some(customer_response)
+                        }
+                        ConnectorCustomerLookup::NotFound => None,
+                    }
+                } else {
+                    None
+                };
 
-            let response = match existing {
-                Some(x) => x,
+            let customer_response = match existing_customer_response {
+                Some(customer_response) => customer_response,
                 None => {
                     let create_customer_payload =
                         grpc_api_types::payments::CustomerServiceCreateRequest::foreign_from(
@@ -450,7 +453,7 @@ where
                         .into_inner()
                 }
             };
-            Some(response)
+            Some(customer_response)
         } else {
             None
         };
