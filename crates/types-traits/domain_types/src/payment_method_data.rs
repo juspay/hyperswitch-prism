@@ -100,7 +100,10 @@ impl CardWithNoCvc {
         Ok(Secret::new(format!("{}{}", month.peek(), year.peek())))
     }
 
-    pub fn get_expiry_date_as_yyyymm(&self, delimiter: &str) -> Result<Secret<String>, IntegrationError> {
+    pub fn get_expiry_date_as_yyyymm(
+        &self,
+        delimiter: &str,
+    ) -> Result<Secret<String>, IntegrationError> {
         let year = self.get_expiry_year_4_digit();
         let month = self.get_card_expiry_month_2_digit()?;
         Ok(Secret::new(format!(
