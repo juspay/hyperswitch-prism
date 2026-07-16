@@ -249,10 +249,6 @@ impl EventService for EventServiceImpl {
                         .connector
                         .get_webhook_integrity_checks();
 
-                    let requires_payment_sync = connector_data
-                        .connector
-                        .should_psync_after_webhook();
-
                     let mut response = connector_integration::webhook_utils::process_webhook_event(
                         connector_data,
                         request_details,
@@ -268,8 +264,6 @@ impl EventService for EventServiceImpl {
                         .into_iter()
                         .map(|c| i32::from(ProtoIntegrityCheck::foreign_from(c)))
                         .collect();
-
-                    response.requires_payment_sync = requires_payment_sync;
 
                     Ok(tonic::Response::new(response))
                 })

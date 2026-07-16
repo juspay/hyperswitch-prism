@@ -360,19 +360,15 @@ fn build_customer_event_params<'a>(
     }
 }
 
-/// Outcome of a connector-side customer lookup. `Found` means the connector
-/// returned an existing customer we can reuse; `NotFound` covers both the
-/// clean "no such customer" response and infra errors on the GET call — the
-/// caller falls through to POST create in either case.
-enum ConnectorCustomerLookup {
-    Found(grpc_api_types::payments::CustomerServiceCreateResponse),
-    NotFound,
-}
-
-/// For connectors that require lookup-before-create (e.g. Glomopay, which
-/// rejects duplicate emails), run GET to search for an existing customer.
-/// Callers must gate this on `connector.should_lookup_connector_customer()`
-/// themselves; this function assumes the connector supports the flow.
+/// Runs the connector's GET customer flow. Callers must gate this on
+/// `connector.should_lookup_connector_customer()` themselves.
+///
+/// Returns the `CustomerServiceGetResponse` regardless of found / not-found —
+/// callers inspect `response.customer` and `response.error` to distinguish.
+/// The connector-side transformer maps "no customer with that email" to an
+/// `Err` inside the router data, which surfaces here as a response with an
+/// `error` populated (and `customer` = None). Callers treat both this
+/// "not-found" case and any infra failure as "fall through to POST create".
 #[allow(clippy::too_many_arguments)]
 async fn internal_get_connector_customer(
     connector_data: &ConnectorData<DefaultPCIHolder>,
@@ -386,7 +382,7 @@ async fn internal_get_connector_customer(
     lineage_ids: &lineage::LineageIds<'_>,
     metadata_payload: &utils::MetadataPayload,
     test_context: Option<external_services::service::TestContext>,
-) -> Result<ConnectorCustomerLookup, tonic::Status> {
+) -> Result<grpc_api_types::payments::CustomerServiceGetResponse, tonic::Status> {
     let get_integration: BoxedConnectorIntegrationV2<
         '_,
         GetConnectorCustomer,
@@ -416,7 +412,7 @@ async fn internal_get_connector_customer(
         .api_tags
         .get_tag(FlowName::GetConnectorCustomer, None);
 
-    let call_result = Box::pin(
+    let get_result = Box::pin(
         external_services::service::execute_connector_processing_step(
             &config.proxy,
             get_integration,
@@ -429,18 +425,10 @@ async fn internal_get_connector_customer(
             get_api_tag,
         ),
     )
-    .await;
+    .await
+    .map_err(|e| e.into_grpc_status())?;
 
-    match call_result {
-        Ok(get_result) if get_result.response.is_ok() => {
-            let lookup_response = generate_get_connector_customer_response(get_result)
-                .map_err(|e| e.into_grpc_status())?;
-            Ok(ConnectorCustomerLookup::Found(lookup_response))
-        }
-        // GET returned Err (e.g. CUSTOMER_NOT_FOUND) OR infra error —
-        // caller falls through to POST create.
-        _ => Ok(ConnectorCustomerLookup::NotFound),
-    }
+    generate_get_connector_customer_response(get_result).map_err(|e| e.into_grpc_status())
 }
 
 /// Execute the POST create for a connector customer.
@@ -589,52 +577,123 @@ impl CustomerService for Customer {
                             tonic::Status::internal(format!("Test mode configuration error: {e}"))
                         })?;
 
-                    // For connectors that require a lookup before create (e.g. Glomopay which
-                    // rejects duplicate emails), first run GET to search for an existing customer.
-                    // Skip the lookup entirely for connectors that don't advertise support.
-                    let existing_customer =
-                        if connector_data.connector.should_lookup_connector_customer() {
-                            match internal_get_connector_customer(
-                                &connector_data,
-                                &payment_flow_data,
-                                connector_config,
-                                &connector_customer_request_data,
-                                &metadata_payload.connector,
-                                &service_name,
-                                &config,
-                                &metadata_payload.request_id,
-                                &metadata_payload.lineage_ids,
-                                &metadata_payload,
-                                test_context.clone(),
-                            )
-                            .await?
-                            {
-                                ConnectorCustomerLookup::Found(x) => Some(x),
-                                ConnectorCustomerLookup::NotFound => None,
-                            }
-                        } else {
-                            None
-                        };
+                    // Core `Create` performs only the create call. Callers that want
+                    // get-or-create semantics (e.g. Glomopay) orchestrate GET + CREATE
+                    // through the composite layer.
+                    let customer_response = internal_create_connector_customer(
+                        &connector_data,
+                        &payment_flow_data,
+                        connector_config,
+                        &connector_customer_request_data,
+                        &metadata_payload.connector,
+                        &service_name,
+                        &config,
+                        &metadata_payload.request_id,
+                        &metadata_payload.lineage_ids,
+                        &metadata_payload,
+                        test_context,
+                    )
+                    .await?;
 
-                    let customer_response = match existing_customer {
-                        Some(x) => x,
-                        None => {
-                            internal_create_connector_customer(
-                                &connector_data,
-                                &payment_flow_data,
-                                connector_config,
-                                &connector_customer_request_data,
-                                &metadata_payload.connector,
-                                &service_name,
-                                &config,
-                                &metadata_payload.request_id,
-                                &metadata_payload.lineage_ids,
-                                &metadata_payload,
-                                test_context,
-                            )
-                            .await?
-                        }
-                    };
+                    Ok(tonic::Response::new(customer_response))
+                })
+            },
+        )
+        .await
+    }
+
+    #[tracing::instrument(
+        name = "get",
+        fields(
+            name = common_utils::consts::NAME,
+            service_name = common_utils::consts::PAYMENT_SERVICE_NAME,
+            service_method = FlowName::GetConnectorCustomer.as_str(),
+            request_body = tracing::field::Empty,
+            response_body = tracing::field::Empty,
+            error_message = tracing::field::Empty,
+            merchant_id = tracing::field::Empty,
+            gateway = tracing::field::Empty,
+            request_id = tracing::field::Empty,
+            status_code = tracing::field::Empty,
+            message_ = "Golden Log Line (incoming)",
+            response_time = tracing::field::Empty,
+            tenant_id = tracing::field::Empty,
+            flow = FlowName::GetConnectorCustomer.as_str(),
+            flow_specific_fields.status = tracing::field::Empty,
+        ),
+        skip(self, request)
+    )]
+    async fn get(
+        &self,
+        request: tonic::Request<grpc_api_types::payments::CustomerServiceGetRequest>,
+    ) -> Result<
+        tonic::Response<grpc_api_types::payments::CustomerServiceGetResponse>,
+        tonic::Status,
+    > {
+        info!("GET_CONNECTOR_CUSTOMER_FLOW: initiated");
+        let service_name = request
+            .extensions()
+            .get::<String>()
+            .cloned()
+            .unwrap_or_else(|| "PaymentService".to_string());
+        let config = get_config_from_request(&request)?;
+        grpc_logging_wrapper(
+            request,
+            &service_name,
+            config.clone(),
+            FlowName::GetConnectorCustomer,
+            |request_data| {
+                let service_name = service_name.clone();
+                let config = config.clone();
+                Box::pin(async move {
+                    let payload = request_data.payload;
+                    let metadata_payload = request_data.extracted_metadata;
+                    let connector_config = &metadata_payload.connector_config;
+
+                    let connector_data: ConnectorData<DefaultPCIHolder> =
+                        ConnectorData::from_connector_variant(&metadata_payload.connector)
+                            .ok_or_else(|| {
+                                tonic::Status::invalid_argument("Invalid Connector Received")
+                            })?;
+
+                    let connectors = utils::connectors_with_connector_config_overrides(
+                        connector_config,
+                        &config,
+                    )
+                    .into_grpc_status()?;
+
+                    let payment_flow_data = PaymentFlowData::foreign_try_from((
+                        payload.clone(),
+                        connectors,
+                        &request_data.masked_metadata,
+                    ))
+                    .map_err(|e| e.into_grpc_status())?;
+
+                    let connector_customer_request_data =
+                        ConnectorCustomerData::foreign_try_from(payload.clone())
+                            .into_grpc_status()?;
+
+                    let test_context = config
+                        .test
+                        .create_test_context(&metadata_payload.request_id)
+                        .map_err(|e| {
+                            tonic::Status::internal(format!("Test mode configuration error: {e}"))
+                        })?;
+
+                    let customer_response = internal_get_connector_customer(
+                        &connector_data,
+                        &payment_flow_data,
+                        connector_config,
+                        &connector_customer_request_data,
+                        &metadata_payload.connector,
+                        &service_name,
+                        &config,
+                        &metadata_payload.request_id,
+                        &metadata_payload.lineage_ids,
+                        &metadata_payload,
+                        test_context,
+                    )
+                    .await?;
 
                     Ok(tonic::Response::new(customer_response))
                 })

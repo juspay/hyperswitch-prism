@@ -256,13 +256,6 @@ pub trait ValidationTrait: ConnectorCommon {
     fn requires_authorize_post_redirect(&self) -> bool {
         false
     }
-
-    /// Returns true if a PSync call must be made after receiving a webhook
-    /// before the payment status is trusted. Use for connectors that send
-    /// unsigned webhooks where the payload cannot be verified cryptographically.
-    fn should_psync_after_webhook(&self) -> bool {
-        false
-    }
 }
 
 pub trait PaymentOrderCreate:

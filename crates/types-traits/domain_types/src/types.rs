@@ -13163,6 +13163,103 @@ impl
     }
 }
 
+impl ForeignTryFrom<grpc_api_types::payments::CustomerServiceGetRequest>
+    for ConnectorCustomerData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        value: grpc_api_types::payments::CustomerServiceGetRequest,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        // Get requests carry identity fields inside the nested `customer` message.
+        // Each connector's GetConnectorCustomer flow picks which field it looks up
+        // by (Glomopay uses email; other connectors may use connector_customer_id).
+        let customer = value.customer;
+        let email = customer
+            .as_ref()
+            .and_then(|c| c.email.clone())
+            .and_then(|email_str| Email::try_from(email_str.expose()).ok());
+        let name = customer.as_ref().and_then(|c| c.name.clone());
+        let phone = customer.as_ref().and_then(|c| c.phone_number.clone());
+
+        Ok(Self {
+            customer_id: value.merchant_customer_id.map(Secret::new),
+            email: email.map(Secret::new),
+            name: name.map(Secret::new),
+            description: None,
+            split_payments: None,
+            phone: phone.map(|p| Secret::new(p.expose())),
+            preprocessing_id: None,
+        })
+    }
+}
+
+impl
+    ForeignTryFrom<(
+        grpc_api_types::payments::CustomerServiceGetRequest,
+        Connectors,
+        &MaskedMetadata,
+    )> for PaymentFlowData
+{
+    type Error = IntegrationError;
+
+    fn foreign_try_from(
+        (value, connectors, metadata): (
+            grpc_api_types::payments::CustomerServiceGetRequest,
+            Connectors,
+            &MaskedMetadata,
+        ),
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let merchant_id_from_header = extract_merchant_id_from_metadata(metadata)?;
+        Ok(Self {
+            merchant_id: merchant_id_from_header,
+            payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
+            attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
+            status: common_enums::AttemptStatus::Pending,
+            payment_method: PaymentMethod::Card,
+            address: PaymentAddress::default(),
+            auth_type: common_enums::AuthenticationType::default(),
+            connector_request_reference_id: value.merchant_customer_id.unwrap_or_default(),
+            customer_id: None,
+            connector_customer: value.connector_customer_id.clone().or_else(|| {
+                value
+                    .customer
+                    .as_ref()
+                    .and_then(|c| c.connector_customer_id.clone())
+            }),
+            description: None,
+            return_url: None,
+            connector_feature_data: None,
+            amount_captured: None,
+            minor_amount_captured: None,
+            minor_amount_capturable: None,
+            amount: None,
+            access_token: None,
+            session_token: None,
+            reference_id: None,
+            connector_order_id: None,
+            preprocessing_id: None,
+            connector_api_version: None,
+            test_mode: None,
+            connector_http_status_code: None,
+            external_latency: None,
+            connectors,
+            raw_connector_response: None,
+            raw_connector_request: None,
+            connector_response_headers: None,
+            vault_headers: None,
+            connector_response: None,
+            recurring_mandate_payment_data: None,
+            order_details: None,
+            minor_amount_authorized: None,
+            merchant_request_id: None,
+            l2_l3_data: None,
+            sender_payment_instrument_id: None,
+            settlement_status: None,
+        })
+    }
+}
+
 pub fn generate_create_connector_customer_response(
     router_data_v2: RouterDataV2<
         CreateConnectorCustomer,
@@ -13213,13 +13310,16 @@ pub fn generate_get_connector_customer_response(
         ConnectorCustomerData,
         crate::connector_types::ConnectorCustomerResponse,
     >,
-) -> Result<grpc_payment_types::CustomerServiceCreateResponse, error_stack::Report<ConnectorError>>
+) -> Result<grpc_payment_types::CustomerServiceGetResponse, error_stack::Report<ConnectorError>>
 {
     let customer_response = router_data_v2.response;
 
     match customer_response {
-        Ok(response) => Ok(grpc_payment_types::CustomerServiceCreateResponse {
-            connector_customer_id: response.connector_customer_id.clone(),
+        Ok(response) => Ok(grpc_payment_types::CustomerServiceGetResponse {
+            customer: Some(grpc_payment_types::Customer {
+                connector_customer_id: Some(response.connector_customer_id.clone()),
+                ..Default::default()
+            }),
             error: None,
             status_code: response.status_code as u32,
             response_headers: router_data_v2
@@ -13227,8 +13327,8 @@ pub fn generate_get_connector_customer_response(
                 .get_connector_response_headers_as_map(),
             merchant_customer_id: Some(response.connector_customer_id.clone()),
         }),
-        Err(e) => Ok(grpc_payment_types::CustomerServiceCreateResponse {
-            connector_customer_id: String::new(),
+        Err(e) => Ok(grpc_payment_types::CustomerServiceGetResponse {
+            customer: None,
             status_code: e.status_code as u32,
             response_headers: router_data_v2
                 .resource_common_data

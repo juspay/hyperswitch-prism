@@ -1666,10 +1666,6 @@ message EventServiceHandleResponse {
 
   // Integrity fields that downstream can use to verify the webhook payload.
   repeated IntegrityCheck supported_integrity_checks = 6;
-
-  // If true, caller must perform a PSync before trusting the webhook status.
-  // Set for connectors that send unsigned webhooks (e.g. Glomopay).
-  bool requires_payment_sync = 7;
 }
 
 // Request for notifying connectors about events
@@ -4380,8 +4376,15 @@ message CustomerServiceGetRequest {
   // Identification
   optional string merchant_customer_id = 1;
 
-  // Customer Information
-  string connector_customer_id = 2;
+  // Connector-assigned customer ID, when known. Optional because callers may
+  // instead identify the customer via `customer` fields (e.g. lookup by email).
+  optional string connector_customer_id = 2;
+
+  // Customer identity fields the connector can look up by (email, phone, name,
+  // connector_customer_id, etc.). The connector's GetConnectorCustomer flow
+  // picks which field it uses — Glomopay uses `email`, other connectors may
+  // key off `connector_customer_id` or other identifiers.
+  optional Customer customer = 3;
 }
 
 // Response message for getting a customer

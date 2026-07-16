@@ -449,10 +449,6 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     fn should_lookup_connector_customer(&self) -> bool {
         true
     }
-
-    fn should_psync_after_webhook(&self) -> bool {
-        true
-    }
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -477,11 +473,10 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         _connector_webhook_secret: Option<domain_types::connector_types::ConnectorWebhookSecrets>,
         _connector_account_details: Option<ConnectorSpecificConfig>,
     ) -> Result<bool, error_stack::Report<WebhookError>> {
-        // Glomopay does not include a signature/HMAC header on its webhooks
-        //  Hardcode to false so callers know the webhook is
-        // untrusted; `should_psync_after_webhook = true` above ensures a
-        // follow-up authenticated PSync confirms the payload before it
-        // drives any terminal state change.
+        // Glomopay does not include a signature/HMAC header on its webhooks.
+        // Hardcode to false so callers see the webhook as unverified and
+        // trigger a follow-up authenticated PSync before acting on any
+        // terminal state change.
         Ok(false)
     }
 

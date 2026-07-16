@@ -13,7 +13,8 @@ use grpc_api_types::payments::{
     CompositeAuthorizeRequest, CompositeAuthorizeResponse, CompositeCaptureRequest,
     CompositeCaptureResponse, CompositeGetRequest, CompositeGetResponse, CompositeRefundGetRequest,
     CompositeRefundGetResponse, CompositeRefundRequest, CompositeRefundResponse, CompositeStatus,
-    CompositeVoidRequest, CompositeVoidResponse, ConnectorState, CustomerServiceCreateResponse,
+    CompositeVoidRequest, CompositeVoidResponse, ConnectorState, Customer,
+    CustomerServiceCreateResponse, CustomerServiceGetRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -371,31 +372,75 @@ where
         let connector_customer_id = payload
             .state
             .as_ref()
-            .and_then(|state| state.connector_customer_id.clone());
+            .and_then(|state| state.connector_customer_id.clone())
+            .or_else(|| {
+                payload
+                    .customer
+                    .as_ref()
+                    .and_then(|c| c.connector_customer_id.clone())
+            });
         let should_create_connector_customer =
             connector_data.connector.should_create_connector_customer()
                 && connector_customer_id.is_none();
 
-        let create_customer_response = match should_create_connector_customer {
-            true => {
-                let create_customer_payload =
-                    grpc_api_types::payments::CustomerServiceCreateRequest::foreign_from(payload);
-                let mut create_customer_request = tonic::Request::new(create_customer_payload);
-                *create_customer_request.metadata_mut() = metadata.clone();
-                *create_customer_request.extensions_mut() = extensions.clone();
+        if !should_create_connector_customer {
+            return Ok(None);
+        }
 
-                let create_customer_response = self
-                    .customer_service
-                    .create(create_customer_request)
-                    .await?
-                    .into_inner();
+        // For connectors that support lookup (e.g. Glomopay, which 4xxs on
+        // duplicate email), try GET first — if the customer already exists on
+        // the connector, reuse that ID instead of hitting CREATE and getting
+        // a duplicate error.
+        if connector_data.connector.should_lookup_connector_customer() {
+            let get_payload = CustomerServiceGetRequest {
+                merchant_customer_id: payload
+                    .customer
+                    .as_ref()
+                    .and_then(|c| c.id.clone()),
+                connector_customer_id: None,
+                customer: payload.customer.clone(),
+            };
+            let mut get_request = tonic::Request::new(get_payload);
+            *get_request.metadata_mut() = metadata.clone();
+            *get_request.extensions_mut() = extensions.clone();
 
-                Some(create_customer_response)
+            if let Ok(get_response) = self.customer_service.get(get_request).await {
+                let get_inner = get_response.into_inner();
+                let existing_id = get_inner
+                    .customer
+                    .as_ref()
+                    .and_then(|c: &Customer| c.connector_customer_id.clone());
+                if let Some(id) = existing_id {
+                    // Found on connector — synthesize a create-shaped response
+                    // so downstream code (which expects CustomerServiceCreateResponse)
+                    // is unchanged.
+                    return Ok(Some(CustomerServiceCreateResponse {
+                        merchant_customer_id: get_inner.merchant_customer_id,
+                        connector_customer_id: id,
+                        error: None,
+                        status_code: get_inner.status_code,
+                        response_headers: get_inner.response_headers,
+                    }));
+                }
+                // Get succeeded but returned no customer (or an error inside) —
+                // fall through to CREATE.
             }
-            false => None,
-        };
+            // Get failed (infra error, not-found, etc.) — fall through to CREATE.
+        }
 
-        Ok(create_customer_response)
+        let create_customer_payload =
+            grpc_api_types::payments::CustomerServiceCreateRequest::foreign_from(payload);
+        let mut create_customer_request = tonic::Request::new(create_customer_payload);
+        *create_customer_request.metadata_mut() = metadata.clone();
+        *create_customer_request.extensions_mut() = extensions.clone();
+
+        let create_customer_response = self
+            .customer_service
+            .create(create_customer_request)
+            .await?
+            .into_inner();
+
+        Ok(Some(create_customer_response))
     }
 
     async fn create_order(

@@ -98,7 +98,6 @@ pub fn process_webhook_event<
         merchant_event_id,
         event_ack_response,
         supported_integrity_checks: vec![],
-        requires_payment_sync: false,
     })
 }
 
