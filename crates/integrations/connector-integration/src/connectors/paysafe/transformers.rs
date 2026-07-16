@@ -2,15 +2,15 @@ use common_enums::enums;
 use common_utils::{ext_traits::ValueExt, request::Method};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PaymentMethodToken, RSync, Refund,
-        RepeatPayment, Void,
+        Authenticate, Authorize, Capture, CreateConnectorCustomer, PaymentMethodToken,
+        PreAuthenticate, RSync, Refund, RepeatPayment, Void,
     },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, MandateReference, MandateReferenceId,
         PaymentFlowData, PaymentMethodTokenResponse, PaymentMethodTokenizationData,
-        PaymentVoidData, PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
-        ResponseId,
+        PaymentVoidData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, RefundFlowData, RefundSyncData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId,
     },
     payment_method_data::{
         ApplePayPaymentData, BankDebitData, BankRedirectData, GiftCardData, GpayTokenizationData,
@@ -183,27 +183,9 @@ pub(crate) fn paysafe_feature_data_handle_token(
         .map(|meta| meta.payment_handle_token)
 }
 
-/// Keyed on `PaymentMethodData::Card` rather than `resource_common_data.payment_method`:
-/// the settle leg carries only a handle token, and handle creation needs the PAN.
-pub(crate) fn is_paysafe_three_ds_card<
-    T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
->(
-    router_data: &RouterDataV2<
-        Authorize,
-        PaymentFlowData,
-        PaymentsAuthorizeData<T>,
-        PaymentsResponseData,
-    >,
-) -> bool {
-    matches!(
-        &router_data.request.payment_method_data,
-        PaymentMethodData::Card(_)
-    ) && router_data.resource_common_data.is_three_ds()
-}
-
-/// Second leg of a redirect APM or card + 3DS payment: the shopper has returned, or the
-/// leg-1 handle token was echoed back. UCS has no CompleteAuthorize flow, so this stands
-/// in for it.
+/// Second leg of a redirect APM payment: the shopper has returned, or the leg-1 handle token
+/// was echoed back. Card + 3DS no longer participates here — its handle is minted in the
+/// PreAuthenticate flow and the card + 3DS Authorize is always the settle.
 pub(crate) fn is_paysafe_settle_leg<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
@@ -214,14 +196,14 @@ pub(crate) fn is_paysafe_settle_leg<
         PaymentsResponseData,
     >,
 ) -> bool {
-    (is_paysafe_redirect_apm(&router_data.request.payment_method_data)
-        || is_paysafe_three_ds_card(router_data))
+    is_paysafe_redirect_apm(&router_data.request.payment_method_data)
         && (router_data.request.redirect_response.is_some()
             || paysafe_feature_data_handle_token(&router_data.resource_common_data).is_some())
 }
 
-/// Leg 1: create a payment handle so Paysafe returns a redirect link (APM hosted page,
-/// or the 3DS ACS challenge). Shared by the Authorize URL selector and request builder.
+/// Leg 1: create a payment handle so a redirect APM returns its hosted-page link. Shared by the
+/// Authorize URL selector and request builder. Card + 3DS mints its handle in PreAuthenticate, so
+/// it never routes here.
 pub(crate) fn is_paysafe_handle_creation_leg<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
@@ -232,8 +214,7 @@ pub(crate) fn is_paysafe_handle_creation_leg<
         PaymentsResponseData,
     >,
 ) -> bool {
-    (is_paysafe_redirect_apm(&router_data.request.payment_method_data)
-        || is_paysafe_three_ds_card(router_data))
+    is_paysafe_redirect_apm(&router_data.request.payment_method_data)
         && !is_paysafe_settle_leg(router_data)
 }
 
@@ -546,6 +527,170 @@ where
             account_id,
             three_ds,
             profile,
+            billing_details,
+        })
+    }
+}
+
+/// PreAuthenticate leg for card + 3DS: mint a payment handle carrying the `threeDs` object so
+/// Paysafe returns the ACS challenge redirect. Card-only (3DS is enforced by HS's
+/// `is_pre_authentication_flow_required` gating); the handle token is settled on the follow-up
+/// Authorize. Mirrors the card arm of the Authorize handle builder but sourced from
+/// `PaymentsPreAuthenticateData`.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaysafeRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PaysafeSetupMandateRequest<T>
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        item: PaysafeRouterData<
+            RouterDataV2<
+                PreAuthenticate,
+                PaymentFlowData,
+                PaymentsPreAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let router_data = &item.router_data;
+        let auth = PaysafeAuthType::try_from(&router_data.connector_config)?;
+        let account_id_map = auth.account_id.ok_or(IntegrationError::InvalidConnectorConfig {
+            config: "account_id",
+            context: IntegrationErrorContext {
+                additional_context: Some(
+                    "Paysafe card + 3DS needs the account_id map in the connector config (card.three_ds slot) to resolve the 3DS processing account."
+                        .to_string(),
+                ),
+                ..Default::default()
+            },
+        })?;
+
+        let currency =
+            router_data
+                .request
+                .currency
+                .ok_or(IntegrationError::MissingRequiredField {
+                    field_name: "currency",
+                    context: Default::default(),
+                })?;
+        let amount = router_data.request.amount;
+
+        // The ACS returns the shopper here after the challenge. HS drives PreAuthenticate → (redirect)
+        // → CompleteAuthorize (the settle Authorize), so the return_url HS provides for the
+        // pre-authentication redirect is the correct continuation target for both `merchantUrl`
+        // and the return links.
+        let redirect_url = router_data.resource_common_data.get_return_url().ok_or(
+            IntegrationError::MissingRequiredField {
+                field_name: "return_url",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Paysafe card + 3DS PreAuthenticate needs a return_url: it is the mandatory threeDs.merchantUrl and builds the returnLinks the shopper is sent back to."
+                            .to_string(),
+                    ),
+                    ..Default::default()
+                },
+            },
+        )?;
+
+        let req_card = match &router_data.request.payment_method_data {
+            Some(PaymentMethodData::Card(req_card)) => req_card,
+            _ => {
+                return Err(IntegrationError::NotImplemented(
+                    "Paysafe PreAuthenticate only supports card + 3DS".to_string(),
+                    Default::default(),
+                )
+                .into())
+            }
+        };
+
+        let card = PaysafeCard {
+            card_num: req_card.card_number.clone(),
+            card_expiry: PaysafeCardExpiry {
+                month: req_card.card_exp_month.clone(),
+                year: req_card.get_expiry_year_4_digit(),
+            },
+            // Paysafe rejects an empty-string cvv; omit it instead.
+            cvv: if req_card.card_cvc.peek().is_empty() {
+                None
+            } else {
+                Some(req_card.card_cvc.clone())
+            },
+            holder_name: req_card.card_holder_name.clone().or_else(|| {
+                router_data
+                    .resource_common_data
+                    .get_optional_billing_full_name()
+            }),
+        };
+        // Paysafe provisions 3DS and non-3DS card accounts separately and rejects a `threeDs`
+        // body on a non-3DS account (error 5040). The settle Authorize resolves the same slot.
+        let account_id = account_id_map.get_account_id(PaysafeAccountKind::CardThreeDs, currency)?;
+        let three_ds = ThreeDs {
+            merchant_url: redirect_url.clone(),
+            // UCS carries no client-platform signal, so SDK (in-app 3DS) is not derivable here;
+            // BROWSER is also the correct channel for this redirect flow.
+            device_channel: DeviceChannel::Browser,
+            message_category: ThreeDsMessageCategory::Payment,
+            authentication_purpose: ThreeDsAuthenticationPurpose::PaymentTransaction,
+            requestor_challenge_preference: ThreeDsChallengePreference::ChallengeMandated,
+        };
+        let settle_with_auth = Some(matches!(
+            router_data.request.capture_method,
+            Some(enums::CaptureMethod::Automatic) | None
+        ));
+
+        let billing_details = create_paysafe_billing_details(&router_data.resource_common_data)?;
+
+        // All return links target the return_url: HS's pre-authentication redirect handler runs
+        // the settle Authorize on return regardless of which link the ACS uses.
+        let return_links = Some(vec![
+            ReturnLink {
+                rel: LinkType::Default,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnCompleted,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnFailed,
+                href: redirect_url.clone(),
+                method: Method::Get.to_string(),
+            },
+            ReturnLink {
+                rel: LinkType::OnCancelled,
+                href: redirect_url,
+                method: Method::Get.to_string(),
+            },
+        ]);
+
+        Ok(Self {
+            merchant_ref_num: router_data
+                .resource_common_data
+                .connector_request_reference_id
+                .clone(),
+            amount,
+            settle_with_auth,
+            payment_method: PaysafePaymentMethod::Card { card },
+            currency_code: currency,
+            payment_type: PaysafePaymentType::Card,
+            transaction_type: TransactionType::Payment,
+            return_links,
+            account_id: Some(account_id),
+            three_ds: Some(three_ds),
+            profile: None,
             billing_details,
         })
     }
@@ -1419,17 +1564,28 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        let payment_handle_token: Secret<String> = match &router_data.request.payment_method_data {
-            PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
-            _ => paysafe_feature_data_handle_token(&router_data.resource_common_data)
-                .ok_or(IntegrationError::MissingRequiredField {
-                    field_name: "payment_method_token",
-                    context: IntegrationErrorContext {
-                        suggested_action: Some("Obtain a Paysafe payment_handle_token via PaymentMethodService.Tokenize before authorizing.".to_string()),
-                        doc_url: Some("https://developer.paysafe.com/en/payments/payment-handles/create-payment-handle/".to_string()),
-                        additional_context: Some("Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken or connector_feature_data metadata.".to_string()),
-                    },
-                })?,
+        // Card + 3DS settle: the handle token was minted in PreAuthenticate (with the `threeDs`
+        // object) and threaded back via authentication_data — prefer it so the 3DS-authenticated
+        // handle is settled even if a tokenize step also produced a no-3DS PaymentMethodToken.
+        // Card no-3DS uses the tokenize PaymentMethodToken; redirect APMs / composite echoes fall
+        // back to connector_feature_data.
+        let payment_handle_token: Secret<String> = if let Some(token) =
+            paysafe_authentication_data_handle_token(router_data.request.authentication_data.as_ref())
+        {
+            token
+        } else {
+            match &router_data.request.payment_method_data {
+                PaymentMethodData::PaymentMethodToken(t) => t.token.clone(),
+                _ => paysafe_feature_data_handle_token(&router_data.resource_common_data)
+                    .ok_or(IntegrationError::MissingRequiredField {
+                        field_name: "payment_method_token",
+                        context: IntegrationErrorContext {
+                            suggested_action: Some("Obtain a Paysafe payment_handle_token via PaymentMethodService.Tokenize before authorizing.".to_string()),
+                            doc_url: Some("https://developer.paysafe.com/en/payments/payment-handles/create-payment-handle/".to_string()),
+                            additional_context: Some("Paysafe requires a payment handle token. Pass it via PaymentMethodData::PaymentMethodToken, authentication_data (3DS), or connector_feature_data metadata.".to_string()),
+                        },
+                    })?,
+            }
         };
 
         let customer_ip = router_data
@@ -1646,6 +1802,232 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
                     splits: None,
                 }
             }
+        };
+
+        Ok(Self {
+            response: Ok(response_data),
+            ..router_data
+        })
+    }
+}
+
+/// Carry the Paysafe `paymentHandleToken` from PreAuthenticate to the settle Authorize inside
+/// `AuthenticationData.threeds_server_transaction_id`. That field is the only channel HS forwards
+/// on the complete-authorize request path (`connector_feature_data` is dropped there), and Paysafe
+/// never populates a real 3DS-server transaction id (3DS is resolved server-side by the token), so
+/// the field is free to reuse. The settle reads it back via [`paysafe_authentication_data_handle_token`].
+fn paysafe_handle_token_authentication_data(
+    payment_handle_token: &Secret<String>,
+) -> domain_types::router_request_types::AuthenticationData {
+    domain_types::router_request_types::AuthenticationData {
+        threeds_server_transaction_id: Some(payment_handle_token.peek().to_string()),
+        trans_status: None,
+        eci: None,
+        cavv: None,
+        ucaf_collection_indicator: None,
+        message_version: None,
+        ds_trans_id: None,
+        acs_transaction_id: None,
+        transaction_id: None,
+        network_params: None,
+        exemption_indicator: None,
+        created_at: None,
+        challenge_code: None,
+        challenge_cancel: None,
+        challenge_code_reason: None,
+        message_extension: None,
+        authentication_type: None,
+    }
+}
+
+/// Read the Paysafe `paymentHandleToken` that PreAuthenticate stashed in
+/// `AuthenticationData.threeds_server_transaction_id` (see
+/// [`paysafe_handle_token_authentication_data`]) off the settle Authorize request.
+pub(crate) fn paysafe_authentication_data_handle_token(
+    authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
+) -> Option<Secret<String>> {
+    authentication_data
+        .and_then(|data| data.threeds_server_transaction_id.clone())
+        .map(Secret::new)
+}
+
+/// PreAuthenticate response: Paysafe returns the handle INITIATED + the ACS challenge redirect
+/// link. Surface the link as `redirection_data` so HS redirects the shopper, and thread the
+/// `paymentHandleToken` forward via `authentication_data` so the settle Authorize can locate the
+/// handle after the shopper returns.
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeResponse, Self>>
+    for RouterDataV2<
+        PreAuthenticate,
+        PaymentFlowData,
+        PaymentsPreAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaysafeAuthorizeResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let http_code = item.http_code;
+        let mut router_data = item.router_data;
+
+        let response = match item.response {
+            PaysafeAuthorizeResponse::PaymentHandle(response) => response,
+            // v1/paymenthandles always returns a handle body; a payment body here is unexpected.
+            PaysafeAuthorizeResponse::Payment(_) => {
+                return Err(ConnectorError::unexpected_response_error_with_context(
+                    http_code,
+                    Some(
+                        "Paysafe PreAuthenticate expected a payment-handle response".to_string(),
+                    ),
+                )
+                .into())
+            }
+        };
+
+        let status = enums::AttemptStatus::try_from(response.status)?;
+
+        // Prefer a customer-facing redirect link (rel contains "redirect"); fall back to the
+        // first link, matching hyperswitch's links.first() behaviour.
+        let redirection_data = response
+            .links
+            .as_ref()
+            .and_then(|links| {
+                links
+                    .iter()
+                    .find(|link| link.rel.to_lowercase().contains("redirect"))
+                    .or_else(|| links.first())
+            })
+            .map(|link| {
+                Box::new(RedirectForm::Form {
+                    endpoint: link.href.clone(),
+                    method: Method::Get,
+                    form_fields: Default::default(),
+                })
+            });
+
+        let authentication_data =
+            Some(paysafe_handle_token_authentication_data(&response.payment_handle_token));
+
+        router_data.resource_common_data.status = status;
+
+        let response_data = PaymentsResponseData::PreAuthenticateResponse {
+            resource_id: Some(ResponseId::NoResponseId),
+            authentication_data,
+            redirection_data,
+            connector_response_reference_id: Some(response.merchant_ref_num),
+            status_code: http_code,
+        };
+
+        Ok(Self {
+            response: Ok(response_data),
+            ..router_data
+        })
+    }
+}
+
+/// Authenticate is a body-less `GET /v1/paymenthandles?merchantRefNum=`; the empty body only
+/// satisfies the connector macro's request plumbing.
+impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
+    TryFrom<
+        PaysafeRouterData<
+            RouterDataV2<
+                Authenticate,
+                PaymentFlowData,
+                PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    > for PaysafeAuthenticateRequest
+{
+    type Error = error_stack::Report<IntegrationError>;
+
+    fn try_from(
+        _item: PaysafeRouterData<
+            RouterDataV2<
+                Authenticate,
+                PaymentFlowData,
+                PaymentsAuthenticateData<T>,
+                PaymentsResponseData,
+            >,
+            T,
+        >,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {})
+    }
+}
+
+/// Authenticate re-fetch response: after the ACS redirect, Paysafe returns the (now PAYABLE) payment
+/// handle for the merchantRefNum. Recover its `paymentHandleToken` and thread it forward via
+/// `authentication_data` (which HS carries into the settle Authorize request) plus
+/// `connector_feature_data`. Read-only — no settlement happens here; the main Authorize settles.
+impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthenticateResponse, Self>>
+    for RouterDataV2<
+        Authenticate,
+        PaymentFlowData,
+        PaymentsAuthenticateData<T>,
+        PaymentsResponseData,
+    >
+{
+    type Error = error_stack::Report<ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<PaysafeAuthenticateResponse, Self>,
+    ) -> Result<Self, Self::Error> {
+        let http_code = item.http_code;
+        let mut router_data = item.router_data;
+
+        let unexpected = || {
+            ConnectorError::unexpected_response_error_with_context(
+                http_code,
+                Some(
+                    "Paysafe Authenticate expected a payment-handle body for the merchantRefNum"
+                        .to_string(),
+                ),
+            )
+        };
+
+        let (status, payment_handle_token, handle_id, merchant_ref_num) = match &item.response {
+            PaysafeSyncResponse::SinglePaymentHandle(handle) => (
+                handle.status,
+                &handle.payment_handle_token,
+                &handle.id,
+                &handle.merchant_ref_num,
+            ),
+            PaysafeSyncResponse::PaymentHandle(sync_response) => {
+                let handle = sync_response
+                    .payment_handles
+                    .first()
+                    .ok_or_else(unexpected)?;
+                (
+                    handle.status,
+                    &handle.payment_handle_token,
+                    &handle.id,
+                    &handle.merchant_ref_num,
+                )
+            }
+            PaysafeSyncResponse::SinglePayment(_) | PaysafeSyncResponse::Payments(_) => {
+                return Err(unexpected().into())
+            }
+        };
+
+        let status = enums::AttemptStatus::try_from(status)?;
+        let authentication_data =
+            Some(paysafe_handle_token_authentication_data(payment_handle_token));
+        let connector_feature_data = Some(serde_json::json!(PaysafeMeta {
+            payment_handle_token: payment_handle_token.clone(),
+        }));
+
+        router_data.resource_common_data.status = status;
+
+        let response_data = PaymentsResponseData::AuthenticateResponse {
+            resource_id: Some(ResponseId::ConnectorTransactionId(handle_id.clone())),
+            redirection_data: None,
+            authentication_data,
+            connector_feature_data,
+            connector_response_reference_id: Some(merchant_ref_num.clone()),
+            status_code: http_code,
         };
 
         Ok(Self {

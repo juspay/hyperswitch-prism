@@ -7,14 +7,15 @@ use common_enums::{CurrencyUnit, PaymentMethod, PaymentMethodType};
 use common_utils::{errors::CustomResult, events, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_flow::{
-        Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken, RSync, Refund,
-        RepeatPayment, Void,
+        Authenticate, Authorize, Capture, CreateConnectorCustomer, PSync, PaymentMethodToken,
+        PreAuthenticate, RSync, Refund, RepeatPayment, Void,
     },
     connector_types::{
         ConnectorCustomerData, ConnectorCustomerResponse, PaymentFlowData,
         PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
-        RefundFlowData, RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCaptureData,
+        PaymentsPreAuthenticateData, PaymentsResponseData, PaymentsSyncData, RefundFlowData,
+        RefundSyncData, RefundsData, RefundsResponseData, RepeatPaymentData,
     },
     payment_method_data::PaymentMethodDataTypes,
     router_data::{ConnectorSpecificConfig, ErrorResponse},
@@ -33,7 +34,9 @@ use std::fmt::Debug;
 use transformers::{
     self as paysafe, PaysafeAuthorizeRequest, PaysafeAuthorizeResponse, PaysafeCaptureRequest,
     PaysafeCaptureResponse, PaysafeCustomerRequest, PaysafeCustomerResponse, PaysafeErrorResponse,
-    PaysafePaymentMethodTokenRequest, PaysafePaymentMethodTokenResponse, PaysafeRSyncResponse,
+    PaysafeAuthenticateRequest, PaysafeAuthenticateResponse, PaysafePaymentMethodTokenRequest,
+    PaysafePaymentMethodTokenResponse,
+    PaysafePreAuthenticateRequest, PaysafePreAuthenticateResponse, PaysafeRSyncResponse,
     PaysafeRefundRequest, PaysafeRefundResponse, PaysafeRepeatPaymentRequest,
     PaysafeRepeatPaymentResponse, PaysafeSyncResponse, PaysafeVoidRequest, PaysafeVoidResponse,
 };
@@ -92,6 +95,52 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     ) -> bool {
         true
     }
+
+    /// Card + 3DS flow: PreAuthenticate mints the payment handle (with the `threeDs` object) so
+    /// Paysafe returns the ACS challenge redirect. After the shopper returns, Authenticate
+    /// re-fetches the (now PAYABLE) handle by merchantRefNum to recover the `paymentHandleToken`
+    /// and threads it forward via `authentication_data`; the main Authorize then settles the token.
+    /// Paysafe has no device-collection / enrollment / CRes-validation API — Authenticate is a
+    /// read-only re-fetch, and the settle is the ordinary Authorize (only one `POST /v1/payments`).
+    /// Any other payment method / auth type goes straight to Authorize.
+    fn next_authentication_step(
+        &self,
+        auth_type: common_enums::AuthenticationType,
+        payment_method: PaymentMethod,
+        redirect_state: connector_types::RedirectState,
+        completed_step: Option<connector_types::AuthenticationStep>,
+    ) -> connector_types::AuthenticationStep {
+        use connector_types::{AuthenticationStep, RedirectState};
+
+        if auth_type == common_enums::AuthenticationType::ThreeDs
+            && payment_method == PaymentMethod::Card
+        {
+            match (redirect_state, completed_step) {
+                (RedirectState::InitialRequest, _) => AuthenticationStep::PreAuthenticate,
+                // Shopper returned from the ACS: re-fetch the handle token, then settle.
+                (
+                    RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams,
+                    None,
+                ) => AuthenticationStep::Authenticate,
+                (
+                    RedirectState::RedirectWithParams | RedirectState::RedirectWithoutParams,
+                    Some(AuthenticationStep::Authenticate),
+                ) => AuthenticationStep::Authorize,
+                _ => AuthenticationStep::Authorize,
+            }
+        } else {
+            AuthenticationStep::Authorize
+        }
+    }
+}
+
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentPreAuthenticateV2<T> for Paysafe<T>
+{
+}
+impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
+    connector_types::PaymentAuthenticateV2<T> for Paysafe<T>
+{
 }
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::RepeatPaymentV2<T> for Paysafe<T>
@@ -148,6 +197,18 @@ macros::create_all_prerequisites!(
             request_body: PaysafeAuthorizeRequest<T>,
             response_body: PaysafeAuthorizeResponse,
             router_data: RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: PreAuthenticate,
+            request_body: PaysafePreAuthenticateRequest<T>,
+            response_body: PaysafePreAuthenticateResponse,
+            router_data: RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ),
+        (
+            flow: Authenticate,
+            request_body: PaysafeAuthenticateRequest,
+            response_body: PaysafeAuthenticateResponse,
+            router_data: RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ),
         (
             flow: PSync,
@@ -434,6 +495,73 @@ macros::macro_connector_implementation!(
 macros::macro_connector_implementation!(
     connector_default_implementations: [get_content_type, get_error_response_v2],
     connector: Paysafe,
+    curl_request: Json(PaysafePreAuthenticateRequest),
+    curl_response: PaysafePreAuthenticateResponse,
+    flow_name: PreAuthenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsPreAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Post,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // Card + 3DS always mints a payment handle (with the `threeDs` object) so Paysafe
+            // returns the ACS challenge redirect; the shopper is settled on the follow-up
+            // Authorize via v1/payments.
+            Ok(format!("{}v1/paymenthandles", self.connector_base_url_payments(req)))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paysafe,
+    curl_request: Json(PaysafeAuthenticateRequest),
+    curl_response: PaysafeAuthenticateResponse,
+    flow_name: Authenticate,
+    resource_common_data: PaymentFlowData,
+    flow_request: PaymentsAuthenticateData<T>,
+    flow_response: PaymentsResponseData,
+    http_method: Get,
+    generic_type: T,
+    [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
+    other_functions: {
+        fn get_headers(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<Vec<(String, Maskable<String>)>, IntegrationError> {
+            self.build_headers(req)
+        }
+        fn get_url(
+            &self,
+            req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
+        ) -> CustomResult<String, IntegrationError> {
+            // Post-ACS re-fetch: read the (now PAYABLE) payment handle by merchantRefNum to recover
+            // the paymentHandleToken, which is threaded to the settle Authorize via authentication_data.
+            // Query by connector_request_reference_id — the same value PreAuthenticate sent as
+            // merchantRefNum when it created the handle (not the header-derived reference_id).
+            let merchant_ref_num = &req.resource_common_data.connector_request_reference_id;
+            Ok(format!(
+                "{}v1/paymenthandles?merchantRefNum={merchant_ref_num}",
+                self.connector_base_url_payments(req)
+            ))
+        }
+    }
+);
+
+macros::macro_connector_implementation!(
+    connector_default_implementations: [get_content_type, get_error_response_v2],
+    connector: Paysafe,
     curl_response: PaysafeSyncResponse,
     flow_name: PSync,
     resource_common_data: PaymentFlowData,
@@ -658,12 +786,10 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         IncrementalAuthorization,
-        PreAuthenticate,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
         ClientAuthenticationToken,
         MandateRevoke,
-        Authenticate,
         CreateOrder,
         SetupMandate,
         VoidPC,
