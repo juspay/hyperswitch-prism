@@ -1562,13 +1562,12 @@ fn create_stripe_payment_method<
         | PaymentMethodData::PaymentMethodToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-        | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-            Err(IntegrationError::NotImplemented(
-                get_unimplemented_payment_method_error_message("stripe"),
-                Default::default(),
-            )
-            .into())
-        }
+        | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+            get_unimplemented_payment_method_error_message("stripe"),
+            Default::default(),
+        )
+        .into()),
     }
 }
 
@@ -5104,12 +5103,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::NotImplemented(
-                    get_unimplemented_payment_method_error_message("stripe"),
-                    Default::default(),
-                ))?
-            }
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+                get_unimplemented_payment_method_error_message("stripe"),
+                Default::default(),
+            ))?,
         }
     }
 }
@@ -5475,7 +5473,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                                 request_overcapture: None,
                             },
                         ),
-                        PaymentMethodData::CardRedirect(_)
+                        // RawStoredCardForPMID is only produced for
+                        // connectors opted into the payment_method_id StoredCard flow
+                        // (tsys_transit); Stripe never receives it.
+                        PaymentMethodData::RawStoredCardForPMID(_)
+                        | PaymentMethodData::CardRedirect(_)
                         | PaymentMethodData::Wallet(_)
                         | PaymentMethodData::PayLater(_)
                         | PaymentMethodData::BankRedirect(_)

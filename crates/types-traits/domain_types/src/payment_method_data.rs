@@ -265,6 +265,7 @@ impl Card<DefaultPCIHolder> {
 pub enum PaymentMethodData<T: PaymentMethodDataTypes> {
     Card(Card<T>),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
+    RawStoredCardForPMID(RawStoredCardForPMID),
     DecryptedWalletTokenDetailsForNetworkTransactionId(
         DecryptedWalletTokenDetailsForNetworkTransactionId,
     ),
@@ -1548,6 +1549,26 @@ pub struct CardDetailsForNetworkTransactionId {
     pub bank_code: Option<String>,
     pub nick_name: Option<Secret<String>>,
     pub card_holder_name: Option<Secret<String>>,
+}
+
+/// Locker-sourced (payment_method_id) card details for a network-transaction-id
+/// MIT. Mirrors [`CardDetailsForNetworkTransactionId`] but additionally carries
+/// the `network_transaction_id`, and is produced only when the card is pulled
+/// from the Hyperswitch card locker via a stored `payment_method_id` — letting a
+/// connector distinguish a stored-credential replay from an inline card+NTI.
+#[derive(Eq, PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct RawStoredCardForPMID {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub network_transaction_id: Option<Secret<String>>,
 }
 
 impl CardDetailsForNetworkTransactionId {

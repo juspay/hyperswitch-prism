@@ -593,16 +593,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::NotImplemented(
-                    "Payment method not supported for tokenization".to_string(),
-                    Default::default(),
-                ))
-                .change_context(IntegrationError::NotImplemented(
-                    "Payment method".to_string(),
-                    Default::default(),
-                ))
-            }
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+                "Payment method not supported for tokenization".to_string(),
+                Default::default(),
+            ))
+            .change_context(IntegrationError::NotImplemented(
+                "Payment method".to_string(),
+                Default::default(),
+            )),
         }
     }
 }

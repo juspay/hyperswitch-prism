@@ -756,15 +756,14 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::NotImplemented(
-                    domain_types::utils::get_unimplemented_payment_method_error_message(
-                        "Bank of America",
-                    ),
-                    Default::default(),
-                )
-                .into())
-            }
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+                domain_types::utils::get_unimplemented_payment_method_error_message(
+                    "Bank of America",
+                ),
+                Default::default(),
+            )
+            .into()),
         }
     }
 }
@@ -2038,12 +2037,11 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
-                Err(IntegrationError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
-                    Default::default(),
-                ))?
-            }
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::RawStoredCardForPMID(_) => Err(IntegrationError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("BankOfAmerica"),
+                Default::default(),
+            ))?,
         }
     }
 }

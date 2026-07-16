@@ -170,6 +170,16 @@ fn fetch_payment_instrument<
                 card_number: RawCardNumber(raw_card_details.card_number)
             }))
         }
+        // RawStoredCardForPMID is only produced for connectors opted
+        // into the payment_method_id StoredCard flow (tsys_transit); Worldpay never
+        // receives it.
+        PaymentMethodData::RawStoredCardForPMID(_) => Err(
+            IntegrationError::NotImplemented(
+                "RawStoredCardForPMID is not supported by Worldpay".to_string(),
+                Default::default(),
+            )
+            .into(),
+        ),
         PaymentMethodData::MandatePayment => {
             Err(IntegrationError::NotImplemented("MandatePayment should not be used in Authorize flow - use RepeatPayment flow for MIT transactions".to_string() , Default::default()).into())
         }
@@ -310,7 +320,8 @@ fn create_three_ds_request<
         &router_data.request.payment_method_data,
     ) {
         // 3DS for NTI flow
-        (_, PaymentMethodData::CardDetailsForNetworkTransactionId(_)) => Ok(None),
+        (_, PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+        | (_, PaymentMethodData::RawStoredCardForPMID(_)) => Ok(None),
         // 3DS for regular payments
         (enums::AuthenticationType::ThreeDs, _) => {
             let browser_info = router_data.request.browser_info.as_ref().ok_or(
@@ -416,7 +427,8 @@ fn get_token_and_agreement<
             }),
         ),
         // NTI with raw card data
-        (PaymentMethodData::CardDetailsForNetworkTransactionId(_), _, _) => (
+        (PaymentMethodData::CardDetailsForNetworkTransactionId(_), _, _)
+        | (PaymentMethodData::RawStoredCardForPMID(_), _, _) => (
             None,
             mandate_ids.and_then(|mandate_ids| {
                 mandate_ids
