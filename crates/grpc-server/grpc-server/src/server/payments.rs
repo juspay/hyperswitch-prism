@@ -626,10 +626,8 @@ impl CustomerService for Customer {
     async fn get(
         &self,
         request: tonic::Request<grpc_api_types::payments::CustomerServiceGetRequest>,
-    ) -> Result<
-        tonic::Response<grpc_api_types::payments::CustomerServiceGetResponse>,
-        tonic::Status,
-    > {
+    ) -> Result<tonic::Response<grpc_api_types::payments::CustomerServiceGetResponse>, tonic::Status>
+    {
         info!("GET_CONNECTOR_CUSTOMER_FLOW: initiated");
         let service_name = request
             .extensions()

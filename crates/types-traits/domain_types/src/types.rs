@@ -13163,9 +13163,7 @@ impl
     }
 }
 
-impl ForeignTryFrom<grpc_api_types::payments::CustomerServiceGetRequest>
-    for ConnectorCustomerData
-{
+impl ForeignTryFrom<grpc_api_types::payments::CustomerServiceGetRequest> for ConnectorCustomerData {
     type Error = IntegrationError;
 
     fn foreign_try_from(
@@ -13310,8 +13308,7 @@ pub fn generate_get_connector_customer_response(
         ConnectorCustomerData,
         crate::connector_types::ConnectorCustomerResponse,
     >,
-) -> Result<grpc_payment_types::CustomerServiceGetResponse, error_stack::Report<ConnectorError>>
-{
+) -> Result<grpc_payment_types::CustomerServiceGetResponse, error_stack::Report<ConnectorError>> {
     let customer_response = router_data_v2.response;
 
     match customer_response {

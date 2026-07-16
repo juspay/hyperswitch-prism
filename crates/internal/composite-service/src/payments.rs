@@ -393,10 +393,7 @@ where
         // a duplicate error.
         if connector_data.connector.should_lookup_connector_customer() {
             let get_payload = CustomerServiceGetRequest {
-                merchant_customer_id: payload
-                    .customer
-                    .as_ref()
-                    .and_then(|c| c.id.clone()),
+                merchant_customer_id: payload.customer.as_ref().and_then(|c| c.id.clone()),
                 connector_customer_id: None,
                 customer: payload.customer.clone(),
             };
