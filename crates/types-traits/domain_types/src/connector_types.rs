@@ -2096,6 +2096,48 @@ impl<T: PaymentMethodDataTypes> PaymentsPreAuthenticateData<T> {
     }
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SdkInformation {
+    pub sdk_app_id: String,
+    pub sdk_enc_data: String,
+    pub sdk_ephem_pub_key: std::collections::HashMap<String, String>,
+    pub sdk_trans_id: String,
+    pub sdk_reference_number: String,
+    pub sdk_max_timeout: u8,
+    pub sdk_type: Option<SdkType>,
+    pub device_details: Option<DeviceDetails>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DeviceDetails {
+    pub device_type: Option<String>,
+    pub device_brand: Option<String>,
+    pub device_os: Option<String>,
+    pub device_display: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum SdkType {
+    #[serde(rename = "01")]
+    DefaultSdk,
+    #[serde(rename = "02")]
+    SplitSdk,
+    #[serde(rename = "03")]
+    LimitedSdk,
+    #[serde(rename = "04")]
+    BrowserSdk,
+    #[serde(rename = "05")]
+    ShellSdk,
+}
+
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, PartialEq)]
+pub enum DeviceChannel {
+    #[serde(rename = "APP")]
+    App,
+    #[serde(rename = "BRW")]
+    Browser,
+}
+
 #[derive(Debug, Clone)]
 pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub payment_method_data: Option<PaymentMethodData<T>>,
@@ -2113,6 +2155,8 @@ pub struct PaymentsAuthenticateData<T: PaymentMethodDataTypes> {
     pub webhook_url: Option<String>,
     /// Domain-specific data (e.g. student fields) for connectors that need it.
     pub domain_data: Option<DomainData>,
+    pub sdk_information: Option<SdkInformation>,
+    pub device_channel: Option<DeviceChannel>,
 }
 
 impl<T: PaymentMethodDataTypes> PaymentsAuthenticateData<T> {
@@ -3420,6 +3464,9 @@ pub struct RepeatPaymentData<T: PaymentMethodDataTypes> {
     pub connector_feature_data: Option<SecretSerdeValue>,
     pub off_session: Option<bool>,
     pub router_return_url: Option<String>,
+    /// Hyperswitch complete-authorize URL, used as the PayPal return target when a
+    /// wallet MIT requires buyer re-approval so the buyer returns to HS for completion.
+    pub complete_authorize_url: Option<String>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub recurring_mandate_payment_data: Option<router_data::RecurringMandatePaymentData>,
     pub shipping_cost: Option<MinorUnit>,
