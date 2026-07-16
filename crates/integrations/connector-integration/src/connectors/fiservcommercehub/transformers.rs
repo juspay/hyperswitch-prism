@@ -22,7 +22,7 @@ use domain_types::{
     },
     errors,
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
-    payment_method_data::{PaymentMethodData, PaymentMethodDataTypes},
+    payment_method_data::{CardWithNoCvc, PaymentMethodData, PaymentMethodDataTypes},
     router_data::{ConnectorSpecificConfig, ErrorResponse, FlowStatus},
     router_data_v2::RouterDataV2,
     utils,
@@ -51,6 +51,61 @@ pub struct EncryptedCardData {
 
 fn encrypt_card_data<T: PaymentMethodDataTypes>(
     card: &domain_types::payment_method_data::Card<T>,
+    key_id: String,
+    public_key_der: &[u8],
+) -> Result<EncryptedCardData, error_stack::Report<errors::IntegrationError>> {
+    let card_data = card.card_number.peek().to_string();
+    let name_on_card = card
+        .card_holder_name
+        .as_ref()
+        .map(|n| n.peek().clone())
+        .ok_or(errors::IntegrationError::MissingRequiredField {
+            field_name: "card_holder_name",
+            context: errors::IntegrationErrorContext {
+                additional_context: Some(
+                    "card_holder_name is required for card encryption".to_string(),
+                ),
+                ..Default::default()
+            },
+        })?;
+    let expiration_month = card.card_exp_month.peek().to_string();
+    let expiration_year = card.get_expiry_year_4_digit().peek().to_string();
+
+    let plain_block = format!("{card_data}{name_on_card}{expiration_month}{expiration_year}");
+
+    let card_data_len = card_data.len();
+    let name_on_card_len = name_on_card.len();
+    let expiration_month_len = expiration_month.len();
+    let expiration_year_len = expiration_year.len();
+    let encryption_block_fields = format!(
+        "card.cardData:{card_data_len},card.nameOnCard:{name_on_card_len},card.expirationMonth:{expiration_month_len},card.expirationYear:{expiration_year_len}"
+    );
+
+    let encrypted_bytes = RsaOaepSha256::encrypt(public_key_der, plain_block.as_bytes())
+        .change_context(errors::IntegrationError::RequestEncodingFailed {
+            context: errors::IntegrationErrorContext {
+                doc_url: Some(FISERV_PAYMENT_METHOD_ENCRYPTION_URL.to_string()),
+                suggested_action: Some(
+                    "Ensure the RSA public key is correctly configured and valid".to_string(),
+                ),
+                additional_context: Some(
+                    "RSA OAEP-SHA256 encryption for card data failed".to_string(),
+                ),
+            },
+        })
+        .attach_printable("RSA OAEP-SHA256 encryption of card data failed")?;
+
+    let encryption_block = Secret::new(general_purpose::STANDARD.encode(&encrypted_bytes));
+
+    Ok(EncryptedCardData {
+        key_id,
+        encryption_block,
+        encryption_block_fields,
+    })
+}
+
+fn encrypt_card_data_no_cvc(
+    card: &CardWithNoCvc,
     key_id: String,
     public_key_der: &[u8],
 ) -> Result<EncryptedCardData, error_stack::Report<errors::IntegrationError>> {
@@ -573,6 +628,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let (source, stored_credentials) = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => {
                 let encrypted_card = encrypt_card_data(card, key_id, &public_key_der)?;
+
+                let stored_credentials =
+                    if router_data.request.is_customer_initiated_mandate_payment() {
+                        Some(FiservcommercehubStoredCredentials::new_cit())
+                    } else {
+                        None
+                    };
+
+                (
+                    FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
+                        encryption_data: FiservcommercehubEncryptionData {
+                            key_id: encrypted_card.key_id,
+                            encryption_type: ENCRYPTION_TYPE_RSA.to_string(),
+                            encryption_block: encrypted_card.encryption_block,
+                            encryption_block_fields: encrypted_card.encryption_block_fields,
+                        },
+                    }),
+                    stored_credentials,
+                )
+            }
+            PaymentMethodData::CardWithNoCvc(card) => {
+                let encrypted_card =
+                    encrypt_card_data_no_cvc(card, key_id, &public_key_der)?;
 
                 let stored_credentials =
                     if router_data.request.is_customer_initiated_mandate_payment() {
@@ -1866,6 +1944,19 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let source = match &router_data.request.payment_method_data {
             PaymentMethodData::Card(card) => {
                 let encrypted_card = encrypt_card_data(card, key_id, &public_key_der)?;
+
+                FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
+                    encryption_data: FiservcommercehubEncryptionData {
+                        key_id: encrypted_card.key_id,
+                        encryption_type: ENCRYPTION_TYPE_RSA.to_string(),
+                        encryption_block: encrypted_card.encryption_block,
+                        encryption_block_fields: encrypted_card.encryption_block_fields,
+                    },
+                })
+            }
+            PaymentMethodData::CardWithNoCvc(card) => {
+                let encrypted_card =
+                    encrypt_card_data_no_cvc(card, key_id, &public_key_der)?;
 
                 FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
                     encryption_data: FiservcommercehubEncryptionData {

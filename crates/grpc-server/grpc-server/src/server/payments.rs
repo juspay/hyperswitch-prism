@@ -923,6 +923,28 @@ impl PaymentService for Payments {
                         ))
                         .await?
                     }
+                    PaymentMethodDataAction::CardWithNoCvc(card_details) => {
+                        tracing::info!("REGULAR: Processing payment authorization with CardWithNoCvc");
+                        let payment_method_data = payment_method_data::PaymentMethodData::CardWithNoCvc(
+                            payment_method_data::CardWithNoCvc::foreign_try_from(card_details).map_err(|err| {
+                                tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to convert CardWithNoCvc - error: {:?}", err);
+                                tonic::Status::invalid_argument("Invalid payment method data")
+                            })?
+                        );
+                        Box::pin(self.process_authorization_internal::<DefaultPCIHolder>(
+                            &config,
+                            payload,
+                            metadata_payload.connector.clone(),
+                            metadata_payload.connector_config.clone(),
+                            metadata,
+                            &metadata_payload,
+                            &service_name,
+                            &metadata_payload.request_id,
+                            None,
+                            payment_method_data,
+                        ))
+                        .await?
+                    }
                 };
 
 
@@ -1632,6 +1654,9 @@ impl PaymentService for Payments {
                         payment_method_data,
                         )).await?
                     }
+                    PaymentMethodDataAction::CardWithNoCvc(_) => {
+                        return Err(tonic::Status::unimplemented("CardWithNoCvc is not supported in this flow"));
+                    }
                 };
                 Ok(tonic::Response::new(setup_mandate_response))
                 })
@@ -2093,6 +2118,9 @@ impl PaymentMethodService for PaymentMethod {
                         None,
                         payment_method_data,
                         )).await?
+                    }
+                    PaymentMethodDataAction::CardWithNoCvc(_) => {
+                        return Err(tonic::Status::unimplemented("CardWithNoCvc is not supported in this flow"));
                     }
                 };
                 Ok(tonic::Response::new(payment_method_tokenize_response))
@@ -3120,6 +3148,12 @@ impl RecurringPaymentService for RecurringPayments {
 
                                     tonic::Status::invalid_argument("Invalid payment method data")
                                 })?)
+                            }
+
+                            PaymentMethodDataAction::CardWithNoCvc(_) => {
+                                return Err(tonic::Status::unimplemented(
+                                    "CardWithNoCvc is not supported in this flow",
+                                ));
                             }
 
                             PaymentMethodDataAction::CardProxy(_) => {

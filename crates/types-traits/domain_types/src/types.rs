@@ -1222,7 +1222,8 @@ impl<
                 // CARD METHODS
                 // ============================================================================
                 grpc_api_types::payments::payment_method::PaymentMethod::Card(_) |
-                grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_) => {
+                grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_) |
+                grpc_api_types::payments::payment_method::PaymentMethod::CardWithNoCvc(_) => {
                     Err(report!(IntegrationError::NotImplemented(("UNSUPPORTED_PAYMENT_METHOD: This flow should never be hit for card or cardproxy types. Please check payment method dispatch/branching logic.").into(), Default::default())))
                 }
                 grpc_api_types::payments::payment_method::PaymentMethod::CardRedirect(
@@ -2533,6 +2534,9 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
                 grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_) => {
                     Ok(Some(PaymentMethodType::Card))
                 }
+                grpc_api_types::payments::payment_method::PaymentMethod::CardWithNoCvc(_) => {
+                    Ok(Some(PaymentMethodType::Card))
+                }
                 grpc_api_types::payments::payment_method::PaymentMethod::CardRedirect(card_redirect) => {
                 match card_redirect.r#type() {
                         grpc_api_types::payments::card_redirect::CardRedirectType::Knet => {
@@ -2779,6 +2783,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for Option<PaymentM
 pub enum PaymentMethodDataAction {
     Card(grpc_api_types::payments::CardDetails),
     CardProxy(grpc_api_types::payments::ProxyCardDetails),
+    CardWithNoCvc(grpc_api_types::payments::CardDetailsWithNoCvc),
     Default,
 }
 
@@ -2788,6 +2793,9 @@ impl From<grpc_api_types::payments::payment_method::PaymentMethod> for PaymentMe
             grpc_api_types::payments::payment_method::PaymentMethod::Card(card) => Self::Card(card),
             grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(proxy_card) => {
                 Self::CardProxy(proxy_card)
+            }
+            grpc_api_types::payments::payment_method::PaymentMethod::CardWithNoCvc(card) => {
+                Self::CardWithNoCvc(card)
             }
             _ => Self::Default,
         }
@@ -2834,6 +2842,10 @@ impl PaymentMethodDataAction {
                     })
                 })?;
                 payment_method_data::PaymentMethodData::convert_to_domain_model_for_non_card_payment_methods(pm)
+            }
+            PaymentMethodDataAction::CardWithNoCvc(card_details) => {
+                let card = payment_method_data::CardWithNoCvc::foreign_try_from(card_details)?;
+                Ok(payment_method_data::PaymentMethodData::CardWithNoCvc(card))
             }
             PaymentMethodDataAction::CardProxy(_) => {
                 Err(report!(IntegrationError::NotImplemented(
@@ -3313,6 +3325,55 @@ impl ForeignTryFrom<grpc_api_types::payments::CardDetails>
                     ..Default::default()
                 },
             })?,
+            card_issuer: card.card_issuer,
+            card_network,
+            card_type: card.card_type,
+            card_issuing_country: card.card_issuing_country_alpha2,
+            bank_code: card.bank_code,
+            nick_name: card.nick_name.map(|name| name.into()),
+            card_holder_name: card.card_holder_name,
+            co_badged_card_data: None,
+        })
+    }
+}
+
+impl ForeignTryFrom<grpc_api_types::payments::CardDetailsWithNoCvc>
+    for payment_method_data::CardWithNoCvc
+{
+    type Error = IntegrationError;
+    fn foreign_try_from(
+        card: grpc_api_types::payments::CardDetailsWithNoCvc,
+    ) -> Result<Self, error_stack::Report<Self::Error>> {
+        let card_network = match card.card_network() {
+            grpc_api_types::payments::CardNetwork::Unspecified => None,
+            _ => Some(CardNetwork::foreign_try_from(card.card_network())?),
+        };
+        Ok(payment_method_data::CardWithNoCvc {
+            card_number: card.card_number.ok_or(IntegrationError::InvalidDataFormat {
+                field_name: "unknown",
+                context: IntegrationErrorContext {
+                    additional_context: Some("Missing card number".to_string()),
+                    ..Default::default()
+                },
+            })?,
+            card_exp_month: card
+                .card_exp_month
+                .ok_or(IntegrationError::InvalidDataFormat {
+                    field_name: "unknown",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Missing Card Expiry Month".to_string()),
+                        ..Default::default()
+                    },
+                })?,
+            card_exp_year: card
+                .card_exp_year
+                .ok_or(IntegrationError::InvalidDataFormat {
+                    field_name: "unknown",
+                    context: IntegrationErrorContext {
+                        additional_context: Some("Missing Card Expiry Year".to_string()),
+                        ..Default::default()
+                    },
+                })?,
             card_issuer: card.card_issuer,
             card_network,
             card_type: card.card_type,
@@ -6150,6 +6211,10 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
                     Some(grpc_api_types::payments::payment_method::PaymentMethod::CardProxy(_)),
+            } => Ok(Self::Card),
+            grpc_api_types::payments::PaymentMethod {
+                payment_method:
+                    Some(grpc_api_types::payments::payment_method::PaymentMethod::CardWithNoCvc(_)),
             } => Ok(Self::Card),
             grpc_api_types::payments::PaymentMethod {
                 payment_method:
@@ -12112,6 +12177,7 @@ pub enum PaymentMethodDataType {
     Netbanking,
     QwikcilverWalletDirect,
     Skrill,
+    CardWithNoCvc,
 }
 
 impl ForeignTryFrom<String> for Secret<time::Date> {

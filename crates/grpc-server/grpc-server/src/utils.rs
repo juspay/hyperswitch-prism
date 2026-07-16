@@ -661,6 +661,9 @@ macro_rules! implement_connector_operation {
                     })?;
                     Ok(pm_data)
                 }
+                domain_types::types::PaymentMethodDataAction::CardWithNoCvc(_) => {
+                    Err(tonic::Status::unimplemented("CardWithNoCvc is not supported in this flow"))
+                }
                 domain_types::types::PaymentMethodDataAction::CardProxy(_) => {
                     Err(tonic::Status::invalid_argument("CardProxy not supported in this flow"))
                 }
@@ -990,6 +993,9 @@ macro_rules! implement_connector_operation {
                         api_tag,
                     )
                     .await?
+                }
+                Some(domain_types::types::PaymentMethodDataAction::CardWithNoCvc(_)) => {
+                    return Err(tonic::Status::unimplemented("CardWithNoCvc is not supported in this flow"));
                 }
                 // ── No payment method data → DefaultPCIHolder, direct connector call ─
                 None => {
