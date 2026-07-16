@@ -371,13 +371,7 @@ where
         let connector_customer_id = payload
             .state
             .as_ref()
-            .and_then(|state| state.connector_customer_id.clone())
-            .or_else(|| {
-                payload
-                    .customer
-                    .as_ref()
-                    .and_then(|c| c.connector_customer_id.clone())
-            });
+            .and_then(|state| state.connector_customer_id.clone());
         let should_create_connector_customer =
             connector_data.connector.should_create_connector_customer()
                 && connector_customer_id.is_none();
@@ -408,6 +402,7 @@ where
         &self,
         connector: &ConnectorEnum,
         payload: &CompositeAuthorizeRequest,
+        create_customer_response: Option<&CustomerServiceCreateResponse>,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
     ) -> Result<Option<PaymentServiceCreateOrderResponse>, tonic::Status> {
@@ -420,8 +415,14 @@ where
 
         let create_order_response = match should_execute_create_order {
             true => {
-                // Build PaymentServiceCreateOrderRequest from CompositeAuthorizeRequest
-                let create_order_payload = PaymentServiceCreateOrderRequest::foreign_from(payload);
+                // Build PaymentServiceCreateOrderRequest from CompositeAuthorizeRequest,
+                // threading in the freshly-created connector customer id (if any) so
+                // connectors like Glomopay whose CreateOrder API requires customer_id
+                // work correctly on first-time-customer flows.
+                let create_order_payload = PaymentServiceCreateOrderRequest::foreign_from((
+                    payload,
+                    create_customer_response,
+                ));
                 let mut create_order_request = tonic::Request::new(create_order_payload);
                 *create_order_request.metadata_mut() = metadata.clone();
                 *create_order_request.extensions_mut() = extensions.clone();
@@ -625,8 +626,15 @@ where
         let create_customer_response = self
             .create_connector_customer(&connector, &payload, &metadata, &extensions)
             .await?;
+
         let create_order_response = self
-            .create_order(&connector, &payload, &metadata, &extensions)
+            .create_order(
+                &connector,
+                &payload,
+                create_customer_response.as_ref(),
+                &metadata,
+                &extensions,
+            )
             .await?;
 
         // Extract flow parameters from payload

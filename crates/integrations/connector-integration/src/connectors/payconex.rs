@@ -467,6 +467,7 @@ macros::macro_connector_flow_status_impls!(
     // Flows that could be built against PayConex later but are not implemented yet.
     not_implemented: [
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         CreateOrder,
         MandateRevoke,
         PaymentMethodToken,

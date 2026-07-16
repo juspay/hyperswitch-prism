@@ -253,6 +253,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 
@@ -285,6 +287,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             raw_connector_response: Some(String::from_utf8_lossy(&request.body).to_string()),
             status_code: 200,
             response_headers: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -730,6 +734,7 @@ macros::macro_connector_flow_status_impls!(
         Accept,
         ServerSessionAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         PreAuthenticate,
         Authenticate,
         PostAuthenticate,

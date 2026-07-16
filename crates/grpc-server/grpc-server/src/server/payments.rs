@@ -14,10 +14,10 @@ use domain_types::payment_method_data;
 use domain_types::{
     connector_flow::{
         Authenticate, Authorize, Capture, ClientAuthenticationToken, CreateConnectorCustomer,
-        CreateOrder, CreatePaymentMethod, GetPaymentMethod, IncrementalAuthorization,
-        MandateRevoke, PSync, PaymentMethodEligibility, PaymentMethodToken, PostAuthenticate,
-        PreAuthenticate, Recharge, Refund, RepeatPayment, ServerAuthenticationToken,
-        ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
+        CreateOrder, CreatePaymentMethod, GetConnectorCustomer, GetPaymentMethod,
+        IncrementalAuthorization, MandateRevoke, PSync, PaymentMethodEligibility,
+        PaymentMethodToken, PostAuthenticate, PreAuthenticate, Recharge, Refund, RepeatPayment,
+        ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, Void, VoidPC,
     },
     connector_types::{
         ClientAuthenticationTokenRequestData, ConnectorCustomerData, ConnectorCustomerResponse,
@@ -41,7 +41,8 @@ use domain_types::{
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
     types::{
-        generate_create_order_response, generate_create_payment_method_response,
+        generate_create_connector_customer_response, generate_create_order_response,
+        generate_create_payment_method_response, generate_get_connector_customer_response,
         generate_get_payment_method_response, generate_payment_authenticate_response,
         generate_payment_capture_response, generate_payment_incremental_authorization_response,
         generate_payment_method_eligibility_response, generate_payment_post_authenticate_response,
@@ -357,15 +358,6 @@ impl CustomerService for Customer {
                             tonic::Status::invalid_argument("Invalid Connector Received")
                         })?;
 
-                    // Get connector integration
-                    let connector_integration: BoxedConnectorIntegrationV2<
-                        '_,
-                        CreateConnectorCustomer,
-                        PaymentFlowData,
-                        ConnectorCustomerData,
-                        ConnectorCustomerResponse,
-                    > = connector_data.connector.get_connector_integration_v2();
-
                     let connectors = utils::connectors_with_connector_config_overrides(
                         connector_config,
                         &config,
@@ -380,12 +372,101 @@ impl CustomerService for Customer {
                     ))
                     .map_err(|e| e.into_grpc_status())?;
 
-                    // Create connector customer request data directly
+                    // Create connector customer request data
                     let connector_customer_request_data =
                         ConnectorCustomerData::foreign_try_from(payload.clone())
                             .into_grpc_status()?;
 
-                    // Create router data for connector customer flow
+                    // Create test context if test mode is enabled
+                    let test_context =
+                        config.test.create_test_context(&request_id).map_err(|e| {
+                            tonic::Status::internal(format!("Test mode configuration error: {e}"))
+                        })?;
+
+                    // For connectors that require a lookup before create (e.g. Glomopay which
+                    // rejects duplicate emails), first run GET to search for an existing customer.
+                    // If found, return immediately. If not found, fall through to POST create.
+                    if connector_data.connector.should_lookup_connector_customer() {
+                        let get_integration: BoxedConnectorIntegrationV2<
+                            '_,
+                            GetConnectorCustomer,
+                            PaymentFlowData,
+                            ConnectorCustomerData,
+                            ConnectorCustomerResponse,
+                        > = connector_data.connector.get_connector_integration_v2();
+
+                        let get_router_data = RouterDataV2::<
+                            GetConnectorCustomer,
+                            PaymentFlowData,
+                            ConnectorCustomerData,
+                            ConnectorCustomerResponse,
+                        > {
+                            flow: std::marker::PhantomData,
+                            resource_common_data: payment_flow_data.clone(),
+                            connector_config: connector_config.clone(),
+                            request: connector_customer_request_data.clone(),
+                            response: Err(ErrorResponse::default()),
+                        };
+
+                        let get_event_params = EventProcessingParams {
+                            connector_name: &connector.get_connector_name(),
+                            service_name: &service_name,
+                            service_type: utils::service_type_str(&config.server.type_),
+                            flow_name: FlowName::GetConnectorCustomer,
+                            event_config: &config.events,
+                            request_id: &request_id,
+                            lineage_ids: &lineage_ids,
+                            reference_id: &metadata_payload.reference_id,
+                            resource_id: &metadata_payload.resource_id,
+                            shadow_mode: metadata_payload.shadow_mode,
+                            proxy_name: metadata_payload.proxy_name.as_deref(),
+                            tenant_id: &metadata_payload.tenant_id,
+                            merchant_id: metadata_payload.merchant_id.as_str(),
+                            return_raw_connector_data: config.common.return_raw_connector_data,
+                            connector_latency: metadata_payload.connector_latency.clone(),
+                        };
+
+                        let get_api_tag = config
+                            .api_tags
+                            .get_tag(FlowName::GetConnectorCustomer, None);
+
+                        if let Ok(get_result) = Box::pin(
+                            external_services::service::execute_connector_processing_step(
+                                &config.proxy,
+                                get_integration,
+                                get_router_data,
+                                None,
+                                get_event_params,
+                                None,
+                                common_enums::CallConnectorAction::Trigger,
+                                test_context.clone(),
+                                get_api_tag,
+                            ),
+                        )
+                        .await
+                        {
+                            // If the GET found an existing customer, return it directly
+                            if get_result.response.is_ok() {
+                                let lookup_response =
+                                    generate_get_connector_customer_response(get_result)
+                                        .map_err(|e| e.into_grpc_status())?;
+                                return Ok(tonic::Response::new(lookup_response));
+                            }
+                            // response is Err (CUSTOMER_NOT_FOUND) — fall through to POST create
+                        }
+                        // Infrastructure error from GET — fall through to POST create
+                    }
+
+                    // Get connector integration for POST create
+                    let connector_integration: BoxedConnectorIntegrationV2<
+                        '_,
+                        CreateConnectorCustomer,
+                        PaymentFlowData,
+                        ConnectorCustomerData,
+                        ConnectorCustomerResponse,
+                    > = connector_data.connector.get_connector_integration_v2();
+
+                    // Create router data for create flow
                     let connector_customer_router_data = RouterDataV2::<
                         CreateConnectorCustomer,
                         PaymentFlowData,
@@ -403,12 +484,6 @@ impl CustomerService for Customer {
                     let api_tag = config
                         .api_tags
                         .get_tag(FlowName::CreateConnectorCustomer, None);
-
-                    // Create test context if test mode is enabled
-                    let test_context =
-                        config.test.create_test_context(&request_id).map_err(|e| {
-                            tonic::Status::internal(format!("Test mode configuration error: {e}"))
-                        })?;
 
                     // Execute connector processing
                     let external_event_params = EventProcessingParams {
@@ -445,9 +520,9 @@ impl CustomerService for Customer {
                     .await
                     .into_grpc_status()?;
 
-                    // Generate response using the new function
+                    // Generate response
                     let connector_customer_response =
-                        domain_types::types::generate_create_connector_customer_response(response)
+                        generate_create_connector_customer_response(response)
                             .map_err(|e| e.into_grpc_status())?;
 
                     Ok(tonic::Response::new(connector_customer_response))

@@ -137,6 +137,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             network_txn_id: None,
             payment_method_update: None,
             sender_payment_instrument_id: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -362,6 +364,7 @@ macros::macro_connector_flow_status_impls!(
         ServerSessionAuthenticationToken,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         PaymentMethodToken,
     ],
 );

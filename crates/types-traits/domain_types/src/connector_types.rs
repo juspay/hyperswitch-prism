@@ -149,6 +149,7 @@ pub enum ConnectorEnum {
     TsysTransit,
     TwocTwopPaco,
     Juspay,
+    Glomopay,
     Payconex,
     Tamara,
     Hyperswitch,
@@ -454,6 +455,7 @@ impl ForeignTryFrom<grpc_api_types::payments::Connector> for ConnectorEnum {
             grpc_api_types::payments::Connector::Qwikcilver => Ok(Self::Qwikcilver),
             grpc_api_types::payments::Connector::Flywire => Ok(Self::Flywire),
             grpc_api_types::payments::Connector::Kount => Ok(Self::Kount),
+            grpc_api_types::payments::Connector::Glomopay => Ok(Self::Glomopay),
             grpc_api_types::payments::Connector::Unspecified => {
                 Err(IntegrationError::InvalidDataFormat {
                     field_name: "connector",
@@ -741,6 +743,13 @@ pub struct PaymentFlowData {
     /// Lives on PaymentFlowData (not PaymentsSyncData) so other flows can
     /// populate it in the future if a connector starts reporting settlement state on authorize, capture, etc.
     pub settlement_status: Option<SettlementStatus>,
+    /// Gateway-normalised response code, surfaced through the gRPC response
+    /// as `resp_code`. Populated by the connector transformer on every
+    /// response (success, pending, failure) — euler-api-txns persists it as
+    /// PGR.respCode and uses it for GSM lookups.
+    pub resp_code: Option<String>,
+    /// Gateway-normalised response message; companion to `resp_code`.
+    pub resp_msg: Option<String>,
 }
 
 impl PaymentFlowData {
@@ -2562,6 +2571,11 @@ pub struct RefundFlowData {
     /// Required by connectors (e.g. 2C2P PACO) that demand a per-request
     /// idempotency token on their wire envelope.
     pub merchant_request_id: Option<String>,
+    /// Gateway-normalised response code, surfaced through the gRPC refund
+    /// response as `resp_code`. See PaymentFlowData::resp_code for semantics.
+    pub resp_code: Option<String>,
+    /// Gateway-normalised response message; companion to `resp_code`.
+    pub resp_msg: Option<String>,
 }
 
 impl RawConnectorRequestResponse for RefundFlowData {
@@ -2651,6 +2665,13 @@ pub struct WebhookDetailsResponse {
     pub network_txn_id: Option<String>,
     pub payment_method_update: Option<PaymentMethodUpdate>,
     pub sender_payment_instrument_id: Option<String>,
+    /// Gateway-normalised response code emitted with every webhook (success
+    /// and failure). Distinct from `error_code`, which is populated only on
+    /// failures. Threaded through into PaymentServiceGetResponse.resp_code
+    /// so euler can persist it as PGR.respCode for GSM lookups.
+    pub resp_code: Option<String>,
+    /// Companion to `resp_code`; see resp_code doc.
+    pub resp_msg: Option<String>,
 }
 
 /// Typed reference extracted from a webhook payload during the stateless ParseEvent phase.
@@ -2731,6 +2752,11 @@ pub struct RefundWebhookDetailsResponse {
     pub raw_connector_response: Option<String>,
     pub status_code: u16,
     pub response_headers: Option<http::HeaderMap>,
+    /// Gateway-normalised response code/message emitted with every refund
+    /// webhook (success and failure). See WebhookDetailsResponse for
+    /// semantics.
+    pub resp_code: Option<String>,
+    pub resp_msg: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -5296,6 +5322,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::PinelabsOnline(_) => Ok(Self::Payment(ConnectorEnum::PinelabsOnline)),
             AuthType::Easebuzz(_) => Ok(Self::Payment(ConnectorEnum::Easebuzz)),
             AuthType::Juspay(_) => Ok(Self::Payment(ConnectorEnum::Juspay)),
+            AuthType::Glomopay(_) => Ok(Self::Payment(ConnectorEnum::Glomopay)),
             AuthType::Qwikcilver(_) => Ok(Self::Payment(ConnectorEnum::Qwikcilver)),
             AuthType::Payconex(_) => Ok(Self::Payment(ConnectorEnum::Payconex)),
             AuthType::Kount(_) => Ok(Self::Payment(ConnectorEnum::Kount)),

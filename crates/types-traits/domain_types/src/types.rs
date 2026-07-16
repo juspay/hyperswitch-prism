@@ -258,10 +258,10 @@ impl ForeignTryFrom<(Secret<String>, &'static str)> for SecretSerdeValue {
 use crate::{
     connector_flow::{
         Accept, Authenticate, Authorize, Capture, ClientAuthenticationToken,
-        CreateConnectorCustomer, CreateOrder, DefendDispute, IncrementalAuthorization, PSync,
-        PaymentMethodToken, PostAuthenticate, PreAuthenticate, RSync, Refund, RepeatPayment,
-        ServerAuthenticationToken, ServerSessionAuthenticationToken, SetupMandate, SubmitEvidence,
-        Void, VoidPC, VoidPostRefund,
+        CreateConnectorCustomer, CreateOrder, DefendDispute, GetConnectorCustomer,
+        IncrementalAuthorization, PSync, PaymentMethodToken, PostAuthenticate, PreAuthenticate,
+        RSync, Refund, RepeatPayment, ServerAuthenticationToken, ServerSessionAuthenticationToken,
+        SetupMandate, SubmitEvidence, Void, VoidPC, VoidPostRefund,
     },
     connector_types::{
         AcceptDisputeData, ApplePayPaymentRequest, ApplePaySessionResponse, BillingDescriptor,
@@ -411,6 +411,7 @@ pub struct Connectors {
     pub twoc_twop_paco: ConnectorParams,
     pub interpayments: ConnectorParams,
     pub juspay: ConnectorParams,
+    pub glomopay: ConnectorParams,
     pub payconex: ConnectorParams,
     pub tamara: ConnectorParams,
     pub hyperswitch: ConnectorParams,
@@ -734,6 +735,9 @@ impl Connectors {
             }
             ConnectorEnum::Affirm => {
                 patched.affirm.apply(params_patch);
+            }
+            ConnectorEnum::Glomopay => {
+                patched.glomopay.apply(params_patch);
             }
             _ => {
                 // Connector not supported for URL patching - return error
@@ -4807,6 +4811,8 @@ impl ForeignTryFrom<(PaymentServiceAuthorizeRequest, Connectors, &MaskedMetadata
             merchant_request_id: value.merchant_request_id.clone(),
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -4894,6 +4900,8 @@ impl ForeignTryFrom<(AuthorizationRequest, Connectors, &MaskedMetadata)> for Pay
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -4981,6 +4989,8 @@ impl ForeignTryFrom<(SetupRecurringRequest, Connectors, &MaskedMetadata)> for Pa
             sender_payment_instrument_id: None,
             l2_l3_data: l2_l3_data.map(Box::new),
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -5095,6 +5105,8 @@ impl
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -5188,6 +5200,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -5262,6 +5276,8 @@ impl ForeignTryFrom<(PaymentServiceVoidRequest, Connectors, &MaskedMetadata)> fo
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -5347,6 +5363,8 @@ impl
             merchant_request_id: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -6073,6 +6091,8 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                     splits: splits.map(|s| {
                         grpc_api_types::payments::ConnectorSplitResponseData::foreign_from(s)
                     }),
+                    resp_code: router_data_v2.resource_common_data.resp_code.clone(),
+                    resp_msg: router_data_v2.resource_common_data.resp_msg.clone(),
                 }
             }
             _ => {
@@ -6130,6 +6150,16 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 connector_response,
                 network_txn_link_id: None,
                 splits: None,
+                resp_code: router_data_v2
+                    .resource_common_data
+                    .resp_code
+                    .clone()
+                    .or_else(|| Some(err.code.clone())),
+                resp_msg: router_data_v2
+                    .resource_common_data
+                    .resp_msg
+                    .clone()
+                    .or_else(|| Some(err.message.clone())),
             }
         }
     };
@@ -7506,6 +7536,8 @@ pub fn generate_payment_sync_response(
                     settlement_status: router_data_v2.resource_common_data.settlement_status.map(
                         |status| grpc_api_types::payments::SettlementStatus::from(status) as i32,
                     ),
+                    resp_code: router_data_v2.resource_common_data.resp_code.clone(),
+                    resp_msg: router_data_v2.resource_common_data.resp_msg.clone(),
                     connector_feature_data: convert_connector_metadata_to_secret_string(
                         connector_metadata,
                     ),
@@ -7610,6 +7642,8 @@ pub fn generate_payment_sync_response(
                     settlement_status: router_data_v2.resource_common_data.settlement_status.map(
                         |status| grpc_api_types::payments::SettlementStatus::from(status) as i32,
                     ),
+                    resp_code: router_data_v2.resource_common_data.resp_code.clone(),
+                    resp_msg: router_data_v2.resource_common_data.resp_msg.clone(),
                     connector_feature_data: None,
                 })
             }
@@ -7667,7 +7701,15 @@ pub fn generate_payment_sync_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
+                        code: None,
+                        message: e.network_error_message.clone(),
+                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
+                            advice_code: e.network_advice_code,
+                            decline_code: e.network_decline_code,
+                            error_message: e.network_error_message,
+                        }),
+                    }),
                 }),
                 network_transaction_id: None,
                 network_txn_link_id: None,
@@ -7699,6 +7741,16 @@ pub fn generate_payment_sync_response(
                 sender_payment_instrument_id: None,
                 splits: None,
                 settlement_status: None,
+                resp_code: router_data_v2
+                    .resource_common_data
+                    .resp_code
+                    .clone()
+                    .or_else(|| Some(e.code.clone())),
+                resp_msg: router_data_v2
+                    .resource_common_data
+                    .resp_msg
+                    .clone()
+                    .or_else(|| Some(e.message.clone())),
                 connector_feature_data: None,
             })
         }
@@ -7809,6 +7861,8 @@ impl
             test_mode: value.test_mode,
             payment_method,
             merchant_request_id: value.merchant_request_id.clone(),
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -7858,6 +7912,8 @@ impl
             test_mode: value.test_mode,
             payment_method: None,
             merchant_request_id: value.merchant_request_id.clone(),
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -7919,6 +7975,8 @@ impl
             test_mode: value.test_mode,
             payment_method,
             merchant_request_id: value.merchant_request_id.clone(),
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -8440,6 +8498,8 @@ pub fn generate_refund_sync_response(
                 raw_connector_request,
                 acquirer_reference_number: None,
                 state_metadata: None,
+                resp_code: router_data_v2.resource_common_data.resp_code.clone(),
+                resp_msg: router_data_v2.resource_common_data.resp_msg.clone(),
             })
         }
         Err(e) => {
@@ -8487,6 +8547,16 @@ pub fn generate_refund_sync_response(
                 raw_connector_request,
                 acquirer_reference_number: None,
                 state_metadata: None,
+                resp_code: router_data_v2
+                    .resource_common_data
+                    .resp_code
+                    .clone()
+                    .or_else(|| Some(e.code.clone())),
+                resp_msg: router_data_v2
+                    .resource_common_data
+                    .resp_msg
+                    .clone()
+                    .or_else(|| Some(e.message.clone())),
             })
         }
     }
@@ -8597,6 +8667,8 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
             sender_payment_instrument_id: value.sender_payment_instrument_id,
             splits: None,
             settlement_status: None,
+            resp_code: value.resp_code,
+            resp_msg: value.resp_msg,
             connector_feature_data: None,
         })
     }
@@ -8844,6 +8916,8 @@ pub fn generate_void_post_refund_response(
                 acquirer_reference_number: None,
                 state_metadata: Some(Secret::new(state_metadata)),
                 merchant_transaction_id: None,
+                resp_code: router_data_v2.resource_common_data.resp_code.clone(),
+                resp_msg: router_data_v2.resource_common_data.resp_msg.clone(),
             })
         }
         Err(e) => Ok(RefundResponse {
@@ -8902,6 +8976,16 @@ pub fn generate_void_post_refund_response(
                 })?,
             )),
             merchant_transaction_id: None,
+            resp_code: router_data_v2
+                .resource_common_data
+                .resp_code
+                .clone()
+                .or_else(|| Some(e.code.clone())),
+            resp_msg: router_data_v2
+                .resource_common_data
+                .resp_msg
+                .clone()
+                .or_else(|| Some(e.message.clone())),
         }),
     }
 }
@@ -9002,6 +9086,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -9113,6 +9199,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -9148,8 +9236,8 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
-                    message: value.error_message,
-                    code: value.error_code,
+                    message: value.error_message.clone(),
+                    code: value.error_code.clone(),
                     reason: None,
                     connector_transaction_id: None,
                     status: None,
@@ -9174,6 +9262,8 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
             raw_connector_request: None,
             acquirer_reference_number: None,
             state_metadata: None,
+            resp_code: value.resp_code,
+            resp_msg: value.resp_msg,
         })
     }
 }
@@ -9857,6 +9947,8 @@ pub fn generate_refund_response(
                 raw_connector_request,
                 acquirer_reference_number: None,
                 state_metadata: None,
+                resp_code: router_data_v2.resource_common_data.resp_code.clone(),
+                resp_msg: router_data_v2.resource_common_data.resp_msg.clone(),
             })
         }
         Err(e) => {
@@ -9903,6 +9995,16 @@ pub fn generate_refund_response(
                 raw_connector_request,
                 acquirer_reference_number: None,
                 state_metadata: None,
+                resp_code: router_data_v2
+                    .resource_common_data
+                    .resp_code
+                    .clone()
+                    .or_else(|| Some(e.code.clone())),
+                resp_msg: router_data_v2
+                    .resource_common_data
+                    .resp_msg
+                    .clone()
+                    .or_else(|| Some(e.message.clone())),
             })
         }
     }
@@ -10147,6 +10249,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -10587,6 +10691,8 @@ impl
             l2_l3_data: l2_l3_data.map(Box::new),
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -10684,6 +10790,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -11835,13 +11943,17 @@ impl
             .map(|m| ForeignTryFrom::foreign_try_from((m, "merchant account metadata")))
             .transpose()?;
 
-        // Extract access token from state if present
+        // Extract access token and connector_customer_id from state if present
         let access_token = value
             .state
             .as_ref()
             .and_then(|state| state.access_token.as_ref())
             .map(ServerAuthenticationTokenResponseData::foreign_try_from)
             .transpose()?;
+        let connector_customer = value
+            .state
+            .as_ref()
+            .and_then(|state| state.connector_customer_id.clone());
 
         Ok(Self {
             merchant_id: merchant_id_from_header,
@@ -11855,7 +11967,7 @@ impl
                 &value.merchant_order_id,
             ),
             customer_id: None, // PaymentServiceCreateOrderRequest doesn't have customer_id field
-            connector_customer: None,
+            connector_customer,
             description: None,
             return_url: None,
             connector_feature_data,
@@ -11885,6 +11997,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -12648,6 +12762,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -12824,6 +12940,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -12935,6 +13053,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -13041,6 +13161,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -13143,6 +13265,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -13185,6 +13309,49 @@ pub fn generate_create_connector_customer_response(
                     status: None,
                 }),
                 issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
+            }),
+        }),
+    }
+}
+
+pub fn generate_get_connector_customer_response(
+    router_data_v2: RouterDataV2<
+        GetConnectorCustomer,
+        PaymentFlowData,
+        ConnectorCustomerData,
+        crate::connector_types::ConnectorCustomerResponse,
+    >,
+) -> Result<grpc_payment_types::CustomerServiceCreateResponse, error_stack::Report<ConnectorError>>
+{
+    let customer_response = router_data_v2.response;
+
+    match customer_response {
+        Ok(response) => Ok(grpc_payment_types::CustomerServiceCreateResponse {
+            connector_customer_id: response.connector_customer_id.clone(),
+            error: None,
+            status_code: response.status_code as u32,
+            response_headers: router_data_v2
+                .resource_common_data
+                .get_connector_response_headers_as_map(),
+            merchant_customer_id: Some(response.connector_customer_id.clone()),
+        }),
+        Err(e) => Ok(grpc_payment_types::CustomerServiceCreateResponse {
+            connector_customer_id: String::new(),
+            status_code: e.status_code as u32,
+            response_headers: router_data_v2
+                .resource_common_data
+                .get_connector_response_headers_as_map(),
+            merchant_customer_id: e.connector_transaction_id.clone(),
+            error: Some(grpc_api_types::payments::ErrorInfo {
+                unified_details: None,
+                connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
+                    message: Some(e.message.clone()),
+                    code: Some(e.code.clone()),
+                    reason: e.reason.clone(),
+                    connector_transaction_id: e.connector_transaction_id.clone(),
+                    status: None,
+                }),
+                issuer_details: None,
             }),
         }),
     }
@@ -14994,6 +15161,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -15095,6 +15264,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -15196,6 +15367,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }
@@ -15275,6 +15448,8 @@ impl
             l2_l3_data: None,
             sender_payment_instrument_id: None,
             settlement_status: None,
+            resp_code: None,
+            resp_msg: None,
         })
     }
 }

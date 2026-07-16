@@ -814,6 +814,7 @@ enum Connector {
   TSYS_TRANSIT = 127;
   KOUNT = 128;
   FLYWIRE = 129;
+  GLOMOPAY = 130;
 }
 
 // Payment method types
@@ -1665,6 +1666,10 @@ message EventServiceHandleResponse {
 
   // Integrity fields that downstream can use to verify the webhook payload.
   repeated IntegrityCheck supported_integrity_checks = 6;
+
+  // If true, caller must perform a PSync before trusting the webhook status.
+  // Set for connectors that send unsigned webhooks (e.g. Glomopay).
+  bool requires_payment_sync = 7;
 }
 
 // Request for notifying connectors about events
@@ -2554,6 +2559,13 @@ message PaymentServiceAuthorizeResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 22;
+
+  // Gateway-status-map (GSM) lookup keys. Independent of ErrorInfo — populated
+  // on every response (success, pending, failure) with a connector-normalised
+  // code and human-readable message. Consumed by euler-api-txns to persist to
+  // PGR.respCode / PGR.respMessage and drive GSM lookups.
+  optional string resp_code = 23;
+  optional string resp_msg = 24;
 }
 
 // Request message for synchronizing payment status
@@ -2686,6 +2698,12 @@ message PaymentServiceGetResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 35;
+
+  // Gateway-status-map (GSM) lookup keys. See PaymentServiceAuthorizeResponse
+  // for semantics — populated on every response and consumed by euler-api-txns
+  // to drive GSM lookups.
+  optional string resp_code = 36;
+  optional string resp_msg = 37;
 }
 
 // Request message for voiding a payment
@@ -3150,6 +3168,12 @@ message RefundResponse {
   // Merchant's reference for the original payment/transaction the refund
   // belongs to
   optional string merchant_transaction_id = 24;
+
+  // Gateway-status-map (GSM) lookup keys. See PaymentServiceAuthorizeResponse
+  // for semantics — populated on every refund response and consumed by
+  // euler-api-txns to drive GSM lookups.
+  optional string resp_code = 25;
+  optional string resp_msg = 26;
 }
 
 // Request message for voiding/reversing a refund before settlement.
@@ -5203,6 +5227,11 @@ message HyperswitchConfig {
   optional string base_url = 50;
 }
 
+message GlomopayConfig {
+  SecretString api_key = 1;
+  optional string base_url = 50;
+}
+
 // ConnectorSpecificConfig message with oneof containing all connector
 // configurations. Comment above each field (e.g. "// PAYPAL = 62") is the
 // Connector enum value from this file;
@@ -5499,6 +5528,8 @@ message ConnectorSpecificConfig {
     AffirmConfig affirm = 135;
     // FLYWIRE = 129
     FlywireConfig flywire = 136;
+    // GLOMOPAY = 130
+    GlomopayConfig glomopay = 137;
   }
 }
 

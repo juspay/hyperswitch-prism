@@ -118,6 +118,10 @@ mod tests {
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
                     settlement_status: None,
+
+                    resp_code: None,
+
+                    resp_msg: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -317,6 +321,10 @@ mod tests {
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
                     settlement_status: None,
+
+                    resp_code: None,
+
+                    resp_msg: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -468,6 +476,10 @@ mod tests {
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
                     settlement_status: None,
+
+                    resp_code: None,
+
+                    resp_msg: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -642,6 +654,10 @@ mod tests {
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
                     settlement_status: None,
+
+                    resp_code: None,
+
+                    resp_msg: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1012,6 +1028,10 @@ mod tests {
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
                 settlement_status: None,
+
+                resp_code: None,
+
+                resp_msg: None,
                 merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1220,6 +1240,10 @@ mod tests {
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
                 settlement_status: None,
+
+                resp_code: None,
+
+                resp_msg: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1428,6 +1452,10 @@ mod tests {
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
                     settlement_status: None,
+
+                    resp_code: None,
+
+                    resp_msg: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1551,6 +1579,10 @@ mod tests {
                     merchant_request_id: None,
                     sender_payment_instrument_id: None,
                     settlement_status: None,
+
+                    resp_code: None,
+
+                    resp_msg: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
                     api_key: "dummy_api_key".to_string().into(),
@@ -1675,6 +1707,10 @@ mod tests {
                     l2_l3_data: None,
                     sender_payment_instrument_id: None,
                     settlement_status: None,
+
+                    resp_code: None,
+
+                    resp_msg: None,
                     merchant_request_id: None,
                 },
                 connector_config: ConnectorSpecificConfig::Razorpay {
@@ -1848,6 +1884,10 @@ mod tests {
                 merchant_request_id: None,
                 sender_payment_instrument_id: None,
                 settlement_status: None,
+
+                resp_code: None,
+
+                resp_msg: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
                 api_key: "dummy_api_key".to_string().into(),
@@ -1981,6 +2021,10 @@ mod tests {
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
                 settlement_status: None,
+
+                resp_code: None,
+
+                resp_msg: None,
                 merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {
@@ -2104,6 +2148,10 @@ mod tests {
                 l2_l3_data: None,
                 sender_payment_instrument_id: None,
                 settlement_status: None,
+
+                resp_code: None,
+
+                resp_msg: None,
                 merchant_request_id: None,
             },
             connector_config: ConnectorSpecificConfig::Razorpay {

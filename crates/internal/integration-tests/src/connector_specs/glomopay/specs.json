@@ -1,0 +1,12 @@
+{
+  "connector": "glomopay",
+  "supported_suites": [
+    "CustomerService/Create",
+    "PaymentService/CreateOrder",
+    "PaymentService/Authorize",
+    "PaymentService/Get",
+    "EventService/HandleEvent",
+    "PaymentService/Refund",
+    "RefundService/Get"
+  ]
+}
