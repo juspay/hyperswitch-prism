@@ -32,10 +32,10 @@ use interfaces::{
 use serde::Serialize;
 use std::fmt::Debug;
 use transformers::{
-    self as paysafe, PaysafeAuthorizeRequest, PaysafeAuthorizeResponse, PaysafeCaptureRequest,
+    self as paysafe, PaysafeAuthenticateRequest, PaysafeAuthenticateResponse,
+    PaysafeAuthorizeRequest, PaysafeAuthorizeResponse, PaysafeCaptureRequest,
     PaysafeCaptureResponse, PaysafeCustomerRequest, PaysafeCustomerResponse, PaysafeErrorResponse,
-    PaysafeAuthenticateRequest, PaysafeAuthenticateResponse, PaysafePaymentMethodTokenRequest,
-    PaysafePaymentMethodTokenResponse,
+    PaysafePaymentMethodTokenRequest, PaysafePaymentMethodTokenResponse,
     PaysafePreAuthenticateRequest, PaysafePreAuthenticateResponse, PaysafeRSyncResponse,
     PaysafeRefundRequest, PaysafeRefundResponse, PaysafeRepeatPaymentRequest,
     PaysafeRepeatPaymentResponse, PaysafeSyncResponse, PaysafeVoidRequest, PaysafeVoidResponse,

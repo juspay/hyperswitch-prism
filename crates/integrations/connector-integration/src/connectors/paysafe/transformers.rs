@@ -634,7 +634,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         };
         // Paysafe provisions 3DS and non-3DS card accounts separately and rejects a `threeDs`
         // body on a non-3DS account (error 5040). The settle Authorize resolves the same slot.
-        let account_id = account_id_map.get_account_id(PaysafeAccountKind::CardThreeDs, currency)?;
+        let account_id =
+            account_id_map.get_account_id(PaysafeAccountKind::CardThreeDs, currency)?;
         let three_ds = ThreeDs {
             merchant_url: redirect_url.clone(),
             // UCS carries no client-platform signal, so SDK (in-app 3DS) is not derivable here;
@@ -1570,8 +1571,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         // Card no-3DS uses the tokenize PaymentMethodToken; redirect APMs / composite echoes fall
         // back to connector_feature_data.
         let payment_handle_token: Secret<String> = if let Some(token) =
-            paysafe_authentication_data_handle_token(router_data.request.authentication_data.as_ref())
-        {
+            paysafe_authentication_data_handle_token(
+                router_data.request.authentication_data.as_ref(),
+            ) {
             token
         } else {
             match &router_data.request.payment_method_data {
@@ -1877,9 +1879,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
             PaysafeAuthorizeResponse::Payment(_) => {
                 return Err(ConnectorError::unexpected_response_error_with_context(
                     http_code,
-                    Some(
-                        "Paysafe PreAuthenticate expected a payment-handle response".to_string(),
-                    ),
+                    Some("Paysafe PreAuthenticate expected a payment-handle response".to_string()),
                 )
                 .into())
             }
@@ -1906,8 +1906,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
                 })
             });
 
-        let authentication_data =
-            Some(paysafe_handle_token_authentication_data(&response.payment_handle_token));
+        let authentication_data = Some(paysafe_handle_token_authentication_data(
+            &response.payment_handle_token,
+        ));
 
         router_data.resource_common_data.status = status;
 
@@ -2013,8 +2014,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthenticateRe
         };
 
         let status = enums::AttemptStatus::try_from(status)?;
-        let authentication_data =
-            Some(paysafe_handle_token_authentication_data(payment_handle_token));
+        let authentication_data = Some(paysafe_handle_token_authentication_data(
+            payment_handle_token,
+        ));
         let connector_feature_data = Some(serde_json::json!(PaysafeMeta {
             payment_handle_token: payment_handle_token.clone(),
         }));
