@@ -10,7 +10,7 @@ use domain_types::{
         VoidPostRefund,
     },
     connector_types::{
-        MandateIds, MandateReference, MandateReferenceId, PaymentFlowData, PaymentVoidData,
+        MandateIds, MandateReferenceId, PaymentFlowData, PaymentVoidData,
         PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
         PaymentsResponseData, PaymentsSyncData, RecurringMandatePaymentData, RefundFlowData,
         RefundSyncData, RefundVoidPostRefundData, RefundsData, RefundsResponseData,
@@ -3494,25 +3494,21 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 )
             })?;
 
-        let path_a_mandate_id = format!("ntid:{ntid_source}");
-        let mandate_reference = Box::new(MandateReference {
-            connector_mandate_id: Some(path_a_mandate_id),
-            payment_method_id: None,
-            connector_mandate_request_reference_id: None,
-            mandate_metadata: None,
-        });
-
         let connector_txn_id = response
             .transaction_id
             .clone()
             .unwrap_or_else(|| ntid_source.clone());
 
+        // Do NOT fake the network transaction id as a connector_mandate_id (PSP
+        // token). The NTI is stored as network_txn_id; a connector-agnostic MIT
+        // replays it from the payment method's network_transaction_id together with
+        // the locker card, so no connector mandate / PSP token is needed.
         let payments_response_data = PaymentsResponseData::TransactionResponse {
             resource_id: ResponseId::ConnectorTransactionId(connector_txn_id.clone()),
             redirection_data: None,
-            mandate_reference: Some(mandate_reference),
+            mandate_reference: None,
             connector_metadata: None,
-            network_txn_id: response.auth_code.clone(),
+            network_txn_id: Some(ntid_source.clone()),
             network_txn_link_id: None,
             connector_response_reference_id: Some(connector_txn_id),
             incremental_authorization_allowed: None,
