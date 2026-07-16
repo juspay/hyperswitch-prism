@@ -385,6 +385,10 @@ jobs:
 
     env:
       RUSTFLAGS: "-D warnings"
+      # Same as the test job: minimal debug info keeps target/ within the hosted
+      # runner's disk when a base-crate change forces a full-workspace rebuild.
+      CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
+      CARGO_PROFILE_TEST_DEBUG: "line-tables-only"
 
     steps:
       - name: Checkout code
