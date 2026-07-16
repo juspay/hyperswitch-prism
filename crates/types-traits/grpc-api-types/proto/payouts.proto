@@ -228,7 +228,7 @@ message PayoutMethod {
     // BANK TRANSFER METHODS
     PixKeyBankTransferPayout pix_key = 12;
     PixEmvBankTransferPayout pix_emv = 13;
-    EftBankTransferPayout eft_bank_transfer = 14;
+    EftBankTransferPayout eft = 14;
   }
 }
 

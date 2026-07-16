@@ -973,7 +973,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutMethod>
                     payouts::payout_method_data::PixEmvBankTransfer::foreign_try_from(pix_emv)?,
                 )))
             }
-            grpc_api_types::payouts::payout_method::PayoutMethodData::EftBankTransfer(eft) => {
+            grpc_api_types::payouts::payout_method::PayoutMethodData::Eft(eft) => {
                 Ok(Self::Bank(payouts::payout_method_data::Bank::Eft(
                     payouts::payout_method_data::EftBankTransfer::foreign_try_from(eft)?,
                 )))
