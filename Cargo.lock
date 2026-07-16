@@ -1294,6 +1294,7 @@ dependencies = [
 name = "connector_request_kafka"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "domain_types",
  "error-stack 0.4.1",
  "hyperswitch_masking",

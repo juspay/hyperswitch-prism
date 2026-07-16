@@ -19,6 +19,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.16.0
+
+### Features
+
+- **connector:** [absa_sanlam] Add payment flow tests for absa_sanlam ([#1855](https://github.com/juspay/connector-service/pull/1855)) ([`fb810e3`](https://github.com/juspay/connector-service/commit/fb810e36ba715ba84265daa5438f22f63e5605ab))
+- **netcetera:** App-based 3DS (deviceChannel=01) over external vault ([#1950](https://github.com/juspay/connector-service/pull/1950)) ([`dcde731`](https://github.com/juspay/connector-service/commit/dcde73119a3b25b275eb68116417611d90e828a7))
+
+### Bug Fixes
+
+- **connector:** Checkout metadata parsing and `partner_merchant_identifier_details` field ([#1941](https://github.com/juspay/connector-service/pull/1941)) ([`f0e7f7d`](https://github.com/juspay/connector-service/commit/f0e7f7d82a841611cb91aa30624ab5d288e97fd6))
+
+### Refactors
+
+- **payments:** Add raw_connector_response to Capture, Reverse, SetupRecurring, and IncrementalAuth flows ([#1939](https://github.com/juspay/connector-service/pull/1939)) ([`b8a69d6`](https://github.com/juspay/connector-service/commit/b8a69d698f04fbd3b4af7c090d42496d62809a8d))
+
+**Full Changelog:** [`2026.07.15.0...2026.07.16.0`](https://github.com/juspay/connector-service/compare/2026.07.15.0...2026.07.16.0)
+
+- - -
+
 ## 2026.07.15.0
 
 ### Bug Fixes

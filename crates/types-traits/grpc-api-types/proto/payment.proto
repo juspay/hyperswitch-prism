@@ -2798,6 +2798,10 @@ message PaymentServiceReverseResponse {
 
   // Reference
   optional string merchant_reverse_id = 6;
+
+  // Raw Request and Response for debugging
+  optional SecretString raw_connector_request = 7;
+  optional SecretString raw_connector_response = 8;
 }
 
 // Request message for creating an access token
@@ -2986,6 +2990,9 @@ message PaymentServiceCaptureResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 15;
+
+  // Raw Response for debugging
+  optional SecretString raw_connector_response = 16;
 }
 
 // Request message for creating an order
@@ -3371,6 +3378,9 @@ message PaymentServiceSetupRecurringResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 17;
+
+  // Raw Response for debugging
+  optional SecretString raw_connector_response = 18;
 }
 
 // Request message for repeat payment (MIT - Merchant Initiated Transaction)
@@ -3463,6 +3473,8 @@ message RecurringPaymentServiceChargeRequest {
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 35;
 
   optional AuthenticationType auth_type = 36;
+  
+  optional string complete_authorize_url = 37;
 }
 
 // Response message for repeat payment operation
@@ -3503,6 +3515,12 @@ message RecurringPaymentServiceChargeResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 17;
+
+  // Redirection data (e.g. 3DS challenge or buyer-approval URL) for wallet-MIT /
+  // repeat payments that require buyer interaction. Mirrors
+  // PaymentServiceAuthorizeResponse.redirection_data so a redirected recurring
+  // charge can surface a next_action to the buyer.
+  optional RedirectForm redirection_data = 18;
 }
 
 // Request message for a mandate revoke operation
@@ -3781,6 +3799,10 @@ message PaymentServiceIncrementalAuthorizationResponse {
 
   // State Information
   optional ConnectorState state = 6;
+
+  // Raw Request and Response for debugging
+  optional SecretString raw_connector_request = 7;
+  optional SecretString raw_connector_response = 8;
 }
 
 // IDs extracted from a payment webhook.
