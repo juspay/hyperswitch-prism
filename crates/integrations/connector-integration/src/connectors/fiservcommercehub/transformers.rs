@@ -1953,18 +1953,6 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     },
                 })
             }
-            PaymentMethodData::CardWithNoCvc(card) => {
-                let encrypted_card = encrypt_card_data_no_cvc(card, key_id, &public_key_der)?;
-
-                FiservcommercehubSourceData::PaymentCard(FiservcommercehubPaymentCardSource {
-                    encryption_data: FiservcommercehubEncryptionData {
-                        key_id: encrypted_card.key_id,
-                        encryption_type: ENCRYPTION_TYPE_RSA.to_string(),
-                        encryption_block: encrypted_card.encryption_block,
-                        encryption_block_fields: encrypted_card.encryption_block_fields,
-                    },
-                })
-            }
             _ => {
                 return Err(error_stack::report!(
                     errors::IntegrationError::NotImplemented(
