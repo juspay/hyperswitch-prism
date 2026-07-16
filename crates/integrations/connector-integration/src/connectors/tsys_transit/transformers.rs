@@ -10,11 +10,10 @@ use domain_types::{
         VoidPostRefund,
     },
     connector_types::{
-        MandateIds, MandateReferenceId, PaymentFlowData, PaymentVoidData,
-        PaymentsAuthorizeData, PaymentsCancelPostCaptureData, PaymentsCaptureData,
-        PaymentsResponseData, PaymentsSyncData, RecurringMandatePaymentData, RefundFlowData,
-        RefundSyncData, RefundVoidPostRefundData, RefundsData, RefundsResponseData,
-        RepeatPaymentData, ResponseId, SetupMandateRequestData,
+        MandateIds, MandateReferenceId, PaymentFlowData, PaymentVoidData, PaymentsAuthorizeData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsResponseData, PaymentsSyncData,
+        RecurringMandatePaymentData, RefundFlowData, RefundSyncData, RefundVoidPostRefundData,
+        RefundsData, RefundsResponseData, RepeatPaymentData, ResponseId, SetupMandateRequestData,
     },
     errors::{ConnectorError, IntegrationError},
     payment_method_data::{
