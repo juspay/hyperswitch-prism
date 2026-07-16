@@ -19,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.16.1
+
+### Features
+
+- **connector:** PayPal recurring parity (SetupMandate + RepeatPayment) for Card + Wallet ([#1811](https://github.com/juspay/connector-service/pull/1811)) ([`f366c2d`](https://github.com/juspay/connector-service/commit/f366c2d49d61b43545514da1afb25b33358a8af0))
+
+### Bug Fixes
+
+- **Connector:** [iMerchant Solutions] Make Google Pay Cryptogram/ECI Optional And Apple Pay ECI Optional ([#1947](https://github.com/juspay/connector-service/pull/1947)) ([`900eedc`](https://github.com/juspay/connector-service/commit/900eedce678b2d4bd9dac8eb7868b3bfc028bdab))
+
+**Full Changelog:** [`2026.07.16.0...2026.07.16.1`](https://github.com/juspay/connector-service/compare/2026.07.16.0...2026.07.16.1)
+
+- - -
+
 ## 2026.07.16.0
 
 ### Features
