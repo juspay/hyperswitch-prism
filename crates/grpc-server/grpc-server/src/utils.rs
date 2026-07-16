@@ -842,8 +842,32 @@ macro_rules! implement_connector_operation {
                     )
                     .await?
                 }
-                Some(domain_types::types::PaymentMethodDataAction::CardWithNoCvc(_)) => {
-                    return Err(tonic::Status::unimplemented("CardWithNoCvc is not supported in this flow"));
+                Some(domain_types::types::PaymentMethodDataAction::CardWithNoCvc(card_details)) => {
+                    let payment_method_data =
+                        domain_types::payment_method_data::PaymentMethodData::CardWithNoCvc(
+                            domain_types::payment_method_data::CardWithNoCvc::foreign_try_from(
+                                card_details,
+                            )
+                            .to_grpc_error()?,
+                        );
+
+                    let request =
+                        $request_data_constructor((payload.clone(), Some(payment_method_data)))
+                            .to_grpc_error()?;
+
+                    run_holder_flow::<domain_types::payment_method_data::DefaultPCIHolder>(
+                        &metadata_payload.connector,
+                        request,
+                        common_flow_data,
+                        connector_config,
+                        None,
+                        &config.proxy,
+                        $all_keys_required,
+                        event_params,
+                        test_context,
+                        api_tag,
+                    )
+                    .await?
                 }
                 // ── No payment method data → DefaultPCIHolder, direct connector call ─
                 None => {
