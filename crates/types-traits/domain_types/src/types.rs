@@ -13353,6 +13353,7 @@ impl<
                 .transpose()?,
             webhook_url,
             router_return_url: value.return_url,
+            complete_authorize_url: value.complete_authorize_url,
             integrity_object: None,
             capture_method: Some(CaptureMethod::foreign_try_from(capture_method)?),
             email,
@@ -13475,6 +13476,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
         Ok(response) => match response {
             PaymentsResponseData::TransactionResponse {
                 resource_id,
+                redirection_data,
                 network_txn_id,
                 network_txn_link_id: _,
                 connector_response_reference_id,
@@ -13501,6 +13503,15 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                     grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
                         raw_connector_status: router_data_v2.resource_common_data.raw_connector_status.clone().map(|status| grpc_api_types::payments::RawConnectorStatus { code: status.code, message: status.message, reason: status.reason }),
                         connector_transaction_id: Option::foreign_try_from(resource_id)?,
+                        redirection_data: redirection_data.and_then(|form| {
+                            match grpc_api_types::payments::RedirectForm::foreign_try_from(*form) {
+                                Ok(form) => Some(form),
+                                Err(err) => {
+                                    tracing::error!("Failed to convert RedirectForm: {err:?}");
+                                    None
+                                }
+                            }
+                        }),
                         status: grpc_status as i32,
                         error: None,
                         network_transaction_id: network_txn_id,
@@ -13551,6 +13562,7 @@ pub fn generate_repeat_payment_response<T: PaymentMethodDataTypes>(
                 grpc_api_types::payments::RecurringPaymentServiceChargeResponse {
                     raw_connector_status: router_data_v2.resource_common_data.raw_connector_status.clone().map(|status| grpc_api_types::payments::RawConnectorStatus { code: status.code, message: status.message, reason: status.reason }),
                     connector_transaction_id: err.connector_transaction_id.clone(),
+                    redirection_data: None,
                     status: status as i32,
                     error: Some(grpc_api_types::payments::ErrorInfo {
                         unified_details: None,
@@ -14811,8 +14823,24 @@ impl<
                 .domain_data
                 .map(connector_types::DomainData::foreign_try_from)
                 .transpose()?,
+            sdk_information: value
+                .metadata
+                .as_ref()
+                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
+                .and_then(|m| m.sdk_information),
+            device_channel: value
+                .metadata
+                .as_ref()
+                .and_then(|m| serde_json::from_str::<AuthenticateSdkMetadata>(m.peek()).ok())
+                .and_then(|m| m.device_channel),
         })
     }
+}
+
+#[derive(serde::Deserialize)]
+struct AuthenticateSdkMetadata {
+    device_channel: Option<connector_types::DeviceChannel>,
+    sdk_information: Option<connector_types::SdkInformation>,
 }
 
 impl<
