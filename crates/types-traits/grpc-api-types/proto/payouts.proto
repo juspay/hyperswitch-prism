@@ -141,6 +141,19 @@ message PixEmvBankTransferPayout {
   SecretString emv = 1;
 }
 
+message EftBankTransferPayout {
+  // Bank account number used for South African EFT payouts
+  optional SecretString bank_account_number = 1;
+  // Bank branch code used for South African EFT payouts
+  optional SecretString branch_code = 2;
+  // Name of the bank account holder
+  optional SecretString bank_account_holder_name = 3;
+  // The name of the bank
+  optional BankNames bank_name = 4;
+  // Type of bank account
+  optional BankType bank_type = 5;
+}
+
 message ApplePayDecrypt {
   // The device primary account number (DPAN)
   CardNumberType dpan = 1;
@@ -215,6 +228,7 @@ message PayoutMethod {
     // BANK TRANSFER METHODS
     PixKeyBankTransferPayout pix_key = 12;
     PixEmvBankTransferPayout pix_emv = 13;
+    EftBankTransferPayout eft_bank_transfer = 14;
   }
 }
 
@@ -314,6 +328,8 @@ message PayoutServiceTransferRequest {
   optional SourceBankData source_bank_data = 14;
   // Description of the payout
   optional string description = 15;
+  // Additional Metadata for the payout transfer
+  optional SecretString metadata = 16;
 }
 
 // Response message for transferring a payout
@@ -557,4 +573,3 @@ message PayoutMethodEligibilityResponse {
   // HTTP status code from the connector
   uint32 status_code = 5;
 }
-

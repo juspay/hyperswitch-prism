@@ -79,6 +79,7 @@ pub enum Bank {
     Pix(PixBankTransfer),
     PixKey(PixKeyBankTransfer),
     PixEmv(PixEmvBankTransfer),
+    Eft(EftBankTransfer),
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
@@ -164,6 +165,42 @@ pub struct PixKeyBankTransfer {
 pub struct PixEmvBankTransfer {
     /// EMV data for pix
     pub emv: Secret<String>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct EftBankTransfer {
+    /// Bank account number assigned by the bank to the beneficiary.
+    pub bank_account_number: Secret<String>,
+
+    /// South African branch code identifying the beneficiary bank branch.
+    pub branch_code: Option<Secret<String>>,
+
+    /// Name of the beneficiary account holder.
+    pub bank_account_holder_name: Option<Secret<String>>,
+
+    /// Beneficiary bank name.
+    pub bank_name: Option<common_enums::BankNames>,
+
+    /// Beneficiary bank account type.
+    pub bank_type: Option<common_enums::BankType>,
+}
+
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct PayshapBankTransfer {
+    /// Bank account number assigned by the bank to the beneficiary.
+    pub bank_account_number: Secret<String>,
+
+    /// South African branch code identifying the beneficiary bank branch.
+    pub branch_code: Option<Secret<String>>,
+
+    /// Name of the beneficiary account holder.
+    pub bank_account_holder_name: Option<Secret<String>>,
+
+    /// Beneficiary bank name.
+    pub bank_name: Option<common_enums::BankNames>,
+
+    /// Beneficiary bank account type.
+    pub bank_type: Option<common_enums::BankType>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]

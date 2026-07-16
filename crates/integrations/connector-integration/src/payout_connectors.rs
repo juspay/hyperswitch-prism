@@ -1,3 +1,6 @@
+pub mod absa_sanlam;
+pub use self::absa_sanlam::AbsaSanlamPayouts;
+
 pub mod itaubank;
 pub use self::itaubank::ItaubankPayouts;
 
