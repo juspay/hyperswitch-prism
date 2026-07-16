@@ -496,10 +496,21 @@ where
         // on_completed is the success return; route it to complete_authorize_url (computed
         // above) so hyperswitch runs CompleteAuthorize and settles the handle. The plain
         // return_url only triggers a PSync, which cannot advance the payment.
+        //
+        // For card + 3DS the `default` link must also point at complete_authorize_url: Paysafe's
+        // card-adapter 3DS can return the shopper on the `default` link (not on_completed), and
+        // that must still reach CompleteAuthorize to settle. Redirect APMs keep `default` on the
+        // return_url. Explicit on_failed/on_cancelled stay on the return_url so failures/cancels
+        // do not run CompleteAuthorize.
+        let default_return_url = if three_ds.is_some() {
+            complete_authorize_url.clone()
+        } else {
+            redirect_url.clone()
+        };
         let return_links = Some(vec![
             ReturnLink {
                 rel: LinkType::Default,
-                href: redirect_url.clone(),
+                href: default_return_url,
                 method: Method::Get.to_string(),
             },
             ReturnLink {
