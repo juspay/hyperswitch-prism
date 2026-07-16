@@ -394,9 +394,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
     for RouterDataV2<F, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>
 {
     type Error = error_stack::Report<ConnectorError>;
-    fn try_from(
-        item: ResponseRouterData<KafkaEnqueueResponse, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<KafkaEnqueueResponse, Self>) -> Result<Self, Self::Error> {
         let status = AttemptStatus::from(item.response.status);
         let response = if is_payment_failure(status) {
             Err(ErrorResponse {
@@ -447,9 +445,7 @@ impl<F, T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Se
 impl From<KafkaEnqueueStatus> for AttemptStatus {
     fn from(status: KafkaEnqueueStatus) -> Self {
         match status {
-            KafkaEnqueueStatus::Queued | KafkaEnqueueStatus::Unknown => {
-                Self::Pending
-            }
+            KafkaEnqueueStatus::Queued | KafkaEnqueueStatus::Unknown => Self::Pending,
             KafkaEnqueueStatus::Rejected => Self::Failure,
         }
     }

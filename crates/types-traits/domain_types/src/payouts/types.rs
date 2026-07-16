@@ -658,7 +658,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::EftBankTransferPayout>
     fn foreign_try_from(
         eft: grpc_api_types::payouts::EftBankTransferPayout,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        Ok(Self{
+        Ok(Self {
             bank_name: match eft.bank_name() {
                 grpc_api_types::payouts::BankNames::Unspecified => None,
                 _ => Some(common_enums::BankNames::foreign_try_from(eft.bank_name())?),
@@ -669,7 +669,15 @@ impl ForeignTryFrom<grpc_api_types::payouts::EftBankTransferPayout>
             },
             bank_account_holder_name: eft.bank_account_holder_name,
             bank_account_number: eft.bank_account_number.ok_or(
-                IntegrationError::InvalidDataFormat { field_name: "bank_account_number", context: IntegrationErrorContext { additional_context: Some("Bank account number is required for Eft".to_string()), ..Default::default() } },
+                IntegrationError::InvalidDataFormat {
+                    field_name: "bank_account_number",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Bank account number is required for Eft".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
             )?,
             branch_code: eft.branch_code,
         })
@@ -1187,9 +1195,7 @@ impl ForeignTryFrom<grpc_api_types::payouts::PayoutServiceTransferRequest>
             address,
             metadata: value
                 .metadata
-                .map(|m| {
-                    common_utils::pii::SecretSerdeValue::foreign_try_from((m, "metadata"))
-                })
+                .map(|m| common_utils::pii::SecretSerdeValue::foreign_try_from((m, "metadata")))
                 .transpose()?,
         })
     }

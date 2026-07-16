@@ -1,5 +1,8 @@
 pub mod transformers;
 
+use crate::{
+    connectors::sanlam_common::transformers::KafkaEnqueueResponse, types::ResponseRouterData,
+};
 use common_enums::CurrencyUnit;
 use common_utils::{
     errors::CustomResult,
@@ -15,7 +18,10 @@ use domain_types::{
     connector_types::{
         ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData,
     },
-    errors::{ConnectorError, IntegrationError, IntegrationErrorContext, ResponseTransformationErrorContext},
+    errors::{
+        ConnectorError, IntegrationError, IntegrationErrorContext,
+        ResponseTransformationErrorContext,
+    },
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payouts::payouts_types::{
         PayoutCreateLinkRequest, PayoutCreateLinkResponse, PayoutCreateRecipientRequest,
@@ -40,7 +46,6 @@ use interfaces::{
         ServerAuthentication,
     },
 };
-use crate::{types::ResponseRouterData, connectors::sanlam_common::transformers::KafkaEnqueueResponse};
 use transformers::{AbsaSanlamPayoutAuthType, AbsaSanlamPayoutTransferRequest};
 
 pub(crate) mod headers {
@@ -261,12 +266,22 @@ macro_rules! impl_absa_sanlam_payout_stub {
     };
 }
 
-impl ConnectorIntegrationV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>
-    for AbsaSanlamPayouts
+impl
+    ConnectorIntegrationV2<
+        ServerAuthenticationToken,
+        MerchantAuthenticationFlowData,
+        ServerAuthenticationTokenRequestData,
+        ServerAuthenticationTokenResponseData,
+    > for AbsaSanlamPayouts
 {
     fn get_url(
         &self,
-        _req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
+        _req: &RouterDataV2<
+            ServerAuthenticationToken,
+            MerchantAuthenticationFlowData,
+            ServerAuthenticationTokenRequestData,
+            ServerAuthenticationTokenResponseData,
+        >,
     ) -> CustomResult<String, IntegrationError> {
         Err(IntegrationError::connector_flow_not_implemented(
             self.id(),

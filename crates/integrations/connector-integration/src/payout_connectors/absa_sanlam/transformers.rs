@@ -1,3 +1,6 @@
+use crate::connectors::sanlam_common::transformers::{
+    AbsaSanlamBankNames, AbsaSanlamBankType, KafkaEnqueueResponse, KafkaEnqueueStatus,
+};
 use crate::types::ResponseRouterData;
 use common_enums::{Currency, PayoutStatus};
 use common_utils::{
@@ -19,7 +22,6 @@ use domain_types::{
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
-use crate::connectors::sanlam_common::transformers::{AbsaSanlamBankNames, AbsaSanlamBankType, KafkaEnqueueResponse, KafkaEnqueueStatus};
 
 const CONNECTOR_NAME: &str = "AbsaSanlam";
 
@@ -194,9 +196,7 @@ impl
             | Some(PayoutMethodData::Wallet(_))
             | Some(PayoutMethodData::BankRedirect(_))
             | Some(PayoutMethodData::Passthrough(_)) => Err(IntegrationError::NotSupported {
-                message:
-                    "AbsaSanlam payout transfer supports eft_bank_transfer only"
-                        .to_string(),
+                message: "AbsaSanlam payout transfer supports eft_bank_transfer only".to_string(),
                 connector: CONNECTOR_NAME,
                 context: Default::default(),
             }),
@@ -207,8 +207,7 @@ impl
                         "AbsaSanlam payout transfer requires payout_method_data".to_string(),
                     ),
                     suggested_action: Some(
-                        "Provide eft_bank_transfer payout method data"
-                            .to_string(),
+                        "Provide eft_bank_transfer payout method data".to_string(),
                     ),
                     doc_url: None,
                 },
@@ -234,9 +233,7 @@ impl TryFrom<ResponseRouterData<KafkaEnqueueResponse, Self>>
 {
     type Error = error_stack::Report<ConnectorError>;
 
-    fn try_from(
-        item: ResponseRouterData<KafkaEnqueueResponse, Self>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(item: ResponseRouterData<KafkaEnqueueResponse, Self>) -> Result<Self, Self::Error> {
         let status = PayoutStatus::from(item.response.status);
         let response = if matches!(status, PayoutStatus::Failure) {
             Err(ErrorResponse {
@@ -277,7 +274,7 @@ impl TryFrom<ResponseRouterData<KafkaEnqueueResponse, Self>>
 impl From<KafkaEnqueueStatus> for PayoutStatus {
     fn from(status: KafkaEnqueueStatus) -> Self {
         match status {
-            KafkaEnqueueStatus::Queued =>Self::Initiated,
+            KafkaEnqueueStatus::Queued => Self::Initiated,
             KafkaEnqueueStatus::Unknown => Self::Pending,
             KafkaEnqueueStatus::Rejected => Self::Failure,
         }
