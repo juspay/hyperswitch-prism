@@ -1984,7 +1984,7 @@ message ClientAuthenticationTokenData {
     // Connector SDKs — payment connector-specific SDKs for rendering payment forms
     ConnectorSpecificClientAuthenticationResponse connector_specific = 4;
     // Authenticator SDKs — account linking/verification flows
-    AuthenticatorSpecificClientAuthenticationResponse authenticator_specific = 4;
+    AuthenticatorSpecificClientAuthenticationResponse authenticator_specific = 5;
   }
 }
 
