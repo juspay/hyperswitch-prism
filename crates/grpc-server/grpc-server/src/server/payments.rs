@@ -965,6 +965,28 @@ impl PaymentService for Payments {
                         ))
                         .await?
                     }
+                    PaymentMethodDataAction::CardWithNoCvc(card_details) => {
+                        tracing::info!("REGULAR: Processing payment authorization with CardWithNoCvc");
+                        let payment_method_data = payment_method_data::PaymentMethodData::CardWithNoCvc(
+                            payment_method_data::CardWithNoCvc::foreign_try_from(card_details).map_err(|err| {
+                                tracing::error!("PAYMENT_AUTHORIZE_FLOW: failed to convert CardWithNoCvc - error: {:?}", err);
+                                ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                            })?
+                        );
+                        Box::pin(self.process_authorization_internal::<DefaultPCIHolder>(
+                            &config,
+                            payload,
+                            metadata_payload.connector.clone(),
+                            metadata_payload.connector_config.clone(),
+                            metadata,
+                            &metadata_payload,
+                            &service_name,
+                            &metadata_payload.request_id,
+                            None,
+                            payment_method_data,
+                        ))
+                        .await?
+                    }
                 };
 
 
@@ -1670,6 +1692,25 @@ impl PaymentService for Payments {
                         payment_method_data,
                         )).await?
                     }
+                    PaymentMethodDataAction::CardWithNoCvc(card_details) => {
+                        tracing::info!("SETUP_RECURRING_FLOW: Processing setup recurring with CardWithNoCvc");
+                        let payment_method_data = payment_method_data::PaymentMethodData::CardWithNoCvc(payment_method_data::CardWithNoCvc::foreign_try_from(card_details).map_err(|err| {
+                            tracing::error!("SETUP_RECURRING_FLOW: failed to convert CardWithNoCvc - error: {:?}", err);
+                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                        })?);
+                        Box::pin(self.handle_setup_recurring_internal::<DefaultPCIHolder>(
+                        &config,
+                        payload,
+                        metadata_payload.connector.clone(),
+                        metadata_payload.connector_config.clone(),
+                        &request_data.masked_metadata,
+                        &metadata_payload,
+                        &service_name,
+                        request_id,
+                        None,
+                        payment_method_data,
+                        )).await?
+                    }
                 };
                 Ok(tonic::Response::new(setup_mandate_response))
                 })
@@ -2057,6 +2098,25 @@ impl PaymentMethodService for PaymentMethod {
                                 tracing::error!("Failed to convert payment method data: {:?}", err);
                                 ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                             })?;
+                        Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
+                        &config,
+                        payload,
+                        metadata_payload.connector.clone(),
+                        metadata_payload.connector_config.clone(),
+                        &request_data.masked_metadata,
+                        &metadata_payload,
+                        &service_name,
+                        request_id,
+                        None,
+                        payment_method_data,
+                        )).await?
+                    }
+                    PaymentMethodDataAction::CardWithNoCvc(card_details) => {
+                        tracing::info!("PAYMENT_METHOD_TOKEN_FLOW: Processing tokenize with CardWithNoCvc");
+                        let payment_method_data = payment_method_data::PaymentMethodData::CardWithNoCvc(payment_method_data::CardWithNoCvc::foreign_try_from(card_details).map_err(|err| {
+                            tracing::error!("PAYMENT_METHOD_TOKEN_FLOW: failed to convert CardWithNoCvc - error: {:?}", err);
+                            ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                        })?);
                         Box::pin(self.handle_tokenize_internal::<DefaultPCIHolder>(
                         &config,
                         payload,
@@ -3131,6 +3191,22 @@ impl RecurringPaymentService for RecurringPayments {
 
                                     ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
                                 })?)
+                            }
+
+                            PaymentMethodDataAction::CardWithNoCvc(card_details) => {
+                                Some(payment_method_data::PaymentMethodData::CardWithNoCvc(
+                                    payment_method_data::CardWithNoCvc::foreign_try_from(
+                                        card_details,
+                                    )
+                                    .map_err(|err| {
+                                        tracing::error!(
+                                            "PAYMENT_CHARGE_FLOW: failed to convert CardWithNoCvc - error: {:?}",
+                                            err
+                                        );
+
+                                        ucs_env::error::GrpcError::from(IntegrationError::InvalidDataFormat { field_name: "payment_method", context: domain_types::errors::IntegrationErrorContext::default() })
+                                    })?,
+                                ))
                             }
 
                             PaymentMethodDataAction::CardProxy(_) => {

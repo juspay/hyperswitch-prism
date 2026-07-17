@@ -637,12 +637,7 @@ pub fn build_card_holder_name(
 }
 
 pub fn pad_expiry_year_to_four_digits(year: &Secret<String>) -> Secret<String> {
-    let y = year.peek();
-    if y.len() == 2 {
-        Secret::new(format!("20{y}"))
-    } else {
-        Secret::new(y.clone())
-    }
+    domain_types::utils::expand_expiry_year_to_four_digits(year)
 }
 
 /// Used by CyberSource and connectors that run on the same backend (e.g. Wells Fargo).

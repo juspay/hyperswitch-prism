@@ -610,13 +610,9 @@ fn create_regular_transaction_request<
     let payment_details = match &item.router_data.request.payment_method_data {
         PaymentMethodData::Card(card) => {
             let expiry_month = card.card_exp_month.peek().clone();
-            let year = card.card_exp_year.peek().clone();
-            let expiry_year = if year.len() == 2 {
-                format!("20{year}")
-            } else {
-                year
-            };
-            let expiration_date = format!("{expiry_year}-{expiry_month}");
+            let expiry_year =
+                domain_types::utils::expand_expiry_year_to_four_digits(&card.card_exp_year);
+            let expiration_date = format!("{}-{expiry_month}", expiry_year.peek());
 
             let credit_card_details = CreditCardDetails {
                 card_number: card.card_number.clone(),
@@ -3029,13 +3025,9 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         // Create expiry date manually since we can't use the trait method generically
         let expiry_month = ccard.card_exp_month.peek().clone();
-        let year = ccard.card_exp_year.peek().clone();
-        let expiry_year = if year.len() == 2 {
-            format!("20{year}")
-        } else {
-            year
-        };
-        let expiration_date = format!("{expiry_year}-{expiry_month}");
+        let expiry_year =
+            domain_types::utils::expand_expiry_year_to_four_digits(&ccard.card_exp_year);
+        let expiration_date = format!("{}-{expiry_month}", expiry_year.peek());
 
         let payment_profile = PaymentProfile {
             bill_to,
