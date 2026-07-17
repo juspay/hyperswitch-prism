@@ -285,7 +285,7 @@ impl ConnectorClient {
         customer_create_res_handler
     );
     impl_flow_method!(
-        get,
+        customer_get,
         CustomerServiceGetRequest,
         CustomerServiceGetResponse,
         customer_get_req_handler,
