@@ -549,6 +549,7 @@ crate::connectors::macros::macro_connector_flow_status_impls!(
     not_implemented: [
         ClientAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         IncrementalAuthorization,
         MandateRevoke,
         PaymentMethodToken,

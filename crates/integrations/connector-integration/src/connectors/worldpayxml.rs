@@ -550,6 +550,7 @@ macros::macro_connector_flow_status_impls!(
         SetupMandate,
         PaymentMethodToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         ServerAuthenticationToken,
         ServerSessionAuthenticationToken,
         ClientAuthenticationToken,
