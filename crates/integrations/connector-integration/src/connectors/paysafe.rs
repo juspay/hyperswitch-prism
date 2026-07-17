@@ -85,9 +85,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     connector_types::ValidationTrait for Paysafe<T>
 {
-    /// No auth_type here, so the no-3DS restriction is enforced in the Authorize dispatch
-    /// (`transformers::is_paysafe_handle_creation_leg`): a 3DS card mints its own handle
-    /// and ignores any pre-minted token.
+    /// No auth_type here; the no-3DS restriction is enforced in the Authorize dispatch.
     fn should_do_payment_method_token(
         &self,
         _payment_method: PaymentMethod,
@@ -96,12 +94,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
         true
     }
 
-    /// Card + 3DS flow: PreAuthenticate mints the payment handle (with the `threeDs` object) so
-    /// Paysafe returns the ACS challenge redirect. After the shopper returns, Authenticate
-    /// re-fetches the (now PAYABLE) handle by merchantRefNum to recover the `paymentHandleToken`
-    /// and threads it forward via `authentication_data`; the main Authorize then settles the token.
-    /// Paysafe has no device-collection / enrollment / CRes-validation API — Authenticate is a
-    /// read-only re-fetch, and the settle is the ordinary Authorize (only one `POST /v1/payments`).
+    /// Card + 3DS: PreAuthenticate mints the `threeDs` handle (ACS challenge); Authenticate re-fetches
+    /// the PAYABLE handle for its `paymentHandleToken`; the main Authorize settles it.
     /// Any other payment method / auth type goes straight to Authorize.
     fn next_authentication_step(
         &self,
@@ -473,12 +467,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Redirect APMs (Skrill, Interac e-Transfer, paysafecard) and card + 3DS
-            // create a payment handle on the FIRST leg so Paysafe returns the customer
-            // redirect link (the APM hosted page, or the 3DS ACS challenge). On the
-            // SECOND leg (shopper returned / handle token echoed back) and for every
-            // other payment method, settle the handle token via v1/payments — mirrors
-            // hyperswitch's Authorize + CompleteAuthorize split.
+            // Leg 1 (redirect APMs, card + 3DS) creates a handle for the redirect link;
+            // leg 2 / other methods settle the token via v1/payments.
             let endpoint = if paysafe::is_paysafe_handle_creation_leg(req) {
                 "v1/paymenthandles"
             } else {
@@ -512,9 +502,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<PreAuthenticate, PaymentFlowData, PaymentsPreAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Card + 3DS always mints a payment handle (with the `threeDs` object) so Paysafe
-            // returns the ACS challenge redirect; the shopper is settled on the follow-up
-            // Authorize via v1/payments.
+            // Card + 3DS mints a `threeDs` handle (ACS challenge); settled on the follow-up Authorize.
             Ok(format!("{}v1/paymenthandles", self.connector_base_url_payments(req)))
         }
     }
@@ -543,10 +531,8 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Authenticate, PaymentFlowData, PaymentsAuthenticateData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            // Post-ACS re-fetch: read the (now PAYABLE) payment handle by merchantRefNum to recover
-            // the paymentHandleToken, which is threaded to the settle Authorize via authentication_data.
-            // Query by connector_request_reference_id — the same value PreAuthenticate sent as
-            // merchantRefNum when it created the handle (not the header-derived reference_id).
+            // Post-ACS re-fetch: read the PAYABLE handle's paymentHandleToken for the settle Authorize.
+            // Query by connector_request_reference_id (the merchantRefNum PreAuthenticate used).
             let merchant_ref_num = &req.resource_common_data.connector_request_reference_id;
             Ok(format!(
                 "{}v1/paymenthandles?merchantRefNum={merchant_ref_num}",

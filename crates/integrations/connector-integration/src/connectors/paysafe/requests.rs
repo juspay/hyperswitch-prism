@@ -112,16 +112,12 @@ pub struct PaysafeSetupMandateRequest<T: PaymentMethodDataTypes> {
     pub billing_details: Option<PaysafeBillingDetails>,
 }
 
-/// The PreAuthenticate leg of card + 3DS mints a payment handle (with the `threeDs`
-/// object) exactly like the redirect-APM/3DS handle body, so it reuses the same wire
-/// shape. A distinct alias keeps the flow's request type self-documenting and lets the
-/// PreAuthenticate `TryFrom` (sourced from `PaymentsPreAuthenticateData`) live alongside
-/// the Authorize one.
+/// PreAuthenticate (card + 3DS) reuses the payment-handle wire shape; a distinct alias keeps the
+/// flow's request type self-documenting.
 pub type PaysafePreAuthenticateRequest<T> = PaysafeSetupMandateRequest<T>;
 
-/// Authenticate re-fetches the payment handle with `GET /v1/paymenthandles?merchantRefNum=`, so it
-/// carries no request body. An empty body satisfies the connector macro's request-body plumbing
-/// (the generic Authenticate flow can't use the body-less macro arm).
+/// Authenticate is a body-less `GET /v1/paymenthandles?merchantRefNum=`; the empty body satisfies
+/// the connector macro's request plumbing.
 #[derive(Debug, Serialize)]
 pub struct PaysafeAuthenticateRequest {}
 

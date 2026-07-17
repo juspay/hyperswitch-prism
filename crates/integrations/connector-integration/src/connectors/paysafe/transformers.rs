@@ -183,9 +183,7 @@ pub(crate) fn paysafe_feature_data_handle_token(
         .map(|meta| meta.payment_handle_token)
 }
 
-/// Second leg of a redirect APM payment: the shopper has returned, or the leg-1 handle token
-/// was echoed back. Card + 3DS no longer participates here — its handle is minted in the
-/// PreAuthenticate flow and the card + 3DS Authorize is always the settle.
+/// Second leg of a redirect APM payment (shopper returned, or leg-1 handle echoed back).
 pub(crate) fn is_paysafe_settle_leg<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
@@ -201,9 +199,7 @@ pub(crate) fn is_paysafe_settle_leg<
             || paysafe_feature_data_handle_token(&router_data.resource_common_data).is_some())
 }
 
-/// Leg 1: create a payment handle so a redirect APM returns its hosted-page link. Shared by the
-/// Authorize URL selector and request builder. Card + 3DS mints its handle in PreAuthenticate, so
-/// it never routes here.
+/// Leg 1: create a payment handle so a redirect APM returns its hosted-page link.
 pub(crate) fn is_paysafe_handle_creation_leg<
     T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize,
 >(
@@ -278,11 +274,8 @@ where
         },
     )?;
 
-        // Paysafe returns the shopper here after the native-3DS ACS challenge. It must land on
-        // the complete_authorize_url so hyperswitch runs CompleteAuthorize (a second Authorize
-        // leg in UCS) and settles the handle into a payment; the plain return_url only triggers
-        // a PSync, which cannot advance AuthenticationPending. Falls back to the return_url when
-        // complete_authorize_url is absent.
+        // The 3DS ACS returns to complete_authorize_url so HS runs CompleteAuthorize (settle);
+        // the plain return_url would only PSync. Falls back to return_url.
         let complete_authorize_url = router_data
             .request
             .complete_authorize_url
@@ -313,17 +306,12 @@ where
                         .get_optional_billing_full_name()
                 }),
             };
-            // Paysafe provisions 3DS and non-3DS card accounts separately and rejects a
-            // `threeDs` body on a non-3DS account (error 5040). The settle leg resolves the
-            // same slot, so handle and payment agree.
+            // Paysafe rejects a `threeDs` body on a non-3DS account (error 5040); use 3DS account.
             let account_id = account_id.get_account_id(PaysafeAccountKind::CardThreeDs, currency)?;
             let three_ds = ThreeDs {
-                // The ACS returns the shopper to merchantUrl after the challenge; point it at
-                // the complete_authorize_url so the return lands on hyperswitch's
-                // CompleteAuthorize route (which settles), not the PSync route.
+                // merchantUrl = complete_authorize_url so the ACS return runs CompleteAuthorize.
                 merchant_url: complete_authorize_url.clone(),
-                // UCS carries no client-platform signal, so SDK (in-app 3DS) is not
-                // derivable here; BROWSER is also the correct channel for this redirect flow.
+                // UCS has no client-platform signal; BROWSER is the correct channel here.
                 device_channel: DeviceChannel::Browser,
                 message_category: ThreeDsMessageCategory::Payment,
                 authentication_purpose: ThreeDsAuthenticationPurpose::PaymentTransaction,
@@ -474,15 +462,8 @@ where
 
         let billing_details = create_paysafe_billing_details(&router_data.resource_common_data)?;
 
-        // on_completed is the success return; route it to complete_authorize_url (computed
-        // above) so hyperswitch runs CompleteAuthorize and settles the handle. The plain
-        // return_url only triggers a PSync, which cannot advance the payment.
-        //
-        // For card + 3DS the `default` link must also point at complete_authorize_url: Paysafe's
-        // card-adapter 3DS can return the shopper on the `default` link (not on_completed), and
-        // that must still reach CompleteAuthorize to settle. Redirect APMs keep `default` on the
-        // return_url. Explicit on_failed/on_cancelled stay on the return_url so failures/cancels
-        // do not run CompleteAuthorize.
+        // Success links (on_completed, and `default` for card+3DS since the ACS may return there)
+        // point at complete_authorize_url so HS settles; on_failed/on_cancelled stay on return_url.
         let default_return_url = if three_ds.is_some() {
             complete_authorize_url.clone()
         } else {
@@ -532,11 +513,8 @@ where
     }
 }
 
-/// PreAuthenticate leg for card + 3DS: mint a payment handle carrying the `threeDs` object so
-/// Paysafe returns the ACS challenge redirect. Card-only (3DS is enforced by HS's
-/// `is_pre_authentication_flow_required` gating); the handle token is settled on the follow-up
-/// Authorize. Mirrors the card arm of the Authorize handle builder but sourced from
-/// `PaymentsPreAuthenticateData`.
+/// PreAuthenticate leg for card + 3DS: mint a payment handle with the `threeDs` object so Paysafe
+/// returns the ACS challenge redirect; the handle token is settled on the follow-up Authorize.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         PaysafeRouterData<
@@ -586,13 +564,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })?;
         let amount = router_data.request.amount;
 
-        // The ACS returns the shopper here after the challenge. It MUST land on the
-        // complete_authorize continuation URL (`continue_redirection_url` →
-        // `…/redirect/complete/{connector}`) so hyperswitch runs CompleteAuthorize (Authenticate →
-        // settle Authorize in UCS) and settles the handle into a payment. `router_return_url`
-        // points at `…/redirect/response/{connector}`, which only triggers a PSync and can never
-        // advance AuthenticationPending (the handle stays INITIATED and expires). Falls back to the
-        // return_url when continue_redirection_url is absent.
+        // The ACS return must land on continue_redirection_url (…/redirect/complete/) so HS runs
+        // CompleteAuthorize and settles; router_return_url only PSyncs. Falls back to return_url.
         let redirect_url = router_data
             .request
             .continue_redirection_url
@@ -639,14 +612,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     .get_optional_billing_full_name()
             }),
         };
-        // Paysafe provisions 3DS and non-3DS card accounts separately and rejects a `threeDs`
-        // body on a non-3DS account (error 5040). The settle Authorize resolves the same slot.
+        // Paysafe rejects a `threeDs` body on a non-3DS account (error 5040); use 3DS account.
         let account_id =
             account_id_map.get_account_id(PaysafeAccountKind::CardThreeDs, currency)?;
         let three_ds = ThreeDs {
             merchant_url: redirect_url.clone(),
-            // UCS carries no client-platform signal, so SDK (in-app 3DS) is not derivable here;
-            // BROWSER is also the correct channel for this redirect flow.
+            // UCS has no client-platform signal; BROWSER is the correct channel here.
             device_channel: DeviceChannel::Browser,
             message_category: ThreeDsMessageCategory::Payment,
             authentication_purpose: ThreeDsAuthenticationPurpose::PaymentTransaction,
@@ -659,8 +630,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
 
         let billing_details = create_paysafe_billing_details(&router_data.resource_common_data)?;
 
-        // All return links target the return_url: HS's pre-authentication redirect handler runs
-        // the settle Authorize on return regardless of which link the ACS uses.
+        // All return links use return_url: HS runs the settle Authorize on return regardless.
         let return_links = Some(vec![
             ReturnLink {
                 rel: LinkType::Default,
@@ -1572,11 +1542,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 },
             })?;
 
-        // Card + 3DS settle: the handle token was minted in PreAuthenticate (with the `threeDs`
-        // object) and threaded back via authentication_data — prefer it so the 3DS-authenticated
-        // handle is settled even if a tokenize step also produced a no-3DS PaymentMethodToken.
-        // Card no-3DS uses the tokenize PaymentMethodToken; redirect APMs / composite echoes fall
-        // back to connector_feature_data.
+        // Prefer the PreAuthenticate handle from authentication_data (3DS); else the tokenize
+        // PaymentMethodToken (no-3DS); else connector_feature_data (redirect APMs).
         let payment_handle_token: Secret<String> = if let Some(token) =
             paysafe_authentication_data_handle_token(
                 router_data.request.authentication_data.as_ref(),
@@ -1773,8 +1740,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
             PaysafeAuthorizeResponse::PaymentHandle(response) => {
                 let status = enums::AttemptStatus::try_from(response.status)?;
 
-                // Prefer a customer-facing redirect link (rel contains "redirect"); fall
-                // back to the first link, matching hyperswitch's links.first() behaviour.
+                // Prefer a redirect-rel link; else the first (HS links.first()).
                 let redirection_data = response
                     .links
                     .as_ref()
@@ -1820,11 +1786,9 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
     }
 }
 
-/// Carry the Paysafe `paymentHandleToken` from PreAuthenticate to the settle Authorize inside
-/// `AuthenticationData.threeds_server_transaction_id`. That field is the only channel HS forwards
-/// on the complete-authorize request path (`connector_feature_data` is dropped there), and Paysafe
-/// never populates a real 3DS-server transaction id (3DS is resolved server-side by the token), so
-/// the field is free to reuse. The settle reads it back via [`paysafe_authentication_data_handle_token`].
+/// Carry the Paysafe `paymentHandleToken` to the settle Authorize inside
+/// `AuthenticationData.threeds_server_transaction_id` — the only field HS forwards on the
+/// complete-authorize path, and free to reuse since Paysafe has no real 3DS-server txn id.
 fn paysafe_handle_token_authentication_data(
     payment_handle_token: &Secret<String>,
 ) -> domain_types::router_request_types::AuthenticationData {
@@ -1849,9 +1813,7 @@ fn paysafe_handle_token_authentication_data(
     }
 }
 
-/// Read the Paysafe `paymentHandleToken` that PreAuthenticate stashed in
-/// `AuthenticationData.threeds_server_transaction_id` (see
-/// [`paysafe_handle_token_authentication_data`]) off the settle Authorize request.
+/// Read the Paysafe `paymentHandleToken` stashed in `AuthenticationData.threeds_server_transaction_id`.
 pub(crate) fn paysafe_authentication_data_handle_token(
     authentication_data: Option<&domain_types::router_request_types::AuthenticationData>,
 ) -> Option<Secret<String>> {
@@ -1860,10 +1822,8 @@ pub(crate) fn paysafe_authentication_data_handle_token(
         .map(Secret::new)
 }
 
-/// PreAuthenticate response: Paysafe returns the handle INITIATED + the ACS challenge redirect
-/// link. Surface the link as `redirection_data` so HS redirects the shopper, and thread the
-/// `paymentHandleToken` forward via `authentication_data` so the settle Authorize can locate the
-/// handle after the shopper returns.
+/// PreAuthenticate response: surface the ACS redirect link as `redirection_data` and thread the
+/// `paymentHandleToken` forward via `authentication_data` for the settle Authorize.
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeResponse, Self>>
     for RouterDataV2<
         PreAuthenticate,
@@ -1894,8 +1854,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
 
         let status = enums::AttemptStatus::try_from(response.status)?;
 
-        // Prefer a customer-facing redirect link (rel contains "redirect"); fall back to the
-        // first link, matching hyperswitch's links.first() behaviour.
+        // Prefer a redirect-rel link; else the first (HS links.first()).
         let redirection_data = response
             .links
             .as_ref()
@@ -1934,8 +1893,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthorizeRespo
     }
 }
 
-/// Authenticate is a body-less `GET /v1/paymenthandles?merchantRefNum=`; the empty body only
-/// satisfies the connector macro's request plumbing.
+/// Authenticate is a body-less `GET /v1/paymenthandles?merchantRefNum=`.
 impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Serialize>
     TryFrom<
         PaysafeRouterData<
@@ -1966,10 +1924,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     }
 }
 
-/// Authenticate re-fetch response: after the ACS redirect, Paysafe returns the (now PAYABLE) payment
-/// handle for the merchantRefNum. Recover its `paymentHandleToken` and thread it forward via
-/// `authentication_data` (which HS carries into the settle Authorize request) plus
-/// `connector_feature_data`. Read-only — no settlement happens here; the main Authorize settles.
+/// Authenticate re-fetch: recover the (now PAYABLE) handle's `paymentHandleToken` and thread it
+/// forward via `authentication_data` + `connector_feature_data`. Read-only; the main Authorize settles.
 impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<PaysafeAuthenticateResponse, Self>>
     for RouterDataV2<
         Authenticate,

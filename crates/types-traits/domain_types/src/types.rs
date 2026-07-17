@@ -14881,9 +14881,8 @@ impl<
             amount: amount.amount,
             currency: Some(amount.currency),
             email,
-            // Post-redirect authentication legs (e.g. Paysafe's handle re-fetch) carry no card,
-            // so a missing/empty payment_method must yield `None` here rather than erroring the
-            // whole flow. When a payment_method is present it still resolves normally.
+            // Post-redirect auth legs (Paysafe's handle re-fetch) carry no card, so a missing
+            // payment_method yields `None` instead of erroring.
             payment_method_type: payment_method_clone
                 .and_then(|pm| <Option<PaymentMethodType>>::foreign_try_from(pm).ok())
                 .flatten(),
@@ -15000,9 +14999,8 @@ impl<
             amount: amount.amount,
             email,
             currency: Some(amount.currency),
-            // Post-redirect authentication legs (e.g. Paysafe's handle re-fetch) carry no card,
-            // so a missing/empty payment_method must yield `None` here rather than erroring the
-            // whole flow. When a payment_method is present it still resolves normally.
+            // Post-redirect auth legs (Paysafe's handle re-fetch) carry no card, so a missing
+            // payment_method yields `None` instead of erroring.
             payment_method_type: payment_method_clone
                 .and_then(|pm| <Option<PaymentMethodType>>::foreign_try_from(pm).ok())
                 .flatten(),
@@ -15332,11 +15330,8 @@ impl
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            // The Authenticate leg is a post-redirect handle re-fetch that does not carry card data
-            // (e.g. Paysafe's body-less `GET /v1/paymenthandles`). On a 3DS redirect return the
-            // `payment_method` is absent, so `unwrap_or_default()` + a strict conversion would hit
-            // the unmapped `_` arm and fail the whole flow. Default the category to `Card` (the
-            // Authenticate transformers ignore it) instead of erroring.
+            // The Authenticate re-fetch carries no card data, so default the category to `Card`
+            // (the Authenticate transformers ignore it) instead of erroring.
             payment_method: value
                 .payment_method
                 .and_then(|pm| PaymentMethod::foreign_try_from(pm).ok())
