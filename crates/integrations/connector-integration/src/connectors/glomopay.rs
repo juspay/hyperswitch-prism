@@ -343,7 +343,21 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             let request_id = &req.resource_common_data.connector_request_reference_id;
             let base_url = self.connector_base_url_payments(req);
-            Ok(format!("{base_url}payment?request_id={request_id}"))
+            // Fail loudly on an empty reference id. Dropping the ?request_id
+            // filter would return every payment on the merchant's account and
+            // the response transformer would silently pick the first one —
+            // effectively reporting an unrelated payment's status as if it
+            // belonged to the current one.
+            if request_id.is_empty() {
+                Err(error_stack::report!(
+                    IntegrationError::MissingRequiredField {
+                        field_name: "connector_request_reference_id",
+                        context: Default::default(),
+                    }
+                ))
+            } else {
+                Ok(format!("{base_url}payment?request_id={request_id}"))
+            }
         }
     }
 );

@@ -296,6 +296,8 @@ pub struct GlomopayRefundWebhookData {
     pub amount: Option<MinorUnit>,
     pub currency: Option<Currency>,
     pub fees: Option<GlomopayRefundWebhookFees>,
+    pub error_code: Option<String>,
+    pub error_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -327,13 +329,20 @@ impl GlomopayRefundWebhookPayload {
         http_code: u16,
         raw_body: &[u8],
     ) -> RefundWebhookDetailsResponse {
+        let (error_code, error_message) = match self.event_type {
+            GlomopayRefundWebhookEventType::Failed => (
+                self.data.error_code.clone(),
+                self.data.error_message.clone(),
+            ),
+            _ => (None, None),
+        };
         RefundWebhookDetailsResponse {
             connector_refund_id: Some(self.data.id.clone()),
-            merchant_transaction_id: self.data.payment_id.clone(),
+            merchant_transaction_id: None,
             status: self.get_refund_status(),
             connector_response_reference_id: Some(self.data.id),
-            error_code: None,
-            error_message: None,
+            error_code,
+            error_message,
             raw_connector_response: Some(String::from_utf8_lossy(raw_body).to_string()),
             status_code: http_code,
             response_headers: None,
@@ -819,17 +828,12 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
         };
 
-        // GlomoPay requires a non-blank HTTPS callback_url. If the caller-supplied
-        // return_url is HTTP (e.g. localhost during local testing), fall back to a
-        // placeholder HTTPS URL so GlomoPay's validator accepts the request.
         let callback_url = Some(
             router_data
                 .resource_common_data
                 .return_url
-                .as_deref()
-                .filter(|url| url.starts_with("https://"))
-                .unwrap_or("https://www.google.com")
-                .to_string(),
+                .clone()
+                .ok_or_else(crate::utils::missing_field_err("return_url"))?,
         );
 
         Ok(Self {
@@ -1064,9 +1068,15 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             router_data.request.currency,
         )?;
 
+        let reason = router_data
+            .request
+            .reason
+            .clone()
+            .unwrap_or_else(|| "Requested By Customer".to_string());
+
         Ok(Self {
             payment_id: router_data.request.connector_transaction_id.clone(),
-            reason: "Requested By Customer".to_string(),
+            reason,
             amount,
             request_id: router_data.request.refund_id.clone(),
         })
@@ -1127,11 +1137,7 @@ impl TryFrom<ResponseRouterData<GlomopayRefundSyncResponse, Self>>
         let router_data = item.router_data;
         let connector_refund_id = router_data.request.connector_refund_id.clone();
 
-        let refund_entry = response
-            .data
-            .iter()
-            .find(|r| r.id == connector_refund_id)
-            .or_else(|| response.data.first());
+        let refund_entry = response.data.iter().find(|r| r.id == connector_refund_id);
 
         // If RSync returns no matching refund, default to Pending so the
         // next sync retries rather than prematurely marking Success/Failure

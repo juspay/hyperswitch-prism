@@ -13491,6 +13491,7 @@ pub fn generate_get_connector_customer_response(
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
             merchant_customer_id: Some(response.connector_customer_id.clone()),
+            lookup_status: grpc_payment_types::CustomerLookupStatus::CustomerFound as i32,
         }),
         Err(e) => Ok(grpc_payment_types::CustomerServiceGetResponse {
             customer: None,
@@ -13499,6 +13500,7 @@ pub fn generate_get_connector_customer_response(
                 .resource_common_data
                 .get_connector_response_headers_as_map(),
             merchant_customer_id: e.connector_transaction_id.clone(),
+            lookup_status: grpc_payment_types::CustomerLookupStatus::CustomerNotFound as i32,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
                 connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {

@@ -4405,6 +4405,15 @@ message CustomerServiceGetRequest {
   optional SecretString phone_number = 4;  // Phone number of the customer
 }
 
+// Outcome of a connector-side customer lookup. Explicit signal so callers
+// don't have to infer presence-of-id vs absent as found-vs-not-found, which
+// would silently misroute malformed responses into a duplicate CREATE.
+enum CustomerLookupStatus {
+  CUSTOMER_LOOKUP_UNSPECIFIED = 0;
+  CUSTOMER_FOUND = 1;
+  CUSTOMER_NOT_FOUND = 2;
+}
+
 // Response message for getting a customer
 message CustomerServiceGetResponse {
   // Customer Information
@@ -4417,6 +4426,11 @@ message CustomerServiceGetResponse {
 
   // Reference
   optional string merchant_customer_id = 5;
+
+  // Lookup outcome. Connectors implementing GetConnectorCustomer must set
+  // this so the caller can distinguish "not found" from partially populated
+  // or malformed responses.
+  CustomerLookupStatus lookup_status = 6;
 }
 
 // Request message for updating a customer

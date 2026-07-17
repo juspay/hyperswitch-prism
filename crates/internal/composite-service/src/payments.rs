@@ -371,28 +371,42 @@ where
 
     /// For connectors that support lookup (e.g. Glomopay, which 4xxs on
     /// duplicate email), issue a GET to see if the customer already exists.
-    /// Returns `Found(response)` when the connector confirms an existing
-    /// customer with an ID; returns `NotFound` on any lookup failure or
-    /// empty result — caller should fall through to CREATE in that case.
+    /// Returns `Ok(Found(response))` when the connector confirms an existing
+    /// customer with an ID, `Ok(NotFound)` when the lookup succeeded but
+    /// returned no matching customer, and `Err(status)` on transient
+    /// failures (network / connector / auth). Errors are propagated rather
+    /// than treated as `NotFound` — swallowing them would silently fall
+    /// through to CREATE and produce duplicate customers on the connector.
     async fn get_connector_customer(
         &self,
         payload: &CompositeAuthorizeRequest,
         metadata: &tonic::metadata::MetadataMap,
         extensions: &tonic::Extensions,
-    ) -> ConnectorCustomerLookup {
+    ) -> Result<ConnectorCustomerLookup, tonic::Status> {
         let get_payload = CustomerServiceGetRequest::foreign_from(payload);
         let mut get_request = tonic::Request::new(get_payload);
         *get_request.metadata_mut() = metadata.clone();
         *get_request.extensions_mut() = extensions.clone();
 
-        let get_response = match self.customer_service.get(get_request).await {
-            Ok(resp) => resp,
-            Err(_) => return ConnectorCustomerLookup::NotFound,
-        };
+        let get_response = self.customer_service.get(get_request).await?.into_inner();
 
-        CustomerServiceCreateResponse::foreign_try_from(get_response.into_inner())
-            .map(|r| ConnectorCustomerLookup::Found(Box::new(r)))
-            .unwrap_or(ConnectorCustomerLookup::NotFound)
+        // Consume the explicit lookup_status enum rather than inferring
+        // found-vs-not-found from field presence. A malformed or partially
+        // populated response no longer silently routes to a duplicate CREATE.
+        match grpc_api_types::payments::CustomerLookupStatus::try_from(get_response.lookup_status) {
+            Ok(grpc_api_types::payments::CustomerLookupStatus::CustomerFound) => {
+                CustomerServiceCreateResponse::foreign_try_from(get_response)
+                    .map(|r| Ok(ConnectorCustomerLookup::Found(Box::new(r))))
+                    .unwrap_or(Ok(ConnectorCustomerLookup::NotFound))
+            }
+            Ok(grpc_api_types::payments::CustomerLookupStatus::CustomerNotFound) => {
+                Ok(ConnectorCustomerLookup::NotFound)
+            }
+            _ => Err(tonic::Status::internal(
+                "CustomerServiceGetResponse.lookup_status was unspecified — \
+                 connector did not signal found/not-found explicitly",
+            )),
+        }
     }
 
     async fn create_connector_customer(
@@ -427,7 +441,7 @@ where
             {
                 match self
                     .get_connector_customer(payload, metadata, extensions)
-                    .await
+                    .await?
                 {
                     ConnectorCustomerLookup::Found(customer_response) => Some(customer_response),
                     ConnectorCustomerLookup::NotFound => None,
