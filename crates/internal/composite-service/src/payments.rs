@@ -421,20 +421,20 @@ where
             // Try lookup first for connectors that support get-or-create
             // semantics (e.g. Glomopay). If the customer already exists on
             // the connector, reuse that ID instead of hitting CREATE.
-            let existing_customer_response =
-                if connector_data.connector.should_get_connector_customer() {
-                    match self
-                        .get_connector_customer(payload, metadata, extensions)
-                        .await
-                    {
-                        ConnectorCustomerLookup::Found(customer_response) => {
-                            Some(customer_response)
-                        }
-                        ConnectorCustomerLookup::NotFound => None,
-                    }
-                } else {
-                    None
-                };
+            let existing_customer_response = if connector_data
+                .connector
+                .should_get_connector_customer()
+            {
+                match self
+                    .get_connector_customer(payload, metadata, extensions)
+                    .await
+                {
+                    ConnectorCustomerLookup::Found(customer_response) => Some(customer_response),
+                    ConnectorCustomerLookup::NotFound => None,
+                }
+            } else {
+                None
+            };
 
             let customer_response = match existing_customer_response {
                 Some(customer_response) => customer_response,
