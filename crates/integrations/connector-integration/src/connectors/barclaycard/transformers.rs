@@ -155,6 +155,7 @@ fn payment_method_data_label<T: PaymentMethodDataTypes>(
         PaymentMethodData::PaymentMethodToken(_) => "payment_method_token",
         PaymentMethodData::OpenBanking(_) => "open_banking",
         PaymentMethodData::NetworkToken(_) => "network_token",
+        PaymentMethodData::CardWithNoCvc(_) => "card_with_no_cvc",
         PaymentMethodData::MobilePayment(_) => "mobile_payment",
     }
 }

@@ -29,6 +29,7 @@ use domain_types::{
     router_request_types::AuthenticationData,
     router_response_types::RedirectForm,
 };
+use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
@@ -337,6 +338,8 @@ pub struct NetceteraAuthenticateRequest<
     pub acquirer: Option<netcetera_types::AcquirerData>,
     pub merchant: Option<netcetera_types::MerchantData>,
     pub browser_information: Option<netcetera_types::Browser>,
+    pub sdk_information: Option<netcetera_types::Sdk>,
+    pub device_render_options: Option<netcetera_types::DeviceRenderingOptionsSupported>,
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -431,10 +434,43 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             }
         });
 
-        let browser_information = request
-            .browser_info
-            .clone()
-            .map(netcetera_types::Browser::from);
+        let is_app = matches!(
+            request.device_channel,
+            Some(domain_types::connector_types::DeviceChannel::App)
+        );
+
+        let browser_information = if is_app {
+            None
+        } else {
+            request
+                .browser_info
+                .clone()
+                .map(netcetera_types::Browser::from)
+        };
+
+        let sdk_information = if is_app {
+            request
+                .sdk_information
+                .clone()
+                .map(netcetera_types::Sdk::from)
+        } else {
+            None
+        };
+
+        let device_render_options = if is_app {
+            Some(netcetera_types::DeviceRenderingOptionsSupported {
+                sdk_interface: netcetera_types::SdkInterface::Both,
+                sdk_ui_type: vec![
+                    netcetera_types::SdkUiType::Text,
+                    netcetera_types::SdkUiType::SingleSelect,
+                    netcetera_types::SdkUiType::MultiSelect,
+                    netcetera_types::SdkUiType::Oob,
+                    netcetera_types::SdkUiType::HtmlOther,
+                ],
+            })
+        } else {
+            None
+        };
 
         let cardholder = netcetera_types::Cardholder::try_from((
             common_data.address.get_payment_billing().cloned(),
@@ -458,10 +494,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
 
         Ok(Self {
             preferred_protocol_version: message_version,
-            enforce_preferred_protocol_version: Some(false),
-            // UCS PaymentsAuthenticateData has no device_channel; browser flow is
-            // the only supported use case for now.
-            device_channel: netcetera_types::NetceteraDeviceChannel::Browser,
+            enforce_preferred_protocol_version: Some(is_app),
+            device_channel: if is_app {
+                netcetera_types::NetceteraDeviceChannel::AppBased
+            } else {
+                netcetera_types::NetceteraDeviceChannel::Browser
+            },
             message_category: netcetera_types::NetceteraMessageCategory::PaymentAuthentication,
             three_ds_comp_ind: Some(netcetera_types::ThreeDSMethodCompletionIndicator::U),
             three_ds_requestor: Some(three_ds_requestor),
@@ -481,6 +519,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             acquirer,
             merchant,
             browser_information,
+            sdk_information,
+            device_render_options,
         })
     }
 }
@@ -526,6 +566,14 @@ pub struct AuthenticationResponse {
     pub trans_status_reason: Option<String>,
 }
 
+#[derive(Debug, Serialize)]
+pub struct NetceteraChallengeFeatureData {
+    pub acs_signed_content: Option<String>,
+    pub acs_reference_number: Option<String>,
+    pub acs_trans_id: Option<String>,
+    pub three_ds_server_trans_id: String,
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum ACSChallengeMandatedIndicator {
     /// Challenge is mandated
@@ -565,6 +613,29 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         (Some(acs_url), Some(creq)) => {
                             let mut form_fields = std::collections::HashMap::new();
                             form_fields.insert("creq".to_string(), creq);
+                            form_fields.insert(
+                                "threeDSServerTransID".to_string(),
+                                response.three_ds_server_trans_id.clone(),
+                            );
+                            if let Some(acs_reference_number) = response
+                                .authentication_response
+                                .acs_reference_number
+                                .clone()
+                            {
+                                form_fields
+                                    .insert("acsReferenceNumber".to_string(), acs_reference_number);
+                            }
+                            if let Some(acs_trans_id) =
+                                response.authentication_response.acs_trans_id.clone()
+                            {
+                                form_fields.insert("acsTransID".to_string(), acs_trans_id);
+                            }
+                            if let Some(acs_signed_content) =
+                                response.authentication_response.acs_signed_content.clone()
+                            {
+                                form_fields
+                                    .insert("acsSignedContent".to_string(), acs_signed_content);
+                            }
                             Some(Box::new(RedirectForm::Form {
                                 endpoint: acs_url.to_string(),
                                 method: common_utils::Method::Post,
@@ -576,6 +647,26 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 } else {
                     None
                 };
+
+                let connector_feature_data = is_challenge
+                    .then(|| {
+                        serde_json::to_value(NetceteraChallengeFeatureData {
+                            acs_signed_content: response
+                                .authentication_response
+                                .acs_signed_content
+                                .clone(),
+                            acs_reference_number: response
+                                .authentication_response
+                                .acs_reference_number
+                                .clone(),
+                            acs_trans_id: response.authentication_response.acs_trans_id.clone(),
+                            three_ds_server_trans_id: response.three_ds_server_trans_id.clone(),
+                        })
+                    })
+                    .transpose()
+                    .change_context(ConnectorError::ResponseHandlingFailed {
+                        context: Default::default(),
+                    })?;
 
                 let authentication_data = AuthenticationData {
                     trans_status: Some(response.trans_status),
@@ -608,7 +699,7 @@ impl<F, T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         } else {
                             Some(authentication_data)
                         },
-                        connector_feature_data: None,
+                        connector_feature_data,
                         connector_response_reference_id: Some(response.three_ds_server_trans_id),
                         status_code: item.http_code,
                     }),
