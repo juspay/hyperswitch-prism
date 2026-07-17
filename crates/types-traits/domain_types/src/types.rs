@@ -6609,15 +6609,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                 field_name: "payment_method",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Use a supported payment method: Card, Wallet, UPI, BankRedirect (Netbanking), or PayLater"
+                        "Provide a supported payment method variant (e.g. Card, Wallet, BankRedirect, BankDebit, PayLater)"
                             .to_owned(),
                     ),
-                    doc_url: Some(
-                        "https://razorpay.com/docs/api/payments/#supported-payment-methods"
-                            .to_owned(),
-                    ),
+                    doc_url: None,
                     additional_context: Some(
-                        "The provided payment method variant is not supported by Razorpay"
+                        "The provided payment method variant is empty or not supported by this flow"
                             .to_owned(),
                     ),
                 },
@@ -14610,9 +14607,12 @@ impl<
             amount: amount.amount,
             currency: Some(amount.currency),
             email,
-            payment_method_type: <Option<PaymentMethodType>>::foreign_try_from(
-                payment_method_clone.unwrap_or_default(),
-            )?,
+            // Post-redirect authentication legs (e.g. Paysafe's handle re-fetch) carry no card,
+            // so a missing/empty payment_method must yield `None` here rather than erroring the
+            // whole flow. When a payment_method is present it still resolves normally.
+            payment_method_type: payment_method_clone
+                .and_then(|pm| <Option<PaymentMethodType>>::foreign_try_from(pm).ok())
+                .flatten(),
             continue_redirection_url: value
                 .continue_redirection_url
                 .map(|url_str| {
@@ -14726,9 +14726,12 @@ impl<
             amount: amount.amount,
             email,
             currency: Some(amount.currency),
-            payment_method_type: <Option<PaymentMethodType>>::foreign_try_from(
-                payment_method_clone.unwrap_or_default(),
-            )?,
+            // Post-redirect authentication legs (e.g. Paysafe's handle re-fetch) carry no card,
+            // so a missing/empty payment_method must yield `None` here rather than erroring the
+            // whole flow. When a payment_method is present it still resolves normally.
+            payment_method_type: payment_method_clone
+                .and_then(|pm| <Option<PaymentMethodType>>::foreign_try_from(pm).ok())
+                .flatten(),
             router_return_url: return_url
                 .map(|url_str| {
                     url::Url::parse(&url_str).change_context(IntegrationError::InvalidDataFormat {
@@ -15037,9 +15040,15 @@ impl
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::foreign_try_from(
-                value.payment_method.unwrap_or_default(),
-            )?,
+            // The Authenticate leg is a post-redirect handle re-fetch that does not carry card data
+            // (e.g. Paysafe's body-less `GET /v1/paymenthandles`). On a 3DS redirect return the
+            // `payment_method` is absent, so `unwrap_or_default()` + a strict conversion would hit
+            // the unmapped `_` arm and fail the whole flow. Default the category to `Card` (the
+            // Authenticate transformers ignore it) instead of erroring.
+            payment_method: value
+                .payment_method
+                .and_then(|pm| PaymentMethod::foreign_try_from(pm).ok())
+                .unwrap_or(PaymentMethod::Card),
             address,
             auth_type: common_enums::AuthenticationType::ThreeDs, // Auth step uses 3DS
             connector_request_reference_id: extract_connector_request_reference_id(

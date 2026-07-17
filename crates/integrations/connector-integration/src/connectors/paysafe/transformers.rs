@@ -586,22 +586,29 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 })?;
         let amount = router_data.request.amount;
 
-        // The ACS returns the shopper here after the challenge. HS drives PreAuthenticate → (redirect)
-        // → CompleteAuthorize (the settle Authorize), so the return_url HS provides for the
-        // pre-authentication redirect is the correct continuation target for both `merchantUrl`
-        // and the return links.
-        let redirect_url = router_data.resource_common_data.get_return_url().ok_or(
-            IntegrationError::MissingRequiredField {
-                field_name: "return_url",
+        // The ACS returns the shopper here after the challenge. It MUST land on the
+        // complete_authorize continuation URL (`continue_redirection_url` →
+        // `…/redirect/complete/{connector}`) so hyperswitch runs CompleteAuthorize (Authenticate →
+        // settle Authorize in UCS) and settles the handle into a payment. `router_return_url`
+        // points at `…/redirect/response/{connector}`, which only triggers a PSync and can never
+        // advance AuthenticationPending (the handle stays INITIATED and expires). Falls back to the
+        // return_url when continue_redirection_url is absent.
+        let redirect_url = router_data
+            .request
+            .continue_redirection_url
+            .as_ref()
+            .map(|url| url.to_string())
+            .or_else(|| router_data.resource_common_data.get_return_url())
+            .ok_or(IntegrationError::MissingRequiredField {
+                field_name: "continue_redirection_url",
                 context: IntegrationErrorContext {
                     additional_context: Some(
-                        "Paysafe card + 3DS PreAuthenticate needs a return_url: it is the mandatory threeDs.merchantUrl and builds the returnLinks the shopper is sent back to."
+                        "Paysafe card + 3DS PreAuthenticate needs the complete_authorize continuation URL (continue_redirection_url) or a return_url: it is the mandatory threeDs.merchantUrl and builds the returnLinks the shopper is sent back to."
                             .to_string(),
                     ),
                     ..Default::default()
                 },
-            },
-        )?;
+            })?;
 
         let req_card = match &router_data.request.payment_method_data {
             Some(PaymentMethodData::Card(req_card)) => req_card,
