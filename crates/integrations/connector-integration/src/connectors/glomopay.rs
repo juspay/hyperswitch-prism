@@ -352,7 +352,15 @@ macros::macro_connector_implementation!(
                 Err(error_stack::report!(
                     IntegrationError::MissingRequiredField {
                         field_name: "connector_request_reference_id",
-                        context: Default::default(),
+                        context: errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "Glomopay PSync requires connector_request_reference_id to filter GET /payment; without it the list endpoint returns every payment on the merchant account".to_owned(),
+                            ),
+                            suggested_action: Some(
+                                "Set connector_request_reference_id on the sync request to the same value used as request_id when the payment was created".to_owned(),
+                            ),
+                            doc_url: None,
+                        },
                     }
                 ))
             } else {
@@ -424,7 +432,15 @@ macros::macro_connector_implementation!(
                 Err(error_stack::report!(
                     IntegrationError::MissingRequiredField {
                         field_name: "connector_request_reference_id",
-                        context: Default::default(),
+                        context: errors::IntegrationErrorContext {
+                            additional_context: Some(
+                                "Glomopay RSync requires connector_request_reference_id to filter GET /refunds; without it the list endpoint returns every refund on the merchant account".to_owned(),
+                            ),
+                            suggested_action: Some(
+                                "Set connector_request_reference_id on the refund sync request to the refund_id used when the refund was created".to_owned(),
+                            ),
+                            doc_url: None,
+                        },
                     }
                 ))
             } else {
