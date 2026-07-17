@@ -3796,6 +3796,7 @@ impl<T: PaymentMethodDataTypes> From<PaymentMethodData<T>> for PaymentMethodData
     fn from(pm_data: PaymentMethodData<T>) -> Self {
         match pm_data {
             PaymentMethodData::Card(_) => Self::Card,
+            PaymentMethodData::CardWithNoCvc(_) => Self::CardWithNoCvc,
             PaymentMethodData::CardRedirect(card_redirect_data) => match card_redirect_data {
                 payment_method_data::CardRedirectData::Knet {} => Self::Knet,
                 payment_method_data::CardRedirectData::Benefit {} => Self::Benefit,

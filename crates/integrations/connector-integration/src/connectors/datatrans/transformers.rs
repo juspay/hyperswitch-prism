@@ -652,6 +652,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::PaymentMethodToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {

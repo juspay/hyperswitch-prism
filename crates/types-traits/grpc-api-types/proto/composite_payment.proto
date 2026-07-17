@@ -148,6 +148,73 @@ message CompositeAuthorizeResponse {
   optional MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse session_token_response = 9; // Server session token flow response
 }
 
+// Generic composite request for pre-authenticate that includes all fields
+// from PaymentMethodAuthenticationServicePreAuthenticateRequest with access token
+// bootstrapping support.
+message CompositePreAuthenticateRequest {
+  // Payment identification
+  optional string merchant_order_id = 1;
+
+  // Amount information
+  Money amount = 2;
+
+  // Payment method details
+  PaymentMethod payment_method = 3;
+
+  // Customer information
+  optional Customer customer = 4;
+
+  // Address information
+  PaymentAddress address = 5;
+
+  // Authentication details
+  bool enrolled_for_3ds = 6;
+
+  // Additional metadata for the connector
+  optional SecretString metadata = 7;
+
+  // Connector-specific metadata for the transaction
+  optional SecretString connector_feature_data = 8;
+
+  // URLs for redirection
+  optional string return_url = 9;
+  optional string continue_redirection_url = 10;
+
+  // Browser/device information
+  optional BrowserInformation browser_info = 11;
+
+  // State information (includes access token for bootstrapping)
+  optional ConnectorState state = 12;
+
+  // Capture settings
+  optional CaptureMethod capture_method = 13;
+
+  // Description
+  optional string description = 14;
+
+  // Merchant transaction identifier
+  optional string merchant_transaction_id = 15;
+
+  // Sandbox/test mode flag
+  optional bool test_mode = 16;
+
+  // Reference ID for access token tracking
+  optional string merchant_access_token_id = 17;
+
+  // Per-request idempotency / correlation token propagated from the parent composite request
+  optional string merchant_request_id = 18;
+}
+
+// Generic composite response for pre-authenticate that includes access
+// token response.
+message CompositePreAuthenticateResponse {
+  // The underlying pre-authenticate response
+  optional PaymentMethodAuthenticationServicePreAuthenticateResponse pre_authenticate_response = 1;
+
+  // Access token generation result (populated only when bootstrapped)
+  optional MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse access_token_response = 2;
+}
+
 // Request message for composite get flow.
 message CompositeGetRequest {
   // Identification
