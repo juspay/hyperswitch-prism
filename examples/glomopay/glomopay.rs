@@ -16,6 +16,7 @@ use std::str::FromStr;
 #[allow(dead_code)]
 pub const SUPPORTED_FLOWS: &[&str] = &[
     "authorize",
+    "customer_get",
     "get",
     "parse_event",
     "proxy_authorize",
@@ -78,6 +79,14 @@ pub fn build_authorize_request(capture_method: &str) -> PaymentServiceAuthorizeR
         auth_type: AuthenticationType::NoThreeDs.into(), // Authentication Details.
         return_url: Some("https://example.com/return".to_string()), // URLs for Redirection and Webhooks.
         connector_order_id: Some("connector_order_id".to_string()), // Send the connector order identifier here if an order was created before authorize.
+        ..Default::default()
+    }
+}
+
+pub fn build_customer_get_request() -> CustomerServiceGetRequest {
+    CustomerServiceGetRequest {
+        merchant_customer_id: Some("cust_probe_123".to_string()), // Identification.
+        email: Some(Secret::new("test@example.com".to_string())), // Email address of the customer.
         ..Default::default()
     }
 }
@@ -305,6 +314,18 @@ pub async fn process_authorize(
     }
 }
 
+// Flow: CustomerService.Get
+#[allow(dead_code)]
+pub async fn process_customer_get(
+    client: &ConnectorClient,
+    _merchant_transaction_id: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let response = client
+        .customer_get(build_customer_get_request(), &HashMap::new(), None)
+        .await?;
+    Ok(format!("status: {:?}", response.status()))
+}
+
 // Flow: PaymentService.Get
 #[allow(dead_code)]
 pub async fn process_get(
@@ -367,12 +388,13 @@ async fn main() {
         "process_refund" => process_refund(&client, "order_001").await,
         "process_get_payment" => process_get_payment(&client, "order_001").await,
         "process_authorize" => process_authorize(&client, "txn_001").await,
+        "process_customer_get" => process_customer_get(&client, "txn_001").await,
         "process_get" => process_get(&client, "txn_001").await,
         "process_parse_event" => process_parse_event(&client, "txn_001").await,
         "process_proxy_authorize" => process_proxy_authorize(&client, "txn_001").await,
         "process_refund_get" => process_refund_get(&client, "txn_001").await,
         _ => {
-            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_get_payment, process_authorize, process_get, process_parse_event, process_proxy_authorize, process_refund_get", flow);
+            eprintln!("Unknown flow: {}. Available: process_checkout_autocapture, process_refund, process_get_payment, process_authorize, process_customer_get, process_get, process_parse_event, process_proxy_authorize, process_refund_get", flow);
             return;
         }
     };

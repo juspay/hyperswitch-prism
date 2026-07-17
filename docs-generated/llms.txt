@@ -315,7 +315,7 @@ connector_id: glomopay
 doc: docs/connectors/glomopay.md
 scenarios: checkout_autocapture, refund, get_payment
 payment_methods: Card
-flows: authorize, get, handle_event, parse_event, proxy_authorize, refund, refund_get
+flows: authorize, customer_get, get, handle_event, parse_event, proxy_authorize, refund, refund_get
 examples_python: examples/glomopay/glomopay.py
 
 ## Helcim

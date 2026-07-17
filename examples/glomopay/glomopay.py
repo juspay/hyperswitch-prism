@@ -8,11 +8,12 @@
 import asyncio
 import sys
 from payments import PaymentClient
+from payments import CustomerClient
 from payments import EventClient
 from payments import RefundClient
 from payments.generated import sdk_config_pb2, payment_pb2, payment_methods_pb2
 
-SUPPORTED_FLOWS = ["authorize", "get", "parse_event", "proxy_authorize", "refund", "refund_get"]
+SUPPORTED_FLOWS = ["authorize", "customer_get", "get", "parse_event", "proxy_authorize", "refund", "refund_get"]
 
 _default_config = sdk_config_pb2.ConnectorConfig(
     options=sdk_config_pb2.SdkOptions(environment=sdk_config_pb2.Environment.SANDBOX),
@@ -50,6 +51,12 @@ def _build_authorize_request(capture_method: str):
         auth_type=payment_pb2.AuthenticationType.Value("NO_THREE_DS"),  # Authentication Details.
         return_url="https://example.com/return",  # URLs for Redirection and Webhooks.
         connector_order_id="connector_order_id",  # Send the connector order identifier here if an order was created before authorize.
+    )
+
+def _build_customer_get_request():
+    return payment_pb2.CustomerServiceGetRequest(
+        merchant_customer_id="cust_probe_123",  # Identification.
+        email=payment_methods_pb2.SecretString(value="test@example.com"),  # Email address of the customer.
     )
 
 def _build_get_request(connector_transaction_id: str):
@@ -187,6 +194,15 @@ async def process_authorize(merchant_transaction_id: str, config: sdk_config_pb2
     authorize_response = await payment_client.authorize(_build_authorize_request("AUTOMATIC"))
 
     return {"status": authorize_response.status, "transaction_id": authorize_response.connector_transaction_id}
+
+
+async def process_customer_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):
+    """Flow: CustomerService.Get"""
+    customer_client = CustomerClient(config)
+
+    customer_response = await customer_client.customer_get(_build_customer_get_request())
+
+    return {"status": customer_response.status}
 
 
 async def process_get(merchant_transaction_id: str, config: sdk_config_pb2.ConnectorConfig = _default_config):

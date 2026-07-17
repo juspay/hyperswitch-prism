@@ -199,7 +199,7 @@ const _SECRET_STRING_FIELDS: Record<string, readonly string[]> = {
   PaymentMethodServiceRechargeRequest: ["metadata", "connectorFeatureData"],
   PaymentMethodServiceRechargeResponse: ["rawConnectorResponse", "rawConnectorRequest"],
   CustomerServiceCreateRequest: ["email", "phoneNumber", "metadata", "connectorFeatureData"],
-  CustomerServiceGetRequest: ["email", "phoneNumber"],
+  CustomerServiceGetRequest: ["email", "phoneNumber", "connectorFeatureData"],
   CustomerServiceUpdateRequest: ["email", "phoneNumber", "metadata", "connectorFeatureData"],
   StripeConfig: ["apiKey"],
   AciConfig: ["apiKey", "entityId"],

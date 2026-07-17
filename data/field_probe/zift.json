@@ -533,6 +533,12 @@
         "error": "create_connector_customer flow not supported by zift connector"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by zift connector"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_supported",

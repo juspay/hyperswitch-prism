@@ -517,6 +517,25 @@
         "error": "Stuck on field: billing.address.pincode — Missing required field: billing.address.pincode"
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "supported",
+        "proto_request": {
+          "merchant_customer_id": "cust_probe_123",
+          "email": "test@example.com"
+        },
+        "sample": {
+          "url": "https://api.glomopay.com/api/v1/customer?email_address=test%40example.com",
+          "method": "Get",
+          "headers": {
+            "authorization": "Bearer probe_key",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": null
+        }
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_supported",

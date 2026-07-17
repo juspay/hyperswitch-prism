@@ -5,9 +5,9 @@
 // Glomopay — all integration scenarios and flows in one file.
 // Run a scenario:  npx tsx glomopay.ts checkout_autocapture
 
-import { PaymentClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
+import { PaymentClient, CustomerClient, EventClient, RefundClient, types } from 'hyperswitch-prism';
 const { Environment, AuthenticationType, CaptureMethod, CardNetwork, Currency, HttpMethod } = types;
-export const SUPPORTED_FLOWS = ["authorize", "get", "parse_event", "proxy_authorize", "refund", "refund_get"];
+export const SUPPORTED_FLOWS = ["authorize", "customer_get", "get", "parse_event", "proxy_authorize", "refund", "refund_get"];
 
 const _defaultConfig: types.IConnectorConfig = {
     options: {
@@ -46,6 +46,13 @@ function _buildAuthorizeRequest(captureMethod: types.CaptureMethod): types.IPaym
         "authType": AuthenticationType.NO_THREE_DS,  // Authentication Details.
         "returnUrl": "https://example.com/return",  // URLs for Redirection and Webhooks.
         "connectorOrderId": "connector_order_id"  // Send the connector order identifier here if an order was created before authorize.
+    };
+}
+
+function _buildCustomerGetRequest(): types.ICustomerServiceGetRequest {
+    return {
+        "merchantCustomerId": "cust_probe_123",  // Identification.
+        "email": {"value": "test@example.com"}  // Email address of the customer.
     };
 }
 
@@ -210,6 +217,15 @@ async function authorize(merchantTransactionId: string, config: types.IConnector
     return authorizeResponse;
 }
 
+// Flow: CustomerService.Get
+async function customerGet(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
+    const customerClient = new CustomerClient(config);
+
+    const customerResponse = await customerClient.customerGet(_buildCustomerGetRequest());
+
+    return customerResponse;
+}
+
 // Flow: PaymentService.Get
 async function get(merchantTransactionId: string, config: types.IConnectorConfig = _defaultConfig) {
     const paymentClient = new PaymentClient(config);
@@ -267,7 +283,7 @@ async function refundGet(merchantTransactionId: string, config: types.IConnector
 
 // Export all process* functions for the smoke test
 export {
-    processCheckoutAutocapture, processRefund, processGetPayment, authorize, get, handleEvent, parseEvent, proxyAuthorize, refund, refundGet, _buildAuthorizeRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest
+    processCheckoutAutocapture, processRefund, processGetPayment, authorize, customerGet, get, handleEvent, parseEvent, proxyAuthorize, refund, refundGet, _buildAuthorizeRequest, _buildCustomerGetRequest, _buildGetRequest, _buildHandleEventRequest, _buildParseEventRequest, _buildProxyAuthorizeRequest, _buildRefundRequest, _buildRefundGetRequest
 };
 
 // CLI runner

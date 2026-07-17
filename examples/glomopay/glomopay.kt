@@ -10,6 +10,7 @@ package examples.glomopay
 import types.Payment.*
 import types.PaymentMethods.*
 import payments.PaymentClient
+import payments.CustomerClient
 import payments.EventClient
 import payments.RefundClient
 import payments.AuthenticationType
@@ -24,7 +25,7 @@ import payments.ConnectorSpecificConfig
 import types.Payment.GlomopayConfig
 import payments.SecretString
 
-val SUPPORTED_FLOWS = listOf<String>("authorize", "get", "parse_event", "proxy_authorize", "refund", "refund_get")
+val SUPPORTED_FLOWS = listOf<String>("authorize", "customer_get", "get", "parse_event", "proxy_authorize", "refund", "refund_get")
 
 val _defaultConfig: ConnectorConfig = ConnectorConfig.newBuilder()
     .setOptions(SdkOptions.newBuilder().setEnvironment(Environment.SANDBOX).build())
@@ -160,6 +161,17 @@ fun authorize(txnId: String, config: ConnectorConfig = _defaultConfig) {
     }
 }
 
+// Flow: CustomerService.Get
+fun customerGet(txnId: String, config: ConnectorConfig = _defaultConfig) {
+    val client = CustomerClient(config)
+    val request = CustomerServiceGetRequest.newBuilder().apply {
+        merchantCustomerId = "cust_probe_123"  // Identification.
+        emailBuilder.value = "test@example.com"  // Email address of the customer.
+    }.build()
+    val response = client.customer_get(request)
+    println("Lookup: ${response.lookupStatus.name}")
+}
+
 // Flow: PaymentService.Get
 fun get(txnId: String, config: ConnectorConfig = _defaultConfig) {
     val client = PaymentClient(config)
@@ -260,12 +272,13 @@ fun main(args: Array<String>) {
         "processRefund" -> processRefund(txnId)
         "processGetPayment" -> processGetPayment(txnId)
         "authorize" -> authorize(txnId)
+        "customerGet" -> customerGet(txnId)
         "get" -> get(txnId)
         "handleEvent" -> handleEvent(txnId)
         "parseEvent" -> parseEvent(txnId)
         "proxyAuthorize" -> proxyAuthorize(txnId)
         "refund" -> refund(txnId)
         "refundGet" -> refundGet(txnId)
-        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processGetPayment, authorize, get, handleEvent, parseEvent, proxyAuthorize, refund, refundGet")
+        else -> System.err.println("Unknown flow: $flow. Available: processCheckoutAutocapture, processRefund, processGetPayment, authorize, customerGet, get, handleEvent, parseEvent, proxyAuthorize, refund, refundGet")
     }
 }
