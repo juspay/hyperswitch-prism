@@ -4421,8 +4421,9 @@ enum CustomerLookupStatus {
 
 // Response message for getting a customer
 message CustomerServiceGetResponse {
-  // Customer Information
-  Customer customer = 1;
+  // Customer Information. Absent when lookup_status is CUSTOMER_NOT_FOUND;
+  // populated when lookup_status is CUSTOMER_FOUND.
+  optional Customer customer = 1;
 
   // Error Information
   optional ErrorInfo error = 2;
