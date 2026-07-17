@@ -452,17 +452,28 @@ where
         // found-vs-not-found from field presence. A malformed or partially
         // populated response no longer silently routes to a duplicate CREATE.
         match grpc_api_types::payments::CustomerLookupStatus::try_from(get_response.lookup_status) {
-            Ok(grpc_api_types::payments::CustomerLookupStatus::CustomerFound) => {
+            Ok(grpc_api_types::payments::CustomerLookupStatus::Found) => {
                 CustomerServiceCreateResponse::foreign_try_from(get_response)
-                    .map(|r| Ok(ConnectorCustomerLookup::Found(Box::new(r))))
-                    .unwrap_or(Ok(ConnectorCustomerLookup::NotFound))
+                    .map(|r| ConnectorCustomerLookup::Found(Box::new(r)))
+                    .map_err(|_| {
+                        tonic::Status::internal(
+                            "CustomerServiceGetResponse.lookup_status was CustomerFound \
+                             but the response did not include a connector_customer_id — \
+                             refusing to fall through to CREATE and risk duplicates",
+                        )
+                    })
             }
-            Ok(grpc_api_types::payments::CustomerLookupStatus::CustomerNotFound) => {
+            Ok(grpc_api_types::payments::CustomerLookupStatus::NotFound) => {
                 Ok(ConnectorCustomerLookup::NotFound)
             }
-            _ => Err(tonic::Status::internal(
-                "CustomerServiceGetResponse.lookup_status was unspecified — \
-                 connector did not signal found/not-found explicitly",
+            Ok(grpc_api_types::payments::CustomerLookupStatus::Unspecified) => {
+                Err(tonic::Status::internal(
+                    "CustomerServiceGetResponse.lookup_status was unspecified — \
+                     connector did not signal found/not-found explicitly",
+                ))
+            }
+            Err(_) => Err(tonic::Status::internal(
+                "CustomerServiceGetResponse.lookup_status contained an unknown value",
             )),
         }
     }

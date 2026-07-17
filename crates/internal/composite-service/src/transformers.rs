@@ -231,6 +231,7 @@ impl ForeignFrom<&CompositeAuthorizeRequest> for CustomerServiceGetRequest {
                 .phone_number
                 .clone()
                 .or_else(|| customer.and_then(|customer_data| customer_data.phone_number.clone())),
+            connector_feature_data: item.connector_feature_data.clone(),
         }
     }
 }

@@ -4403,15 +4403,20 @@ message CustomerServiceGetRequest {
   optional string connector_customer_id = 2;
   optional SecretString email = 3;         // Email address of the customer
   optional SecretString phone_number = 4;  // Phone number of the customer
+
+  // Connector-specific metadata for the transaction (required by the generic
+  // flow runner in field-probe, which injects `connector_feature_data` into
+  // every probe request regardless of flow shape).
+  optional SecretString connector_feature_data = 5;
 }
 
 // Outcome of a connector-side customer lookup. Explicit signal so callers
 // don't have to infer presence-of-id vs absent as found-vs-not-found, which
 // would silently misroute malformed responses into a duplicate CREATE.
 enum CustomerLookupStatus {
-  CUSTOMER_LOOKUP_UNSPECIFIED = 0;
-  CUSTOMER_FOUND = 1;
-  CUSTOMER_NOT_FOUND = 2;
+  CUSTOMER_LOOKUP_STATUS_UNSPECIFIED = 0;
+  CUSTOMER_LOOKUP_STATUS_FOUND = 1;
+  CUSTOMER_LOOKUP_STATUS_NOT_FOUND = 2;
 }
 
 // Response message for getting a customer
