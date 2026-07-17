@@ -2,9 +2,10 @@ use domain_types::connector_types::{ConnectorEnum, ConnectorVariant};
 use grpc_api_types::payments::{
     CompositeAuthorizeRequest, CompositeCaptureRequest, CompositeGetRequest,
     CompositePaymentMethodCreateRequest, CompositePaymentMethodGetRequest,
-    CompositePaymentMethodRechargeRequest, CompositeRefundGetRequest, CompositeRefundRequest,
-    CompositeVerifyRedirectResponseRequest, CompositeVoidRequest, ConnectorState,
-    CustomerServiceCreateRequest, CustomerServiceCreateResponse,
+    CompositePaymentMethodRechargeRequest, CompositePreAuthenticateRequest,
+    CompositeRefundGetRequest, CompositeRefundRequest, CompositeVerifyRedirectResponseRequest,
+    CompositeVoidRequest, ConnectorState, CustomerServiceCreateRequest,
+    CustomerServiceCreateResponse,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
     MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
     MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
@@ -35,6 +36,23 @@ impl ForeignFrom<(&CompositeAuthorizeRequest, &ConnectorVariant)>
     for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
 {
     fn foreign_from((item, connector): (&CompositeAuthorizeRequest, &ConnectorVariant)) -> Self {
+        Self {
+            merchant_access_token_id: item.merchant_access_token_id.clone(),
+            connector: grpc_connector_from_connector_variant(connector),
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            test_mode: item.test_mode,
+            merchant_request_id: item.merchant_request_id.clone(),
+        }
+    }
+}
+
+impl ForeignFrom<(&CompositePreAuthenticateRequest, &ConnectorVariant)>
+    for MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest
+{
+    fn foreign_from(
+        (item, connector): (&CompositePreAuthenticateRequest, &ConnectorVariant),
+    ) -> Self {
         Self {
             merchant_access_token_id: item.merchant_access_token_id.clone(),
             connector: grpc_connector_from_connector_variant(connector),
@@ -1099,6 +1117,52 @@ impl
             }),
             merchant_details: item.merchant_details.clone(),
             mandate_details: item.mandate_details.clone(),
+        }
+    }
+}
+
+impl
+    ForeignFrom<(
+        &CompositePreAuthenticateRequest,
+        Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+    )> for PaymentMethodAuthenticationServicePreAuthenticateRequest
+{
+    fn foreign_from(
+        (item, access_token_response): (
+            &CompositePreAuthenticateRequest,
+            Option<&MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse>,
+        ),
+    ) -> Self {
+        let access_token = get_access_token(
+            item.state
+                .as_ref()
+                .and_then(|state| state.access_token.clone()),
+            access_token_response,
+        );
+        let connector_customer_id = item
+            .state
+            .as_ref()
+            .and_then(|state| state.connector_customer_id.clone());
+
+        Self {
+            merchant_order_id: item.merchant_order_id.clone(),
+            amount: item.amount,
+            payment_method: item.payment_method.clone(),
+            customer: item.customer.clone(),
+            address: item.address.clone(),
+            enrolled_for_3ds: item.enrolled_for_3ds,
+            metadata: item.metadata.clone(),
+            connector_feature_data: item.connector_feature_data.clone(),
+            return_url: item.return_url.clone(),
+            continue_redirection_url: item.continue_redirection_url.clone(),
+            browser_info: item.browser_info.clone(),
+            state: Some(ConnectorState {
+                access_token,
+                connector_customer_id,
+            }),
+            capture_method: item.capture_method,
+            description: item.description.clone(),
+            merchant_transaction_id: item.merchant_transaction_id.clone(),
         }
     }
 }
