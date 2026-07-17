@@ -2168,6 +2168,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             &item.request.payment_channel,
         );
 
+        let setup_future_usage = match item.request.setup_future_usage {
+            Some(common_enums::FutureUsage::OnSession) if is_moto == Some(true) => None,
+            Some(usage)
+                if item.request.split_payments.is_some()
+                    && item.request.customer_acceptance.is_some() =>
+            {
+                Some(usage)
+            }
+            _ => setup_future_usage,
+        };
+
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -2202,16 +2213,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .map(Secret::new),
             setup_mandate_details,
             off_session: item.request.off_session,
-            setup_future_usage: match (
-                item.request.split_payments.as_ref(),
-                item.request.setup_future_usage,
-                item.request.customer_acceptance.as_ref(),
-                is_moto,
-            ) {
-                (_, Some(common_enums::FutureUsage::OnSession), _, Some(true)) => None,
-                (Some(_), Some(usage), Some(_), _) => Some(usage),
-                _ => setup_future_usage,
-            },
+            setup_future_usage,
 
             payment_method_types,
             expand: Some(ExpandableObjects::LatestCharge),
