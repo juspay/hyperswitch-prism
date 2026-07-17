@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - - -
 
+## 2026.07.17.0
+
+### Features
+
+- **payment-methods:** Add CardWithNoCvc payment method type ([#1953](https://github.com/juspay/connector-service/pull/1953)) ([`c0b628a`](https://github.com/juspay/connector-service/commit/c0b628a1612a790415cd3ada05cd7c0593973d61))
+
+**Full Changelog:** [`2026.07.16.2...2026.07.17.0`](https://github.com/juspay/connector-service/compare/2026.07.16.2...2026.07.17.0)
+
+- - -
+
 ## 2026.07.16.2
 
 ### Features
