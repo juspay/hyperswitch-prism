@@ -7808,15 +7808,7 @@ pub fn generate_payment_sync_response(
                         connector_transaction_id: e.connector_transaction_id.clone(),
                         status: None,
                     }),
-                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails {
-                        code: None,
-                        message: e.network_error_message.clone(),
-                        network_details: Some(grpc_api_types::payments::NetworkErrorDetails {
-                            advice_code: e.network_advice_code,
-                            decline_code: e.network_decline_code,
-                            error_message: e.network_error_message,
-                        }),
-                    }),
+                    issuer_details: Some(grpc_payment_types::IssuerErrorDetails::from(&e)),
                 }),
                 network_transaction_id: None,
                 network_txn_link_id: None,
