@@ -447,13 +447,15 @@ where
                     *create_customer_request.metadata_mut() = metadata.clone();
                     *create_customer_request.extensions_mut() = extensions.clone();
 
-                    self.customer_service
-                        .create(create_customer_request)
-                        .await?
-                        .into_inner()
+                    Box::new(
+                        self.customer_service
+                            .create(create_customer_request)
+                            .await?
+                            .into_inner(),
+                    )
                 }
             };
-            Some(customer_response)
+            Some(*customer_response)
         } else {
             None
         };
