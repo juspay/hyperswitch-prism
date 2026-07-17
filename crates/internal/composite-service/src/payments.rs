@@ -239,7 +239,7 @@ struct AuthorizeCompositeState {
 /// covers both "connector returned no match" and "lookup call failed" — the
 /// caller falls through to CREATE in either case.
 enum ConnectorCustomerLookup {
-    Found(CustomerServiceCreateResponse),
+    Found(Box<CustomerServiceCreateResponse>),
     NotFound,
 }
 
@@ -391,7 +391,7 @@ where
         };
 
         CustomerServiceCreateResponse::foreign_try_from(get_response.into_inner())
-            .map(ConnectorCustomerLookup::Found)
+            .map(|r| ConnectorCustomerLookup::Found(Box::new(r)))
             .unwrap_or(ConnectorCustomerLookup::NotFound)
     }
 
@@ -421,20 +421,20 @@ where
             // Try lookup first for connectors that support get-or-create
             // semantics (e.g. Glomopay). If the customer already exists on
             // the connector, reuse that ID instead of hitting CREATE.
-            let existing_customer_response =
-                if connector_data.connector.should_get_connector_customer() {
-                    match self
-                        .get_connector_customer(payload, metadata, extensions)
-                        .await
-                    {
-                        ConnectorCustomerLookup::Found(customer_response) => {
-                            Some(customer_response)
-                        }
-                        ConnectorCustomerLookup::NotFound => None,
-                    }
-                } else {
-                    None
-                };
+            let existing_customer_response = if connector_data
+                .connector
+                .should_get_connector_customer()
+            {
+                match self
+                    .get_connector_customer(payload, metadata, extensions)
+                    .await
+                {
+                    ConnectorCustomerLookup::Found(customer_response) => Some(*customer_response),
+                    ConnectorCustomerLookup::NotFound => None,
+                }
+            } else {
+                None
+            };
 
             let customer_response = match existing_customer_response {
                 Some(customer_response) => customer_response,
