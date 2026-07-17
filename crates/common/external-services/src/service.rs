@@ -1085,7 +1085,44 @@ fn create_event(
     event.add_service_name(event_params.service_name);
     event.add_tenant_id(event_params.tenant_id);
 
+    // Version metadata (Option A): stamp the four deployment fields on every event so A/B can
+    // group builds. Sourced from env (read once, cached); each field lands top-level in the event JSON.
+    let version_metadata = version_metadata();
+    if let Some(application_name) = &version_metadata.application_name {
+        event.add_application_name(application_name);
+    }
+    if let Some(version) = &version_metadata.version {
+        event.add_version(version);
+    }
+    if let Some(deployment_id) = &version_metadata.deployment_id {
+        event.add_deployment_id(deployment_id);
+    }
+    if let Some(pod_name) = &version_metadata.pod_name {
+        event.add_pod_name(pod_name);
+    }
+
     event
+}
+
+/// Deployment version metadata, read once from the environment and cached.
+/// `application_name` = `APPLICATION_NAME` (the microservice name, e.g. `connector-service-http`),
+/// `version` = `VERSION` (the deployed build, e.g. `2026.07.08.0`), `deployment_id` = `DEPLOYMENT_ID`,
+/// `pod_name` = `POD_NAME`. Absent env vars leave the corresponding field off the event.
+struct VersionMetadata {
+    application_name: Option<String>,
+    version: Option<String>,
+    deployment_id: Option<String>,
+    pod_name: Option<String>,
+}
+
+fn version_metadata() -> &'static VersionMetadata {
+    static VERSION_METADATA: std::sync::OnceLock<VersionMetadata> = std::sync::OnceLock::new();
+    VERSION_METADATA.get_or_init(|| VersionMetadata {
+        application_name: std::env::var("APPLICATION_NAME").ok(),
+        version: std::env::var("VERSION").ok(),
+        deployment_id: std::env::var("DEPLOYMENT_ID").ok(),
+        pod_name: std::env::var("POD_NAME").ok(),
+    })
 }
 
 pub enum ApplicationResponse<R> {
