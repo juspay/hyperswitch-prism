@@ -113,10 +113,10 @@ impl
             })?;
 
         let data = match req.request.surcharge_strategy {
-            Some(SurchargeStrategy::WaiveSurcharge::Waive) => {
+            Some(SurchargeStrategy::Waive) => {
                 Some(vec![InterpaymentsSurchargeStrategy::WaiveSurcharge])
             }
-            Some(SurchargeStrategy::WaiveSurcharge::Apply) | None => None,
+            Some(SurchargeStrategy::Apply) | None => None,
         };
 
         Ok(Self {
