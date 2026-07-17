@@ -440,13 +440,10 @@ macros::macro_connector_implementation!(
                         None => format!("{base}v1/paymenthandles"),
                     })
                 }
-                // Apple Pay (CARD account) and Skrill (redirect wallet) use the standard
-                // paymenthandles endpoint; singleusepaymenthandles returns 5270 for them.
-                PaymentMethodData::Wallet(WalletData::Skrill(_) | WalletData::ApplePay(_)) => {
-                    Ok(format!("{base}v1/paymenthandles"))
-                }
-                // Google Pay requires the singleusepaymenthandles endpoint per Paysafe docs.
-                PaymentMethodData::Wallet(_) => Ok(format!("{base}v1/singleusepaymenthandles")),
+                // Wallets use the standard paymenthandles endpoint (singleusepaymenthandles 5270s).
+                PaymentMethodData::Wallet(
+                    WalletData::Skrill(_) | WalletData::ApplePay(_) | WalletData::GooglePay(_),
+                ) => Ok(format!("{base}v1/paymenthandles")),
                 _ => Ok(format!("{base}v1/paymenthandles")),
             }
         }
