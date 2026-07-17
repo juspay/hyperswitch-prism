@@ -9,7 +9,7 @@ use domain_types::{
     surcharge::surcharge_types::{
         SurchargeCalculateRequest, SurchargeCalculateResponse, SurchargeFlowData,
         SurchargePaymentSucceededRequest, SurchargePaymentSucceededResponse,
-        SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse,
+        SurchargeRefundSucceededRequest, SurchargeRefundSucceededResponse, SurchargeStrategy,
     },
 };
 use error_stack::ResultExt;
@@ -59,6 +59,14 @@ pub struct InterPaymentsSurchargeRequest {
     // Card Bin
     pub nicn: String,
     pub m_tx_id: Option<String>,
+    pub data: Option<Vec<InterpaymentsSurchargeStrategy>>,
+}
+
+#[derive(Debug, Serialize)]
+
+pub enum InterpaymentsSurchargeStrategy {
+    #[serde(rename = "waive-surcharge")]
+    WaiveSurcharge,
 }
 
 impl
@@ -104,6 +112,13 @@ impl
                 })
             })?;
 
+        let data = match req.request.surcharge_strategy {
+            Some(SurchargeStrategy::WaiveSurcharge::Waive) => {
+                Some(vec![InterpaymentsSurchargeStrategy::WaiveSurcharge])
+            }
+            Some(SurchargeStrategy::WaiveSurcharge::Apply) | None => None,
+        };
+
         Ok(Self {
             amount,
             region,
@@ -114,6 +129,7 @@ impl
                     .connector_request_reference_id
                     .clone(),
             ),
+            data,
         })
     }
 }
