@@ -32,6 +32,7 @@ const COMPOSITE_FLOW_SPECS: &[CompositeFlowSpec] = &[
         granular_request_messages: &[
             "MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest",
             "MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest",
+            "CustomerServiceGetRequest",
             "CustomerServiceCreateRequest",
             "PaymentServiceAuthorizeRequest",
         ],

@@ -126,6 +126,11 @@ message CompositeAuthorizeRequest {
 
   // Information identifying partner and merchant application initiating the request
   optional PartnerMerchantIdentifierDetails partner_merchant_identifier_details = 56;
+
+  // Existing connector-side customer identifier. When present, the composite
+  // authorize flow can skip CustomerService/Get and CustomerService/Create and
+  // reuse this ID directly on the downstream authorize call.
+  optional string connector_customer_id = 57;
 }
 
 // Status of the composite authorize flow — indicates whether the flow is complete or needs a redirect.
