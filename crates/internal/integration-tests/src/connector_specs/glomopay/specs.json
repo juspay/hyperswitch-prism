@@ -1,6 +1,7 @@
 {
   "connector": "glomopay",
   "supported_suites": [
+    "CustomerService/Get",
     "CustomerService/Create",
     "PaymentService/CreateOrder",
     "PaymentService/Authorize",
