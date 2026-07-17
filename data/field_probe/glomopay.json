@@ -707,7 +707,7 @@
             "content-type": "application/json",
             "via": "HyperSwitch"
           },
-          "body": "{\"payment_id\":\"probe_connector_txn_001\",\"reason\":\"Requested By Customer\",\"amount\":1000,\"request_id\":\"probe_refund_001\"}"
+          "body": "{\"payment_id\":\"probe_connector_txn_001\",\"reason\":\"customer_request\",\"amount\":1000,\"request_id\":\"probe_refund_001\"}"
         }
       }
     },
