@@ -415,6 +415,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             }
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::CardRedirect(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::BankDebit(_)

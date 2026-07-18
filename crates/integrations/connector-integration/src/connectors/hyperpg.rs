@@ -475,6 +475,7 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
         ClientAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         Void,
         Capture,
         CreateOrder,
