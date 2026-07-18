@@ -167,7 +167,7 @@ Consolidated view of Get, Void, Refund, Capture, Reverse, CreateOrder, and other
 | [Forte](connectors/forte.md) | ✓ | ✓ | ⚠ | ? | x | ? | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | x | x | x | x | x | x | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Getnet](connectors/getnet.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ⚠ | x | ⚠ | ? | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ? | x | x | x | x | ✓ | x | x | ? | ? | ? | x | ⚠ | x | x | ⚠ | ⚠ | x |
 | [Gigadat](connectors/gigadat.md) | ✓ | x | x | x | x | ✓ | x | ⚠ | x | x | x | x | x | ⚠ | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
-| [Givepayments](connectors/givepayments.md) | ✓ | ⚠ | ⚠ | x | ⚠ | ✓ | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ✓ | ⚠ | ✓ | x | x | ⚠ | x | x | x | x | ⚠ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
+| [Givepayments](connectors/givepayments.md) | ✓ | ⚠ | ⚠ | x | ⚠ | ✓ | x | ⚠ | ⚠ | ? | ⚠ | ? | ⚠ | ✓ | ⚠ | ✓ | x | x | x | ⚠ | x | x | x | x | ⚠ | x | x | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Globalpay](connectors/globalpay.md) | ✓ | ✓ | ⚠ | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ✓ | ✓ | ⚠ | ✓ | ✓ | ✓ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | ✓ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | x |
 | [Glomopay](connectors/glomopay.md) | ✓ | x | x | ⚠ | ? | ✓ | ⚠ | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ? | ✓ | ⚠ | x | x | x | x | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | x | x | ✓ | ✓ | x |
 | [Helcim](connectors/helcim.md) | ✓ | ✓ | ⚠ | ✓ | x | ✓ | x | ⚠ | ⚠ | ⚠ | ⚠ | ✓ | ⚠ | ⚠ | ⚠ | ✓ | x | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | ⚠ | ⚠ | x | x | x | x | ⚠ | x | x | ⚠ | ⚠ | x |
