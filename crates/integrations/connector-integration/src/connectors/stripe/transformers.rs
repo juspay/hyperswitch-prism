@@ -2718,7 +2718,8 @@ where
                         Some(Secret::new(serde_json::json!({
                             "transfer_account_id": stripe_split_data.transfer_account_id,
                             "charge_type": stripe_split_data.charge_type,
-                            "application_fees": stripe_split_data.application_fees
+                            "application_fees": stripe_split_data.application_fees,
+                            "on_behalf_of": stripe_split_data.on_behalf_of,
                         })))
                     }
                     _ => None,
