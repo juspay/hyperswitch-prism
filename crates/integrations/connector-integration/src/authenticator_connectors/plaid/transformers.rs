@@ -2,17 +2,16 @@ use common_enums::{BankHolderType, BankType};
 use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
 use domain_types::{
     connector_types::{
-        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData,
-        GetPaymentMethodData, GetPaymentMethodResponseData, PaymentFlowData,
-        PaymentMethodTokenResponse, PaymentMethodTokenizationData, PaymentsResponseData,
-        PlaidClientAuthenticationResponse,
+        ClientAuthenticationTokenData, ClientAuthenticationTokenRequestData, GetPaymentMethodData,
+        GetPaymentMethodResponseData, PaymentFlowData, PaymentMethodTokenResponse,
+        PaymentMethodTokenizationData, PaymentsResponseData, PlaidClientAuthenticationResponse,
     },
     errors::{ConnectorError, IntegrationError, IntegrationErrorContext},
     merchant_authentication_flow_data::MerchantAuthenticationFlowData,
     payment_method_data::{
         BankAccount, BankAccountAchDetails, BankAccountBacsDetails, BankAccountDetails,
-        BankAccountRoutingDetails, BankAccountSepaDetails, PaymentMethodDetails,
-        PaymentMethodDataTypes,
+        BankAccountRoutingDetails, BankAccountSepaDetails, PaymentMethodDataTypes,
+        PaymentMethodDetails,
     },
     router_data::{ConnectorSpecificConfig, ErrorResponse},
     router_data_v2::RouterDataV2,
@@ -41,18 +40,14 @@ impl TryFrom<&ConnectorSpecificConfig> for PlaidAuthType {
     fn try_from(config: &ConnectorSpecificConfig) -> Result<Self, Self::Error> {
         match config {
             ConnectorSpecificConfig::Plaid {
-                client_id,
-                secret,
-                ..
+                client_id, secret, ..
             } => Ok(Self {
                 client_id: client_id.clone(),
                 secret: secret.clone(),
             }),
             _ => Err(report!(IntegrationError::FailedToObtainAuthType {
                 context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Expected ConnectorSpecificConfig::Plaid".to_owned(),
-                    ),
+                    additional_context: Some("Expected ConnectorSpecificConfig::Plaid".to_owned(),),
                     ..Default::default()
                 }
             })),
@@ -280,22 +275,18 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let auth = PlaidAuthType::try_from(&item.router_data.connector_config)?;
 
-        let public_token =
-            item.router_data
-                .request
-                .metadata
-                .ok_or_else(|| {
-                    report!(IntegrationError::MissingRequiredField {
-                        field_name: "metadata (public_token)",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "Plaid token exchange requires the public_token in the metadata field"
-                                    .to_owned(),
-                            ),
-                            ..Default::default()
-                        },
-                    })
-                })?;
+        let public_token = item.router_data.request.metadata.ok_or_else(|| {
+            report!(IntegrationError::MissingRequiredField {
+                field_name: "metadata (public_token)",
+                context: IntegrationErrorContext {
+                    additional_context: Some(
+                        "Plaid token exchange requires the public_token in the metadata field"
+                            .to_owned(),
+                    ),
+                    ..Default::default()
+                },
+            })
+        })?;
 
         Ok(Self {
             client_id: auth.client_id,
@@ -394,18 +385,22 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
     ) -> Result<Self, Self::Error> {
         let auth = PlaidAuthType::try_from(&item.router_data.connector_config)?;
 
-        let access_token = item.router_data.request.payment_method_token.ok_or_else(|| {
-            report!(IntegrationError::MissingRequiredField {
-                field_name: "payment_method_token (access_token)",
-                context: IntegrationErrorContext {
-                    additional_context: Some(
-                        "Plaid /auth/get requires the access_token as payment_method_token"
-                            .to_owned(),
-                    ),
-                    ..Default::default()
-                },
-            })
-        })?;
+        let access_token = item
+            .router_data
+            .request
+            .payment_method_token
+            .ok_or_else(|| {
+                report!(IntegrationError::MissingRequiredField {
+                    field_name: "payment_method_token (access_token)",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Plaid /auth/get requires the access_token as payment_method_token"
+                                .to_owned(),
+                        ),
+                        ..Default::default()
+                    },
+                })
+            })?;
 
         Ok(Self {
             client_id: auth.client_id,
@@ -532,10 +527,12 @@ impl
                     currency: common_enums::Currency::USD,
                 });
                 let available_balance =
-                    acct.balances.available.map(|amt| common_utils::types::Money {
-                        amount: common_utils::types::MinorUnit::new((amt * 100.0) as i64),
-                        currency: common_enums::Currency::USD,
-                    });
+                    acct.balances
+                        .available
+                        .map(|amt| common_utils::types::Money {
+                            amount: common_utils::types::MinorUnit::new((amt * 100.0) as i64),
+                            currency: common_enums::Currency::USD,
+                        });
 
                 // Prefer ACH → BACS → SEPA in that order
                 let account_details = if let Some(ach) = ach_map.get(&acct.account_id) {

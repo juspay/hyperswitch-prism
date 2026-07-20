@@ -1287,7 +1287,10 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
         let response = item.response;
         Ok(Self {
             response: match (response.id.clone(), response.enabled) {
-                (Some(id), true) => Ok(PaymentMethodTokenResponse { token: id, connector_payment_method_id: None }),
+                (Some(id), true) => Ok(PaymentMethodTokenResponse {
+                    token: id,
+                    connector_payment_method_id: None,
+                }),
                 _ => Err(disabled_instrument_error(&response, item.http_code)),
             },
             ..item.router_data

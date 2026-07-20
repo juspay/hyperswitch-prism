@@ -187,11 +187,7 @@ pub trait PaymentMethodEligibilityV2:
 }
 
 pub trait AuthenticatorServiceTrait<T: PaymentMethodDataTypes>:
-    ConnectorCommon
-    + ValidationTrait
-    + ClientAuthentication
-    + PaymentTokenV2<T>
-    + GetPaymentMethodV2
+    ConnectorCommon + ValidationTrait + ClientAuthentication + PaymentTokenV2<T> + GetPaymentMethodV2
 {
 }
 
@@ -204,9 +200,8 @@ pub type BoxedFrmConnector = Box<&'static (dyn FrmServiceTrait + Sync)>;
 pub type BoxedPayoutConnector = Box<&'static (dyn PayoutServiceTrait + Sync)>;
 
 pub type BoxedAuthenticatorConnector = Box<
-    &'static (dyn AuthenticatorServiceTrait<
-        domain_types::payment_method_data::DefaultPCIHolder,
-    > + Sync),
+    &'static (dyn AuthenticatorServiceTrait<domain_types::payment_method_data::DefaultPCIHolder>
+                  + Sync),
 >;
 
 pub trait ValidationTrait: ConnectorCommon {

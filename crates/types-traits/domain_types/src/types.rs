@@ -10134,47 +10134,45 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     })
                     .collect();
 
-                let (customer_id, email, customer_name) =
-                    if let Some(customer) = auth_ctx.customer.as_ref() {
-                        let customer_id = customer
-                            .id
-                            .as_ref()
-                            .map(|id| common_utils::id_type::CustomerId::from_str(id))
-                            .transpose()
-                            .change_context(IntegrationError::InvalidDataFormat {
-                                field_name: "authenticator_context.customer.id",
-                                context: IntegrationErrorContext {
-                                    additional_context: Some(
-                                        "Failed to parse customer id".to_string(),
-                                    ),
-                                    ..Default::default()
-                                },
-                            })?;
+                let (customer_id, email, customer_name) = if let Some(customer) =
+                    auth_ctx.customer.as_ref()
+                {
+                    let customer_id = customer
+                        .id
+                        .as_ref()
+                        .map(|id| common_utils::id_type::CustomerId::from_str(id))
+                        .transpose()
+                        .change_context(IntegrationError::InvalidDataFormat {
+                            field_name: "authenticator_context.customer.id",
+                            context: IntegrationErrorContext {
+                                additional_context: Some("Failed to parse customer id".to_string()),
+                                ..Default::default()
+                            },
+                        })?;
 
-                        let email: Option<Email> = match customer.email.as_ref() {
-                            Some(email_str) => {
-                                Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
-                                    error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                                        field_name: "authenticator_context.customer.email",
-                                        context: IntegrationErrorContext {
-                                            additional_context: Some(
-                                                "Invalid email format".to_string(),
-                                            ),
-                                            ..Default::default()
-                                        },
-                                    })
-                                })?)
-                            }
-                            None => None,
-                        };
-
-                        let customer_name =
-                            customer.name.clone().map(Secret::new);
-
-                        (customer_id, email, customer_name)
-                    } else {
-                        (None, None, None)
+                    let email: Option<Email> = match customer.email.as_ref() {
+                        Some(email_str) => {
+                            Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
+                                error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                                    field_name: "authenticator_context.customer.email",
+                                    context: IntegrationErrorContext {
+                                        additional_context: Some(
+                                            "Invalid email format".to_string(),
+                                        ),
+                                        ..Default::default()
+                                    },
+                                })
+                            })?)
+                        }
+                        None => None,
                     };
+
+                    let customer_name = customer.name.clone().map(Secret::new);
+
+                    (customer_id, email, customer_name)
+                } else {
+                    (None, None, None)
+                };
 
                 Ok(Self {
                     amount: common_utils::types::MinorUnit::new(0),
@@ -10206,8 +10204,9 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     })),
                 }?;
 
-                let payment_method_type =
-                    <Option<PaymentMethodType>>::foreign_try_from(payment_ctx.payment_method_type())?;
+                let payment_method_type = <Option<PaymentMethodType>>::foreign_try_from(
+                    payment_ctx.payment_method_type(),
+                )?;
 
                 let customer_id = payment_ctx
                     .customer
@@ -10267,10 +10266,7 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
                     country,
                     order_details: None,
                     email,
-                    customer_name: payment_ctx
-                        .customer
-                        .and_then(|c| c.name)
-                        .map(Secret::new),
+                    customer_name: payment_ctx.customer.and_then(|c| c.name).map(Secret::new),
                     order_tax_amount: payment_ctx
                         .order_tax_amount
                         .map(common_utils::types::MinorUnit::new),

@@ -107,17 +107,17 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize> Conn
         event_builder: Option<&mut events::Event>,
         _connector_config: &ConnectorSpecificConfig,
     ) -> CustomResult<ErrorResponse, ConnectorError> {
-        let response: plaid::PlaidErrorResponse = res
-            .response
-            .parse_struct("PlaidErrorResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed {
-                context: domain_types::errors::ResponseTransformationErrorContext {
-                    http_status_code: Some(res.status_code),
-                    additional_context: Some(
-                        "failed to parse Plaid error body as PlaidErrorResponse".to_owned(),
-                    ),
-                },
-            })?;
+        let response: plaid::PlaidErrorResponse =
+            res.response
+                .parse_struct("PlaidErrorResponse")
+                .change_context(ConnectorError::ResponseDeserializationFailed {
+                    context: domain_types::errors::ResponseTransformationErrorContext {
+                        http_status_code: Some(res.status_code),
+                        additional_context: Some(
+                            "failed to parse Plaid error body as PlaidErrorResponse".to_owned(),
+                        ),
+                    },
+                })?;
 
         with_error_response_body!(event_builder, response);
 
