@@ -96,7 +96,7 @@ npm install hyperswitch-prism
 
 **Requirements:**
 - Node.js 18+ (LTS recommended)
-- macOS (x64, arm64), Linux (arm64), or Windows (x64)
+- macOS (x64, arm64) or Windows (x64)
 
 ---
 
