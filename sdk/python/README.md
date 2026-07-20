@@ -103,7 +103,7 @@ from payments import PaymentClient
 
 **Platform Support:**
 - ✅ macOS (x64, arm64)
-- ✅ Linux (x64, arm64)
+- ✅ Linux (arm64)
 - ✅ Windows (x64)
 
 ---

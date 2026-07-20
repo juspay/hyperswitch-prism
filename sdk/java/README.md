@@ -115,7 +115,7 @@ implementation 'io.hyperswitch:prism:0.0.6'
 
 **Platform Support:**
 - ✅ macOS (x64, arm64)
-- ✅ Linux (x64, arm64)
+- ✅ Linux (arm64)
 - ✅ Windows (x64)
 
 ---

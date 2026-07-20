@@ -140,7 +140,7 @@ make clean
 | Platform | Architectures |
 |----------|---------------|
 | macOS | x86_64, arm64 |
-| Linux | x86_64, aarch64 |
+| Linux | aarch64 |
 | Windows | x86_64 |
 
 ---
