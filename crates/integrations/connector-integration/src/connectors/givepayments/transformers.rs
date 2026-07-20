@@ -973,6 +973,8 @@ pub enum GivepaymentsWebhookEventType {
     RefundApproved,
     #[serde(rename = "refund.settled")]
     RefundSettled,
+    #[serde(other)]
+    Unknown,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1038,6 +1040,8 @@ impl From<GivepaymentsWebhookEventType> for EventType {
 
             GivepaymentsWebhookEventType::RefundApproved
             | GivepaymentsWebhookEventType::RefundSettled => Self::RefundSuccess,
+
+            GivepaymentsWebhookEventType::Unknown => Self::IncomingWebhookEventUnspecified,
         }
     }
 }
