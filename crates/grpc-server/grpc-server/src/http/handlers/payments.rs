@@ -30,7 +30,8 @@ use grpc_api_types::payments::{
     PaymentServiceSetupRecurringRequest, PaymentServiceSetupRecurringResponse,
     PaymentServiceVerifyRedirectResponseRequest, PaymentServiceVerifyRedirectResponseResponse,
     PaymentServiceVoidRequest, PaymentServiceVoidResponse, RecurringPaymentServiceChargeRequest,
-    RecurringPaymentServiceChargeResponse, RefundResponse,
+    RecurringPaymentServiceChargeResponse, RecurringPaymentServiceRevokeRequest,
+    RecurringPaymentServiceRevokeResponse, RefundResponse,
 };
 use std::sync::Arc;
 
@@ -40,6 +41,7 @@ use crate::http::{
     transfer_config_to_grpc_request, utils::ValidatedJson,
 };
 use ucs_env::configs::Config;
+
 http_handler!(
     authorize,
     PaymentServiceAuthorizeRequest,
@@ -136,6 +138,13 @@ http_handler!(
     RecurringPaymentServiceChargeRequest,
     RecurringPaymentServiceChargeResponse,
     charge,
+    recurring_payment_service
+);
+http_handler!(
+    revoke_mandate,
+    RecurringPaymentServiceRevokeRequest,
+    RecurringPaymentServiceRevokeResponse,
+    revoke,
     recurring_payment_service
 );
 http_handler!(
