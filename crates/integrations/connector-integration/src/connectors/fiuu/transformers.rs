@@ -666,7 +666,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::Skrill(_) | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )
@@ -678,6 +679,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::Upi(_)
@@ -777,7 +779,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                     PaymentMethodData::CardDetailsForNetworkTransactionId(ref raw_card_details) => {
                         FiuuPaymentMethodData::try_from((
                             raw_card_details,
-                            network_transaction_id.clone(),
+                            network_transaction_id.network_transaction_id.clone(),
                         ))
                     }
                     _ => Err(IntegrationError::NotImplemented(
@@ -1033,7 +1035,8 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | WalletData::CashfreeRedirect(_)
                 | WalletData::PayURedirect(_)
                 | WalletData::EaseBuzzRedirect(_)
-                | WalletData::Skrill(_) | WalletData::QwikcilverWalletDirect(_) => Err(IntegrationError::NotImplemented(
+                | WalletData::QwikcilverWalletDirect(_)
+                | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("fiuu"),
                     Default::default(),
                 )
@@ -1045,6 +1048,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
             | PaymentMethodData::BankTransfer(_)
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::MandatePayment
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::Upi(_)
@@ -1439,6 +1443,7 @@ where
                                     connector_mandate_id: Some(token.clone().expose()),
                                     payment_method_id: None,
                                     connector_mandate_request_reference_id: None,
+                                    mandate_metadata: None,
                                 })
                             });
                     let status = match non_threeds_data.status.as_str() {
@@ -2005,6 +2010,7 @@ impl<F> TryFrom<ResponseRouterData<FiuuPaymentResponse, Self>>
                             connector_mandate_id: Some(token.clone().expose()),
                             payment_method_id: None,
                             connector_mandate_request_reference_id: None,
+                            mandate_metadata: None,
                         }),
                         Err(_err) => None,
                     }
@@ -2862,6 +2868,7 @@ impl TryFrom<FiuuRefundSyncResponse> for RefundWebhookDetailsResponse {
         match notif {
             FiuuRefundSyncResponse::Webhook(fiuu_webhooks_refund_response) => Ok(Self {
                 connector_refund_id: Some(fiuu_webhooks_refund_response.refund_id),
+                merchant_transaction_id: None,
                 status: common_enums::RefundStatus::from(
                     fiuu_webhooks_refund_response.status.clone(),
                 ),

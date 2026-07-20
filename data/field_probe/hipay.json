@@ -348,8 +348,8 @@
         "error": "This feature is not implemented: Payment method"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -432,8 +432,8 @@
         "error": "This feature is not implemented: Payment method"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -531,6 +531,12 @@
       "default": {
         "status": "not_supported",
         "error": "create_connector_customer flow not supported by hipay connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by hipay connector"
       }
     },
     "dispute_accept": {

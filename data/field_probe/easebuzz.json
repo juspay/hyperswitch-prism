@@ -317,8 +317,8 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -401,8 +401,8 @@
         "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: This payment method is not supported for Easebuzz. Easebuzz supports Card, UPI Collect/Intent/QR, Wallet, and NetBanking only"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -514,6 +514,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: create_connector_customer flow for easebuzz"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for easebuzz"
       }
     },
     "dispute_accept": {

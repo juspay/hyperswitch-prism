@@ -321,7 +321,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<PSync, PaymentFlowData, PaymentsSyncData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let payment_id = req.request.get_connector_transaction_id()?;
-            Ok(format!("{}/pa/payment_intents/{}", &req.resource_common_data.connectors.airwallex.base_url, payment_id))
+            Ok(format!("{}/pa/payment_intents/{}", req.resource_common_data.connectors.airwallex.base_url, payment_id))
         }
     }
 );
@@ -355,7 +355,7 @@ macros::macro_connector_implementation!(
                 ResponseId::ConnectorTransactionId(id) => id,
                 _ => return Err(IntegrationError::MissingConnectorTransactionID { context: Default::default() }.into())
 };
-            Ok(format!("{}/pa/payment_intents/{}/capture", &req.resource_common_data.connectors.airwallex.base_url, payment_id))
+            Ok(format!("{}/pa/payment_intents/{}/capture", req.resource_common_data.connectors.airwallex.base_url, payment_id))
         }
     }
 );
@@ -385,7 +385,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<Refund, RefundFlowData, RefundsData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/pa/refunds/create", &req.resource_common_data.connectors.airwallex.base_url))
+            Ok(format!("{}/pa/refunds/create", req.resource_common_data.connectors.airwallex.base_url))
         }
     }
 );
@@ -415,7 +415,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<RSync, RefundFlowData, RefundSyncData, RefundsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let refund_id = req.request.connector_refund_id.clone();
-            Ok(format!("{}/pa/refunds/{}", &req.resource_common_data.connectors.airwallex.base_url, refund_id))
+            Ok(format!("{}/pa/refunds/{}", req.resource_common_data.connectors.airwallex.base_url, refund_id))
         }
     }
 );
@@ -458,7 +458,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<ServerAuthenticationToken, MerchantAuthenticationFlowData, ServerAuthenticationTokenRequestData, ServerAuthenticationTokenResponseData>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/authentication/login", &req.resource_common_data.connectors.airwallex.base_url))
+            Ok(format!("{}/authentication/login", req.resource_common_data.connectors.airwallex.base_url))
         }
     }
 );
@@ -488,7 +488,7 @@ macros::macro_connector_implementation!(
             &self,
             req: &RouterDataV2<CreateOrder, PaymentFlowData, PaymentCreateOrderData, PaymentCreateOrderResponse>,
         ) -> CustomResult<String, IntegrationError> {
-            Ok(format!("{}/pa/payment_intents/create", &req.resource_common_data.connectors.airwallex.base_url))
+            Ok(format!("{}/pa/payment_intents/create", req.resource_common_data.connectors.airwallex.base_url))
         }
     }
 );
@@ -524,7 +524,7 @@ macros::macro_connector_implementation!(
                 .ok_or(IntegrationError::MissingRequiredField { field_name: "connector_order_id", context: Default::default() })?;
             Ok(format!(
                 "{}/pa/payment_intents/{}/confirm",
-                &req.resource_common_data.connectors.airwallex.base_url,
+                req.resource_common_data.connectors.airwallex.base_url,
                 order_id
             ))
         }
@@ -578,7 +578,7 @@ macros::macro_connector_implementation!(
                 })?;
             Ok(format!(
                 "{}/pa/payment_intents/{}/confirm",
-                &req.resource_common_data.connectors.airwallex.base_url,
+                req.resource_common_data.connectors.airwallex.base_url,
                 order_id
             ))
         }
@@ -614,7 +614,7 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Void, PaymentFlowData, PaymentVoidData, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             let payment_id = req.request.connector_transaction_id.clone();
-            Ok(format!("{}/pa/payment_intents/{}/cancel", &req.resource_common_data.connectors.airwallex.base_url, payment_id))
+            Ok(format!("{}/pa/payment_intents/{}/cancel", req.resource_common_data.connectors.airwallex.base_url, payment_id))
         }
     }
 );
@@ -706,7 +706,7 @@ macros::macro_connector_implementation!(
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!(
                 "{}/pa/customers/create",
-                &req.resource_common_data.connectors.airwallex.base_url
+                req.resource_common_data.connectors.airwallex.base_url
             ))
         }
     }
@@ -799,6 +799,7 @@ macros::macro_connector_flow_status_impls!(
     generic_type: T,
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
+        GetConnectorCustomer,
         ClientAuthenticationToken,
         MandateRevoke,
         ServerSessionAuthenticationToken,

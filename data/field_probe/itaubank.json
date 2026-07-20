@@ -317,8 +317,8 @@
         "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -401,8 +401,8 @@
         "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: authorize flow for itaubank"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -494,6 +494,12 @@
       "default": {
         "status": "not_supported",
         "error": "create_connector_customer flow not supported by itaubank connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by itaubank connector"
       }
     },
     "dispute_accept": {

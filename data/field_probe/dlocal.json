@@ -317,8 +317,8 @@
         "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "PayURedirect": {
         "status": "error",
@@ -401,8 +401,8 @@
         "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "error",
+        "error": "Stuck on field: customer_document_details — Missing required field: customer_document_details"
       },
       "Sofort": {
         "status": "error",
@@ -504,6 +504,12 @@
       "default": {
         "status": "not_supported",
         "error": "create_connector_customer flow not supported by dlocal connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by dlocal connector"
       }
     },
     "dispute_accept": {

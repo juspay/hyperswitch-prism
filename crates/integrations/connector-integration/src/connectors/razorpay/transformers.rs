@@ -304,7 +304,7 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             WalletData::BillDeskRedirect(_) => Ok(Self::BillDesk),
             WalletData::CashfreeRedirect(_) => Ok(Self::Cashfree),
             WalletData::PayURedirect(_) => Ok(Self::PayU),
-            WalletData::EaseBuzzRedirect(_) | WalletData::Skrill(_) | WalletData::QwikcilverWalletDirect(_) => {
+            WalletData::EaseBuzzRedirect(_) | WalletData::QwikcilverWalletDirect(_) => {
                 Ok(Self::EaseBuzz)
             }
             WalletData::AliPayQr(_)
@@ -340,7 +340,8 @@ impl TryFrom<&WalletData> for RazorpayWalletType {
             | WalletData::RevolutPay(_)
             | WalletData::MbWay(_)
             | WalletData::Satispay(_)
-            | WalletData::Wero(_) => Err(IntegrationError::NotImplemented(
+            | WalletData::Wero(_)
+            | WalletData::Skrill(_) => Err(IntegrationError::NotImplemented(
                 format!("Payment Method {wallet_data:?} not supported for Razorpay"),
                 Default::default(),
             )),
@@ -567,6 +568,7 @@ impl<T: PaymentMethodDataTypes + std::fmt::Debug + Sync + Send + 'static + Seria
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkToken(_)
+                | PaymentMethodData::CardWithNoCvc(_)
                 | PaymentMethodData::MobilePayment(_)
                 | PaymentMethodData::OpenBanking(_)) => {
                     return Err(IntegrationError::NotImplemented(

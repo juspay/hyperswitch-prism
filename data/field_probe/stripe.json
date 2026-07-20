@@ -936,8 +936,8 @@
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -1129,8 +1129,8 @@
         "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through stripe"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -1294,6 +1294,12 @@
         }
       }
     },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for stripe"
+      }
+    },
     "dispute_accept": {
       "default": {
         "status": "not_implemented",
@@ -1349,7 +1355,22 @@
     },
     "handle_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "merchant_event_id": "probe_event_001",
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}"
+        }
       }
     },
     "incremental_authorization": {
@@ -1379,7 +1400,21 @@
     },
     "parse_event": {
       "default": {
-        "status": "not_implemented"
+        "status": "supported",
+        "proto_request": {
+          "request_details": {
+            "method": "HTTP_METHOD_POST",
+            "uri": "https://example.com/webhook",
+            "headers": {},
+            "body": "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}"
+          }
+        },
+        "sample": {
+          "url": "",
+          "method": "Post",
+          "headers": {},
+          "body": "{\"id\":\"evt_probe_001\",\"type\":\"payment_intent.succeeded\",\"data\":{\"object\":{\"id\":\"pi_probe_001\",\"object\":\"payment_intent\",\"amount\":1000,\"currency\":\"usd\",\"created\":1700000000,\"status\":\"succeeded\"}}}"
+        }
       }
     },
     "payment_method_eligibility": {

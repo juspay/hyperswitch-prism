@@ -361,8 +361,8 @@
         "error": "This feature is not implemented: Selected payment method through Placetopay"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Placetopay"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -445,8 +445,8 @@
         "error": "This feature is not implemented: Selected payment method through Placetopay"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through Placetopay"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -543,6 +543,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: create_connector_customer flow for placetopay"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for placetopay"
       }
     },
     "dispute_accept": {

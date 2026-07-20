@@ -317,8 +317,8 @@
         "error": "This feature is not implemented: Payment method Voucher(PayEasy(JCSVoucherData))"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method GiftCard(PaySafeCard)"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -401,8 +401,8 @@
         "error": "This feature is not implemented: Payment method Voucher(SevenEleven(JCSVoucherData))"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Payment method Wallet(Skrill(SkrillData))"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -502,6 +502,12 @@
       "default": {
         "status": "not_supported",
         "error": "create_connector_customer flow not supported by nexixpay connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by nexixpay connector"
       }
     },
     "dispute_accept": {

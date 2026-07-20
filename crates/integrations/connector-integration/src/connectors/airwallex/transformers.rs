@@ -1211,8 +1211,13 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexPaymentsResp
             .clone()
             .map(|id| MandateReference {
                 connector_mandate_id: Some(id.expose()),
-                payment_method_id: airwallex_payment_method_id,
+                payment_method_id: airwallex_payment_method_id.clone(),
                 connector_mandate_request_reference_id: None,
+                // Round-trip the Airwallex payment-method token via mandate_metadata as
+                // {"id": ...}: hyperswitch overwrites payment_method_id with its own id, so the
+                // MIT transformer reads the token back from mandate_metadata.
+                mandate_metadata: airwallex_payment_method_id
+                    .map(|pm_id| Secret::new(serde_json::json!({ "id": pm_id }))),
             })
             .map(Box::new);
 
@@ -1280,8 +1285,13 @@ impl TryFrom<ResponseRouterData<AirwallexSyncResponse, Self>>
             .clone()
             .map(|id| MandateReference {
                 connector_mandate_id: Some(id.expose()),
-                payment_method_id: airwallex_payment_method_id,
+                payment_method_id: airwallex_payment_method_id.clone(),
                 connector_mandate_request_reference_id: None,
+                // Round-trip the Airwallex payment-method token via mandate_metadata as
+                // {"id": ...}: hyperswitch overwrites payment_method_id with its own id, so the
+                // MIT transformer reads the token back from mandate_metadata.
+                mandate_metadata: airwallex_payment_method_id
+                    .map(|pm_id| Secret::new(serde_json::json!({ "id": pm_id }))),
             })
             .map(Box::new);
 
@@ -2295,8 +2305,13 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<AirwallexSetupMandate
                 connector_mandate_id: Some(id.expose()),
                 // Surface the Airwallex payment_method.id so the MIT transformer can
                 // reference it as `payment_method.id`.
-                payment_method_id: airwallex_payment_method_id,
+                payment_method_id: airwallex_payment_method_id.clone(),
                 connector_mandate_request_reference_id: None,
+                // Round-trip the token via mandate_metadata as {"id": ...}; hyperswitch
+                // overwrites payment_method_id with its own id, so the MIT transformer reads
+                // the token back from mandate_metadata.
+                mandate_metadata: airwallex_payment_method_id
+                    .map(|pm_id| Secret::new(serde_json::json!({ "id": pm_id }))),
             })
             .map(Box::new);
 

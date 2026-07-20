@@ -318,7 +318,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "authorize flow not supported by absa_sanlam connector"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -402,7 +402,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "authorize flow not supported by absa_sanlam connector"
       },
       "Sofort": {
         "status": "not_supported",
@@ -483,6 +483,12 @@
       "default": {
         "status": "not_supported",
         "error": "create_connector_customer flow not supported by absa_sanlam connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by absa_sanlam connector"
       }
     },
     "dispute_accept": {

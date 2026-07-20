@@ -38,6 +38,7 @@ mod tests {
             > = RouterDataV2 {
                 flow: PhantomData::<Authorize>,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     customer_id: None,
                     connector_customer: Some("conn_cust_987654".to_string()),
@@ -243,6 +244,7 @@ mod tests {
             > = RouterDataV2 {
                 flow: PhantomData::<Authorize>,
                 resource_common_data: PaymentFlowData {
+                    raw_connector_status: None,
                     merchant_id: common_utils::id_type::MerchantId::default(),
                     customer_id: None,
                     connector_customer: None,

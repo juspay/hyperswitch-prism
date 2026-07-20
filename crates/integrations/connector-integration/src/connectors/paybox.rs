@@ -640,6 +640,7 @@ macros::macro_connector_flow_status_impls!(
         ServerAuthenticationToken,
         CreateOrder,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         ClientAuthenticationToken,
         IncrementalAuthorization,
         SubmitEvidence,

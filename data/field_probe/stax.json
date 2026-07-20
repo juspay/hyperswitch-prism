@@ -317,8 +317,8 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -401,8 +401,8 @@
         "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Only card and ACH bank debit payments are supported for Stax"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -515,6 +515,12 @@
           },
           "body": "{\"email\":\"test@example.com\",\"firstname\":\"John Doe\"}"
         }
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for stax"
       }
     },
     "dispute_accept": {

@@ -352,8 +352,8 @@
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -436,8 +436,8 @@
         "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through xendit"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -535,6 +535,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: create_connector_customer flow for xendit"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for xendit"
       }
     },
     "dispute_accept": {

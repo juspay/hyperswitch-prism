@@ -282,6 +282,7 @@ pub enum IncomingWebhookEvent {
     SourceTransactionCreated,
     RefundFailure,
     RefundSuccess,
+    RefundProcessing,
     DisputeOpened,
     DisputeExpired,
     DisputeAccepted,

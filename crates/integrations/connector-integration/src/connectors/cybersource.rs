@@ -63,7 +63,7 @@ use transformers::{
     CybersourcePaymentsResponse as CybersourceRepeatPaymentResponse, CybersourceRefundRequest,
     CybersourceRefundResponse, CybersourceRepeatPaymentRequest, CybersourceRsyncResponse,
     CybersourceTransactionResponse, CybersourceVoidPCRequest, CybersourceVoidRequest,
-    CybersourceZeroMandateRequest,
+    CybersourceZeroMandateRequest, ForeignTryFrom,
 };
 
 use super::macros;
@@ -606,6 +606,27 @@ macros::macro_connector_implementation!(
             req: &RouterDataV2<Authorize, PaymentFlowData, PaymentsAuthorizeData<T>, PaymentsResponseData>,
         ) -> CustomResult<String, IntegrationError> {
             Ok(format!("{}pts/v2/payments/", self.connector_base_url_payments(req)))
+        }
+        fn get_5xx_error_response(
+            &self,
+            res: Response,
+            event_builder: Option<&mut events::Event>,
+            connector_config: &ConnectorSpecificConfig,
+        ) -> CustomResult<ErrorResponse, ConnectorError> {
+            // Cybersource returns a structured body on 5xx (e.g. HTTP 502
+            // `{"status":"SERVER_ERROR","reason":"SYSTEM_ERROR","message":"..."}`).
+            // `ErrorResponse::foreign_try_from(&res)` parses it so the shadow UCS
+            // `response.Err.{code,message}` mirror the Direct gateway (which maps
+            // `status` -> code) instead of the generic `bad_gateway` / HTTP-status
+            // discriminator. Falls back to the standard error handler when the body is
+            // not in the server-error shape.
+            match ErrorResponse::foreign_try_from(&res) {
+                Ok(error_response) => {
+                    with_error_response_body!(event_builder, error_response);
+                    Ok(error_response)
+                }
+                Err(_) => self.build_error_response(res, event_builder, connector_config),
+            }
         }
     }
 );
@@ -1324,6 +1345,7 @@ macros::macro_connector_flow_status_impls!(
         PaymentMethodToken,
         ServerAuthenticationToken,
         CreateConnectorCustomer,
+        GetConnectorCustomer,
     ],
     not_supported: [
         VoidPostRefund,

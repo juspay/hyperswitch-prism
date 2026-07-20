@@ -348,8 +348,8 @@
         "error": "This feature is not implemented: Selected payment method through revolv3"
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through revolv3"
       },
       "PayURedirect": {
         "status": "not_implemented",
@@ -432,8 +432,8 @@
         "error": "This feature is not implemented: Selected payment method through revolv3"
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "not_implemented",
+        "error": "This feature is not implemented: Selected payment method through revolv3"
       },
       "Sofort": {
         "status": "not_implemented",
@@ -531,6 +531,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: create_connector_customer flow for revolv3"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for revolv3"
       }
     },
     "dispute_accept": {

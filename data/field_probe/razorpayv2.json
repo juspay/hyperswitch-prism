@@ -2294,8 +2294,34 @@
         }
       },
       "PaySafeCard": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "pay_safe_card": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api.razorpay.com/v1/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+        }
       },
       "PayURedirect": {
         "status": "supported",
@@ -2868,8 +2894,34 @@
         }
       },
       "Skrill": {
-        "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "status": "supported",
+        "proto_request": {
+          "merchant_transaction_id": "probe_txn_001",
+          "amount": {
+            "minor_amount": 1000,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "skrill_redirect": {}
+          },
+          "capture_method": "AUTOMATIC",
+          "address": {
+            "billing_address": {}
+          },
+          "auth_type": "NO_THREE_DS",
+          "return_url": "https://example.com/return",
+          "connector_order_id": "connector_order_id"
+        },
+        "sample": {
+          "url": "https://api.razorpay.com/v1/payments",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"amount\":1000,\"currency\":\"USD\",\"order_id\":\"connector_order_id\",\"email\":\"customer@example.com\",\"contact\":\"9999999999\",\"method\":\"upi\",\"description\":\"Payment via RazorpayV2\",\"notes\":null,\"callback_url\":\"https://example.com/return\",\"upi\":null,\"save\":false}"
+        }
       },
       "Sofort": {
         "status": "supported",
@@ -3254,6 +3306,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: create_connector_customer flow for razorpayv2"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for razorpayv2"
       }
     },
     "dispute_accept": {

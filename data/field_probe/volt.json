@@ -400,7 +400,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Selected payment method through Volt is not supported by Volt"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -484,7 +484,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Selected payment method through Volt is not supported by Volt"
       },
       "Sofort": {
         "status": "not_supported",
@@ -574,6 +574,12 @@
       "default": {
         "status": "not_supported",
         "error": "create_connector_customer flow not supported by volt connector"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_supported",
+        "error": "get_connector_customer flow not supported by volt connector"
       }
     },
     "dispute_accept": {

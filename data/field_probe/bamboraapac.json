@@ -348,7 +348,7 @@
       },
       "PaySafeCard": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "PayURedirect": {
         "status": "not_supported",
@@ -432,7 +432,7 @@
       },
       "Skrill": {
         "status": "not_supported",
-        "error": "Invalid data format: payment_method. The provided payment method variant is not supported by Razorpay"
+        "error": "Payment method not supported is not supported by Bamboraapac"
       },
       "Sofort": {
         "status": "not_supported",
@@ -529,6 +529,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: create_connector_customer flow for bamboraapac"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for bamboraapac"
       }
     },
     "dispute_accept": {
