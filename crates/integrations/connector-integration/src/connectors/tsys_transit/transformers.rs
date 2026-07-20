@@ -1,9 +1,10 @@
-use std::fmt::Debug;
-
 use common_enums::{
     AttemptStatus, CardNetwork, FutureUsage, MitCategory, PaymentChannel, RefundStatus,
 };
-use common_utils::types::{MinorUnit, StringMajorUnit};
+use common_utils::{
+    collect_missing_value_keys,
+    types::{MinorUnit, StringMajorUnit},
+};
 use domain_types::{
     connector_flow::{
         Authorize, Capture, PSync, RSync, Refund, RepeatPayment, SetupMandate, Void, VoidPC,
@@ -27,6 +28,7 @@ use domain_types::{
 use error_stack::{Report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 
 use super::{super::macros::GetSoapXml, profile::TxProfile, rules, TsysTransitRouterData};
 use crate::types::ResponseRouterData;
@@ -338,14 +340,6 @@ pub struct TsysTransitProductDetails {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub product_tax_details: Option<TsysTransitProductTaxDetails>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub product_variation: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub product_modifier_details: Option<TsysTransitProductModifierDetails>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub product_notes: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub product_discount_indicator: Option<TsysTransitProductDiscountIndicator>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub product_commodity_code: Option<String>,
 }
 #[derive(Debug, Clone, Serialize)]
@@ -472,12 +466,6 @@ pub struct TsysTransitAuthorizeBody {
     pub purchase_order: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub charge_descriptor: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub charge_descriptor_2: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub charge_descriptor_3: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub charge_descriptor_4: Option<String>,
     #[serde(rename = "customerVATNumber", skip_serializing_if = "Option::is_none")]
     pub customer_vat_number: Option<String>,
     #[serde(rename = "customerRefID", skip_serializing_if = "Option::is_none")]
@@ -967,10 +955,13 @@ struct TsysTransitMerchantMetadataInner {
 
 #[derive(Debug, Default, Clone, Deserialize)]
 struct TsysTransitCommercialCardMetadata {
-    // vat_invoice / ship_from_zip removed: Level III is out of scope.
-    charge_descriptor_2: Option<String>,
-    charge_descriptor_3: Option<String>,
-    charge_descriptor_4: Option<String>,
+    vat_invoice_number: Option<String>,
+    ship_from_zip: Option<String>,
+    customer_vat_number: Option<String>,
+    shipping_charges: Option<StringMajorUnit>,
+    duty_charges: Option<StringMajorUnit>,
+    order_date: Option<String>,
+    summary_commodity_code: Option<String>,
 }
 #[derive(Debug, Default, Deserialize, Clone)]
 struct TsysTransitMandateMetadata {
@@ -1006,9 +997,6 @@ struct CommercialCardContext {
     commercial_card_level: Option<TsysTransitCommercialCardLevel>,
     purchase_order: Option<String>,
     charge_descriptor: Option<String>,
-    charge_descriptor_2: Option<String>,
-    charge_descriptor_3: Option<String>,
-    charge_descriptor_4: Option<String>,
     customer_vat_number: Option<String>,
     customer_ref_id: Option<String>,
     supplier_reference_number: Option<String>,
@@ -1279,25 +1267,46 @@ fn format_country_alpha3(country: common_enums::CountryAlpha2) -> String {
 fn build_tsys_product_details(
     detail: &domain_types::payment_address::OrderDetailsWithAmount,
     currency: common_enums::Currency,
-    zero_amount: &StringMajorUnit,
-    derived_tax_rate: Option<&String>,
-    require_commodity_code: bool,
-) -> Result<TsysTransitProductDetails, Report<IntegrationError>> {
+    card_network: Option<&CardNetwork>,
+) -> Result<Option<TsysTransitProductDetails>, Report<IntegrationError>> {
+    if !matches!(
+        card_network,
+        Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard)
+    ) {
+        return Ok(None);
+    };
+
+    let product_code = detail
+        .product_id
+        .clone()
+        .or_else(|| detail.sku.clone())
+        .or_else(|| detail.upc.clone())
+        .map(|code| sanitize_alphanumeric_space(&code, 20))
+        .filter(|code| !code.is_empty())
+        .unwrap_or_else(|| sanitize_alphanumeric_space(&detail.product_name, 20));
+
+    let product_name = truncate_chars(&detail.product_name, 50);
     let price = super::TsysTransitAmountConvertor::convert(detail.amount, currency)?;
+    let quantity = u32::from(detail.quantity);
+    let measurement_unit = detail.unit_of_measure.clone();
     let unit_discount_amount = detail
         .unit_discount_amount
         .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
-        .transpose()?
-        .unwrap_or_else(|| zero_amount.clone());
-    let has_discount = detail
-        .unit_discount_amount
-        .map(|amount| amount.get_amount_as_i64() > 0)
-        .unwrap_or(false);
+        .transpose()?;
+    let product_tax_name = detail.product_tax_code.clone();
+
     let product_tax_amount = detail
         .total_tax_amount
         .map(|amount| super::TsysTransitAmountConvertor::convert(amount, currency))
-        .transpose()?
-        .unwrap_or_else(|| zero_amount.clone());
+        .transpose()?;
+
+    let product_tax_percentage = detail.tax_rate.map(format_decimal);
+
+    let product_tax_type = detail
+        .product_tax_code
+        .clone()
+        .map(|tax_code| truncate_chars(&tax_code, 4));
+
     let product_commodity_code = detail
         .commodity_code
         .clone()
@@ -1306,88 +1315,85 @@ fn build_tsys_product_details(
         .or_else(|| detail.sku.clone())
         .map(|code| sanitize_alphanumeric_space(&code, 12));
 
-    if require_commodity_code && product_commodity_code.is_none() {
-        return Err(IntegrationError::MissingRequiredField {
-            field_name: "productCommodityCode required for Visa/Mastercard Level III",
-            context: Default::default(),
-        }
-        .into());
-    }
+    // Values hardcoded requires API contract mdification to support these fields
+    let stackable = TsysTransitYesNo::Yes;
+    let product_discount_name = "Line Item Discount".to_string();
+    let product_discount_percentage = Some("0.01".to_string());
+    let product_discount_type = "DISCOUNT".to_string();
+    let priority = 1;
 
-    Ok(TsysTransitProductDetails {
-        product_code: detail
-            .product_id
-            .clone()
-            .or_else(|| detail.sku.clone())
-            .or_else(|| detail.upc.clone())
-            .map(|code| sanitize_alphanumeric_space(&code, 20))
-            .filter(|code| !code.is_empty())
-            .unwrap_or_else(|| sanitize_alphanumeric_space(&detail.product_name, 20)),
-        product_name: truncate_chars(&detail.product_name, 50),
+    if matches!(card_network, Some(CardNetwork::Visa)) {
+        let missing_fields = collect_missing_value_keys!(
+            ("order_details.commodity_code", product_commodity_code),
+            ("order_details.unit_of_measure", measurement_unit),
+            ("order_details.unit_discount_amount", unit_discount_amount),
+            ("order_details.product_tax_name", product_tax_name),
+            ("order_details.product_tax_amount", product_tax_amount),
+            (
+                "order_details.product_tax_percentage",
+                product_tax_percentage
+            ),
+            ("order_details.unit_discount_amount", unit_discount_amount)
+        );
+
+        if !missing_fields.is_empty() {
+            return Err(IntegrationError::MissingRequiredFields {
+                field_names: missing_fields,
+                context: Default::default(),
+            }
+            .into());
+        }
+    };
+
+    if matches!(card_network, Some(CardNetwork::Mastercard)) {
+        let missing_fields = collect_missing_value_keys!(
+            ("order_details.unit_of_measure", measurement_unit),
+            ("order_details.unit_discount_amount", unit_discount_amount),
+            ("order_details.product_tax_name", product_tax_name),
+            ("order_details.product_tax_amount", product_tax_amount),
+            (
+                "order_details.product_tax_percentage",
+                product_tax_percentage
+            ),
+            ("order_details.unit_discount_amount", unit_discount_amount)
+        );
+
+        if !missing_fields.is_empty() {
+            return Err(IntegrationError::MissingRequiredFields {
+                field_names: missing_fields,
+                context: Default::default(),
+            }
+            .into());
+        }
+    };
+
+    Ok(Some(TsysTransitProductDetails {
+        product_code,
+        product_name,
         price,
-        quantity: u32::from(detail.quantity),
-        measurement_unit: detail
-            .unit_of_measure
-            .clone()
-            .or_else(|| Some("EA".to_string())),
+        quantity,
+        measurement_unit,
         product_discount_details: Some(TsysTransitProductDiscountDetails {
-            product_discount_name: "Line Item Discount".to_string(),
-            product_discount_amount: unit_discount_amount,
-            product_discount_percentage: Some("0.01".to_string()),
-            product_discount_type: "DISCOUNT".to_string(),
-            priority: 1,
-            stackable: if has_discount {
-                TsysTransitYesNo::Yes
-            } else {
-                TsysTransitYesNo::No
-            },
+            product_discount_name,
+            product_discount_amount: unit_discount_amount.ok_or(
+                IntegrationError::MissingRequiredField {
+                    field_name: "order_details.unit_discount_amount",
+                    context: Default::default(),
+                },
+            )?,
+            product_discount_percentage,
+            product_discount_type,
+            priority,
+            stackable,
         }),
         product_tax_details: Some(TsysTransitProductTaxDetails {
-            product_tax_name: detail
-                .product_tax_code
-                .clone()
-                .or_else(|| Some("TAX".to_string())),
-            product_tax_amount: Some(product_tax_amount),
-            product_tax_percentage: Some(
-                detail
-                    .tax_rate
-                    .map(format_decimal)
-                    .or_else(|| derived_tax_rate.cloned())
-                    .unwrap_or_else(|| "0".to_string()),
-            ),
-            product_tax_type: detail
-                .product_tax_code
-                .clone()
-                .map(|tax_code| truncate_chars(&tax_code, 4)),
-        }),
-        product_variation: detail
-            .sub_category
-            .clone()
-            .or_else(|| detail.category.clone()),
-        product_modifier_details: detail
-            .brand
-            .clone()
-            .or_else(|| detail.category.clone())
-            .map(|modifier_name| TsysTransitProductModifierDetails {
-                modifier_name: truncate_chars(&modifier_name, 50),
-                modifier_value: detail
-                    .sub_category
-                    .clone()
-                    .or_else(|| detail.description.clone())
-                    .map(|value| truncate_chars(&value, 25)),
-                modifier_price: None,
-            }),
-        product_notes: detail
-            .description
-            .clone()
-            .map(|description| truncate_chars(&description, 100)),
-        product_discount_indicator: Some(if has_discount {
-            TsysTransitProductDiscountIndicator::Y
-        } else {
-            TsysTransitProductDiscountIndicator::N
+            product_tax_name,
+            product_tax_amount,
+            product_tax_percentage,
+            product_tax_type,
         }),
         product_commodity_code,
-    })
+    }))
 }
 
 fn compute_commercial_card_context<
@@ -1404,165 +1410,65 @@ fn compute_commercial_card_context<
 ) -> Result<CommercialCardContext, Report<IntegrationError>> {
     let empty_commercial_meta = TsysTransitCommercialCardMetadata::default();
     let commercial_meta = commercial_meta.unwrap_or(&empty_commercial_meta);
-
+    let vat_invoice = commercial_meta.vat_invoice_number.clone();
+    let customer_vat_number = commercial_meta.customer_vat_number.clone();
+    let ship_from_zip = commercial_meta.ship_from_zip.clone();
+    let shipping_charges = commercial_meta.shipping_charges.clone();
+    let duty_charges = commercial_meta.duty_charges.clone();
+    let order_date = commercial_meta.order_date.clone();
+    let summary_commodity_code = commercial_meta.summary_commodity_code.clone();
     let l2_l3_data = router_data.resource_common_data.l2_l3_data.as_deref();
-    let shipping_address = router_data.resource_common_data.get_shipping_address().ok();
-    let billing_address = router_data.resource_common_data.get_billing_address().ok();
-    let billing_descriptor = router_data.request.billing_descriptor.as_ref();
-    let connector_request_reference_id = router_data
-        .resource_common_data
-        .connector_request_reference_id
-        .clone();
     let order_details = l2_l3_data
         .and_then(|data| data.get_order_details())
         .or_else(|| router_data.resource_common_data.order_details.clone())
         .unwrap_or_default();
+    let product_details: Option<Vec<TsysTransitProductDetails>> = order_details
+        .iter()
+        .map(|detail| {
+            build_tsys_product_details(
+                detail,
+                router_data.request.currency,
+                card_network,
+            )
+        })
+        .collect::<Result<Vec<Option<TsysTransitProductDetails>>, Report<IntegrationError>>>()
+        .ok()
+        .and_then(|items| items.into_iter().collect());
+
+    let derived_tax_rate = order_details
+        .iter()
+        .find_map(|detail| detail.tax_rate.map(format_decimal));
+    let derived_tax_type = order_details
+        .iter()
+        .find_map(|detail| detail.product_tax_code.clone())
+        .filter(|value| !value.is_empty());
     let order_tax_amount = l2_l3_data
         .and_then(|data| data.get_order_tax_amount())
         .or(router_data.request.order_tax_amount);
-    let order_reference = l2_l3_data
-        .and_then(|data| data.get_merchant_order_reference_id())
-        .or_else(|| router_data.request.merchant_order_id.clone());
-
-    // Level III out of scope — shippingCharges / dutyCharges are L3 enhanced
-    // tags and are never emitted.
-    let shipping_charges: Option<StringMajorUnit> = None;
-    let duty_charges: Option<StringMajorUnit> = None;
-
-    if order_details.is_empty()
-        && order_tax_amount.is_none()
-        && shipping_charges.is_none()
-        && duty_charges.is_none()
-    {
-        return Ok(CommercialCardContext::default());
-    }
-
-    // Level III is out of scope for this connector: every commercial
-    // transaction is emitted as Level II. No productDetails / additionalTax
-    // Details / vatInvoice / shipFromZip / enhanced tax & shipping.
-    let commercial_card_level = TsysTransitCommercialCardLevel::Level2;
-    let is_level3 = false;
-    let is_visa_or_mastercard = matches!(
-        card_network,
-        Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard)
-    );
-    let is_mastercard = matches!(card_network, Some(CardNetwork::Mastercard));
-    let is_amex = matches!(card_network, Some(CardNetwork::AmericanExpress));
-    let zero_amount = super::TsysTransitAmountConvertor::convert(
-        MinorUnit::new(0),
-        router_data.request.currency,
-    )?;
-
     let sales_tax = order_tax_amount
         .map(|amount| {
             super::TsysTransitAmountConvertor::convert(amount, router_data.request.currency)
         })
         .transpose()?;
-
-    let derived_tax_rate = order_details
-        .iter()
-        .find_map(|detail| detail.tax_rate.map(format_decimal))
-        .or_else(|| is_level3.then_some("0".to_string()));
-    let derived_tax_type = order_details
-        .iter()
-        .find_map(|detail| detail.product_tax_code.clone())
-        .filter(|value| !value.is_empty());
-
-    let additional_tax_details = if is_level3 && is_visa_or_mastercard {
-        let tax_amount =
-            sales_tax
-                .clone()
-                .ok_or_else(|| IntegrationError::MissingRequiredField {
-                    field_name: "salesTax required for commercial_card_level LEVEL3",
-                    context: Default::default(),
-                })?;
-        let tax_type = derived_tax_type.clone().ok_or_else(|| {
-            IntegrationError::MissingRequiredField {
-                field_name:
-                    "taxType required for additionalTaxDetails (order_details[0].product_tax_code missing)",
-                context: Default::default(),
-            }
-        })?;
-
-        vec![TsysTransitAdditionalTaxDetails {
-            tax_type: tax_type.clone(),
-            tax_amount,
-            tax_rate: Some(derived_tax_rate.clone().unwrap_or_else(|| "0".to_string())),
-            tax_category: Some(tax_type),
-        }]
-    } else {
-        Vec::new()
-    };
-
-    let product_details = if is_level3 {
-        if order_details.is_empty() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "order_details required for commercial_card_level LEVEL3",
-                context: Default::default(),
-            }
-            .into());
-        }
-
-        order_details
-            .iter()
-            .map(|detail| {
-                build_tsys_product_details(
-                    detail,
-                    router_data.request.currency,
-                    &zero_amount,
-                    derived_tax_rate.as_ref(),
-                    is_visa_or_mastercard,
-                )
-            })
-            .collect::<Result<Vec<_>, Report<IntegrationError>>>()?
-    } else {
-        Vec::new()
-    };
-
+    let tax_amount = sales_tax.clone();
+    let tax_type = derived_tax_type.clone();
+    let order_reference = l2_l3_data
+        .and_then(|data| data.get_merchant_order_reference_id())
+        .or_else(|| router_data.request.merchant_order_id.clone());
+    let connector_request_reference_id = router_data
+        .resource_common_data
+        .connector_request_reference_id
+        .clone();
     let purchase_order = sanitize_optional_alphanumeric_space(
         order_reference
             .clone()
             .or_else(|| Some(connector_request_reference_id.clone())),
         25,
     );
-    let charge_descriptor = billing_descriptor.and_then(|descriptor| {
-        sanitize_optional_alphanumeric_space(
-            descriptor
-                .statement_descriptor
-                .clone()
-                .or_else(|| descriptor.reference.clone())
-                .or_else(|| descriptor.name.as_ref().map(|name| name.clone().expose())),
-            25,
-        )
-    });
-    let supplier_reference_number = (!is_level3 || is_amex)
-        .then(|| {
-            sanitize_optional_alphanumeric_space(
-                order_reference
-                    .clone()
-                    .or_else(|| Some(connector_request_reference_id.clone())),
-                9,
-            )
-        })
-        .flatten();
-    // Level III out of scope — customerVATNumber not emitted.
-    let customer_vat_number: Option<String> = None;
-    let customer_ref_id = (!is_level3 || is_amex)
-        .then(|| {
-            sanitize_optional_alphanumeric_space(
-                order_reference
-                    .clone()
-                    .or_else(|| Some(connector_request_reference_id.clone())),
-                17,
-            )
-        })
-        .flatten();
-    // Level III out of scope — orderDate / summaryCommodityCode / vatInvoice /
-    // shipFromZip are L3-only tags and are never emitted.
-    let order_date: Option<String> = None;
-    let summary_commodity_code: Option<String> = None;
-    let vat_invoice: Option<String> = None;
-    let ship_from_zip: Option<String> = None;
+    let shipping_address = router_data.resource_common_data.get_shipping_address().ok();
+    let billing_address = router_data.resource_common_data.get_billing_address().ok();
+    let billing_descriptor = router_data.request.billing_descriptor.as_ref();
+
     let ship_to_zip = l2_l3_data
         .and_then(|data| data.get_shipping_zip())
         .map(|zip| zip.expose())
@@ -1576,6 +1482,7 @@ fn compute_commercial_card_context<
                 .and_then(|address| address.zip.clone())
                 .map(|zip| zip.expose())
         });
+
     let destination_country_code = normalize_tsys_country_code(
         l2_l3_data
             .and_then(|data| data.get_shipping_country())
@@ -1592,155 +1499,128 @@ fn compute_commercial_card_context<
             }),
     );
 
-    if is_level3 && is_visa_or_mastercard {
-        if sales_tax.is_none() {
-            return Err(IntegrationError::MissingRequiredField {
+    let supplier_reference_number = sanitize_optional_alphanumeric_space(
+        order_reference
+            .clone()
+            .or_else(|| Some(connector_request_reference_id.clone())),
+        9,
+    );
+
+    let customer_ref_id = sanitize_optional_alphanumeric_space(
+        order_reference
+            .clone()
+            .or_else(|| Some(connector_request_reference_id.clone())),
+        17,
+    );
+
+    let charge_descriptor = billing_descriptor.and_then(|descriptor| {
+        sanitize_optional_alphanumeric_space(
+            descriptor
+                .statement_descriptor
+                .clone()
+                .or_else(|| descriptor.reference.clone())
+                .or_else(|| descriptor.name.as_ref().map(|name| name.clone().expose())),
+            25,
+        )
+    });
+
+    let is_level2_and_level3_common_field_present = tax_amount.is_some()
+        && tax_type.is_some()
+        && derived_tax_rate.is_some()
+        && shipping_charges.is_some()
+        && duty_charges.is_some()
+        && purchase_order.is_some()
+        && order_date.is_some()
+        && summary_commodity_code.is_some()
+        && vat_invoice.is_some()
+        && ship_from_zip.is_some()
+        && ship_to_zip.is_some()
+        && destination_country_code.is_some();
+
+    let is_level3 = match card_network {
+        Some(CardNetwork::Visa) => {
+            is_level2_and_level3_common_field_present
+                && product_details.is_some()
+                && customer_vat_number.is_some()
+                && sales_tax.is_some()
+        }
+        Some(CardNetwork::Mastercard) => is_level2_and_level3_common_field_present,
+        _ => false,
+    };
+
+    let is_level2 = match card_network {
+        Some(CardNetwork::AmericanExpress) => {
+            supplier_reference_number.is_some()
+                && sales_tax.is_some()
+                && ship_to_zip.is_some()
+                && charge_descriptor.is_some()
+                && customer_ref_id.is_some()
+        }
+        Some(CardNetwork::Visa) | Some(CardNetwork::Mastercard) => {
+            sales_tax.is_some() && purchase_order.is_some()
+        }
+        _ => false,
+    };
+
+    if is_level3 {
+        let additional_tax_details = vec![TsysTransitAdditionalTaxDetails {
+            tax_type: tax_type.clone().ok_or_else(|| {
+            IntegrationError::MissingRequiredField {
                 field_name:
-                    "salesTax required for TSYS commercial-card Level III (Visa/Mastercard)",
+                    "taxType required for additionalTaxDetails (order_details[0].product_tax_code missing)",
                 context: Default::default(),
             }
-            .into());
-        }
-        if purchase_order.is_none() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "purchaseOrder required for Visa/Mastercard Level III",
-                context: Default::default(),
-            }
-            .into());
-        }
-        if shipping_charges.is_none() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "shippingCharges required for Visa/Mastercard Level III",
-                context: Default::default(),
-            }
-            .into());
-        }
-        if duty_charges.is_none() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "dutyCharges required for Visa/Mastercard Level III",
-                context: Default::default(),
-            }
-            .into());
-        }
-        if is_mastercard
-            && destination_country_code
-                .as_ref()
-                .is_none_or(|code| code.len() != 3)
-        {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name:
-                    "destinationCountryCode required and must be 3-digit for Mastercard Level III",
-                context: Default::default(),
-            }
-            .into());
-        }
-    }
-
-    if matches!(
-        commercial_card_level,
-        TsysTransitCommercialCardLevel::Level2
-    ) {
-        if is_visa_or_mastercard && purchase_order.is_none() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "purchaseOrder required for Visa/Mastercard Level II",
-                context: Default::default(),
-            }
-            .into());
-        }
-        if sales_tax.is_none() {
-            return Err(IntegrationError::MissingRequiredField {
-                field_name: "salesTax required for TSYS commercial-card Level II",
-                context: Default::default(),
-            }
-            .into());
-        }
-    }
-
-    if matches!(
-        commercial_card_level,
-        TsysTransitCommercialCardLevel::Level2
-    ) && is_amex
-    {
-        // TSYS cert: shipToZip / destinationCountryCode are Visa/MC L3-only,
-        // they are NOT required on AMEX L2.  supplierReferenceNumber,
-        // customerRefID, chargeDescriptor remain AMEX L2 essentials.
-        for (field_name, is_missing) in [
-            (
-                "supplierReferenceNumber",
-                supplier_reference_number.is_none(),
-            ),
-            ("customerRefID", customer_ref_id.is_none()),
-            ("chargeDescriptor", charge_descriptor.is_none()),
-        ] {
-            if is_missing {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name,
+        })?,
+            tax_amount: tax_amount.ok_or_else(|| IntegrationError::MissingRequiredField {
+                    field_name: "salesTax required for commercial_card_level LEVEL3",
                     context: Default::default(),
-                }
-                .into());
-            }
-        }
-    }
+                })? ,
+            tax_rate: derived_tax_rate.clone(),
+            tax_category: tax_type,
+        }];
 
-    if is_level3 && is_visa_or_mastercard {
-        for (field_name, is_missing) in [
-            ("purchaseOrder", purchase_order.is_none()),
-            ("orderDate", order_date.is_none()),
-            ("summaryCommodityCode", summary_commodity_code.is_none()),
-            ("vatInvoice", vat_invoice.is_none()),
-            ("shipFromZip", ship_from_zip.is_none()),
-            ("shipToZip", ship_to_zip.is_none()),
-            ("destinationCountryCode", destination_country_code.is_none()),
-        ] {
-            if is_missing {
-                return Err(IntegrationError::MissingRequiredField {
-                    field_name,
-                    context: Default::default(),
-                }
-                .into());
-            }
-        }
+        Ok(CommercialCardContext {
+            sales_tax,
+            additional_tax_details,
+            shipping_charges,
+            duty_charges,
+            product_details: product_details.unwrap_or(Vec::new()),
+            commercial_card_level: Some(TsysTransitCommercialCardLevel::Level3),
+            purchase_order: purchase_order.clone(),
+            charge_descriptor,
+            customer_vat_number,
+            customer_ref_id,
+            supplier_reference_number,
+            order_date,
+            summary_commodity_code,
+            vat_invoice,
+            ship_from_zip,
+            ship_to_zip,
+            destination_country_code,
+        })
+    } else if is_level2 {
+        Ok(CommercialCardContext {
+            sales_tax,
+            additional_tax_details: Vec::new(),
+            shipping_charges: None,
+            duty_charges: None,
+            product_details: Vec::new(),
+            commercial_card_level: Some(TsysTransitCommercialCardLevel::Level2),
+            purchase_order: purchase_order.clone(),
+            charge_descriptor,
+            customer_vat_number: None,
+            customer_ref_id,
+            supplier_reference_number,
+            order_date: None,
+            summary_commodity_code: None,
+            vat_invoice: None,
+            ship_from_zip: None,
+            ship_to_zip,
+            destination_country_code: None,
+        })
+    } else {
+        Ok(CommercialCardContext::default())
     }
-
-    if is_level3 && matches!(card_network, Some(CardNetwork::Visa)) && customer_vat_number.is_none()
-    {
-        return Err(IntegrationError::MissingRequiredField {
-            field_name: "customerVATNumber required for Visa Level 3",
-            context: Default::default(),
-        }
-        .into());
-    }
-
-    if is_level3 && is_visa_or_mastercard && additional_tax_details.is_empty() {
-        return Err(IntegrationError::MissingRequiredField {
-            field_name: "additionalTaxDetails required for Visa/Mastercard Level III",
-            context: Default::default(),
-        }
-        .into());
-    }
-
-    Ok(CommercialCardContext {
-        sales_tax,
-        additional_tax_details,
-        shipping_charges,
-        duty_charges,
-        product_details,
-        commercial_card_level: Some(commercial_card_level),
-        purchase_order: purchase_order.clone(),
-        charge_descriptor,
-        charge_descriptor_2: commercial_meta.charge_descriptor_2.clone(),
-        charge_descriptor_3: commercial_meta.charge_descriptor_3.clone(),
-        charge_descriptor_4: commercial_meta.charge_descriptor_4.clone(),
-        customer_vat_number,
-        customer_ref_id,
-        supplier_reference_number,
-        order_date,
-        summary_commodity_code,
-        vat_invoice,
-        ship_from_zip,
-        ship_to_zip,
-        destination_country_code,
-    })
 }
 
 impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
@@ -2110,9 +1990,6 @@ fn assemble_authorize_body(assembly: AuthorizeAssembly) -> TsysTransitAuthorizeB
             commercial_card_context.purchase_order,
         ),
         charge_descriptor: commercial_card_context.charge_descriptor,
-        charge_descriptor_2: commercial_card_context.charge_descriptor_2,
-        charge_descriptor_3: commercial_card_context.charge_descriptor_3,
-        charge_descriptor_4: commercial_card_context.charge_descriptor_4,
         customer_vat_number: commercial_card_context.customer_vat_number,
         customer_ref_id: rules::commercial::customer_ref_id(
             &profile,
