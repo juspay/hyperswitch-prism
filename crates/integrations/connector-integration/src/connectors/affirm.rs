@@ -505,6 +505,7 @@ macros::macro_connector_flow_status_impls!(
     [PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize],
     not_implemented: [
         CreateConnectorCustomer,
+        GetConnectorCustomer,
         CreateOrder,
         MandateRevoke,
         PaymentMethodToken,

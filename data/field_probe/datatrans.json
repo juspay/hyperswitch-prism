@@ -10,91 +10,91 @@
     "authorize": {
       "Ach": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "AchBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Affirm": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Afterpay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Alfamart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "AliPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "AmazonPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "ApplePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "ApplePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "ApplePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Bacs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "BacsBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "BancontactCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "BcaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Becs": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "BillDeskRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Bizum": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Blik": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Bluecode": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "BniVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Boleto": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "BriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Card": {
         "status": "supported",
@@ -133,19 +133,19 @@
       },
       "CashappQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "CashfreeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "CimbVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "ClassicReward": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Crypto": {
         "status": "not_supported",
@@ -153,11 +153,11 @@
       },
       "Dana": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "DanamonVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "DuitNow": {
         "status": "not_supported",
@@ -165,35 +165,35 @@
       },
       "EVoucher": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "EaseBuzzRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Efecty": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Eft": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Eps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "FamilyMart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "GCash": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Giropay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Givex": {
         "status": "not_supported",
@@ -201,87 +201,87 @@
       },
       "GoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "GooglePay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "GooglePayDecrypted": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "GooglePayThirdPartySdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Ideal": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Indomaret": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "IndonesianBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "InstantBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "InstantBankTransferFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "InstantBankTransferPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Interac": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "KakaoPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Klarna": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Lawson": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "LazyPayRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "LocalBankRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "LocalBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "MandiriVaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "MbWay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Mifinity": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "MiniStop": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "MobilePayRedirect": {
         "status": "not_supported",
@@ -289,43 +289,43 @@
       },
       "Momo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "MultibancoBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Netbanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "OnlineBankingCzechRepublic": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "OnlineBankingFinland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "OnlineBankingFpx": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "OnlineBankingPoland": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "OnlineBankingSlovakia": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "OnlineBankingThailand": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "OpenBanking": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "OpenBankingPis": {
         "status": "not_supported",
@@ -333,35 +333,35 @@
       },
       "OpenBankingUk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Oxxo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "PagoEfectivo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "PayEasy": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "PaySafeCard": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "PayURedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "PaypalRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "PaypalSdk": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Paysera": {
         "status": "not_supported",
@@ -373,111 +373,111 @@
       },
       "PermataBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "PhonePeRedirect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Pix": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Przelewy24": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Pse": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "RedCompra": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "RedPagos": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "RevolutPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "SamsungPay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Satispay": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Seicomart": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Sepa": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "SepaBankTransfer": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "SepaGuaranteedDebit": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "SevenEleven": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Skrill": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Sofort": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Swish": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "TouchNGo": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Trustly": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Twint": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "UpiCollect": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "UpiIntent": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "UpiQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Vipps": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "WeChatPayQr": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       },
       "Wero": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: Only card payments are supported for Datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans Authorize supports raw card or Secure Fields token payment methods only"
       }
     },
     "capture": {
@@ -551,6 +551,12 @@
       "default": {
         "status": "not_implemented",
         "error": "This feature is not implemented: create_connector_customer flow for datatrans"
+      }
+    },
+    "customer_get": {
+      "default": {
+        "status": "not_implemented",
+        "error": "This feature is not implemented: get_connector_customer flow for datatrans"
       }
     },
     "dispute_accept": {
@@ -675,14 +681,50 @@
     },
     "proxy_setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for datatrans"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_proxy_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "card_proxy": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "2030",
+            "card_cvc": "123",
+            "card_holder_name": "John Doe",
+            "card_network": "VISA"
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com"
+            }
+          },
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          },
+          "auth_type": "NO_THREE_DS",
+          "setup_future_usage": "OFF_SESSION"
+        },
+        "sample": {
+          "url": "https://api.sandbox.datatrans.com/v1/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_proxy_mandate_001\",\"card\":{\"expiryMonth\":\"{{$card_exp_month}}\",\"expiryYear\":\"{{$card_exp_year}}\",\"number\":\"{{$card_number}}\",\"cvv\":\"{{$card_cvc}}\",\"type\":\"PLAIN\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":null,\"cancelUrl\":null,\"errorUrl\":null},\"option\":{\"createAlias\":true}}"
+        }
       }
     },
     "recurring_charge": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: repeat_payment flow for datatrans"
+        "status": "error",
+        "error": "Stuck on field: additional_payment_data. Datatrans MIT requires stored card additional data — Missing required field: additional_payment_data. Datatrans MIT requires stored card additional data (expiry) for the alias charge"
       }
     },
     "recurring_revoke": {
@@ -756,8 +798,48 @@
     },
     "setup_recurring": {
       "default": {
-        "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for datatrans"
+        "status": "supported",
+        "proto_request": {
+          "merchant_recurring_payment_id": "probe_mandate_001",
+          "amount": {
+            "minor_amount": 0,
+            "currency": "USD"
+          },
+          "payment_method": {
+            "card": {
+              "card_number": "4111111111111111",
+              "card_exp_month": "03",
+              "card_exp_year": "2030",
+              "card_cvc": "737",
+              "card_holder_name": "John Doe"
+            }
+          },
+          "address": {
+            "billing_address": {
+              "first_name": "John",
+              "email": "test@example.com"
+            }
+          },
+          "auth_type": "NO_THREE_DS",
+          "enrolled_for_3ds": false,
+          "return_url": "https://example.com/mandate-return",
+          "setup_future_usage": "OFF_SESSION",
+          "request_incremental_authorization": false,
+          "customer_acceptance": {
+            "acceptance_type": "OFFLINE",
+            "accepted_at": 0
+          }
+        },
+        "sample": {
+          "url": "https://api.sandbox.datatrans.com/v1/transactions",
+          "method": "Post",
+          "headers": {
+            "authorization": "Basic cHJvYmVfa2V5OnByb2JlX3NlY3JldA==",
+            "content-type": "application/json",
+            "via": "HyperSwitch"
+          },
+          "body": "{\"currency\":\"USD\",\"refno\":\"probe_mandate_001\",\"card\":{\"expiryMonth\":\"03\",\"expiryYear\":\"30\",\"number\":\"4111111111111111\",\"cvv\":\"737\",\"type\":\"PLAIN\",\"3D\":{\"cardholder\":{\"cardholderName\":\"John\",\"email\":\"test@example.com\"}}},\"autoSettle\":true,\"redirect\":{\"successUrl\":\"https://example.com/mandate-return\",\"cancelUrl\":\"https://example.com/mandate-return\",\"errorUrl\":\"https://example.com/mandate-return\"},\"option\":{\"createAlias\":true}}"
+        }
       }
     },
     "token_authorize": {
@@ -791,7 +873,7 @@
     "token_setup_recurring": {
       "default": {
         "status": "not_implemented",
-        "error": "This feature is not implemented: setup_mandate flow for datatrans"
+        "error": "This feature is not implemented: Only card payments are supported for Datatrans. Datatrans SetupMandate (zero-auth alias creation) supports raw card payment method only"
       }
     },
     "tokenize": {

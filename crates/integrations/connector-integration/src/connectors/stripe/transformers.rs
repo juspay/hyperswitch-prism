@@ -99,6 +99,35 @@ impl<T: PaymentMethodDataTypes> GetRequestIncrementalAuthorization for RepeatPay
     }
 }
 
+fn get_stripe_moto_flag<T: PaymentMethodDataTypes>(
+    payment_method_data: &PaymentMethodData<T>,
+    payment_channel: &Option<common_enums::PaymentChannel>,
+) -> Option<bool> {
+    if matches!(payment_method_data, PaymentMethodData::Card(_))
+        && matches!(
+            payment_channel,
+            Some(
+                common_enums::PaymentChannel::MailOrder
+                    | common_enums::PaymentChannel::TelephoneOrder
+            )
+        )
+    {
+        Some(true)
+    } else {
+        None
+    }
+}
+
+fn get_setup_future_usage_for_moto(
+    setup_future_usage: Option<common_enums::FutureUsage>,
+    is_moto: Option<bool>,
+) -> Option<common_enums::FutureUsage> {
+    match setup_future_usage {
+        Some(common_enums::FutureUsage::OnSession) if is_moto == Some(true) => None,
+        usage => usage,
+    }
+}
+
 pub struct StripeAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -230,6 +259,8 @@ pub struct PaymentIntentRequest<
     pub browser_info: Option<StripeBrowserInformation>,
     #[serde(flatten)]
     pub charges: Option<IntentCharges>,
+    #[serde(rename = "payment_method_options[card][moto]")]
+    pub moto: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -277,6 +308,8 @@ pub struct SetupMandateRequest<
     pub expand: Option<ExpandableObjects>,
     #[serde(flatten)]
     pub browser_info: Option<StripeBrowserInformation>,
+    #[serde(rename = "payment_method_options[card][moto]")]
+    pub moto: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1556,6 +1589,7 @@ fn create_stripe_payment_method<
 
         PaymentMethodData::Upi(_)
         | PaymentMethodData::RealTimePayment(_)
+        | PaymentMethodData::CardWithNoCvc(_)
         | PaymentMethodData::MobilePayment(_)
         | PaymentMethodData::MandatePayment
         | PaymentMethodData::OpenBanking(_)
@@ -2139,6 +2173,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (None, None) => None,
         };
 
+        let is_moto = get_stripe_moto_flag(
+            &item.request.payment_method_data,
+            &item.request.payment_channel,
+        );
+
+        let setup_future_usage = if item.request.split_payments.is_some()
+            && item.request.customer_acceptance.is_some()
+        {
+            item.request.setup_future_usage
+        } else {
+            setup_future_usage
+        };
+        let setup_future_usage = get_setup_future_usage_for_moto(setup_future_usage, is_moto);
+
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -2173,19 +2221,13 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                 .map(Secret::new),
             setup_mandate_details,
             off_session: item.request.off_session,
-            setup_future_usage: match (
-                item.request.split_payments.as_ref(),
-                item.request.setup_future_usage,
-                item.request.customer_acceptance.as_ref(),
-            ) {
-                (Some(_), Some(usage), Some(_)) => Some(usage),
-                _ => setup_future_usage,
-            },
+            setup_future_usage,
 
             payment_method_types,
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
             charges: charges_in,
+            moto: is_moto,
         })
     }
 }
@@ -4944,12 +4986,20 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone()
             .map(StripeBrowserInformation::from);
 
+        let is_moto = get_stripe_moto_flag(
+            &item.router_data.request.payment_method_data,
+            &item.router_data.request.payment_channel,
+        );
+
+        let setup_future_usage =
+            get_setup_future_usage_for_moto(item.router_data.request.setup_future_usage, is_moto);
+
         Ok(Self {
             confirm: true,
             payment_data,
             return_url: item.router_data.request.router_return_url.clone(),
             off_session: item.router_data.request.off_session,
-            usage: item.router_data.request.setup_future_usage,
+            usage: setup_future_usage,
             payment_method_options: None,
             customer: item
                 .router_data
@@ -4961,6 +5011,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_method_types: Some(pm_type),
             expand: Some(ExpandableObjects::LatestAttempt),
             browser_info,
+            moto: is_moto,
         })
     }
 }
@@ -5095,6 +5146,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             | PaymentMethodData::Crypto(_)
             | PaymentMethodData::Reward
             | PaymentMethodData::RealTimePayment(_)
+            | PaymentMethodData::CardWithNoCvc(_)
             | PaymentMethodData::MobilePayment(_)
             | PaymentMethodData::GiftCard(_)
             | PaymentMethodData::Upi(_)
@@ -5485,6 +5537,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                         | PaymentMethodData::MandatePayment
                         | PaymentMethodData::Reward
                         | PaymentMethodData::RealTimePayment(_)
+                        | PaymentMethodData::CardWithNoCvc(_)
                         | PaymentMethodData::MobilePayment(_)
                         | PaymentMethodData::Upi(_)
                         | PaymentMethodData::Voucher(_)
@@ -5603,6 +5656,11 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (None, None) => None,
         };
 
+        let is_moto = get_stripe_moto_flag(
+            &item.request.payment_method_data,
+            &item.request.payment_channel,
+        );
+
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -5634,6 +5692,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
             charges: charges_in,
+            moto: is_moto,
         })
     }
 }
