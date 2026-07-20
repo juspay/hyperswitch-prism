@@ -1085,8 +1085,9 @@ fn create_event(
     event.add_service_name(event_params.service_name);
     event.add_tenant_id(event_params.tenant_id);
 
-    // Version metadata (Option A): stamp the four deployment fields on every event so A/B can
-    // group builds. Sourced from env (read once, cached); each field lands top-level in the event JSON.
+    // Version metadata: stamp the four deployment fields on every event so A/B can group builds.
+    // `version` is the compiled build (injected by the binary); `application_name`/`deployment_id`/
+    // `pod_name` are derived from the pod name in `HOSTNAME`. Computed once and cached.
     let version_metadata = version_metadata();
     if let Some(application_name) = &version_metadata.application_name {
         event.add_application_name(application_name);
@@ -1104,10 +1105,23 @@ fn create_event(
     event
 }
 
-/// Deployment version metadata, read once from the environment and cached.
-/// `application_name` = `APPLICATION_NAME` (the microservice name, e.g. `connector-service-http`),
-/// `version` = `VERSION` (the deployed build, e.g. `2026.07.08.0`), `deployment_id` = `DEPLOYMENT_ID`,
-/// `pod_name` = `POD_NAME`. Absent env vars leave the corresponding field off the event.
+/// The compiled build version, injected once by the binary at startup (e.g. from
+/// `ucs_env::git_describe!()`). Sourced from the binary rather than `ucs_env` directly to avoid a
+/// dependency cycle (`ucs_env` already depends on this crate), and rather than a config/env value
+/// because A/B groups on `version` and it must reflect the actual running build per deployment.
+static BUILD_VERSION: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+/// Record the compiled build version so every event can be tagged with it. Called once by the
+/// binary at startup. No-op if called again.
+pub fn set_build_version(version: String) {
+    let _ = BUILD_VERSION.set(version);
+}
+
+/// Deployment version metadata, computed once and cached.
+/// - `version`: the compiled build (via [`set_build_version`]; falls back to the `VERSION` env var).
+/// - `application_name` / `deployment_id` / `pod_name`: derived from the pod name in `HOSTNAME`,
+///   which k8s sets to `<application_name>-<replicaset_hash>-<pod_suffix>` — so no plain env var or
+///   downward-API `fieldRef` is required from the deployment pipeline.
 struct VersionMetadata {
     application_name: Option<String>,
     version: Option<String>,
@@ -1117,11 +1131,34 @@ struct VersionMetadata {
 
 fn version_metadata() -> &'static VersionMetadata {
     static VERSION_METADATA: std::sync::OnceLock<VersionMetadata> = std::sync::OnceLock::new();
-    VERSION_METADATA.get_or_init(|| VersionMetadata {
-        application_name: std::env::var("APPLICATION_NAME").ok(),
-        version: std::env::var("VERSION").ok(),
-        deployment_id: std::env::var("DEPLOYMENT_ID").ok(),
-        pod_name: std::env::var("POD_NAME").ok(),
+    VERSION_METADATA.get_or_init(|| {
+        let version = BUILD_VERSION
+            .get()
+            .cloned()
+            .or_else(|| std::env::var("VERSION").ok());
+
+        // k8s sets HOSTNAME to the pod name: `<application_name>-<replicaset_hash>-<pod_suffix>`.
+        let (application_name, deployment_id, pod_name) = match std::env::var("HOSTNAME") {
+            Ok(hostname) if !hostname.is_empty() => {
+                let segments: Vec<&str> = hostname.split('-').collect();
+                if segments.len() >= 3 {
+                    let deployment_id = segments[segments.len() - 2].to_string();
+                    let application_name = segments[..segments.len() - 2].join("-");
+                    (Some(application_name), Some(deployment_id), Some(hostname))
+                } else {
+                    // Not a standard k8s pod name; keep the pod name only.
+                    (None, None, Some(hostname))
+                }
+            }
+            _ => (None, None, None),
+        };
+
+        VersionMetadata {
+            application_name,
+            version,
+            deployment_id,
+            pod_name,
+        }
     })
 }
 

@@ -9,6 +9,11 @@ use ucs_env::{configs, logger};
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(debug_assertions)]
     verify_other_config_files();
+
+    // Record the compiled build version so the event system can tag every event with it
+    // (A/B groups on this `version`). Sourced from the binary because it must be per-build.
+    external_services::set_build_version(ucs_env::git_describe!().to_string());
+
     #[allow(clippy::expect_used)]
     let mut config = configs::Config::new().expect("Failed while parsing config");
 
