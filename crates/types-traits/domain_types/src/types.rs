@@ -13611,6 +13611,12 @@ impl<
             grpc_payment_types::MitCategory::Unspecified => None,
             other => Some(common_enums::MitCategory::foreign_from(other)),
         };
+        let payment_channel = value
+            .payment_channel
+            .and_then(|channel| grpc_payment_types::PaymentChannel::try_from(channel).ok())
+            .filter(|channel| !matches!(channel, grpc_payment_types::PaymentChannel::Unspecified))
+            .map(common_enums::PaymentChannel::foreign_try_from)
+            .transpose()?;
         let payment_method_type =
             <Option<PaymentMethodType>>::foreign_try_from(value.payment_method_type())?;
         let capture_method = value.capture_method();
@@ -13730,6 +13736,7 @@ impl<
                 None => None,
             },
             shipping_cost: value.shipping_cost.map(common_utils::types::MinorUnit::new),
+            payment_channel,
             mit_category,
             billing_descriptor,
             enable_partial_authorization: value.enable_partial_authorization,
