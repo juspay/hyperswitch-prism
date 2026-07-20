@@ -2554,6 +2554,10 @@ message PaymentServiceAuthorizeResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 22;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 23;
 }
 
 // Request message for synchronizing payment status
@@ -2686,6 +2690,10 @@ message PaymentServiceGetResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 35;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 36;
 }
 
 // Request message for voiding a payment
@@ -2759,6 +2767,10 @@ message PaymentServiceVoidResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 14;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 15;
 }
 
 // Request message for reversing a captured payment if not yet settled (similar
@@ -2802,6 +2814,10 @@ message PaymentServiceReverseResponse {
   // Raw Request and Response for debugging
   optional SecretString raw_connector_request = 7;
   optional SecretString raw_connector_response = 8;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 9;
 }
 
 // Request message for creating an access token
@@ -2993,6 +3009,10 @@ message PaymentServiceCaptureResponse {
 
   // Raw Response for debugging
   optional SecretString raw_connector_response = 16;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_transaction_id — e.g. Stripe charge ID (ch_xxx), order codes, invoice numbers.
+  optional string connector_reference_id = 17;
 }
 
 // Request message for creating an order
@@ -3150,6 +3170,10 @@ message RefundResponse {
   // Merchant's reference for the original payment/transaction the refund
   // belongs to
   optional string merchant_transaction_id = 24;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  // Distinct from connector_refund_id — e.g. secondary refund references, invoice numbers.
+  optional string connector_reference_id = 25;
 }
 
 // Request message for voiding/reversing a refund before settlement.
@@ -3232,6 +3256,9 @@ message DisputeResponse {
 
   // Raw Request for debugging
   optional SecretString raw_connector_request = 18;
+
+  // Another reference for the connector's transaction, returned in the connector's response.
+  optional string connector_reference_id = 19;
 }
 
 // Request message for setting up a mandate

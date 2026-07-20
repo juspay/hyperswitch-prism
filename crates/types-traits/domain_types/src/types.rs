@@ -6047,7 +6047,8 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                         connector_metadata,
                     ),
                     network_transaction_id: network_txn_id,
-                    merchant_transaction_id: connector_response_reference_id.clone(),
+                    connector_reference_id: connector_response_reference_id.clone(),
+                    merchant_transaction_id: None,
                     mandate_reference: mandate_reference_grpc,
                     mandate_reference_details,
                     incremental_authorization_allowed,
@@ -6101,7 +6102,8 @@ pub fn generate_payment_authorize_response<T: PaymentMethodDataTypes>(
                 connector_transaction_id: err.connector_transaction_id.clone(),
                 redirection_data: None,
                 network_transaction_id: None,
-                merchant_transaction_id: err.connector_transaction_id.clone(),
+                connector_reference_id: None,
+                merchant_transaction_id: None,
                 mandate_reference: None,
                 mandate_reference_details: None,
                 incremental_authorization_allowed: None,
@@ -7036,7 +7038,8 @@ pub fn generate_payment_void_response(
                         &grpc_resource_id,
                     ),
                     status: grpc_status.into(),
-                    merchant_void_id: connector_response_reference_id,
+                    connector_reference_id: connector_response_reference_id,
+                    merchant_void_id: None,
                     error: None,
                     status_code: u32::from(status_code),
                     response_headers: router_data_v2
@@ -7083,7 +7086,8 @@ pub fn generate_payment_void_response(
                 connector_transaction_id: extract_connector_request_reference_id(
                     &e.connector_transaction_id,
                 ),
-                merchant_void_id: e.connector_transaction_id.clone(),
+                connector_reference_id: None,
+                merchant_void_id: None,
                 status: status as i32,
                 raw_connector_response: router_data_v2
                     .resource_common_data
@@ -7174,7 +7178,8 @@ pub fn generate_payment_void_post_capture_response(
                         &grpc_resource_id,
                     ),
                     status: grpc_status.into(),
-                    merchant_reverse_id: connector_response_reference_id,
+                    connector_reference_id: connector_response_reference_id,
+                    merchant_reverse_id: None,
                     error: None,
                     status_code: u32::from(status_code),
                     response_headers: router_data_v2
@@ -7204,6 +7209,7 @@ pub fn generate_payment_void_post_capture_response(
                 Ok(PaymentServiceReverseResponse {
                     connector_transaction_id: connector_reference_id.clone().unwrap_or_default(),
                     status: grpc_status.into(),
+                    connector_reference_id: None,
                     merchant_reverse_id: connector_reference_id,
                     error: None,
                     status_code: u32::from(status_code),
@@ -7238,7 +7244,8 @@ pub fn generate_payment_void_post_capture_response(
                     &e.connector_transaction_id,
                 ),
                 status: status.into(),
-                merchant_reverse_id: e.connector_transaction_id.clone(),
+                connector_reference_id: None,
+                merchant_reverse_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
                     connector_details: Some(grpc_api_types::payments::ConnectorErrorDetails {
@@ -7457,7 +7464,8 @@ pub fn generate_payment_sync_response(
                     connector_transaction_id: extract_connector_request_reference_id(
                         &grpc_resource_id,
                     ),
-                    merchant_transaction_id: connector_response_reference_id,
+                    connector_reference_id: connector_response_reference_id,
+                    merchant_transaction_id: None,
                     redirection_data: redirection_data
                         .map(|form| grpc_api_types::payments::RedirectForm::foreign_try_from(*form))
                         .transpose()?,
@@ -7570,7 +7578,8 @@ pub fn generate_payment_sync_response(
 
                 Ok(PaymentServiceGetResponse {
                     connector_transaction_id: resource_id.unwrap_or_default(),
-                    merchant_transaction_id: connector_response_reference_id,
+                    connector_reference_id: connector_response_reference_id,
+                    merchant_transaction_id: None,
                     redirection_data: None,
                     status: grpc_status as i32,
                     mandate_reference: None,
@@ -7649,6 +7658,7 @@ pub fn generate_payment_sync_response(
                 connector_transaction_id: extract_connector_request_reference_id(
                     &e.connector_transaction_id,
                 ),
+                connector_reference_id: None,
                 merchant_transaction_id: Some(
                     router_data_v2
                         .resource_common_data
@@ -8417,6 +8427,7 @@ pub fn generate_refund_sync_response(
                 ),
                 connector_refund_id: response.connector_refund_id.clone(),
                 status: grpc_status as i32,
+                connector_reference_id: None,
                 merchant_refund_id: Some(response.connector_refund_id.clone()),
                 // Not returned by connectors on the direct Refund/RSync response;
                 // only populated on the webhook path.
@@ -8456,6 +8467,7 @@ pub fn generate_refund_sync_response(
                 connector_transaction_id: e.connector_transaction_id.clone(),
                 connector_refund_id: String::new(),
                 status: status as i32,
+                connector_reference_id: None,
                 merchant_refund_id: e.connector_transaction_id.clone(),
                 merchant_transaction_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
@@ -8552,7 +8564,8 @@ impl ForeignTryFrom<WebhookDetailsResponse> for PaymentServiceGetResponse {
                     .transpose()?
                     .unwrap_or_default(),
             ),
-            merchant_transaction_id: value.connector_response_reference_id,
+            connector_reference_id: value.connector_response_reference_id,
+            merchant_transaction_id: None,
             status: status as i32,
             mandate_reference: mandate_reference_grpc,
             mandate_reference_details,
@@ -8807,6 +8820,7 @@ pub fn generate_void_post_refund_response(
                 connector_transaction_id: None,
                 connector_refund_id: response.connector_refund_id,
                 status: grpc_api_types::payments::RefundStatus::RefundSuccess as i32,
+                connector_reference_id: None,
                 merchant_refund_id: Some(
                     router_data_v2
                         .resource_common_data
@@ -8850,6 +8864,7 @@ pub fn generate_void_post_refund_response(
             connector_transaction_id: e.connector_transaction_id.clone(),
             connector_refund_id: router_data_v2.request.connector_refund_id.clone(),
             status: grpc_api_types::payments::RefundStatus::RefundSuccess as i32,
+            connector_reference_id: None,
             merchant_refund_id: Some(
                 router_data_v2
                     .resource_common_data
@@ -9143,7 +9158,8 @@ impl ForeignTryFrom<RefundWebhookDetailsResponse> for RefundResponse {
             connector_transaction_id: None,
             connector_refund_id: value.connector_refund_id.unwrap_or_default(),
             status: status.into(),
-            merchant_refund_id: value.connector_response_reference_id,
+            connector_reference_id: value.connector_response_reference_id,
+            merchant_refund_id: None,
             merchant_transaction_id: value.merchant_transaction_id,
             error: Some(grpc_api_types::payments::ErrorInfo {
                 unified_details: None,
@@ -9215,7 +9231,8 @@ impl ForeignTryFrom<DisputeWebhookDetailsResponse> for DisputeResponse {
             evidence_documents: vec![],
             dispute_reason: None,
             dispute_message: value.dispute_message,
-            merchant_dispute_id: value.connector_response_reference_id,
+            connector_reference_id: value.connector_response_reference_id,
+            merchant_dispute_id: None,
             status_code: value.status_code as u32,
             response_headers,
             raw_connector_request: None,
@@ -9832,6 +9849,7 @@ pub fn generate_refund_response(
                 ),
                 connector_refund_id: response.connector_refund_id,
                 status: grpc_status as i32,
+                connector_reference_id: None,
                 merchant_refund_id: None,
                 // Not returned by connectors on the direct Refund/RSync response;
                 // only populated on the webhook path.
@@ -9870,6 +9888,7 @@ pub fn generate_refund_response(
                 connector_transaction_id: e.connector_transaction_id.clone(),
                 connector_refund_id: String::new(),
                 status: status as i32,
+                connector_reference_id: None,
                 merchant_refund_id: None,
                 merchant_transaction_id: None,
                 error: Some(grpc_api_types::payments::ErrorInfo {
@@ -10397,7 +10416,8 @@ pub fn generate_payment_capture_response(
                     connector_transaction_id: extract_connector_request_reference_id(
                         &grpc_resource_id,
                     ),
-                    merchant_capture_id: connector_response_reference_id,
+                    connector_reference_id: connector_response_reference_id,
+                    merchant_capture_id: None,
                     error: None,
                     status: grpc_status.into(),
                     status_code: status_code as u32,
@@ -10445,7 +10465,8 @@ pub fn generate_payment_capture_response(
                 connector_transaction_id: extract_connector_request_reference_id(
                     &e.connector_transaction_id.clone(),
                 ),
-                merchant_capture_id: e.connector_transaction_id.clone(),
+                connector_reference_id: None,
+                merchant_capture_id: None,
                 status: status.into(),
                 error: Some(grpc_api_types::payments::ErrorInfo {
                     unified_details: None,
