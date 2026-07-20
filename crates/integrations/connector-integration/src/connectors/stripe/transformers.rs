@@ -230,6 +230,9 @@ pub struct PaymentIntentRequest<
     pub browser_info: Option<StripeBrowserInformation>,
     #[serde(flatten)]
     pub charges: Option<IntentCharges>,
+    /// The Stripe account ID that these funds are intended for
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -277,6 +280,9 @@ pub struct SetupMandateRequest<
     pub expand: Option<ExpandableObjects>,
     #[serde(flatten)]
     pub browser_info: Option<StripeBrowserInformation>,
+    /// The Stripe account ID that these funds are intended for
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -2140,6 +2146,19 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (None, None) => None,
         };
 
+        // on_behalf_of is only supported for destination charges, not direct charges
+        let on_behalf_of = match &item.request.split_payments {
+            Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => {
+                match &stripe_split_payment.charge_type {
+                    common_enums::PaymentChargeType::Stripe(
+                        common_enums::StripeChargeType::Destination,
+                    ) => stripe_split_payment.on_behalf_of.clone(),
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -2187,6 +2206,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
             charges: charges_in,
+            on_behalf_of,
         })
     }
 }
@@ -2209,11 +2229,12 @@ impl From<BrowserInformation> for StripeBrowserInformation {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct StripeSplitPaymentRequest {
     pub charge_type: Option<common_enums::PaymentChargeType>,
     pub application_fees: Option<MinorUnit>,
     pub transfer_account_id: Option<Secret<String>>,
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -2718,7 +2739,8 @@ where
                         Some(Secret::new(serde_json::json!({
                             "transfer_account_id": stripe_split_data.transfer_account_id,
                             "charge_type": stripe_split_data.charge_type,
-                            "application_fees": stripe_split_data.application_fees
+                            "application_fees": stripe_split_data.application_fees,
+                            "on_behalf_of": stripe_split_data.on_behalf_of,
                         })))
                     }
                     _ => None,
@@ -4437,18 +4459,26 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
     type Error = error_stack::Report<IntegrationError>;
 
     fn try_from(
-        _item: &RouterDataV2<
+        item: &RouterDataV2<
             Authorize,
             PaymentFlowData,
             PaymentsAuthorizeData<T>,
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            charge_type: None,
-            transfer_account_id: None,
-            application_fees: None,
-        })
+        let split_payment_request = match item.request.split_payments.as_ref() {
+            Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => Self {
+                charge_type: Some(stripe_split_payment.charge_type.clone()),
+                transfer_account_id: Some(Secret::new(
+                    stripe_split_payment.transfer_account_id.clone(),
+                )),
+                application_fees: stripe_split_payment.application_fees,
+                on_behalf_of: stripe_split_payment.on_behalf_of.clone(),
+            },
+            Some(SplitPaymentsDetails::AdyenSplitPayment(_)) | None => Self::default(),
+        };
+
+        Ok(split_payment_request)
     }
 }
 
@@ -4945,6 +4975,18 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone()
             .map(StripeBrowserInformation::from);
 
+        let on_behalf_of = match &item.router_data.request.split_payments {
+            Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => {
+                match &stripe_split_payment.charge_type {
+                    common_enums::PaymentChargeType::Stripe(
+                        common_enums::StripeChargeType::Destination,
+                    ) => stripe_split_payment.on_behalf_of.clone(),
+                    _ => None,
+                }
+            }
+            _ => None,
+        };
+
         Ok(Self {
             confirm: true,
             payment_data,
@@ -4962,6 +5004,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_method_types: Some(pm_type),
             expand: Some(ExpandableObjects::LatestAttempt),
             browser_info,
+            on_behalf_of,
         })
     }
 }
@@ -5253,12 +5296,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
             let mut mit_charge_type = None;
             let mut mit_application_fees = None;
             let mut mit_transfer_account_id = None;
+            let mut mit_on_behalf_of = None;
             if let Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) =
                 item.request.split_payments.as_ref()
             {
                 mit_charge_type = Some(stripe_split_payment.charge_type.clone());
                 mit_application_fees = stripe_split_payment.application_fees;
                 mit_transfer_account_id = Some(stripe_split_payment.transfer_account_id.clone());
+                mit_on_behalf_of = stripe_split_payment.on_behalf_of.clone();
             }
 
             if mit_charge_type != from_metadata.as_ref().and_then(|m| m.charge_type.clone())
@@ -5267,8 +5312,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
                     != from_metadata
                         .as_ref()
                         .and_then(|m| m.transfer_account_id.clone().map(|s| s.expose()))
+                || mit_on_behalf_of != from_metadata.as_ref().and_then(|m| m.on_behalf_of.clone())
             {
-                let mismatched_fields = ["transfer_account_id", "application_fees", "charge_type"];
+                let mismatched_fields = [
+                    "transfer_account_id",
+                    "application_fees",
+                    "charge_type",
+                    "on_behalf_of",
+                ];
 
                 let field_str = mismatched_fields.join(", ");
                 Err(IntegrationError::MandatePaymentDataMismatch {
@@ -5279,15 +5330,16 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
         }
 
         // If Mandate Metadata from CIT call has something, populate it
-        let (charge_type, mut transfer_account_id, application_fees) =
+        let (charge_type, mut transfer_account_id, application_fees, on_behalf_of) =
             if let Some(ref metadata) = from_metadata {
                 (
                     metadata.charge_type.clone(),
                     metadata.transfer_account_id.clone(),
                     metadata.application_fees,
+                    metadata.on_behalf_of.clone(),
                 )
             } else {
-                (None, None, None)
+                (None, None, None, None)
             };
 
         // If Charge Type is Destination, transfer_account_id need not be appended in headers
@@ -5302,6 +5354,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize + Ser
             charge_type,
             transfer_account_id,
             application_fees,
+            on_behalf_of,
         })
     }
 }
@@ -5356,7 +5409,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             _ => None,
         };
 
-        let (transfer_account_id, charge_type, application_fees) =
+        let (transfer_account_id, charge_type, application_fees, mandate_on_behalf_of) =
             match mandate_metadata.as_ref().and_then(|s| s.as_ref()) {
                 Some(secret_value) => {
                     let json_value = secret_value.clone().expose();
@@ -5369,11 +5422,12 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
                             data.transfer_account_id,
                             data.charge_type,
                             data.application_fees,
+                            data.on_behalf_of,
                         ),
-                        Err(_) => (None, None, None),
+                        Err(_) => (None, None, None, None),
                     }
                 }
-                None => (None, None, None),
+                None => (None, None, None, None),
             };
 
         let payment_method_token = match &item.request.payment_method_data {
@@ -5606,6 +5660,24 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             (None, None) => None,
         };
 
+        // on_behalf_of is only supported for destination charges, not direct charges
+        let on_behalf_of = match &item.request.split_payments {
+            Some(SplitPaymentsDetails::StripeSplitPayment(stripe_split_payment)) => {
+                match &stripe_split_payment.charge_type {
+                    common_enums::PaymentChargeType::Stripe(
+                        common_enums::StripeChargeType::Destination,
+                    ) => stripe_split_payment.on_behalf_of.clone(),
+                    _ => None,
+                }
+            }
+            _ => match charge_type {
+                Some(common_enums::PaymentChargeType::Stripe(
+                    common_enums::StripeChargeType::Destination,
+                )) => mandate_on_behalf_of,
+                _ => None,
+            },
+        };
+
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
             currency: item.request.currency.to_string(), //we need to copy the value and not transfer ownership
@@ -5637,6 +5709,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             expand: Some(ExpandableObjects::LatestCharge),
             browser_info,
             charges: charges_in,
+            on_behalf_of,
         })
     }
 }
