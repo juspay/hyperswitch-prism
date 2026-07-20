@@ -3496,6 +3496,9 @@ message RecurringPaymentServiceChargeRequest {
   optional AuthenticationType auth_type = 36;
   
   optional string complete_authorize_url = 37;
+
+  // Channel through which the repeat payment was initiated.
+  optional PaymentChannel payment_channel = 38;
 }
 
 // Response message for repeat payment operation
