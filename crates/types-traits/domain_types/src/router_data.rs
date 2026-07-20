@@ -910,6 +910,11 @@ pub enum ConnectorSpecificConfig {
         auth_server_id: Option<String>,
         base_url: Option<String>,
     },
+    Plaid {
+        client_id: Secret<String>,
+        secret: Secret<String>,
+        base_url: Option<String>,
+    },
 }
 
 impl ConnectorSpecificConfig {
@@ -1261,6 +1266,7 @@ impl ConnectorSpecificConfig {
                 public_key,
                 private_key
             },
+            Plaid { client_id, secret },
         )
     }
 
@@ -1704,6 +1710,7 @@ impl ConnectorSpecificConfig {
                     public_key,
                     private_key
                 },
+                Plaid { client_id, secret },
             ),
             serde_json::Value::Object(connector_patch),
         );
@@ -2337,6 +2344,11 @@ impl ForeignTryFrom<grpc_api_types::payments::ConnectorSpecificConfig> for Conne
             AuthType::Glomopay(glomopay) => Ok(Self::Glomopay {
                 api_key: glomopay.api_key.ok_or_else(err)?,
                 base_url: glomopay.base_url,
+            }),
+            AuthType::Plaid(plaid) => Ok(Self::Plaid {
+                client_id: plaid.client_id.ok_or_else(err)?,
+                secret: plaid.secret.ok_or_else(err)?,
+                base_url: plaid.base_url,
             }),
         }
     }
@@ -3511,6 +3523,18 @@ impl ForeignTryFrom<(&ConnectorAuthType, &connector_types::ConnectorVariant)>
                     _ => Err(err().into()),
                 },
             },
+            connector_types::ConnectorVariant::Authenticator(connector_enum) => {
+                match connector_enum {
+                    connector_types::AuthenticatorConnectorEnum::Plaid => match auth {
+                        ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Plaid {
+                            client_id: api_key.clone(),
+                            secret: key1.clone(),
+                            base_url: None,
+                        }),
+                        _ => Err(err().into()),
+                    },
+                }
+            }
             connector_types::ConnectorVariant::Payout(connector_enum) => match connector_enum {
                 PayoutConnectorEnum::Loonio => match auth {
                     ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Loonio {

@@ -636,6 +636,7 @@ impl<T: PaymentMethodDataTypes> TryFrom<ResponseRouterData<HipayTokenResponse, S
         Ok(Self {
             response: Ok(PaymentMethodTokenResponse {
                 token: item.response.token.expose(),
+                connector_payment_method_id: None,
             }),
             ..item.router_data
         })

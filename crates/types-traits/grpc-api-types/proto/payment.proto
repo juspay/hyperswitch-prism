@@ -5254,6 +5254,14 @@ message FlywireConfig {
   optional string base_url = 50;
 }
 
+message PlaidConfig {
+  // Plaid client_id — used as `client_id` in every API request body.
+  SecretString client_id = 1;
+  // Plaid secret — used as `secret` in every API request body.
+  SecretString secret = 2;
+  optional string base_url = 50;
+}
+
 message AffirmConfig {
   // Affirm public API key — used as the HTTP Basic auth username.
   SecretString public_key = 1;
@@ -5632,8 +5640,10 @@ message ConnectorSpecificConfig {
     AffirmConfig affirm = 135;
     // FLYWIRE = 129
     FlywireConfig flywire = 136;
-    // GLOMOPAY = 130
+    // GLOMOPAY = 137
     GlomopayConfig glomopay = 137;
+    // PLAID = 138
+    PlaidConfig plaid = 138;
   }
 }
 

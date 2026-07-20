@@ -419,6 +419,7 @@ pub struct Connectors {
     pub flywire: ConnectorParams,
     pub affirm: ConnectorParams,
     pub kount: ConnectorParams,
+    pub plaid: ConnectorParams,
 }
 
 #[derive(Clone, Deserialize, Serialize, Debug, Default, PartialEq, config_patch_derive::Patch)]
@@ -10115,102 +10116,192 @@ impl ForeignTryFrom<MerchantAuthenticationServiceCreateClientAuthenticationToken
     fn foreign_try_from(
         value: MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
     ) -> Result<Self, error_stack::Report<Self::Error>> {
-        // Extract domain-specific context from the oneof
-        let payment_ctx = match value.domain_context.clone() {
-            Some(grpc_api_types::payments::merchant_authentication_service_create_client_authentication_token_request::DomainContext::Payment(ctx)) => ctx,
-            _ => return Err(report!(IntegrationError::InvalidDataFormat { field_name: "unknown", context: IntegrationErrorContext { additional_context: Some("Payment domain context is required for SDK session".to_string()), ..Default::default() } })),
-        };
+        use grpc_api_types::payments::merchant_authentication_service_create_client_authentication_token_request::DomainContext;
 
-        // Extract customer data from the payment domain context (if available)
-        let customer = match &value.domain_context {
-            Some(grpc_api_types::payments::merchant_authentication_service_create_client_authentication_token_request::DomainContext::Payment(ctx)) => {
-                ctx.customer.clone()
-            }
-            _ => None,
-        };
+        let permissions = value.permissions.map(|p| p.values);
 
-        let customer_id = customer
-            .as_ref()
-            .and_then(|c| c.id.as_ref())
-            .map(|id| common_utils::id_type::CustomerId::from_str(id))
-            .transpose()
-            .change_context(IntegrationError::InvalidDataFormat {
-                field_name: "customer.id",
-                context: IntegrationErrorContext {
-                    additional_context: Some("Failed to parse customer id".to_string()),
-                    ..Default::default()
-                },
-            })?;
-
-        let money = match payment_ctx.amount {
-            Some(amount) => Ok(common_utils::types::Money {
-                amount: common_utils::types::MinorUnit::new(amount.minor_amount),
-                currency: common_enums::Currency::foreign_try_from(amount.currency())?,
-            }),
-            None => Err(report!(IntegrationError::MissingRequiredField {
-                field_name: "amount",
-                context: IntegrationErrorContext::default(),
-            })),
-        }?;
-
-        let payment_method_type =
-            <Option<PaymentMethodType>>::foreign_try_from(payment_ctx.payment_method_type())?;
-
-        let email: Option<Email> = match payment_ctx
-            .customer
-            .clone()
-            .and_then(|customer| customer.email)
-        {
-            Some(ref email_str) => {
-                Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
-                    error_stack::Report::new(IntegrationError::InvalidDataFormat {
-                        field_name: "payment_context.customer.email",
-                        context: IntegrationErrorContext {
-                            additional_context: Some(
-                                "Invalid email format in payment context customer".to_string(),
-                            ),
-                            suggested_action: Some(
-                                "Provide a valid email address in payment_context.customer.email"
-                                    .to_string(),
-                            ),
-                            doc_url: None,
-                        },
+        match value.domain_context {
+            Some(DomainContext::Authenticator(auth_ctx)) => {
+                // Authenticator flow (e.g. Plaid): populate authenticator-specific fields.
+                // Payment-specific fields (amount, currency, etc.) are not applicable.
+                let country_codes = auth_ctx
+                    .country_codes
+                    .into_iter()
+                    .filter_map(|code| {
+                        grpc_api_types::payments::CountryAlpha2::try_from(code)
+                            .ok()
+                            .and_then(|c| CountryAlpha2::foreign_try_from(c).ok())
                     })
-                })?)
-            }
-            None => None,
-        };
+                    .collect();
 
-        Ok(Self {
-            amount: money.amount,
-            currency: money.currency,
-            country: {
-                let country_code = payment_ctx.country_alpha2_code();
-                if matches!(
-                    country_code,
-                    grpc_api_types::payments::CountryAlpha2::Unspecified
-                ) {
-                    None
-                } else {
-                    Some(CountryAlpha2::foreign_try_from(country_code)?)
-                }
-            },
-            order_details: None,
-            email,
-            customer_name: payment_ctx
-                .customer
-                .and_then(|customer| customer.name)
-                .map(Secret::new),
-            order_tax_amount: payment_ctx
-                .order_tax_amount
-                .map(common_utils::types::MinorUnit::new),
-            shipping_cost: payment_ctx
-                .shipping_cost
-                .map(common_utils::types::MinorUnit::new),
-            payment_method_type,
-            permissions: value.permissions.map(|p| p.values),
-            customer_id,
-        })
+                let (customer_id, email, customer_name) =
+                    if let Some(customer) = auth_ctx.customer.as_ref() {
+                        let customer_id = customer
+                            .id
+                            .as_ref()
+                            .map(|id| common_utils::id_type::CustomerId::from_str(id))
+                            .transpose()
+                            .change_context(IntegrationError::InvalidDataFormat {
+                                field_name: "authenticator_context.customer.id",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "Failed to parse customer id".to_string(),
+                                    ),
+                                    ..Default::default()
+                                },
+                            })?;
+
+                        let email: Option<Email> = match customer.email.as_ref() {
+                            Some(email_str) => {
+                                Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
+                                    error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                                        field_name: "authenticator_context.customer.email",
+                                        context: IntegrationErrorContext {
+                                            additional_context: Some(
+                                                "Invalid email format".to_string(),
+                                            ),
+                                            ..Default::default()
+                                        },
+                                    })
+                                })?)
+                            }
+                            None => None,
+                        };
+
+                        let customer_name =
+                            customer.name.clone().map(Secret::new);
+
+                        (customer_id, email, customer_name)
+                    } else {
+                        (None, None, None)
+                    };
+
+                Ok(Self {
+                    amount: common_utils::types::MinorUnit::new(0),
+                    currency: common_enums::Currency::USD,
+                    country: None,
+                    order_details: None,
+                    order_tax_amount: None,
+                    shipping_cost: None,
+                    payment_method_type: None,
+                    email,
+                    customer_name,
+                    customer_id,
+                    webhook_url: auth_ctx.webhook_url,
+                    country_codes,
+                    locale: auth_ctx.locale,
+                    permissions,
+                })
+            }
+            Some(DomainContext::Payment(payment_ctx)) => {
+                // Payment SDK session flow (Adyen, Braintree, Shift4, etc.)
+                let money = match payment_ctx.amount {
+                    Some(amount) => Ok(common_utils::types::Money {
+                        amount: common_utils::types::MinorUnit::new(amount.minor_amount),
+                        currency: common_enums::Currency::foreign_try_from(amount.currency())?,
+                    }),
+                    None => Err(report!(IntegrationError::MissingRequiredField {
+                        field_name: "amount",
+                        context: IntegrationErrorContext::default(),
+                    })),
+                }?;
+
+                let payment_method_type =
+                    <Option<PaymentMethodType>>::foreign_try_from(payment_ctx.payment_method_type())?;
+
+                let customer_id = payment_ctx
+                    .customer
+                    .as_ref()
+                    .and_then(|c| c.id.as_ref())
+                    .map(|id| common_utils::id_type::CustomerId::from_str(id))
+                    .transpose()
+                    .change_context(IntegrationError::InvalidDataFormat {
+                        field_name: "customer.id",
+                        context: IntegrationErrorContext {
+                            additional_context: Some("Failed to parse customer id".to_string()),
+                            ..Default::default()
+                        },
+                    })?;
+
+                let email: Option<Email> = match payment_ctx
+                    .customer
+                    .as_ref()
+                    .and_then(|c| c.email.as_ref())
+                {
+                    Some(email_str) => {
+                        Some(Email::try_from(email_str.clone().expose()).map_err(|_| {
+                            error_stack::Report::new(IntegrationError::InvalidDataFormat {
+                                field_name: "payment_context.customer.email",
+                                context: IntegrationErrorContext {
+                                    additional_context: Some(
+                                        "Invalid email format in payment context customer"
+                                            .to_string(),
+                                    ),
+                                    suggested_action: Some(
+                                        "Provide a valid email address in payment_context.customer.email"
+                                            .to_string(),
+                                    ),
+                                    doc_url: None,
+                                },
+                            })
+                        })?)
+                    }
+                    None => None,
+                };
+
+                let country = {
+                    let country_code = payment_ctx.country_alpha2_code();
+                    if matches!(
+                        country_code,
+                        grpc_api_types::payments::CountryAlpha2::Unspecified
+                    ) {
+                        None
+                    } else {
+                        Some(CountryAlpha2::foreign_try_from(country_code)?)
+                    }
+                };
+
+                Ok(Self {
+                    amount: money.amount,
+                    currency: money.currency,
+                    country,
+                    order_details: None,
+                    email,
+                    customer_name: payment_ctx
+                        .customer
+                        .and_then(|c| c.name)
+                        .map(Secret::new),
+                    order_tax_amount: payment_ctx
+                        .order_tax_amount
+                        .map(common_utils::types::MinorUnit::new),
+                    shipping_cost: payment_ctx
+                        .shipping_cost
+                        .map(common_utils::types::MinorUnit::new),
+                    payment_method_type,
+                    permissions,
+                    customer_id,
+                    webhook_url: None,
+                    country_codes: vec![],
+                    locale: None,
+                })
+            }
+            None => Ok(Self {
+                amount: common_utils::types::MinorUnit::new(0),
+                currency: common_enums::Currency::USD,
+                country: None,
+                order_details: None,
+                order_tax_amount: None,
+                shipping_cost: None,
+                payment_method_type: None,
+                email: None,
+                customer_name: None,
+                customer_id: None,
+                webhook_url: None,
+                country_codes: vec![],
+                locale: None,
+                permissions,
+            }),
+        }
     }
 }
 
@@ -10371,6 +10462,7 @@ impl
 
         let return_url = match &value.domain_context {
             Some(grpc_api_types::payments::merchant_authentication_service_create_client_authentication_token_request::DomainContext::Payment(ctx)) => ctx.return_url.clone(),
+            Some(grpc_api_types::payments::merchant_authentication_service_create_client_authentication_token_request::DomainContext::Authenticator(ctx)) => ctx.return_url.clone(),
             _ => None,
         };
 
@@ -12605,6 +12697,7 @@ impl<T: PaymentMethodDataTypes> From<&PaymentsAuthorizeData<T>>
             mandate_id: data.mandate_id.clone(),
             integrity_object: None,
             connector_feature_data: data.connector_feature_data.clone(),
+            metadata: None,
         }
     }
 }
@@ -12797,6 +12890,7 @@ impl<
                 .connector_feature_data
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
                 .transpose()?,
+            metadata: value.metadata,
         })
     }
 }
@@ -12923,7 +13017,7 @@ pub fn generate_create_payment_method_token_response<T: PaymentMethodDataTypes>(
                         .get_connector_response_headers_as_map(),
                     merchant_payment_method_id: Some(token_clone),
                     state: None,
-                    connector_payment_method_id: None,
+                    connector_payment_method_id: response.connector_payment_method_id,
                 },
             )
         }
@@ -13218,6 +13312,7 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethodServiceGetRequest>
                 .connector_feature_data
                 .map(|m| ForeignTryFrom::foreign_try_from((m, "feature data")))
                 .transpose()?,
+            payment_method_token: value.payment_method_token.map(Secret::new),
         })
     }
 }
@@ -14383,6 +14478,23 @@ pub fn generate_payment_sdk_session_token_response(
                     ClientAuthenticationTokenData::ConnectorSpecific(data) => {
                         Some(convert_connector_specific_to_grpc(*data))
                     }
+                    ClientAuthenticationTokenData::Plaid(plaid_token) => {
+                        Some(grpc_api_types::payments::ClientAuthenticationTokenData {
+                            sdk_type: Some(
+                                grpc_api_types::payments::client_authentication_token_data::SdkType::AuthenticatorConnectorSpecific(
+                                    grpc_api_types::payments::AuthenticatorConnectorSpecificClientAuthenticationResponse {
+                                        connector: Some(grpc_api_types::payments::authenticator_connector_specific_client_authentication_response::Connector::Plaid(
+                                            grpc_api_types::payments::PlaidClientAuthenticationResponse {
+                                                link_token: plaid_token.link_token.expose(),
+                                                expires_in_seconds: plaid_token.expires_in_seconds,
+                                                hosted_link_url: plaid_token.hosted_link_url,
+                                            },
+                                        )),
+                                    },
+                                ),
+                            ),
+                        })
+                    }
                 };
 
                 Ok(
@@ -14689,6 +14801,23 @@ impl ForeignTryFrom<ClientAuthenticationTokenData>
             }
             ClientAuthenticationTokenData::ConnectorSpecific(data) => {
                 convert_connector_specific_to_grpc(*data)
+            }
+            ClientAuthenticationTokenData::Plaid(plaid_token) => {
+                grpc_api_types::payments::ClientAuthenticationTokenData {
+                    sdk_type: Some(
+                        grpc_api_types::payments::client_authentication_token_data::SdkType::AuthenticatorConnectorSpecific(
+                            grpc_api_types::payments::AuthenticatorConnectorSpecificClientAuthenticationResponse {
+                                connector: Some(grpc_api_types::payments::authenticator_connector_specific_client_authentication_response::Connector::Plaid(
+                                    grpc_api_types::payments::PlaidClientAuthenticationResponse {
+                                        link_token: plaid_token.link_token.expose(),
+                                        expires_in_seconds: plaid_token.expires_in_seconds,
+                                        hosted_link_url: plaid_token.hosted_link_url,
+                                    },
+                                )),
+                            },
+                        ),
+                    ),
+                }
             }
         };
         Ok(session_token)
@@ -16828,6 +16957,28 @@ impl ForeignFrom<payment_method_data::WalletItem> for grpc_api_types::payments::
     }
 }
 
+impl ForeignFrom<common_enums::BankType> for grpc_api_types::payments::BankType {
+    fn foreign_from(value: common_enums::BankType) -> Self {
+        match value {
+            common_enums::BankType::Checking => Self::Checking,
+            common_enums::BankType::Savings => Self::Savings,
+            common_enums::BankType::Current => Self::Current,
+            common_enums::BankType::Bond => Self::Bond,
+            common_enums::BankType::SubscriptionShare => Self::SubscriptionShare,
+            common_enums::BankType::Transmission => Self::Transmission,
+        }
+    }
+}
+
+impl ForeignFrom<common_enums::BankHolderType> for grpc_api_types::payments::BankHolderType {
+    fn foreign_from(value: common_enums::BankHolderType) -> Self {
+        match value {
+            common_enums::BankHolderType::Personal => Self::Personal,
+            common_enums::BankHolderType::Business => Self::Business,
+        }
+    }
+}
+
 impl ForeignFrom<payment_method_data::PaymentMethodDetails>
     for grpc_api_types::payments::PaymentMethodDetails
 {
@@ -16854,7 +17005,74 @@ impl ForeignFrom<payment_method_data::PaymentMethodDetails>
                     ),
                 ),
             },
-            // Future payment method types will be handled here
+            payment_method_data::PaymentMethodDetails::BankAccount(bank_data) => Self {
+                details: Some(
+                    grpc_api_types::payments::payment_method_details::Details::BankAccount(
+                        grpc_api_types::payments::BankAccountDetails {
+                            accounts: bank_data
+                                .accounts
+                                .into_iter()
+                                .map(|acct| grpc_api_types::payments::BankAccount {
+                                    account_name: acct.account_name,
+                                    account_id: Some(acct.account_id),
+                                    bank_type: acct.bank_type.map(|t| {
+                                        grpc_api_types::payments::BankType::foreign_from(t).into()
+                                    }),
+                                    bank_holder_type: acct.bank_holder_type.map(|t| {
+                                        grpc_api_types::payments::BankHolderType::foreign_from(t)
+                                            .into()
+                                    }),
+                                    balance: acct.balance.and_then(|m| {
+                                        grpc_api_types::payments::Currency::foreign_try_from(m.currency)
+                                            .ok()
+                                            .map(|currency| grpc_api_types::payments::Money {
+                                                minor_amount: m.amount.get_amount_as_i64(),
+                                                currency: currency.into(),
+                                            })
+                                    }),
+                                    available_balance: acct.available_balance.and_then(|m| {
+                                        grpc_api_types::payments::Currency::foreign_try_from(m.currency)
+                                            .ok()
+                                            .map(|currency| grpc_api_types::payments::Money {
+                                                minor_amount: m.amount.get_amount_as_i64(),
+                                                currency: currency.into(),
+                                            })
+                                    }),
+                                    account_details: acct.account_details.map(|details| {
+                                        use payment_method_data::BankAccountRoutingDetails;
+                                        match details {
+                                            BankAccountRoutingDetails::Ach(ach) => {
+                                                grpc_api_types::payments::bank_account::AccountDetails::Ach(
+                                                    grpc_api_types::payments::BankAccountDetailsAch {
+                                                        account_number: Some(ach.account_number),
+                                                        routing_number: Some(ach.routing_number),
+                                                    },
+                                                )
+                                            }
+                                            BankAccountRoutingDetails::Bacs(bacs) => {
+                                                grpc_api_types::payments::bank_account::AccountDetails::Bacs(
+                                                    grpc_api_types::payments::BankAccountDetailsBacs {
+                                                        account_number: Some(bacs.account_number),
+                                                        sort_code: Some(bacs.sort_code),
+                                                    },
+                                                )
+                                            }
+                                            BankAccountRoutingDetails::Sepa(sepa) => {
+                                                grpc_api_types::payments::bank_account::AccountDetails::Sepa(
+                                                    grpc_api_types::payments::BankAccountDetailsSepa {
+                                                        iban: Some(sepa.iban),
+                                                        bic: sepa.bic,
+                                                    },
+                                                )
+                                            }
+                                        }
+                                    }),
+                                })
+                                .collect(),
+                        },
+                    ),
+                ),
+            },
         }
     }
 }

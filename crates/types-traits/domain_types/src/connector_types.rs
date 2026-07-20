@@ -197,6 +197,25 @@ pub enum FrmConnectorEnum {
     Kount,
 }
 
+/// Enum representing connectors that support authenticator flows (account linking, identity verification)
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Display,
+    EnumIter,
+    EnumString,
+    serde::Deserialize,
+    Eq,
+    Hash,
+    PartialEq,
+    Serialize,
+)]
+#[strum(serialize_all = "snake_case")]
+pub enum AuthenticatorConnectorEnum {
+    Plaid,
+}
+
 /// Enum representing connectors that support payout flows
 #[derive(
     Clone,
@@ -305,13 +324,35 @@ impl ForeignTryFrom<AuthType> for FrmConnectorEnum {
     }
 }
 
-/// Unified connector enum that can represent either payment, surcharge, or payout connectors
+impl ForeignTryFrom<AuthType> for AuthenticatorConnectorEnum {
+    type Error = IntegrationError;
+
+    fn foreign_try_from(config: AuthType) -> Result<Self, error_stack::Report<Self::Error>> {
+        match config {
+            AuthType::Plaid(_) => Ok(Self::Plaid),
+            _ => Err(error_stack::Report::new(
+                IntegrationError::InvalidDataFormat {
+                    field_name: "connector",
+                    context: IntegrationErrorContext {
+                        additional_context: Some(
+                            "Connector is not supported for authenticator flows".to_string(),
+                        ),
+                        ..Default::default()
+                    },
+                },
+            )),
+        }
+    }
+}
+
+/// Unified connector enum that can represent either payment, surcharge, payout, FRM, or authenticator connectors
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ConnectorVariant {
     Payment(ConnectorEnum),
     Surcharge(SurchargeConnectorEnum),
     Payout(PayoutConnectorEnum),
     Frm(FrmConnectorEnum),
+    Authenticator(AuthenticatorConnectorEnum),
 }
 
 impl ConnectorVariant {
@@ -347,12 +388,21 @@ impl ConnectorVariant {
         }
     }
 
+    /// Get the authenticator connector if this is an authenticator variant
+    pub fn as_authenticator(&self) -> Option<AuthenticatorConnectorEnum> {
+        match self {
+            ConnectorVariant::Authenticator(conn) => Some(*conn),
+            _ => None,
+        }
+    }
+
     pub fn get_connector_name(&self) -> String {
         match self {
             ConnectorVariant::Payment(conn) => conn.to_string(),
             ConnectorVariant::Surcharge(conn) => conn.to_string(),
             ConnectorVariant::Payout(conn) => conn.to_string(),
             ConnectorVariant::Frm(conn) => conn.to_string(),
+            ConnectorVariant::Authenticator(conn) => conn.to_string(),
         }
     }
 }
@@ -1998,11 +2048,13 @@ pub struct PaymentMethodTokenizationData<T: PaymentMethodDataTypes> {
     pub integrity_object: Option<PaymentMethodTokenIntegrityObject>,
     pub split_payments: Option<SplitPaymentsDetails>,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
+    pub metadata: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
 pub struct PaymentMethodTokenResponse {
     pub token: String,
+    pub connector_payment_method_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -2059,6 +2111,7 @@ pub struct GetPaymentMethodData {
     pub customer: Option<CustomerInfo>,
     pub payment_method_type: PaymentMethodType,
     pub connector_feature_data: Option<common_utils::pii::SecretSerdeValue>,
+    pub payment_method_token: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone)]
@@ -2221,6 +2274,9 @@ pub struct ClientAuthenticationTokenRequestData {
     pub shipping_cost: Option<MinorUnit>,
     /// The specific payment method type for which the session token is being generated
     pub payment_method_type: Option<PaymentMethodType>,
+    pub webhook_url: Option<String>,
+    pub country_codes: Vec<common_enums::CountryAlpha2>,
+    pub locale: Option<String>,
     /// Connector-specific permissions for client authentication token
     /// e.g., ["PMT_POST_Create_Single"] for GlobalPay hosted fields
     pub permissions: Option<Vec<String>>,
@@ -4602,6 +4658,8 @@ pub enum ClientAuthenticationTokenData {
     ApplePay(Box<ApplepayClientAuthenticationResponse>),
     /// Generic connector-specific SDK initialization data
     ConnectorSpecific(Box<ConnectorSpecificClientAuthenticationResponse>),
+    /// Plaid Link token for bank account linking via Plaid Link SDK
+    Plaid(Box<PlaidClientAuthenticationResponse>),
 }
 
 /// Per-connector SDK initialization data — discriminated by connector
@@ -4661,6 +4719,17 @@ pub enum ConnectorSpecificClientAuthenticationResponse {
     Nexixpay(NexixpayClientAuthenticationResponse),
     /// Revolut SDK initialization data — order_id and token for Revolut Pay widget initialization
     Revolut(RevolutClientAuthenticationResponse),
+}
+
+/// Plaid Link token for client-side bank account linking via Plaid Link SDK
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PlaidClientAuthenticationResponse {
+    /// The Plaid Link token used to initialize Plaid Link
+    pub link_token: Secret<String>,
+    /// Seconds until the link_token expires (relative to when it was issued)
+    pub expires_in_seconds: Option<i64>,
+    /// Hosted Link URL if Plaid hosted Link is enabled
+    pub hosted_link_url: Option<String>,
 }
 
 /// Stripe's client_secret for browser-side stripe.confirmPayment()
@@ -5332,6 +5401,7 @@ impl ForeignTryFrom<grpc_api_types::payments::connector_specific_config::Config>
             AuthType::Tamara(_) => Ok(Self::Payment(ConnectorEnum::Tamara)),
             AuthType::Flywire(_) => Ok(Self::Payment(ConnectorEnum::Flywire)),
             AuthType::Affirm(_) => Ok(Self::Payment(ConnectorEnum::Affirm)),
+            AuthType::Plaid(_) => Ok(Self::Authenticator(AuthenticatorConnectorEnum::Plaid)),
         }
     }
 }
