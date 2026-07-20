@@ -277,6 +277,9 @@ pub struct SetupMandateRequest<
     pub expand: Option<ExpandableObjects>,
     #[serde(flatten)]
     pub browser_info: Option<StripeBrowserInformation>,
+    #[serde(rename = "payment_method_options[card][moto]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub moto: Option<bool>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -4945,12 +4948,30 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             .clone()
             .map(StripeBrowserInformation::from);
 
+        let is_moto = if matches!(
+            item.router_data.request.payment_method_data,
+            PaymentMethodData::Card(_)
+        ) && item.router_data.request.payment_channel
+            == Some(common_enums::PaymentChannel::MailOrder)
+            || item.router_data.request.payment_channel
+                == Some(common_enums::PaymentChannel::TelephoneOrder)
+        {
+            Some(true)
+        } else {
+            None
+        };
+
+        let usage = match (item.router_data.request.setup_future_usage, is_moto) {
+            (Some(common_enums::FutureUsage::OnSession), Some(true)) => None,
+            _ => item.router_data.request.setup_future_usage,
+        };
+
         Ok(Self {
             confirm: true,
             payment_data,
             return_url: item.router_data.request.router_return_url.clone(),
             off_session: item.router_data.request.off_session,
-            usage: item.router_data.request.setup_future_usage,
+            usage,
             payment_method_options: None,
             customer: item
                 .router_data
@@ -4962,6 +4983,7 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             payment_method_types: Some(pm_type),
             expand: Some(ExpandableObjects::LatestAttempt),
             browser_info,
+            moto: is_moto,
         })
     }
 }
