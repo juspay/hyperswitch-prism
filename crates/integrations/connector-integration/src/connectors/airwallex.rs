@@ -288,7 +288,7 @@ macros::macro_connector_implementation!(
             };
             Ok(format!(
                 "{}/pa/payment_intents/{}/{}",
-                &req.resource_common_data.connectors.airwallex.base_url,
+                req.resource_common_data.connectors.airwallex.base_url,
                 order_id,
                 endpoint
             ))
