@@ -15023,10 +15023,13 @@ impl<
             amount: amount.amount,
             currency: Some(amount.currency),
             email,
-            // Post-redirect auth legs (Paysafe's handle re-fetch) carry no card, so a missing
-            // payment_method yields `None` instead of erroring.
+            // Post-redirect auth legs (Paysafe's handle re-fetch) carry no card: an absent or
+            // proto-default (empty oneof) payment_method yields `None`, while a populated but
+            // invalid value still fails the conversion.
             payment_method_type: payment_method_clone
-                .and_then(|pm| <Option<PaymentMethodType>>::foreign_try_from(pm).ok())
+                .filter(|pm| pm.payment_method.is_some())
+                .map(<Option<PaymentMethodType>>::foreign_try_from)
+                .transpose()?
                 .flatten(),
             continue_redirection_url: value
                 .continue_redirection_url
@@ -15141,10 +15144,13 @@ impl<
             amount: amount.amount,
             email,
             currency: Some(amount.currency),
-            // Post-redirect auth legs (Paysafe's handle re-fetch) carry no card, so a missing
-            // payment_method yields `None` instead of erroring.
+            // Post-redirect auth legs (Paysafe's handle re-fetch) carry no card: an absent or
+            // proto-default (empty oneof) payment_method yields `None`, while a populated but
+            // invalid value still fails the conversion.
             payment_method_type: payment_method_clone
-                .and_then(|pm| <Option<PaymentMethodType>>::foreign_try_from(pm).ok())
+                .filter(|pm| pm.payment_method.is_some())
+                .map(<Option<PaymentMethodType>>::foreign_try_from)
+                .transpose()?
                 .flatten(),
             router_return_url: return_url
                 .map(|url_str| {
@@ -15472,11 +15478,16 @@ impl
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            // The Authenticate re-fetch carries no card data, so default the category to `Card`
-            // (the Authenticate transformers ignore it) instead of erroring.
+            // The Authenticate re-fetch carries no payment method, and `PaymentFlowData` has no
+            // way to express that (non-optional field), so an absent or proto-default (empty
+            // oneof) value falls back to `Card`; a populated but invalid value still fails the
+            // conversion. Making this field `Option<PaymentMethod>` is the real fix but touches
+            // every connector, so it is left for a follow-up.
             payment_method: value
                 .payment_method
-                .and_then(|pm| PaymentMethod::foreign_try_from(pm).ok())
+                .filter(|pm| pm.payment_method.is_some())
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
                 .unwrap_or(PaymentMethod::Card),
             address,
             auth_type: common_enums::AuthenticationType::ThreeDs, // Auth step uses 3DS
