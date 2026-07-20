@@ -286,49 +286,21 @@ where
         .request
         .payment_method_data
     {
-        // Card + 3DS only; card no-3DS settles a pre-minted token via v1/payments.
-        PaymentMethodData::Card(req_card) => {
-            let card = PaysafeCard {
-                card_num: req_card.card_number.clone(),
-                card_expiry: PaysafeCardExpiry {
-                    month: req_card.card_exp_month.clone(),
-                    year: req_card.get_expiry_year_4_digit(),
-                },
-                // Paysafe rejects an empty-string cvv; omit it instead.
-                cvv: if req_card.card_cvc.peek().is_empty() {
-                    None
-                } else {
-                    Some(req_card.card_cvc.clone())
-                },
-                holder_name: req_card.card_holder_name.clone().or_else(|| {
-                    router_data
-                        .resource_common_data
-                        .get_optional_billing_full_name()
-                }),
-            };
-            // Paysafe rejects a `threeDs` body on a non-3DS account (error 5040); use 3DS account.
-            let account_id = account_id.get_account_id(PaysafeAccountKind::CardThreeDs, currency)?;
-            let three_ds = ThreeDs {
-                // merchantUrl = complete_authorize_url so the ACS return runs CompleteAuthorize.
-                merchant_url: complete_authorize_url.clone(),
-                // UCS has no client-platform signal; BROWSER is the correct channel here.
-                device_channel: DeviceChannel::Browser,
-                message_category: ThreeDsMessageCategory::Payment,
-                authentication_purpose: ThreeDsAuthenticationPurpose::PaymentTransaction,
-                requestor_challenge_preference: ThreeDsChallengePreference::ChallengeMandated,
-            };
-            (
-                PaysafePaymentMethod::Card { card },
-                PaysafePaymentType::Card,
-                Some(account_id),
-                None,
-                // Cards send settleWithAuth; the redirect APMs omit it.
-                Some(matches!(
-                    router_data.request.capture_method,
-                    Some(enums::CaptureMethod::Automatic) | None
-                )),
-                Some(three_ds),
+        // Cards never create a payment handle in the Authorize leg, so no card
+        // account-kind (3DS vs no-3DS) is ever chosen here. This builder's sole
+        // caller is gated by `is_paysafe_handle_creation_leg`, whose
+        // `is_paysafe_redirect_apm` check admits only Skrill / Interac / paysafecard.
+        // A card + 3DS mints its `threeDs` handle in the PreAuthenticate flow; a
+        // no-3DS card mints via the PaymentMethodToken flow and settles through
+        // `PaysafePaymentsRequest`, which resolves the account by `is_three_ds()`.
+        // Reject explicitly so the account-kind decision can never be assumed here.
+        PaymentMethodData::Card(_) => {
+            return Err(IntegrationError::NotImplemented(
+                "Paysafe: cards do not create a payment handle in the Authorize leg (card + 3DS uses PreAuthenticate; no-3DS card uses PaymentMethodToken + settle)"
+                    .to_string(),
+                Default::default(),
             )
+            .into());
         }
         PaymentMethodData::Wallet(WalletData::Skrill(_)) => {
             // Skrill consumer id is the billing email (mandatory). The FMA carries a
