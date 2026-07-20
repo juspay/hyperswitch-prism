@@ -118,6 +118,16 @@ fn get_stripe_moto_flag<T: PaymentMethodDataTypes>(
     }
 }
 
+fn get_setup_future_usage_for_moto(
+    setup_future_usage: Option<common_enums::FutureUsage>,
+    is_moto: Option<bool>,
+) -> Option<common_enums::FutureUsage> {
+    match setup_future_usage {
+        Some(common_enums::FutureUsage::OnSession) if is_moto == Some(true) => None,
+        usage => usage,
+    }
+}
+
 pub struct StripeAuthType {
     pub(super) api_key: Secret<String>,
 }
@@ -2168,16 +2178,14 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             &item.request.payment_channel,
         );
 
-        let setup_future_usage = match item.request.setup_future_usage {
-            Some(common_enums::FutureUsage::OnSession) if is_moto == Some(true) => None,
-            Some(usage)
-                if item.request.split_payments.is_some()
-                    && item.request.customer_acceptance.is_some() =>
-            {
-                Some(usage)
-            }
-            _ => setup_future_usage,
+        let setup_future_usage = if item.request.split_payments.is_some()
+            && item.request.customer_acceptance.is_some()
+        {
+            item.request.setup_future_usage
+        } else {
+            setup_future_usage
         };
+        let setup_future_usage = get_setup_future_usage_for_moto(setup_future_usage, is_moto);
 
         Ok(Self {
             amount,                                      //hopefully we don't loose some cents here
@@ -4983,10 +4991,8 @@ impl<T: PaymentMethodDataTypes + Debug + Sync + Send + 'static + Serialize>
             &item.router_data.request.payment_channel,
         );
 
-        let setup_future_usage = match (item.router_data.request.setup_future_usage, is_moto) {
-            (Some(common_enums::FutureUsage::OnSession), Some(true)) => None,
-            _ => item.router_data.request.setup_future_usage,
-        };
+        let setup_future_usage =
+            get_setup_future_usage_for_moto(item.router_data.request.setup_future_usage, is_moto);
 
         Ok(Self {
             confirm: true,
