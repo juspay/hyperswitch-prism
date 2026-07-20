@@ -16,6 +16,7 @@ import { FLOWS, SINGLE_FLOWS } from "./_generated_flows.js";
 // @ts-ignore - generated protobuf types
 import { types } from "./generated/proto.js";
 import { IntegrationError, ConnectorError } from "./errors";
+import { resolveNativeLibPath } from "./native_lib";
 
 // Standard Node.js __dirname
 declare const __dirname: string;
@@ -60,8 +61,10 @@ interface FfiFunctions {
 
 function loadLib(libPath?: string): FfiFunctions {
   if (!libPath) {
-    const ext = process.platform === "darwin" ? "dylib" : "so";
-    libPath = path.join(_dirname, "generated", `libconnector_service_ffi.${ext}`);
+    libPath = resolveNativeLibPath(
+      path.join(_dirname, "generated"),
+      "libconnector_service_ffi"
+    );
   }
 
   const lib = koffi.load(libPath);

@@ -47,6 +47,22 @@ else
   LIB_EXT := so
 endif
 
+# ---------------------------------------------------------------------------
+# Node.js platform-arch tag for native library naming (JavaScript SDK).
+# The JS loader selects a bundled binary by `${process.platform}-${process.arch}`
+# so that a single npm package can carry libraries for multiple architectures.
+# This maps the Rust target triple ($(PLATFORM)) to that tag.
+# ---------------------------------------------------------------------------
+ifeq ($(PLATFORM),aarch64-apple-darwin)
+  NODE_PLATFORM_ARCH := darwin-arm64
+else ifeq ($(PLATFORM),x86_64-apple-darwin)
+  NODE_PLATFORM_ARCH := darwin-x64
+else ifeq ($(PLATFORM),aarch64-unknown-linux-gnu)
+  NODE_PLATFORM_ARCH := linux-arm64
+else
+  NODE_PLATFORM_ARCH := linux-x64
+endif
+
 # Build profile (release or debug)
 PROFILE ?= release-fast
 

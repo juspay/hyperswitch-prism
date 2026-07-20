@@ -54,9 +54,9 @@ install-codegen-deps:
 generate-bindings:
 	@[ -f "$(LIBRARY)" ] || \
 		(echo "Error: FFI library not found at $(LIBRARY). Run 'make build-ffi-lib' first." && exit 1)
-	@echo "Copying FFI library to $(GENERATED_OUT)/..."
+	@echo "Copying FFI library to $(GENERATED_OUT)/ as libconnector_service_ffi-$(NODE_PLATFORM_ARCH).$(LIB_EXT)..."
 	@mkdir -p $(GENERATED_OUT)
-	@cp -f $(LIBRARY) $(GENERATED_OUT)/
+	@cp -f $(LIBRARY) $(GENERATED_OUT)/libconnector_service_ffi-$(NODE_PLATFORM_ARCH).$(LIB_EXT)
 	@echo "Library copied to $(GENERATED_OUT)/"
 
 # ---------------------------------------------------------------------------
@@ -93,9 +93,9 @@ generate-proto: install-deps
 generate-grpc-bindings:
 	@[ -f "$(GRPC_FFI_LIBRARY)" ] || \
 		(echo "Error: gRPC FFI library not found at $(GRPC_FFI_LIBRARY). Run 'make build-grpc-ffi-lib' first." && exit 1)
-	@echo "Copying gRPC FFI library to $(GENERATED_OUT)/..."
+	@echo "Copying gRPC FFI library to $(GENERATED_OUT)/ as libhyperswitch_grpc_ffi-$(NODE_PLATFORM_ARCH).$(LIB_EXT)..."
 	@mkdir -p $(GENERATED_OUT)
-	@cp -f $(GRPC_FFI_LIBRARY) $(GENERATED_OUT)/
+	@cp -f $(GRPC_FFI_LIBRARY) $(GENERATED_OUT)/libhyperswitch_grpc_ffi-$(NODE_PLATFORM_ARCH).$(LIB_EXT)
 	@echo "gRPC library copied to $(GENERATED_OUT)/"
 
 # ---------------------------------------------------------------------------
@@ -156,9 +156,11 @@ dist:
 	@echo "Building JavaScript SDK distribution package..."
 	@mkdir -p $(GENERATED_OUT)
 	@cp -f $(REPO_ROOT)/target/x86_64-unknown-linux-gnu/release/libconnector_service_ffi.so \
-		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: Linux x86_64 binary not found (skipping)"
+		$(GENERATED_OUT)/libconnector_service_ffi-linux-x64.so 2>/dev/null || echo "  Note: Linux x86_64 binary not found (skipping)"
+	@cp -f $(REPO_ROOT)/target/aarch64-unknown-linux-gnu/release/libconnector_service_ffi.so \
+		$(GENERATED_OUT)/libconnector_service_ffi-linux-arm64.so 2>/dev/null || echo "  Note: Linux aarch64 binary not found (skipping)"
 	@cp -f $(REPO_ROOT)/target/aarch64-apple-darwin/release/libconnector_service_ffi.dylib \
-		$(GENERATED_OUT)/ 2>/dev/null || echo "  Note: macOS aarch64 binary not found (skipping)"
+		$(GENERATED_OUT)/libconnector_service_ffi-darwin-arm64.dylib 2>/dev/null || echo "  Note: macOS aarch64 binary not found (skipping)"
 	@$(MAKE) -C $(SDK_ROOT) pack-archive
 	@echo "Distribution package created in $(PACKAGE_DIR)/"
 

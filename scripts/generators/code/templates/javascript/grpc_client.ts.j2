@@ -5,6 +5,7 @@ import koffi from "koffi";
 import path from "path";
 // @ts-ignore - generated CommonJS module
 import { types } from "./generated/proto.js";
+import { resolveNativeLibPath } from "./native_lib";
 
 // Standard Node.js __dirname
 declare const __dirname: string;
@@ -43,8 +44,10 @@ interface GrpcFfi {
 
 function loadGrpcFfi(libPath?: string): GrpcFfi {
   if (!libPath) {
-    const ext = process.platform === "darwin" ? "dylib" : "so";
-    libPath = path.join(_dirname, "generated", `libhyperswitch_grpc_ffi.${ext}`);
+    libPath = resolveNativeLibPath(
+      path.join(_dirname, "generated"),
+      "libhyperswitch_grpc_ffi"
+    );
   }
 
   const lib = koffi.load(libPath);
