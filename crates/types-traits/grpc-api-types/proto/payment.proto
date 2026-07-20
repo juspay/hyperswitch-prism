@@ -3034,6 +3034,7 @@ message PaymentServiceCaptureResponse {
 
   // Mandate reference details returned by the connector for future recurring payments.
   optional MandateReferenceDetails mandate_reference_details = 15;
+
   // The connector's reported status (code/message/reason).
   optional RawConnectorStatus raw_connector_status = 17;
 
