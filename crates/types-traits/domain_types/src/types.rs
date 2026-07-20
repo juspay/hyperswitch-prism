@@ -6705,15 +6705,12 @@ impl ForeignTryFrom<grpc_api_types::payments::PaymentMethod> for PaymentMethod {
                 field_name: "payment_method",
                 context: IntegrationErrorContext {
                     suggested_action: Some(
-                        "Use a supported payment method: Card, Wallet, UPI, BankRedirect (Netbanking), or PayLater"
+                        "Provide a supported payment method variant (e.g. Card, Wallet, BankRedirect, BankDebit, PayLater)"
                             .to_owned(),
                     ),
-                    doc_url: Some(
-                        "https://razorpay.com/docs/api/payments/#supported-payment-methods"
-                            .to_owned(),
-                    ),
+                    doc_url: None,
                     additional_context: Some(
-                        "The provided payment method variant is not supported by Razorpay"
+                        "The provided payment method variant is empty or not supported by this flow"
                             .to_owned(),
                     ),
                 },
@@ -15035,9 +15032,14 @@ impl<
             amount: amount.amount,
             currency: Some(amount.currency),
             email,
-            payment_method_type: <Option<PaymentMethodType>>::foreign_try_from(
-                payment_method_clone.unwrap_or_default(),
-            )?,
+            // Post-redirect auth legs (Paysafe's handle re-fetch) carry no card: an absent or
+            // proto-default (empty oneof) payment_method yields `None`, while a populated but
+            // invalid value still fails the conversion.
+            payment_method_type: payment_method_clone
+                .filter(|pm| pm.payment_method.is_some())
+                .map(<Option<PaymentMethodType>>::foreign_try_from)
+                .transpose()?
+                .flatten(),
             continue_redirection_url: value
                 .continue_redirection_url
                 .map(|url_str| {
@@ -15151,9 +15153,14 @@ impl<
             amount: amount.amount,
             email,
             currency: Some(amount.currency),
-            payment_method_type: <Option<PaymentMethodType>>::foreign_try_from(
-                payment_method_clone.unwrap_or_default(),
-            )?,
+            // Post-redirect auth legs (Paysafe's handle re-fetch) carry no card: an absent or
+            // proto-default (empty oneof) payment_method yields `None`, while a populated but
+            // invalid value still fails the conversion.
+            payment_method_type: payment_method_clone
+                .filter(|pm| pm.payment_method.is_some())
+                .map(<Option<PaymentMethodType>>::foreign_try_from)
+                .transpose()?
+                .flatten(),
             router_return_url: return_url
                 .map(|url_str| {
                     url::Url::parse(&url_str).change_context(IntegrationError::InvalidDataFormat {
@@ -15480,9 +15487,17 @@ impl
             payment_id: "IRRELEVANT_PAYMENT_ID".to_string(),
             attempt_id: "IRRELEVANT_ATTEMPT_ID".to_string(),
             status: common_enums::AttemptStatus::Pending,
-            payment_method: PaymentMethod::foreign_try_from(
-                value.payment_method.unwrap_or_default(),
-            )?,
+            // The Authenticate re-fetch carries no payment method, and `PaymentFlowData` has no
+            // way to express that (non-optional field), so an absent or proto-default (empty
+            // oneof) value falls back to `Card`; a populated but invalid value still fails the
+            // conversion. Making this field `Option<PaymentMethod>` is the real fix but touches
+            // every connector, so it is left for a follow-up.
+            payment_method: value
+                .payment_method
+                .filter(|pm| pm.payment_method.is_some())
+                .map(PaymentMethod::foreign_try_from)
+                .transpose()?
+                .unwrap_or(PaymentMethod::Card),
             address,
             auth_type: common_enums::AuthenticationType::ThreeDs, // Auth step uses 3DS
             connector_request_reference_id: extract_connector_request_reference_id(
